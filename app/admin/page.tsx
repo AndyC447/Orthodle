@@ -313,9 +313,7 @@ export default function AdminPage() {
       allSessions.add(visit.session_id)
     }
 
-    for (const guess of (guesses || []) as GuessAnalyticsRow[]) {
-      allSessions.add(guess.session_id)
-
+for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
       const relatedCase = guess.cases
       if (!relatedCase || !guess.case_id) continue
 
