@@ -79,18 +79,11 @@ export function Header() {
 
               <div className="p-2">
                 <Link
-                  href="/play"
+                  href="/"
                   onClick={() => setMenuOpen(false)}
                   className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
                 >
                   Play
-                </Link>
-                <Link
-                  href="/about"
-                  onClick={() => setMenuOpen(false)}
-                  className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
-                >
-                  About
                 </Link>
                 <Link
                   href="/stats"

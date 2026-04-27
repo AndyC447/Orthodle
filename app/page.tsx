@@ -70,7 +70,7 @@ export default function PlayPage() {
 
         void supabase.from('visits').insert({
           session_id: sessionId,
-          path: `/play/${selectedLevel}`,
+          path: `/${selectedLevel}`,
         })
 
         const { data, error } = await supabase
@@ -296,10 +296,6 @@ export default function PlayPage() {
           })}
         </div>
 
-        <p className="mx-auto mt-3 max-w-xl text-[14px] leading-[1.5] text-[#637268]">
-          Three fresh cases every day. Six guesses. Each miss unlocks another
-          clinical finding.
-        </p>
       </section>
 
       <div className="mx-auto grid max-w-5xl items-start gap-4 px-6 py-2 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -582,20 +578,6 @@ export default function PlayPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-dashed border-[#ded7ca] bg-white/70 p-4 text-[12px] leading-5.5 text-[#637268]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-              Tip
-            </p>
-
-            <p className="mt-2.5 font-serif text-[14px] leading-5.5 text-[#102018]">
-              Common abbreviations and synonyms are accepted.
-            </p>
-
-            <p className="mt-2">
-              Write out full names for best match — e.g. “slipped capital femoral
-              epiphysis” or “SCFE.”
-            </p>
-          </div>
         </aside>
       </div>
 

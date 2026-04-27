@@ -12,8 +12,11 @@ create table if not exists cases (
   clue_1 text,
   clue_2 text,
   clue_3 text,
+  teaching_point text,
   created_at timestamptz default now()
 );
+
+alter table cases add column if not exists teaching_point text;
 
 create table if not exists guesses (
   id uuid primary key default uuid_generate_v4(),

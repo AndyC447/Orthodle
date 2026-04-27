@@ -18,6 +18,7 @@ type CaseRow = {
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
+  teaching_point: string | null
 }
 
 type AnalyticsRow = {
@@ -89,6 +90,7 @@ export default function AdminPage() {
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
+  const [teachingPoint, setTeachingPoint] = useState('')
   const [status, setStatus] = useState('')
   const [cases, setCases] = useState<CaseRow[]>([])
   const [analytics, setAnalytics] = useState<AnalyticsRow[]>([])
@@ -185,6 +187,7 @@ export default function AdminPage() {
     setClue1('')
     setClue2('')
     setClue3('')
+    setTeachingPoint('')
     setStatus(`Creating ${formatLevel(nextLevel)} case for ${date}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -200,6 +203,7 @@ export default function AdminPage() {
     setClue1('')
     setClue2('')
     setClue3('')
+    setTeachingPoint('')
     setStatus('')
   }
 
@@ -214,6 +218,7 @@ export default function AdminPage() {
     setClue1(c.clue_1 || '')
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
+    setTeachingPoint(c.teaching_point || '')
     setStatus(`Editing ${c.case_date} · ${c.level}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -442,6 +447,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
         clue_1: clue1 || null,
         clue_2: clue2 || null,
         clue_3: clue3 || null,
+        teaching_point: teachingPoint || null,
       },
       {
         onConflict: 'case_date,level',
@@ -698,6 +704,17 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
                 <input
                   value={clue3}
                   onChange={e => setClue3(e.target.value)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Teaching Point
+                <textarea
+                  value={teachingPoint}
+                  onChange={e => setTeachingPoint(e.target.value)}
+                  placeholder="Add the teaching takeaway shown after the round is complete..."
+                  rows={4}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
               </label>
