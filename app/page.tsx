@@ -177,6 +177,29 @@ export default function PlayPage() {
     ].join('\n')
   }
 
+  async function shareResult() {
+    const shareText = buildShareText()
+    const shareUrl = 'https://orthodle.com'
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Orthodle',
+          text: shareText,
+          url: shareUrl,
+        })
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    await navigator.clipboard.writeText(shareText)
+    setMessage('Result copied.')
+  }
+
   function renderFormattedLine(line: string) {
     const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
 
@@ -537,10 +560,7 @@ export default function PlayPage() {
                 </div>
 
                 <button
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(buildShareText())
-                    setMessage('Result copied.')
-                  }}
+                  onClick={shareResult}
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:scale-[1.02] hover:bg-[#f7f5f0]"
                 >
                   Share result
