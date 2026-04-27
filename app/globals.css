@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f7f4ee;
+  --ink: #102018;
+  --green: #123426;
+  --green-2: #24664b;
+  --muted: #637268;
+  --line: #ded7ca;
+  --card: #fffdf8;
+  --orange: #c96b37;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(16, 32, 24, 0.06);
+}
+
+.font-serif {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.case-paper {
+  background-image:
+    linear-gradient(rgba(222, 215, 202, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(222, 215, 202, 0.22) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
