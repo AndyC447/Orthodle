@@ -1,8 +1,11 @@
+import './globals.css'
+import type { Metadata } from 'next'
+import { Analytics } from '@vercel/analytics/react'
+
 export const metadata: Metadata = {
   title: 'Orthodle – Daily Orthopaedic Diagnosis Game',
   description:
     'Guess the orthopaedic diagnosis from clinical clues. A daily orthopaedic case game for medical students, residents, and attendings.',
-
   keywords: [
     'orthodle',
     'orthopedic cases',
@@ -15,17 +18,26 @@ export const metadata: Metadata = {
     'orthopedic practice questions',
     'orthopedic education',
   ],
-
   openGraph: {
     title: 'Orthodle – Daily Orthopaedic Diagnosis Game',
     description:
       'Daily orthopaedic case game for med students, residents, and attendings.',
-    url: 'https://orthodle.com', // update if custom domain later
+    url: 'https://orthodle.com',
     siteName: 'Orthodle',
     type: 'website',
   },
-
   verification: {
     google: '7nsFxYXgmXDHxuvuObjayAFGult90NKlzKeT-7IORAA',
   },
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        {children}
+        <Analytics />
+      </body>
+    </html>
+  )
 }
