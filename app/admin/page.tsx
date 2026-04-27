@@ -15,10 +15,35 @@ type CaseRow = {
   answer: string
   synonyms: string[] | null
   image_url: string | null
+  image_credit: string | null
+  image_reveal_clue: number | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
+  clue_4: string | null
   teaching_point: string | null
+}
+
+type SubmissionRow = {
+  id: string
+  contributor_name: string | null
+  status: string
+  scheduled_date: string | null
+  published_case_id: string | null
+  level: Level
+  category: string | null
+  prompt: string
+  answer: string
+  synonyms: string[] | null
+  image_url: string | null
+  image_credit: string | null
+  image_reveal_clue: number | null
+  clue_1: string | null
+  clue_2: string | null
+  clue_3: string | null
+  clue_4: string | null
+  teaching_point: string | null
+  created_at: string
 }
 
 type AnalyticsRow = {
@@ -87,9 +112,12 @@ export default function AdminPage() {
   const [answer, setAnswer] = useState('')
   const [synonyms, setSynonyms] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [imageCredit, setImageCredit] = useState('')
+  const [imageRevealClue, setImageRevealClue] = useState('none')
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
+  const [clue4, setClue4] = useState('')
   const [teachingPoint, setTeachingPoint] = useState('')
   const [status, setStatus] = useState('')
   const [cases, setCases] = useState<CaseRow[]>([])
@@ -97,9 +125,12 @@ export default function AdminPage() {
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null)
   const [levelAnalytics, setLevelAnalytics] = useState<LevelAnalytics[]>([])
   const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
+  const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
+  const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
   const [showCasesByDate, setShowCasesByDate] = useState(true)
+  const [showSubmissions, setShowSubmissions] = useState(true)
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -112,6 +143,7 @@ export default function AdminPage() {
 
     loadCases()
     loadAnalytics()
+    loadSubmissions()
   }, [isUnlocked])
 
   const groupedCases = useMemo(() => {
@@ -184,9 +216,12 @@ export default function AdminPage() {
     setAnswer('')
     setSynonyms('')
     setImageUrl('')
+    setImageCredit('')
+    setImageRevealClue('none')
     setClue1('')
     setClue2('')
     setClue3('')
+    setClue4('')
     setTeachingPoint('')
     setStatus(`Creating ${formatLevel(nextLevel)} case for ${date}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -200,10 +235,14 @@ export default function AdminPage() {
     setAnswer('')
     setSynonyms('')
     setImageUrl('')
+    setImageCredit('')
+    setImageRevealClue('none')
     setClue1('')
     setClue2('')
     setClue3('')
+    setClue4('')
     setTeachingPoint('')
+    setActiveSubmissionId(null)
     setStatus('')
   }
 
@@ -215,11 +254,46 @@ export default function AdminPage() {
     setAnswer(c.answer || '')
     setSynonyms((c.synonyms || []).join(', '))
     setImageUrl(c.image_url || '')
+    setImageCredit(c.image_credit || '')
+    setImageRevealClue(
+      c.image_reveal_clue && c.image_reveal_clue >= 1 && c.image_reveal_clue <= 4
+        ? String(c.image_reveal_clue)
+        : 'none'
+    )
     setClue1(c.clue_1 || '')
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
+    setClue4(c.clue_4 || '')
     setTeachingPoint(c.teaching_point || '')
+    setActiveSubmissionId(null)
     setStatus(`Editing ${c.case_date} · ${c.level}`)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function editSubmission(submission: SubmissionRow) {
+    setCaseDate(submission.scheduled_date || today)
+    setLevel(submission.level)
+    setCategory(submission.category || '')
+    setPrompt(submission.prompt || '')
+    setAnswer(submission.answer || '')
+    setSynonyms((submission.synonyms || []).join(', '))
+    setImageUrl(submission.image_url || '')
+    setImageCredit(submission.image_credit || '')
+    setImageRevealClue(
+      submission.image_reveal_clue && submission.image_reveal_clue >= 1 && submission.image_reveal_clue <= 4
+        ? String(submission.image_reveal_clue)
+        : 'none'
+    )
+    setClue1(submission.clue_1 || '')
+    setClue2(submission.clue_2 || '')
+    setClue3(submission.clue_3 || '')
+    setClue4(submission.clue_4 || '')
+    setTeachingPoint(submission.teaching_point || '')
+    setActiveSubmissionId(submission.id)
+    setShowComposer(true)
+    setStatus(
+      `Editing submission from ${submission.contributor_name || 'Anonymous contributor'}`
+    )
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -237,6 +311,43 @@ export default function AdminPage() {
     }
 
     setCases(data || [])
+  }
+
+  async function loadSubmissions() {
+    const { data, error } = await supabase
+      .from('case_submissions')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(40)
+
+    if (error) {
+      setStatus(`Failed to load submissions: ${error.message}`)
+      return
+    }
+
+    setSubmissions((data || []) as SubmissionRow[])
+  }
+
+  async function updateSubmissionStatus(
+    submissionId: string,
+    nextStatus: 'accepted' | 'needs_edits' | 'rejected'
+  ) {
+    const { error } = await supabase
+      .from('case_submissions')
+      .update({ status: nextStatus })
+      .eq('id', submissionId)
+
+    if (error) {
+      setStatus(`Failed to update submission: ${error.message}`)
+      return
+    }
+
+    if (activeSubmissionId === submissionId && nextStatus === 'rejected') {
+      clearForm()
+    }
+
+    setStatus(`Submission marked as ${nextStatus.replace('_', ' ')}.`)
+    await loadSubmissions()
   }
 
   async function loadAnalytics() {
@@ -435,6 +546,9 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
       .map(s => s.trim())
       .filter(Boolean)
 
+    const parsedImageRevealClue =
+      imageUrl && imageRevealClue !== 'none' ? Number(imageRevealClue) : null
+
     const { error } = await supabase.from('cases').upsert(
       {
         case_date: caseDate,
@@ -444,9 +558,12 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
         answer,
         synonyms: synonymArray,
         image_url: imageUrl || null,
+        image_credit: imageCredit || null,
+        image_reveal_clue: parsedImageRevealClue,
         clue_1: clue1 || null,
         clue_2: clue2 || null,
         clue_3: clue3 || null,
+        clue_4: clue4 || null,
         teaching_point: teachingPoint || null,
       },
       {
@@ -460,8 +577,27 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
     }
 
     setStatus(`Case saved for ${caseDate} · ${level}.`)
+    if (activeSubmissionId) {
+      const { data: savedCase } = await supabase
+        .from('cases')
+        .select('id')
+        .eq('case_date', caseDate)
+        .eq('level', level)
+        .maybeSingle()
+
+      await supabase
+        .from('case_submissions')
+        .update({
+          status: 'scheduled',
+          scheduled_date: caseDate,
+          published_case_id: savedCase?.id || null,
+        })
+        .eq('id', activeSubmissionId)
+    }
+
     clearForm()
     await loadCases()
+    await loadSubmissions()
   }
 
   if (!authReady) {
@@ -531,7 +667,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
             </h1>
 
             <p className="mt-1.5 text-sm text-[#637268]">
-              Add cases, upload radiographs, schedule future cases, and track usage.
+              Add cases, review community submissions, schedule future cases, and track usage.
             </p>
           </div>
 
@@ -657,9 +793,34 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
                   className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
                 />
                 <span className="text-xs font-normal text-[#8a948d]">
-                  Upload an x-ray, MRI, clinical photo, or other question image. The image will
-                  show above the prompt on the play page.
+                  Upload an x-ray, MRI, clinical photo, or other question image. You can choose
+                  when it appears as a clue.
                 </span>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Image Reveal
+                <select
+                  value={imageRevealClue}
+                  onChange={e => setImageRevealClue(e.target.value)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                >
+                  <option value="none">Show immediately</option>
+                  <option value="1">Reveal with Clue 1</option>
+                  <option value="2">Reveal with Clue 2</option>
+                  <option value="3">Reveal with Clue 3</option>
+                  <option value="4">Reveal with Clue 4</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Image Credit
+                <input
+                  value={imageCredit}
+                  onChange={e => setImageCredit(e.target.value)}
+                  placeholder="Optional small credit shown under the image"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
               </label>
 
               {imageUrl && (
@@ -672,6 +833,9 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
                   <p className="mt-2 break-all text-xs text-[#637268]">
                     {imageUrl}
                   </p>
+                  {imageCredit && (
+                    <p className="mt-1 text-[11px] text-[#8a948d]">{imageCredit}</p>
+                  )}
                   <button
                     onClick={() => setImageUrl('')}
                     className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
@@ -709,14 +873,32 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Clue 4
+                <input
+                  value={clue4}
+                  onChange={e => setClue4(e.target.value)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Teaching Point
                 <textarea
                   value={teachingPoint}
                   onChange={e => setTeachingPoint(e.target.value)}
-                  placeholder="Add the teaching takeaway shown after the round is complete..."
+                  placeholder={`Who: Obese adolescents (10-16), often bilateral
+Presentation: Limp + hip/groin/knee pain
+Exam: ↓ internal rotation, obligate external rotation
+Imaging: AP + frog-leg lateral; Klein's line abnormal
+Stable vs Unstable: weight-bearing vs not -> unstable = high AVN risk
+Tx: Non-weight bearing + in situ screw fixation (no reduction)
+Pearl: Knee pain in teens -> always check the hip`}
                   rows={4}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
+                <span className="text-xs font-normal text-[#8a948d]">
+                  Line breaks are preserved. Use `**bold**` and `*italics*` for emphasis.
+                </span>
               </label>
 
               <button
@@ -732,6 +914,88 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
           </section>
 
           <aside className="space-y-4">
+            <section className="card rounded-2xl p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-serif text-xl font-bold">Submissions</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowSubmissions(prev => !prev)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                >
+                  {showSubmissions ? 'Hide' : 'Show'}
+                </button>
+              </div>
+
+              {showSubmissions && (
+                <div className="mt-4 space-y-2">
+                  {submissions.length === 0 ? (
+                    <p className="text-sm text-[#637268]">No submissions yet.</p>
+                  ) : (
+                    submissions.map(item => (
+                      <div
+                        key={item.id}
+                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                              {item.status} · {formatLevel(item.level)}
+                            </div>
+                            <div className="mt-1 font-semibold text-[#102018]">
+                              {item.answer}
+                            </div>
+                            <div className="text-sm text-[#637268]">
+                              {item.category || 'Uncategorized'}
+                            </div>
+                            <div className="mt-1 text-xs text-[#8a948d]">
+                              By {item.contributor_name || 'Anonymous'} · {item.created_at.slice(0, 10)}
+                            </div>
+                            {item.scheduled_date && (
+                              <div className="mt-1 text-xs text-[#315f4d]">
+                                Scheduled for {item.scheduled_date}
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => editSubmission(item)}
+                            className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                          >
+                            Review
+                          </button>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => updateSubmissionStatus(item.id, 'accepted')}
+                            className="rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#1f6448] transition hover:bg-[#dff0e7]"
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSubmissionStatus(item.id, 'needs_edits')}
+                            className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#a06a2c] transition hover:bg-[#fff5e4]"
+                          >
+                            Needs edits
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => updateSubmissionStatus(item.id, 'rejected')}
+                            className="rounded-lg border border-[#f0d7c8] bg-[#fff1e8] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#a24d24] transition hover:bg-[#ffe8da]"
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </section>
+
             <section className="card rounded-2xl p-4">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Analytics</h2>

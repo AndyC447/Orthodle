@@ -16,9 +16,12 @@ type Case = {
   answer: string
   synonyms: string[] | null
   image_url: string | null
+  image_credit: string | null
+  image_reveal_clue: number | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
+  clue_4: string | null
   teaching_point?: string | null
 }
 
@@ -117,7 +120,7 @@ export default function PlayPage() {
   const findings = useMemo(() => {
     if (!dailyCase) return []
 
-    return [dailyCase.clue_1, dailyCase.clue_2, dailyCase.clue_3].filter(
+    return [dailyCase.clue_1, dailyCase.clue_2, dailyCase.clue_3, dailyCase.clue_4].filter(
       (item): item is string => Boolean(item && item.trim())
     )
   }, [dailyCase])
@@ -129,6 +132,13 @@ export default function PlayPage() {
     : Math.min(guesses.filter(g => !g.correct).length, findings.length)
 
   const visibleFindings = findings.slice(0, unlockedFindings)
+  const imageRevealStep =
+    dailyCase?.image_url && dailyCase?.image_reveal_clue && dailyCase.image_reveal_clue >= 1
+      ? dailyCase.image_reveal_clue
+      : null
+  const imageRevealed =
+    Boolean(dailyCase?.image_url) &&
+    (roundComplete || imageRevealStep === null || unlockedFindings >= imageRevealStep)
 
   const teachingPoint =
     dailyCase?.teaching_point ||
@@ -150,6 +160,51 @@ export default function PlayPage() {
       setPulseSuccess(true)
       window.setTimeout(() => setPulseSuccess(false), 900)
     })
+  }
+
+  function buildShareText() {
+    const score = gameWon ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`
+    const guessRows = guesses.map(item => (item.correct ? '🟩' : '🟧')).join('')
+    const emptyRows = Array.from({ length: Math.max(0, MAX_GUESSES - guesses.length) })
+      .map(() => '⬜')
+      .join('')
+    const rows = [guessRows, emptyRows].filter(Boolean).join('\n')
+
+    return [
+      `Orthodle ${todayISO()} ${formatLevel(selectedLevel)} ${score}`,
+      rows,
+      'https://orthodle.com',
+    ].join('\n')
+  }
+
+  function renderFormattedLine(line: string) {
+    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
+
+    return parts.map((part, index) => {
+      if (!part) return null
+
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index}>{part.slice(2, -2)}</strong>
+      }
+
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={index}>{part.slice(1, -1)}</em>
+      }
+
+      return <span key={index}>{part}</span>
+    })
+  }
+
+  function renderTeachingPoint(text: string) {
+    return text.split('\n').map((line, index) =>
+      line.trim() ? (
+        <p key={index} className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
+          {renderFormattedLine(line)}
+        </p>
+      ) : (
+        <div key={index} className="h-2.5" />
+      )
+    )
   }
 
   async function submitGuess() {
@@ -326,7 +381,7 @@ export default function PlayPage() {
                     : 'No case available for this level today.'}
               </p>
 
-              {dailyCase?.image_url && (
+              {dailyCase?.image_url && imageRevealed && (
                 imageHidden ? (
                   <div className="mt-4 flex items-center justify-between rounded-xl border border-dashed border-[#d9d4ca] bg-[#fbfaf7] px-3 py-2.5">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -372,6 +427,11 @@ export default function PlayPage() {
                         className="block max-h-[320px] max-w-full bg-white object-contain"
                       />
                     </button>
+                    {dailyCase.image_credit && (
+                      <p className="mt-2 text-[10px] leading-4 text-[#8a948d]">
+                        {dailyCase.image_credit}
+                      </p>
+                    )}
                   </div>
                 )
               )}
@@ -384,7 +444,7 @@ export default function PlayPage() {
 
                   {unlockedFindings > 0 && (
                     <div className="rounded-full border border-[#ded7ca] bg-[#f7f5f0] px-2.5 py-0.5 text-[11px] text-[#637268]">
-                      {unlockedFindings}/{findings.length || 3}
+                      {unlockedFindings}/{findings.length || 4}
                     </div>
                   )}
                 </div>
@@ -407,7 +467,7 @@ export default function PlayPage() {
                   </div>
                 ) : (
                   <p className="mt-2 text-[12.5px] leading-5 text-[#8a948d]">
-                    Incorrect guesses will reveal additional clinical findings.
+                    Incorrect guesses will reveal additional clinical findings and any delayed imaging clues.
                   </p>
                 )}
               </div>
@@ -477,12 +537,8 @@ export default function PlayPage() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `Orthodle ${formatLevel(selectedLevel)}: ${
-                        gameWon ? `${guesses.length}/6` : 'X/6'
-                      }`
-                    )
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(buildShareText())
                     setMessage('Result copied.')
                   }}
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:scale-[1.02] hover:bg-[#f7f5f0]"
@@ -496,9 +552,9 @@ export default function PlayPage() {
                   Teaching point
                 </div>
 
-                <p className="mt-2.5 font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
-                  {teachingPoint}
-                </p>
+                <div className="mt-2.5 space-y-1">
+                  {renderTeachingPoint(teachingPoint)}
+                </div>
 
                 {findings.length > 0 && (
                   <>
@@ -585,7 +641,7 @@ export default function PlayPage() {
         Orthodle — for education &amp; entertainment. Not medical advice.
       </footer>
 
-      {dailyCase?.image_url && imageExpanded && (
+      {dailyCase?.image_url && imageRevealed && imageExpanded && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8">
           <div className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
@@ -612,6 +668,11 @@ export default function PlayPage() {
                 alt="Expanded case image"
                 className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain"
               />
+              {dailyCase.image_credit && (
+                <p className="mt-3 text-center text-[10px] leading-4 text-[#8a948d]">
+                  {dailyCase.image_credit}
+                </p>
+              )}
             </div>
           </div>
         </div>

@@ -93,6 +93,13 @@ export function Header() {
                   Stats
                 </Link>
                 <Link
+                  href="/submit"
+                  onClick={() => setMenuOpen(false)}
+                  className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
+                >
+                  Submit Case
+                </Link>
+                <Link
                   href="/admin"
                   onClick={() => setMenuOpen(false)}
                   className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
