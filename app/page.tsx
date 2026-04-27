@@ -38,6 +38,15 @@ const levels = [
   { key: 'attending' as Level, label: 'Attending', subtitle: 'Zebras & Nuance' },
 ]
 
+const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
+  id: index,
+  left: 6 + index * 5.1,
+  delay: (index % 6) * 0.08,
+  duration: 2.4 + (index % 5) * 0.18,
+  rotation: -24 + (index % 7) * 9,
+  color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
+}))
+
 export default function PlayPage() {
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
@@ -49,6 +58,7 @@ export default function PlayPage() {
   const [gameOver, setGameOver] = useState(false)
   const [shakeInput, setShakeInput] = useState(false)
   const [pulseSuccess, setPulseSuccess] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
   const [imageHidden, setImageHidden] = useState(false)
 
@@ -65,6 +75,7 @@ export default function PlayPage() {
       setMessage('')
       setShakeInput(false)
       setPulseSuccess(false)
+      setShowConfetti(false)
       setImageExpanded(false)
       setImageHidden(false)
 
@@ -162,6 +173,14 @@ export default function PlayPage() {
     })
   }
 
+  function triggerConfetti() {
+    setShowConfetti(false)
+    requestAnimationFrame(() => {
+      setShowConfetti(true)
+      window.setTimeout(() => setShowConfetti(false), 2600)
+    })
+  }
+
   function buildShareText() {
     const score = gameWon ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`
     const guessRows = guesses.map(item => (item.correct ? '🟩' : '🟧')).join('')
@@ -256,6 +275,7 @@ export default function PlayPage() {
         }.`
       )
       triggerSuccessPulse()
+      triggerConfetti()
       return
     }
 
@@ -322,6 +342,20 @@ export default function PlayPage() {
           }
         }
 
+        @keyframes orthodle-confetti-fall {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, -24px, 0) rotate(0deg) scale(0.9);
+          }
+          10% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(0, 92vh, 0) rotate(540deg) scale(1);
+          }
+        }
+
         .orthodle-shake {
           animation: orthodle-shake 0.42s ease-in-out;
         }
@@ -333,7 +367,37 @@ export default function PlayPage() {
         .orthodle-success-pulse {
           animation: orthodle-success-pulse 0.85s ease-out;
         }
+
+        .orthodle-confetti-piece {
+          position: absolute;
+          top: 0;
+          width: 10px;
+          height: 18px;
+          border-radius: 999px;
+          animation-name: orthodle-confetti-fall;
+          animation-timing-function: ease-out;
+          animation-fill-mode: forwards;
+          will-change: transform, opacity;
+        }
       `}</style>
+
+      {showConfetti && (
+        <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+          {confettiPieces.map(piece => (
+            <span
+              key={piece.id}
+              className="orthodle-confetti-piece"
+              style={{
+                left: `${piece.left}%`,
+                backgroundColor: piece.color,
+                animationDelay: `${piece.delay}s`,
+                animationDuration: `${piece.duration}s`,
+                transform: `rotate(${piece.rotation}deg)`,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <section className="mx-auto max-w-5xl px-6 pt-6 pb-1 text-center">
         <h1 className="font-serif text-[42px] font-bold leading-[1.04] tracking-[-0.03em] text-[#102018] md:text-[46px]">
