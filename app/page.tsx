@@ -11,6 +11,7 @@ type Case = {
   id: string
   case_date: string
   level: Level
+  contributor_name?: string | null
   category: string
   prompt: string
   answer: string
@@ -30,7 +31,15 @@ type Guess = {
   correct: boolean
 }
 
+type CommunityCaseStats = {
+  solveRate: number | null
+  averageGuessesPerPlayer: number | null
+  averageGuessesToSolve: number | null
+  firstTrySolveRate: number | null
+}
+
 const MAX_GUESSES = 6
+const LAUNCH_DATE = '2026-04-27'
 
 const levels = [
   { key: 'med_student' as Level, label: 'Med Student', subtitle: 'Foundations' },
@@ -50,6 +59,7 @@ const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
 export default function PlayPage() {
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
+  const [selectedDate, setSelectedDate] = useState(todayISO())
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
   const [guesses, setGuesses] = useState<Guess[]>([])
@@ -62,6 +72,7 @@ export default function PlayPage() {
   const [showConfetti, setShowConfetti] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
   const [imageHidden, setImageHidden] = useState(false)
+  const [communityStats, setCommunityStats] = useState<CommunityCaseStats | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -79,31 +90,93 @@ export default function PlayPage() {
       setShowConfetti(false)
       setImageExpanded(false)
       setImageHidden(false)
+      setCommunityStats(null)
 
       try {
         const sessionId = getSessionId()
 
         void supabase.from('visits').insert({
           session_id: sessionId,
-          path: `/${selectedLevel}`,
+          path: `/${selectedLevel}/${selectedDate}`,
         })
 
         const { data, error } = await supabase
           .from('cases')
           .select('*')
-          .eq('case_date', todayISO())
+          .eq('case_date', selectedDate)
           .eq('level', selectedLevel)
           .maybeSingle()
 
         if (cancelled) return
 
         if (error || !data) {
-          setMessage(`No ${formatLevel(selectedLevel)} case has been published for today yet.`)
+          setMessage(`No ${formatLevel(selectedLevel)} case is available for ${formatArchiveDate(selectedDate)}.`)
           setDailyCase(null)
           return
         }
 
         setDailyCase(data)
+
+        const [{ data: visitRows }, { data: guessRows }] = await Promise.all([
+          supabase.from('visits').select('session_id').eq('path', `/${selectedLevel}/${selectedDate}`),
+          supabase
+            .from('guesses')
+            .select('session_id, is_correct, created_at')
+            .eq('case_id', data.id)
+            .order('created_at', { ascending: true }),
+        ])
+
+        if (cancelled) return
+
+        const players = new Set<string>([
+          ...(visitRows || []).map(item => item.session_id),
+          ...(guessRows || []).map(item => item.session_id),
+        ])
+
+        const guessesBySession = new Map<
+          string,
+          Array<{ is_correct: boolean; created_at: string }>
+        >()
+
+        for (const guessRow of guessRows || []) {
+          const existing = guessesBySession.get(guessRow.session_id)
+          const item = {
+            is_correct: Boolean(guessRow.is_correct),
+            created_at: guessRow.created_at,
+          }
+
+          if (existing) {
+            existing.push(item)
+          } else {
+            guessesBySession.set(guessRow.session_id, [item])
+          }
+        }
+
+        let solvedPlayers = 0
+        let firstTrySolves = 0
+        let totalGuessesBeforeSolve = 0
+
+        for (const sessionGuesses of guessesBySession.values()) {
+          const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
+          if (solvedIndex === -1) continue
+
+          solvedPlayers += 1
+          totalGuessesBeforeSolve += solvedIndex + 1
+
+          if (solvedIndex === 0) {
+            firstTrySolves += 1
+          }
+        }
+
+        setCommunityStats({
+          solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
+          averageGuessesPerPlayer:
+            players.size > 0 ? (guessRows || []).length / players.size : null,
+          averageGuessesToSolve:
+            solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
+          firstTrySolveRate:
+            solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
+        })
       } catch {
         if (cancelled) return
 
@@ -121,12 +194,31 @@ export default function PlayPage() {
     return () => {
       cancelled = true
     }
-  }, [selectedLevel])
+  }, [selectedLevel, selectedDate])
 
   function formatLevel(level: Level) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
     return 'Attending'
+  }
+
+  function formatArchiveDate(dateText: string) {
+    return new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
+  function shiftSelectedDate(direction: -1 | 1) {
+    const baseDate = new Date(`${selectedDate}T12:00:00`)
+    baseDate.setDate(baseDate.getDate() + direction)
+    const nextDate = baseDate.toISOString().slice(0, 10)
+
+    if (nextDate < LAUNCH_DATE) return
+    if (nextDate > todayISO()) return
+
+    setSelectedDate(nextDate)
   }
 
   const findings = useMemo(() => {
@@ -186,14 +278,11 @@ export default function PlayPage() {
   function buildShareText() {
     const score = gameWon ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`
     const rows = guesses.map(item => (item.correct ? '🟩' : '🟧')).join('\n')
-    const prettyDate = new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
+    const prettyDate = formatArchiveDate(dailyCase?.case_date || selectedDate)
+    const archiveLabel = (dailyCase?.case_date || selectedDate) === todayISO() ? '' : ' Archive'
 
     return [
-      `Orthodle ${formatLevel(selectedLevel)} ${score}`,
+      `Orthodle${archiveLabel} ${formatLevel(selectedLevel)} ${score}`,
       prettyDate,
       rows,
       'https://orthodle.com',
@@ -313,6 +402,7 @@ export default function PlayPage() {
     recordGameResult({
       caseDate: dailyCase.case_date,
       level: dailyCase.level,
+      isArchive: dailyCase.case_date !== todayISO(),
       won: gameWon,
       guessesUsed: guesses.length,
       answer: dailyCase.answer,
@@ -396,6 +486,18 @@ export default function PlayPage() {
           animation-fill-mode: forwards;
           will-change: transform, opacity;
         }
+
+        .orthodle-date-input {
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          cursor: pointer;
+        }
+
+        .orthodle-date-input::-webkit-calendar-picker-indicator {
+          opacity: 0;
+          cursor: pointer;
+        }
       `}</style>
 
       {showConfetti && (
@@ -454,14 +556,15 @@ export default function PlayPage() {
             )
           })}
         </div>
+
       </section>
 
-      <div className="mx-auto grid max-w-5xl items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="mx-auto grid max-w-[980px] items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
         <section className="space-y-4">
           <div className="overflow-hidden rounded-2xl border border-[#ded7ca] bg-white shadow-sm">
             <div className="h-1.5 bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
-            <div className="p-3.5 sm:p-4">
+            <div className="p-3.5 sm:px-3.5 sm:py-4">
               <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
                 <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#637268]">
                   <span className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
@@ -472,11 +575,7 @@ export default function PlayPage() {
                 </div>
               </div>
 
-              <h2 className="font-serif text-[22px] font-bold leading-tight tracking-[-0.025em] text-[#102018] sm:text-[26px]">
-                What&apos;s the diagnosis?
-              </h2>
-
-              <p className="mt-2 font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:mt-2.5 sm:text-[17px]">
+              <p className="mt-1 font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:mt-2.5 sm:text-[17px]">
                 {loading
                   ? 'Loading...'
                   : dailyCase
@@ -648,33 +747,59 @@ export default function PlayPage() {
               </div>
 
               <div className="mt-4 rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-4">
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                  Teaching point
+                {dailyCase.contributor_name && (
+                  <div className="mb-3 inline-flex rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
+                    Contributed by {dailyCase.contributor_name}
+                  </div>
+                )}
+
+                <div className="rounded-lg border border-dashed border-[#cfded4] bg-[#fcfffd] px-3 py-2.5">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                    Quick takeaway
+                  </div>
+                  <div className="mt-1.5 space-y-1">
+                    {renderTeachingPoint(teachingPoint)}
+                  </div>
                 </div>
 
-                <div className="mt-2.5 space-y-1">
-                  {renderTeachingPoint(teachingPoint)}
-                </div>
-
-                {findings.length > 0 && (
+                {communityStats && (
                   <>
                     <div className="my-4 border-t border-dashed border-[#cfded4]" />
 
                     <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                      All findings
+                      Community stats
                     </div>
 
-                    <ul className="mt-2.5 space-y-2">
-                      {findings.map((finding, index) => (
-                        <li
-                          key={index}
-                          className="flex gap-3 font-serif text-[14px] leading-5.5 tracking-[-0.01em]"
-                        >
-                          <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
-                          <span>{finding}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
+                        Solve rate:{' '}
+                        <span className="font-semibold text-[#102018]">
+                          {communityStats.solveRate !== null
+                            ? `${Math.round(communityStats.solveRate)}%`
+                            : '—'}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
+                        Avg guesses:{' '}
+                        <span className="font-semibold text-[#102018]">
+                          {communityStats.averageGuessesPerPlayer?.toFixed(1) ?? '—'}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
+                        Avg to solve:{' '}
+                        <span className="font-semibold text-[#102018]">
+                          {communityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
+                        First-try solves:{' '}
+                        <span className="font-semibold text-[#102018]">
+                          {communityStats.firstTrySolveRate !== null
+                            ? `${Math.round(communityStats.firstTrySolveRate)}%`
+                            : '—'}
+                        </span>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -682,7 +807,7 @@ export default function PlayPage() {
           )}
         </section>
 
-        <aside className="space-y-4">
+        <aside className="space-y-3">
           <div className="rounded-2xl border border-[#ded7ca] bg-white p-3 shadow-sm sm:hidden">
             <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
@@ -719,11 +844,8 @@ export default function PlayPage() {
           </div>
 
           <div className="hidden rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:block">
-            <div className="mb-3 flex justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
-              <span>Your guesses</span>
-              <span className="font-semibold text-[#637268]">
-                {guesses.length}/{MAX_GUESSES}
-              </span>
+            <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
+              Your guesses
             </div>
 
             <div className="space-y-1.5">
@@ -769,8 +891,91 @@ export default function PlayPage() {
             </div>
           </div>
 
+          <div className="hidden rounded-2xl border border-[#ded7ca] bg-white p-3.5 shadow-sm sm:block">
+            <div className="mb-2.5 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
+              Case date
+            </div>
+
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(-1)}
+                disabled={selectedDate === LAUNCH_DATE}
+                className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Prev
+              </button>
+
+              <div className="relative min-w-0 text-center">
+                <div className="w-full rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-2 py-2 text-center text-[12px] font-semibold leading-4.5 text-[#102018]">
+                  {formatArchiveDate(selectedDate)}
+                </div>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  min={LAUNCH_DATE}
+                  max={todayISO()}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="orthodle-date-input"
+                  aria-label="Select case date"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => shiftSelectedDate(1)}
+                disabled={selectedDate === todayISO()}
+                className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+
         </aside>
       </div>
+
+      <section className="mx-auto mt-4 max-w-lg px-4 sm:hidden">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 rounded-2xl border border-[#ded7ca] bg-white px-2 py-2 shadow-sm">
+          <button
+            type="button"
+            onClick={() => shiftSelectedDate(-1)}
+            disabled={selectedDate === LAUNCH_DATE}
+            className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Prev
+          </button>
+
+          <div className="relative min-w-0 px-1 text-center">
+            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+              Case date
+            </div>
+            <div>
+              <div className="w-full rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-2 py-2 text-center text-[12px] font-semibold text-[#102018]">
+                {formatArchiveDate(selectedDate)}
+              </div>
+            </div>
+            <input
+              type="date"
+              value={selectedDate}
+              min={LAUNCH_DATE}
+              max={todayISO()}
+              onChange={e => setSelectedDate(e.target.value)}
+              className="orthodle-date-input"
+              aria-label="Select case date"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => shiftSelectedDate(1)}
+            disabled={selectedDate === todayISO()}
+            className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      </section>
 
       <footer className="mx-auto mt-8 max-w-4xl border-t border-[#ded7ca] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
         Orthodle — for education &amp; entertainment. Not medical advice.
@@ -794,7 +999,7 @@ export default function PlayPage() {
                 onKeyDown={e => e.key === 'Enter' && submitGuess()}
                 placeholder={!dailyCase ? 'No case available' : 'Type your diagnosis...'}
                 disabled={mobileInputDisabled}
-                className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3.5 py-3 text-[14px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3.5 py-3 text-[16px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
               />
               <button
                 onClick={submitGuess}

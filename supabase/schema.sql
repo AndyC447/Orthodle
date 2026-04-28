@@ -4,6 +4,7 @@ create table if not exists cases (
   id uuid primary key default uuid_generate_v4(),
   case_date date not null,
   level text not null default 'med_student',
+  contributor_name text,
   category text,
   prompt text not null,
   answer text not null,
@@ -19,6 +20,7 @@ create table if not exists cases (
   created_at timestamptz default now()
 );
 
+alter table cases add column if not exists contributor_name text;
 alter table cases add column if not exists image_credit text;
 alter table cases add column if not exists image_reveal_clue integer;
 alter table cases add column if not exists clue_4 text;

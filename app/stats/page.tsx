@@ -126,6 +126,15 @@ export default function StatsPage() {
                   {statsSnapshot?.longestStreak || 0}
                 </div>
               </div>
+
+              <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5 xl:col-span-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                  Archive plays
+                </div>
+                <div className="mt-2.5 font-serif text-[25px] font-bold text-[#102018]">
+                  {statsSnapshot?.archiveGamesPlayed || 0}
+                </div>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_250px]">
@@ -255,6 +264,103 @@ export default function StatsPage() {
                   Finish a daily case and your stats board will start filling in here automatically.
                 </p>
               )}
+            </div>
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <div className="rounded-2xl border border-[#ded7ca] bg-white p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+                  By difficulty
+                </div>
+
+                <div className="mt-3 space-y-2.5">
+                  {(statsSnapshot?.byLevel || []).map(level => (
+                    <div
+                      key={level.level}
+                      className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="font-serif text-[18px] font-bold text-[#102018]">
+                          {getStatsLevelLabel(level.level)}
+                        </div>
+                        <div className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#637268]">
+                          {level.played} played
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                            Win rate
+                          </div>
+                          <div className="mt-1 font-serif text-[16px] font-bold text-[#102018]">
+                            {level.played > 0 ? `${Math.round(level.winRate)}%` : '—'}
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                            Avg guesses
+                          </div>
+                          <div className="mt-1 font-serif text-[16px] font-bold text-[#102018]">
+                            {formatAverage(level.averageGuesses)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
+                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                            Solved
+                          </div>
+                          <div className="mt-1 font-serif text-[16px] font-bold text-[#102018]">
+                            {level.wins}/{level.played}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#ded7ca] bg-white p-4">
+                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+                  By category
+                </div>
+
+                {statsSnapshot && statsSnapshot.byCategory.length > 0 ? (
+                  <div className="mt-3 space-y-2.5">
+                    {statsSnapshot.byCategory.map(category => (
+                      <div
+                        key={category.category}
+                        className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="font-serif text-[18px] font-bold text-[#102018]">
+                            {category.category}
+                          </div>
+                          <div className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#637268]">
+                            {category.played} played
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2 text-[12px] text-[#637268]">
+                          <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
+                            {Math.round(category.winRate)}% win rate
+                          </div>
+                          <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
+                            Avg {formatAverage(category.averageGuesses)} guesses
+                          </div>
+                          <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
+                            {category.wins}/{category.played} solved
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm leading-6 text-[#637268]">
+                    Play a few more rounds and your category trends will show up here.
+                  </p>
+                )}
+              </div>
             </div>
           </div>
         </div>

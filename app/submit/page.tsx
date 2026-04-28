@@ -1,10 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
 
 type Level = 'med_student' | 'resident' | 'attending'
+type SubmissionStatus = 'pending' | 'accepted' | 'needs_edits' | 'rejected' | 'scheduled'
+type SubmissionLookup = {
+  id: string
+  contributor_name: string | null
+  status: SubmissionStatus
+  scheduled_date: string | null
+  level: Level
+  category: string | null
+  created_at: string
+}
+
+const SUBMISSION_LOOKUP_KEY = 'orthodle_last_submission_code'
 
 export default function SubmitCasePage() {
   const [contributorName, setContributorName] = useState('')
@@ -23,6 +35,17 @@ export default function SubmitCasePage() {
   const [teachingPoint, setTeachingPoint] = useState('')
   const [status, setStatus] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [lookupCode, setLookupCode] = useState('')
+  const [lookupStatus, setLookupStatus] = useState('')
+  const [lookupResult, setLookupResult] = useState<SubmissionLookup | null>(null)
+
+  useEffect(() => {
+    const savedCode = window.localStorage.getItem(SUBMISSION_LOOKUP_KEY)
+    if (!savedCode) return
+
+    setLookupCode(savedCode)
+    void checkSubmissionStatus(savedCode)
+  }, [])
 
   async function uploadImage(file: File) {
     setStatus('Uploading image...')
@@ -59,6 +82,67 @@ export default function SubmitCasePage() {
     setTeachingPoint('')
   }
 
+  function formatStatusLabel(value: SubmissionStatus) {
+    if (value === 'needs_edits') return 'Needs edits'
+    if (value === 'accepted') return 'Accepted'
+    if (value === 'rejected') return 'Not selected'
+    if (value === 'scheduled') return 'Scheduled'
+    return 'Pending review'
+  }
+
+  function formatStatusDetail(submission: SubmissionLookup) {
+    if (submission.status === 'scheduled' && submission.scheduled_date) {
+      return `Scheduled for ${new Date(`${submission.scheduled_date}T12:00:00`).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`
+    }
+
+    if (submission.status === 'accepted') {
+      return 'This case has been accepted into the review pipeline.'
+    }
+
+    if (submission.status === 'needs_edits') {
+      return 'This case has promise and may need a few revisions before scheduling.'
+    }
+
+    if (submission.status === 'rejected') {
+      return 'This submission will not be scheduled right now.'
+    }
+
+    return 'Your case is waiting in the review queue.'
+  }
+
+  async function checkSubmissionStatus(codeOverride?: string) {
+    const trimmedCode = (codeOverride || lookupCode).trim()
+
+    if (!trimmedCode) {
+      setLookupStatus('Enter your submission code to check its status.')
+      setLookupResult(null)
+      return
+    }
+
+    setLookupStatus('Checking status...')
+
+    const { data, error } = await supabase
+      .from('case_submissions')
+      .select('id, contributor_name, status, scheduled_date, level, category, created_at')
+      .eq('id', trimmedCode)
+      .maybeSingle()
+
+    if (error || !data) {
+      setLookupStatus('No submission was found with that code yet.')
+      setLookupResult(null)
+      return
+    }
+
+    setLookupResult(data as SubmissionLookup)
+    setLookupStatus('')
+    setLookupCode(data.id)
+    window.localStorage.setItem(SUBMISSION_LOOKUP_KEY, data.id)
+  }
+
   async function submitCase() {
     if (!category || !prompt || !answer) {
       setStatus('Please fill out the level, category, case prompt, and answer.')
@@ -76,7 +160,9 @@ export default function SubmitCasePage() {
     const parsedImageRevealClue =
       imageUrl && imageRevealClue !== 'none' ? Number(imageRevealClue) : null
 
-    const { error } = await supabase.from('case_submissions').insert({
+    const { data, error } = await supabase
+      .from('case_submissions')
+      .insert({
       contributor_name: contributorName || null,
       level,
       category,
@@ -91,7 +177,9 @@ export default function SubmitCasePage() {
       clue_3: clue3 || null,
       clue_4: clue4 || null,
       teaching_point: teachingPoint || null,
-    })
+      })
+      .select('id, contributor_name, status, scheduled_date, level, category, created_at')
+      .single()
 
     setSubmitting(false)
 
@@ -101,6 +189,16 @@ export default function SubmitCasePage() {
     }
 
     clearForm()
+
+    if (data) {
+      window.localStorage.setItem(SUBMISSION_LOOKUP_KEY, data.id)
+      setLookupCode(data.id)
+      setLookupResult(data as SubmissionLookup)
+      setLookupStatus('')
+      setStatus(`Thanks — your case was submitted for review. Your code is ${data.id}.`)
+      return
+    }
+
     setStatus('Thanks — your case was submitted for review.')
   }
 
@@ -297,6 +395,68 @@ export default function SubmitCasePage() {
 
             {status && <p className="text-sm text-[#637268]">{status}</p>}
           </div>
+        </section>
+
+        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-5 shadow-sm">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+            Submission status
+          </div>
+          <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
+            Check your case
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
+            After you submit, keep your code handy so you can check whether your case is still pending, accepted, needs edits, or scheduled.
+          </p>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <input
+              value={lookupCode}
+              onChange={e => setLookupCode(e.target.value)}
+              placeholder="Paste your submission code"
+              className="flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+            />
+            <button
+              type="button"
+              onClick={() => checkSubmissionStatus()}
+              className="rounded-lg bg-[#1f6448] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+            >
+              Check status
+            </button>
+          </div>
+
+          {lookupStatus && <p className="mt-3 text-sm text-[#637268]">{lookupStatus}</p>}
+
+          {lookupResult && (
+            <div className="mt-4 rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+                    {lookupResult.contributor_name || 'Anonymous contributor'}
+                  </div>
+                  <div className="mt-1 font-serif text-[22px] font-bold text-[#102018]">
+                    {formatStatusLabel(lookupResult.status)}
+                  </div>
+                </div>
+
+                <div className="rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
+                  {(lookupResult.category || 'Case submission').trim()} ·{' '}
+                  {lookupResult.level === 'med_student'
+                    ? 'Med Student'
+                    : lookupResult.level === 'resident'
+                      ? 'Resident'
+                      : 'Attending'}
+                </div>
+              </div>
+
+              <p className="mt-3 text-sm leading-6 text-[#637268]">
+                {formatStatusDetail(lookupResult)}
+              </p>
+
+              <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-[#8a948d]">
+                Code: {lookupResult.id}
+              </p>
+            </div>
+          )}
         </section>
       </div>
     </main>

@@ -30,6 +30,7 @@ export type StoredGameResult = {
   key: string
   caseDate: string
   level: StatsLevel
+  isArchive: boolean
   won: boolean
   guessesUsed: number
   answer: string
@@ -39,6 +40,7 @@ export type StoredGameResult = {
 
 export type StatsSummary = {
   gamesPlayed: number
+  archiveGamesPlayed: number
   wins: number
   losses: number
   winRate: number
@@ -74,6 +76,20 @@ export type StatsSummary = {
       answer: string
       category: string
     }>
+  }>
+  byLevel: Array<{
+    level: StatsLevel
+    played: number
+    wins: number
+    winRate: number
+    averageGuesses: number | null
+  }>
+  byCategory: Array<{
+    category: string
+    played: number
+    wins: number
+    winRate: number
+    averageGuesses: number | null
   }>
 }
 
@@ -121,7 +137,7 @@ export function getStatsLevelLabel(level: StatsLevel) {
 
 export function recordGameResult(result: Omit<StoredGameResult, 'key' | 'completedAt'>) {
   const results = getStoredResults()
-  const key = `${result.caseDate}:${result.level}`
+  const key = `${result.caseDate}:${result.level}:${result.isArchive ? 'archive' : 'daily'}`
   const existing = results.find(entry => entry.key === key)
 
   const nextEntry: StoredGameResult = {
@@ -146,7 +162,9 @@ export function recordGameResult(result: Omit<StoredGameResult, 'key' | 'complet
 
 export function getStatsSummary(): StatsSummary {
   const results = getStoredResults()
-  const wins = results.filter(result => result.won)
+  const dailyResults = results.filter(result => !result.isArchive)
+  const archiveResults = results.filter(result => result.isArchive)
+  const wins = dailyResults.filter(result => result.won)
   const guessDistribution: Record<number, number> = {
     1: 0,
     2: 0,
@@ -179,9 +197,56 @@ export function getStatsSummary(): StatsSummary {
       }>
     }
   >()
+  const byLevel = new Map<
+    StatsLevel,
+    {
+      level: StatsLevel
+      played: number
+      wins: number
+      totalGuesses: number
+    }
+  >()
+  const byCategory = new Map<
+    string,
+    {
+      category: string
+      played: number
+      wins: number
+      totalGuesses: number
+    }
+  >()
 
-  for (const result of results) {
+  for (const result of dailyResults) {
     const existing = byDay.get(result.caseDate)
+    const levelEntry = byLevel.get(result.level)
+    const categoryKey = result.category || 'Uncategorized'
+    const categoryEntry = byCategory.get(categoryKey)
+
+    if (levelEntry) {
+      levelEntry.played += 1
+      levelEntry.wins += result.won ? 1 : 0
+      levelEntry.totalGuesses += result.guessesUsed
+    } else {
+      byLevel.set(result.level, {
+        level: result.level,
+        played: 1,
+        wins: result.won ? 1 : 0,
+        totalGuesses: result.guessesUsed,
+      })
+    }
+
+    if (categoryEntry) {
+      categoryEntry.played += 1
+      categoryEntry.wins += result.won ? 1 : 0
+      categoryEntry.totalGuesses += result.guessesUsed
+    } else {
+      byCategory.set(categoryKey, {
+        category: categoryKey,
+        played: 1,
+        wins: result.won ? 1 : 0,
+        totalGuesses: result.guessesUsed,
+      })
+    }
 
     if (existing) {
       existing.played += 1
@@ -281,11 +346,14 @@ export function getStatsSummary(): StatsSummary {
       levels: [],
     }
 
+  const levelOrder: StatsLevel[] = ['med_student', 'resident', 'attending']
+
   return {
-    gamesPlayed: results.length,
+    gamesPlayed: dailyResults.length,
+    archiveGamesPlayed: archiveResults.length,
     wins: wins.length,
-    losses: results.length - wins.length,
-    winRate: results.length > 0 ? (wins.length / results.length) * 100 : 0,
+    losses: dailyResults.length - wins.length,
+    winRate: dailyResults.length > 0 ? (wins.length / dailyResults.length) * 100 : 0,
     currentStreak,
     longestStreak,
     averageGuessesInWins:
@@ -298,5 +366,30 @@ export function getStatsSummary(): StatsSummary {
       levelsSolved: today.wins,
     },
     recentDays: recentDays.slice(0, 10),
+    byLevel: levelOrder.map(level => {
+      const item = byLevel.get(level)
+
+      return {
+        level,
+        played: item?.played || 0,
+        wins: item?.wins || 0,
+        winRate: item && item.played > 0 ? (item.wins / item.played) * 100 : 0,
+        averageGuesses:
+          item && item.played > 0 ? item.totalGuesses / item.played : null,
+      }
+    }),
+    byCategory: Array.from(byCategory.values())
+      .map(item => ({
+        category: item.category,
+        played: item.played,
+        wins: item.wins,
+        winRate: item.played > 0 ? (item.wins / item.played) * 100 : 0,
+        averageGuesses: item.played > 0 ? item.totalGuesses / item.played : null,
+      }))
+      .sort((a, b) => {
+        if (b.played !== a.played) return b.played - a.played
+        return a.category.localeCompare(b.category)
+      })
+      .slice(0, 6),
   }
 }

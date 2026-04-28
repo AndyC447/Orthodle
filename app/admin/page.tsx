@@ -10,6 +10,7 @@ type CaseRow = {
   id: string
   case_date: string
   level: Level
+  contributor_name: string | null
   category: string
   prompt: string
   answer: string
@@ -107,6 +108,7 @@ export default function AdminPage() {
   const [authReady, setAuthReady] = useState(false)
   const [caseDate, setCaseDate] = useState(today)
   const [level, setLevel] = useState<Level>('med_student')
+  const [contributorName, setContributorName] = useState('')
   const [category, setCategory] = useState('')
   const [prompt, setPrompt] = useState('')
   const [answer, setAnswer] = useState('')
@@ -166,6 +168,17 @@ export default function AdminPage() {
     }))
   }, [cases])
 
+  const incompleteDates = useMemo(
+    () =>
+      groupedCases
+        .filter(group => group.items.length < 3)
+        .map(group => ({
+          date: group.date,
+          ready: group.items.length,
+        })),
+    [groupedCases]
+  )
+
   function formatLevel(levelValue: Level) {
     if (levelValue === 'med_student') return 'Med Student'
     if (levelValue === 'resident') return 'Resident'
@@ -211,6 +224,7 @@ export default function AdminPage() {
   function startCaseFor(date: string, nextLevel: Level) {
     setCaseDate(date)
     setLevel(nextLevel)
+    setContributorName('')
     setCategory('')
     setPrompt('')
     setAnswer('')
@@ -230,6 +244,7 @@ export default function AdminPage() {
   function clearForm() {
     setCaseDate(today)
     setLevel('med_student')
+    setContributorName('')
     setCategory('')
     setPrompt('')
     setAnswer('')
@@ -249,6 +264,7 @@ export default function AdminPage() {
   function editCase(c: CaseRow) {
     setCaseDate(c.case_date)
     setLevel(c.level)
+    setContributorName(c.contributor_name || '')
     setCategory(c.category || '')
     setPrompt(c.prompt || '')
     setAnswer(c.answer || '')
@@ -273,6 +289,7 @@ export default function AdminPage() {
   function editSubmission(submission: SubmissionRow) {
     setCaseDate(submission.scheduled_date || today)
     setLevel(submission.level)
+    setContributorName(submission.contributor_name || '')
     setCategory(submission.category || '')
     setPrompt(submission.prompt || '')
     setAnswer(submission.answer || '')
@@ -553,6 +570,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
       {
         case_date: caseDate,
         level,
+        contributor_name: contributorName || null,
         category,
         prompt,
         answer,
@@ -669,6 +687,11 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
             <p className="mt-1.5 text-sm text-[#637268]">
               Add cases, review community submissions, schedule future cases, and track usage.
             </p>
+            {incompleteDates.length > 0 && (
+              <div className="mt-3 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm text-[#8a5a2b]">
+                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/3)`).join(', ')}
+              </div>
+            )}
           </div>
 
           <button
@@ -728,6 +751,16 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
                   <option value="resident">Resident</option>
                   <option value="attending">Attending</option>
                 </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Contributor Credit
+                <input
+                  value={contributorName}
+                  onChange={e => setContributorName(e.target.value)}
+                  placeholder="Optional contributor name shown after solving"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
