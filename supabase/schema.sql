@@ -16,6 +16,8 @@ create table if not exists cases (
   clue_2 text,
   clue_3 text,
   clue_4 text,
+  clue_5 text,
+  clue_6 text,
   teaching_point text,
   created_at timestamptz default now()
 );
@@ -24,6 +26,8 @@ alter table cases add column if not exists contributor_name text;
 alter table cases add column if not exists image_credit text;
 alter table cases add column if not exists image_reveal_clue integer;
 alter table cases add column if not exists clue_4 text;
+alter table cases add column if not exists clue_5 text;
+alter table cases add column if not exists clue_6 text;
 alter table cases add column if not exists teaching_point text;
 
 create table if not exists guesses (
@@ -60,6 +64,8 @@ create table if not exists case_submissions (
   clue_2 text,
   clue_3 text,
   clue_4 text,
+  clue_5 text,
+  clue_6 text,
   teaching_point text,
   created_at timestamptz default now()
 );

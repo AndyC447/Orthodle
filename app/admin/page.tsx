@@ -22,6 +22,8 @@ type CaseRow = {
   clue_2: string | null
   clue_3: string | null
   clue_4: string | null
+  clue_5: string | null
+  clue_6: string | null
   teaching_point: string | null
 }
 
@@ -43,6 +45,8 @@ type SubmissionRow = {
   clue_2: string | null
   clue_3: string | null
   clue_4: string | null
+  clue_5: string | null
+  clue_6: string | null
   teaching_point: string | null
   created_at: string
 }
@@ -120,6 +124,8 @@ export default function AdminPage() {
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
   const [clue4, setClue4] = useState('')
+  const [clue5, setClue5] = useState('')
+  const [clue6, setClue6] = useState('')
   const [teachingPoint, setTeachingPoint] = useState('')
   const [status, setStatus] = useState('')
   const [cases, setCases] = useState<CaseRow[]>([])
@@ -204,6 +210,26 @@ export default function AdminPage() {
     })
   }
 
+  function formatFullDate(dateText: string) {
+    const date = new Date(`${dateText}T12:00:00`)
+    const day = date.getDate()
+    const suffix =
+      day >= 11 && day <= 13
+        ? 'th'
+        : day % 10 === 1
+          ? 'st'
+          : day % 10 === 2
+            ? 'nd'
+            : day % 10 === 3
+              ? 'rd'
+              : 'th'
+
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    }).replace(',', ` ${day}${suffix},`)
+  }
+
   async function unlockAdmin() {
     setAuthError('')
 
@@ -251,6 +277,8 @@ export default function AdminPage() {
     setClue2('')
     setClue3('')
     setClue4('')
+    setClue5('')
+    setClue6('')
     setTeachingPoint('')
     setStatus(`Creating ${formatLevel(nextLevel)} case for ${date}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -295,6 +323,8 @@ export default function AdminPage() {
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
     setClue4(c.clue_4 || '')
+    setClue5(c.clue_5 || '')
+    setClue6(c.clue_6 || '')
     setTeachingPoint(c.teaching_point || '')
     setActiveSubmissionId(null)
     setStatus(`Editing ${c.case_date} · ${c.level}`)
@@ -320,6 +350,8 @@ export default function AdminPage() {
     setClue2(submission.clue_2 || '')
     setClue3(submission.clue_3 || '')
     setClue4(submission.clue_4 || '')
+    setClue5(submission.clue_5 || '')
+    setClue6(submission.clue_6 || '')
     setTeachingPoint(submission.teaching_point || '')
     setActiveSubmissionId(submission.id)
     setShowComposer(true)
@@ -438,6 +470,9 @@ export default function AdminPage() {
 
       byDate[date].guesses += 1
       if (guess.is_correct) byDate[date].correct_guesses += 1
+
+      if (!sessionsByDate[date]) sessionsByDate[date] = new Set()
+      sessionsByDate[date].add(guess.session_id)
     }
 
     for (const date of Object.keys(byDate)) {
@@ -461,7 +496,8 @@ export default function AdminPage() {
       allSessions.add(visit.session_id)
     }
 
-for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
+    for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
+      allSessions.add(guess.session_id)
       const relatedCase = guess.cases
       if (!relatedCase || !guess.case_id) continue
 
@@ -597,6 +633,8 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
         clue_2: clue2 || null,
         clue_3: clue3 || null,
         clue_4: clue4 || null,
+        clue_5: clue5 || null,
+        clue_6: clue6 || null,
         teaching_point: teachingPoint || null,
       },
       {
@@ -704,7 +742,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
             </p>
             {incompleteDates.length > 0 && (
               <div className="mt-3 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm text-[#8a5a2b]">
-                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/3)`).join(', ')}
+                Missing cases on {incompleteDates.map(item => `${formatFullDate(item.date)} (${item.ready}/3)`).join(', ')}
               </div>
             )}
           </div>
@@ -932,6 +970,26 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Clue 5
+                <input
+                  value={clue5}
+                  onChange={e => setClue5(e.target.value)}
+                  placeholder="Optional"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Clue 6
+                <input
+                  value={clue6}
+                  onChange={e => setClue6(e.target.value)}
+                  placeholder="Optional"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Teaching Point
                 <textarea
                   value={teachingPoint}
@@ -998,11 +1056,11 @@ Pearl: Knee pain in teens -> always check the hip`}
                               {item.category || 'Uncategorized'}
                             </div>
                             <div className="mt-1 text-xs text-[#8a948d]">
-                              By {item.contributor_name || 'Anonymous'} · {item.created_at.slice(0, 10)}
+                              By {item.contributor_name || 'Anonymous'} · {formatFullDate(item.created_at.slice(0, 10))}
                             </div>
                             {item.scheduled_date && (
                               <div className="mt-1 text-xs text-[#315f4d]">
-                                Scheduled for {item.scheduled_date}
+                                Scheduled for {formatFullDate(item.scheduled_date)}
                               </div>
                             )}
                           </div>
@@ -1311,7 +1369,7 @@ Pearl: Knee pain in teens -> always check the hip`}
                   visibleCaseGroups.map(group => (
                     <div key={group.date} className="rounded-lg border border-[#ded7ca] bg-white/70 p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="font-semibold text-[#102018]">{group.date}</div>
+                        <div className="font-semibold text-[#102018]">{formatFullDate(group.date)}</div>
                         <div className="text-xs uppercase tracking-[0.2em] text-[#637268]">
                           {group.items.length}/3 ready
                         </div>

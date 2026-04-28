@@ -33,6 +33,8 @@ type Case = {
   clue_2: string | null
   clue_3: string | null
   clue_4: string | null
+  clue_5: string | null
+  clue_6: string | null
   teaching_point?: string | null
 }
 
@@ -313,7 +315,14 @@ function PlayPageContent() {
   const findings = useMemo(() => {
     if (!dailyCase) return []
 
-    return [dailyCase.clue_1, dailyCase.clue_2, dailyCase.clue_3, dailyCase.clue_4].filter(
+    return [
+      dailyCase.clue_1,
+      dailyCase.clue_2,
+      dailyCase.clue_3,
+      dailyCase.clue_4,
+      dailyCase.clue_5,
+      dailyCase.clue_6,
+    ].filter(
       (item): item is string => Boolean(item && item.trim())
     )
   }, [dailyCase])
@@ -430,6 +439,18 @@ function PlayPageContent() {
         </p>
       ) : (
         <div key={index} className="h-2.5" />
+      )
+    )
+  }
+
+  function renderCasePrompt(text: string) {
+    return text.split('\n').map((line, index) =>
+      line.trim() ? (
+        <p key={index} className="font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
+          {line}
+        </p>
+      ) : (
+        <div key={index} className="h-4" />
       )
     )
   }
@@ -759,7 +780,7 @@ const todayComplete = todayCompletedLevels === 3
       <div className="mx-auto grid max-w-[980px] items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
         <section className="space-y-4">
           <div className="overflow-visible rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="h-1.5 bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
+            <div className="mx-px mt-px h-1.5 rounded-t-[15px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
             <div className="p-3.5 sm:px-3.5 sm:py-4">
               <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
@@ -768,13 +789,21 @@ const todayComplete = todayCompletedLevels === 3
                 </div>
               </div>
 
-              <p className="mt-1 font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:mt-2.5 sm:text-[17px]">
-                {loading
-                  ? 'Loading...'
-                  : dailyCase
-                    ? dailyCase.prompt
-                    : 'No case available for this level today.'}
-              </p>
+              <div className="mt-1 sm:mt-2.5">
+                {loading ? (
+                  <p className="font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
+                    Loading...
+                  </p>
+                ) : dailyCase ? (
+                  <div className="space-y-0">
+                    {renderCasePrompt(dailyCase.prompt)}
+                  </div>
+                ) : (
+                  <p className="font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
+                    No case available for this level today.
+                  </p>
+                )}
+              </div>
 
               {dailyCase?.image_url && imageRevealed && (
                 imageHidden ? (
@@ -839,7 +868,7 @@ const todayComplete = todayCompletedLevels === 3
 
                   {unlockedFindings > 0 && (
                     <div className="rounded-full border border-[#ded7ca] bg-[#f7f5f0] px-2.5 py-0.5 text-[11px] text-[#637268]">
-                      {unlockedFindings}/{findings.length || 4}
+                      {unlockedFindings}/{findings.length || 6}
                     </div>
                   )}
                 </div>
@@ -884,7 +913,7 @@ const todayComplete = todayCompletedLevels === 3
                           ? 'No case available'
                           : gameWon || gameOver
                             ? 'Round complete'
-                            : 'Start typing to narrow the diagnosis...'
+                            : 'Type to narrow the diagnosis'
                       }
                       disabled={!dailyCase || gameWon || gameOver}
                       className="flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
@@ -1225,7 +1254,7 @@ const todayComplete = todayCompletedLevels === 3
                   onFocus={() => setShowSuggestions(true)}
                   onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
                   onKeyDown={e => e.key === 'Enter' && submitGuess()}
-                  placeholder={!dailyCase ? 'No case available' : 'Start typing to narrow the diagnosis...'}
+                  placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                   disabled={mobileInputDisabled}
                   className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3.5 py-3 text-[16px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
                 />

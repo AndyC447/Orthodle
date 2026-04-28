@@ -32,6 +32,8 @@ export default function SubmitCasePage() {
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
   const [clue4, setClue4] = useState('')
+  const [clue5, setClue5] = useState('')
+  const [clue6, setClue6] = useState('')
   const [teachingPoint, setTeachingPoint] = useState('')
   const [status, setStatus] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -79,6 +81,8 @@ export default function SubmitCasePage() {
     setClue2('')
     setClue3('')
     setClue4('')
+    setClue5('')
+    setClue6('')
     setTeachingPoint('')
   }
 
@@ -176,6 +180,8 @@ export default function SubmitCasePage() {
       clue_2: clue2 || null,
       clue_3: clue3 || null,
       clue_4: clue4 || null,
+      clue_5: clue5 || null,
+      clue_6: clue6 || null,
       teaching_point: teachingPoint || null,
       })
       .select('id, contributor_name, status, scheduled_date, level, category, created_at')
@@ -209,14 +215,13 @@ export default function SubmitCasePage() {
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         <div className="text-center">
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-            Community Cases
+            Case Submission
           </div>
           <h1 className="mt-3 font-serif text-[32px] font-bold leading-tight text-[#102018] sm:text-4xl">
             Submit your own case
           </h1>
           <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
-            Share a case idea for Orthodle. You can include imaging, clues, a teaching point,
-            and your name for credit if your case is used later.
+            Share a case idea with clues, imaging, and an optional credit name.
           </p>
         </div>
 
@@ -366,6 +371,26 @@ export default function SubmitCasePage() {
               <input
                 value={clue4}
                 onChange={e => setClue4(e.target.value)}
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Clue 5
+              <input
+                value={clue5}
+                onChange={e => setClue5(e.target.value)}
+                placeholder="Optional"
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Clue 6
+              <input
+                value={clue6}
+                onChange={e => setClue6(e.target.value)}
+                placeholder="Optional"
                 className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
               />
             </label>
