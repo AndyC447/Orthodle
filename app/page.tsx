@@ -132,15 +132,25 @@ function PlayPageContent() {
     let cancelled = false
 
     async function loadAnswerOptions() {
-      const { data } = await supabase
-        .from('cases')
-        .select('answer')
-        .range(0, 1999)
+      const [{ data: caseAnswers }, { data: customChoices }] = await Promise.all([
+        supabase
+          .from('cases')
+          .select('answer')
+          .range(0, 1999),
+        supabase
+          .from('diagnosis_choices')
+          .select('label')
+          .order('label', { ascending: true }),
+      ])
       if (cancelled) return
 
       const uniqueAnswers = Array.from(
         new Map(
-          [...ORTHO_DIAGNOSIS_BANK, ...((data || []).map(item => item.answer?.trim()).filter(Boolean) as string[])]
+          [
+            ...ORTHO_DIAGNOSIS_BANK,
+            ...((caseAnswers || []).map(item => item.answer?.trim()).filter(Boolean) as string[]),
+            ...((customChoices || []).map(item => item.label?.trim()).filter(Boolean) as string[]),
+          ]
             .filter(Boolean)
             .map(answer => [normalizeAnswer(answer as string), answer as string])
         ).values()

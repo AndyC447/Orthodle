@@ -87,6 +87,12 @@ create table if not exists email_reminders (
 create unique index if not exists email_reminders_email_idx
 on email_reminders (email);
 
+create table if not exists diagnosis_choices (
+  id uuid primary key default uuid_generate_v4(),
+  label text not null unique,
+  created_at timestamptz default now()
+);
+
 create or replace view daily_analytics as
 select
   c.case_date,
@@ -104,6 +110,7 @@ alter table guesses enable row level security;
 alter table visits enable row level security;
 alter table case_submissions enable row level security;
 alter table email_reminders enable row level security;
+alter table diagnosis_choices enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);
@@ -114,6 +121,10 @@ create policy "public insert visits" on visits for insert with check (true);
 create policy "public read case submissions" on case_submissions for select using (true);
 create policy "public insert case submissions" on case_submissions for insert with check (true);
 create policy "public update case submissions" on case_submissions for update using (true) with check (true);
+create policy "public read diagnosis choices" on diagnosis_choices for select using (true);
+create policy "public insert diagnosis choices" on diagnosis_choices for insert with check (true);
+create policy "public update diagnosis choices" on diagnosis_choices for update using (true) with check (true);
+create policy "public delete diagnosis choices" on diagnosis_choices for delete using (true);
 
 insert into cases (case_date, level, category, prompt, answer, synonyms, clue_1, clue_2)
 values (

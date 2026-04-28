@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
 
@@ -1441,6 +1442,22 @@ Pearl: Knee pain in teens -> always check the hip`}
                   )}
                 </div>
               )}
+            </section>
+
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-serif text-xl font-bold">Answer Choices</h2>
+                <Link
+                  href="/admin/answer-choices"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                >
+                  Open sheet
+                </Link>
+              </div>
+
+              <p className="mt-2 text-sm text-[#637268]">
+                Manage custom diagnosis choices on a dedicated page with spreadsheet-style editing and batch add.
+              </p>
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
