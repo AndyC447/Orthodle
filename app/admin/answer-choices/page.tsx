@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
+import { normalizeAnswer, ORTHO_DIAGNOSIS_BANK } from '@/lib/utils'
 
 type DiagnosisChoiceRow = {
   id: string
@@ -11,10 +12,26 @@ type DiagnosisChoiceRow = {
   created_at: string
 }
 
+type CaseAnswerRow = {
+  id: string
+  answer: string
+}
+
+type UnifiedChoiceRow = {
+  key: string
+  label: string
+  normalized: string
+  source: 'built_in' | 'case' | 'custom'
+  editable: boolean
+  removable: boolean
+  id?: string
+}
+
 export default function AdminAnswerChoicesPage() {
   const [authReady, setAuthReady] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [choices, setChoices] = useState<DiagnosisChoiceRow[]>([])
+  const [caseAnswers, setCaseAnswers] = useState<CaseAnswerRow[]>([])
   const [newChoice, setNewChoice] = useState('')
   const [batchChoices, setBatchChoices] = useState('')
   const [status, setStatus] = useState('')
@@ -28,6 +45,7 @@ export default function AdminAnswerChoicesPage() {
   useEffect(() => {
     if (!isUnlocked) return
     void loadChoices()
+    void loadCaseAnswers()
   }, [isUnlocked])
 
   async function loadChoices() {
@@ -44,10 +62,94 @@ export default function AdminAnswerChoicesPage() {
     setChoices((data || []) as DiagnosisChoiceRow[])
   }
 
+  async function loadCaseAnswers() {
+    const { data, error } = await supabase
+      .from('cases')
+      .select('id, answer')
+      .order('answer', { ascending: true })
+
+    if (error) {
+      setStatus(`Could not load case answers: ${error.message}`)
+      return
+    }
+
+    setCaseAnswers(((data || []).filter(item => item.answer?.trim())) as CaseAnswerRow[])
+  }
+
+  const allChoiceRows = useMemo(() => {
+    const byNormalized = new Map<string, UnifiedChoiceRow>()
+
+    for (const label of ORTHO_DIAGNOSIS_BANK) {
+      const normalized = normalizeAnswer(label)
+      if (!normalized || byNormalized.has(normalized)) continue
+      byNormalized.set(normalized, {
+        key: `built-in-${normalized}`,
+        label,
+        normalized,
+        source: 'built_in',
+        editable: false,
+        removable: false,
+      })
+    }
+
+    for (const item of caseAnswers) {
+      const label = item.answer.trim()
+      const normalized = normalizeAnswer(label)
+      if (!normalized || byNormalized.has(normalized)) continue
+      byNormalized.set(normalized, {
+        key: `case-${item.id}`,
+        label,
+        normalized,
+        source: 'case',
+        editable: false,
+        removable: false,
+      })
+    }
+
+    for (const item of choices) {
+      const label = item.label.trim()
+      const normalized = normalizeAnswer(label)
+      if (!normalized) continue
+
+      const existing = byNormalized.get(normalized)
+      if (existing) {
+        if (existing.source !== 'custom') continue
+      }
+
+      byNormalized.set(normalized, {
+        key: `custom-${item.id}`,
+        id: item.id,
+        label,
+        normalized,
+        source: 'custom',
+        editable: true,
+        removable: true,
+      })
+    }
+
+    return Array.from(byNormalized.values()).sort((a, b) => a.label.localeCompare(b.label))
+  }, [caseAnswers, choices])
+
+  const normalizedLabels = useMemo(
+    () => new Set(allChoiceRows.map(item => item.normalized)),
+    [allChoiceRows]
+  )
+
+  function sourceLabel(source: UnifiedChoiceRow['source']) {
+    if (source === 'built_in') return 'Built-in'
+    if (source === 'case') return 'Case answer'
+    return 'Custom'
+  }
+
   async function addSingleChoice() {
     const label = newChoice.trim()
     if (!label) {
       setStatus('Enter an answer choice to add.')
+      return
+    }
+
+    if (normalizedLabels.has(normalizeAnswer(label))) {
+      setStatus('That answer choice already exists in the master list.')
       return
     }
 
@@ -78,9 +180,17 @@ export default function AdminAnswerChoicesPage() {
       return
     }
 
+    const uniqueLabels = labels.filter(label => !normalizedLabels.has(normalizeAnswer(label)))
+    const skippedCount = labels.length - uniqueLabels.length
+
+    if (uniqueLabels.length === 0) {
+      setStatus('All pasted answer choices already exist in the master list.')
+      return
+    }
+
     const { error } = await supabase
       .from('diagnosis_choices')
-      .insert(labels.map(label => ({ label })))
+      .insert(uniqueLabels.map(label => ({ label })))
 
     if (error) {
       setStatus(`Could not add batch choices: ${error.message}`)
@@ -88,7 +198,9 @@ export default function AdminAnswerChoicesPage() {
     }
 
     setBatchChoices('')
-    setStatus(`${labels.length} answer choice${labels.length === 1 ? '' : 's'} added.`)
+    setStatus(
+      `${uniqueLabels.length} answer choice${uniqueLabels.length === 1 ? '' : 's'} added${skippedCount > 0 ? `, ${skippedCount} skipped as duplicates` : ''}.`
+    )
     await loadChoices()
   }
 
@@ -96,6 +208,13 @@ export default function AdminAnswerChoicesPage() {
     const trimmedLabel = label.trim()
     if (!trimmedLabel) {
       setStatus('Answer choices cannot be blank.')
+      return
+    }
+
+    const normalized = normalizeAnswer(trimmedLabel)
+    const existing = allChoiceRows.find(item => item.normalized === normalized && item.id !== id)
+    if (existing) {
+      setStatus(`That answer choice already exists as a ${sourceLabel(existing.source).toLowerCase()}.`)
       return
     }
 
@@ -174,7 +293,7 @@ export default function AdminAnswerChoicesPage() {
               Answer Choices
             </h1>
             <p className="mt-1.5 text-sm text-[#637268]">
-              Manage custom diagnosis choices in one place.
+              View the full answer universe and manage custom diagnosis choices in one place.
             </p>
           </div>
 
@@ -240,7 +359,7 @@ Chondrosarcoma`}
               </div>
 
               {status && (
-                <p className="text-sm text-[#637268]">{status}</p>
+              <p className="text-sm text-[#637268]">{status}</p>
               )}
             </div>
           </section>
@@ -248,59 +367,77 @@ Chondrosarcoma`}
           <section className="rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-3">
               <h2 className="font-serif text-xl font-bold text-[#102018]">
-                Custom choice sheet
+                All possible answers
               </h2>
               <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                {choices.length} rows
+                {allChoiceRows.length} total
               </div>
             </div>
 
             <div className="mt-4 overflow-hidden rounded-xl border border-[#e7e1d6]">
-              <div className="grid grid-cols-[minmax(0,1fr)_92px_100px] border-b border-[#e7e1d6] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              <div className="grid grid-cols-[minmax(0,1fr)_110px_92px_100px] border-b border-[#e7e1d6] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                 <div>Diagnosis</div>
+                <div className="text-center">Source</div>
                 <div className="text-center">Save</div>
                 <div className="text-center">Remove</div>
               </div>
 
               <div className="max-h-[620px] overflow-y-auto">
-                {choices.length === 0 ? (
+                {allChoiceRows.length === 0 ? (
                   <div className="px-3 py-4 text-sm text-[#637268]">
-                    No custom answer choices yet.
+                    No answer choices found yet.
                   </div>
                 ) : (
-                  choices.map(item => (
+                  allChoiceRows.map(item => (
                     <div
-                      key={item.id}
-                      className="grid grid-cols-[minmax(0,1fr)_92px_100px] items-center gap-2 border-b border-[#f1ece2] px-3 py-2.5 last:border-b-0"
+                      key={item.key}
+                      className="grid grid-cols-[minmax(0,1fr)_110px_92px_100px] items-center gap-2 border-b border-[#f1ece2] px-3 py-2.5 last:border-b-0"
                     >
-                      <input
-                        type="text"
-                        value={item.label}
-                        onChange={e =>
-                          setChoices(prev =>
-                            prev.map(choice =>
-                              choice.id === item.id
-                                ? { ...choice, label: e.target.value }
-                                : choice
+                      {item.editable ? (
+                        <input
+                          type="text"
+                          value={item.label}
+                          onChange={e =>
+                            setChoices(prev =>
+                              prev.map(choice =>
+                                choice.id === item.id
+                                  ? { ...choice, label: e.target.value }
+                                  : choice
+                              )
                             )
-                          )
-                        }
-                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => updateChoice(item.id, item.label)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeChoice(item.id)}
-                        className="rounded-lg border border-[#f0d7c8] bg-[#fff1e8] px-3 py-2 text-sm font-semibold text-[#a24d24] transition hover:bg-[#ffe8da]"
-                      >
-                        Remove
-                      </button>
+                          }
+                          className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                        />
+                      ) : (
+                        <div className="rounded-lg border border-[#ebe5db] bg-[#fbfaf7] px-3 py-2 text-sm text-[#102018]">
+                          {item.label}
+                        </div>
+                      )}
+                      <div className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                        {sourceLabel(item.source)}
+                      </div>
+                      {item.editable ? (
+                        <button
+                          type="button"
+                          onClick={() => updateChoice(item.id!, item.label)}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                        >
+                          Save
+                        </button>
+                      ) : (
+                        <div className="text-center text-[11px] text-[#9aa39c]">—</div>
+                      )}
+                      {item.removable ? (
+                        <button
+                          type="button"
+                          onClick={() => removeChoice(item.id!)}
+                          className="rounded-lg border border-[#f0d7c8] bg-[#fff1e8] px-3 py-2 text-sm font-semibold text-[#a24d24] transition hover:bg-[#ffe8da]"
+                        >
+                          Remove
+                        </button>
+                      ) : (
+                        <div className="text-center text-[11px] text-[#9aa39c]">—</div>
+                      )}
                     </div>
                   ))
                 )}
