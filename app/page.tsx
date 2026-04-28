@@ -1,5 +1,5 @@
 'use client'
-
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Header } from '@/components/Header'
@@ -64,7 +64,7 @@ const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
   color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
 }))
 
-export default function PlayPage() {
+function PlayPageContent() {
   const searchParams = useSearchParams()
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
@@ -1183,5 +1183,12 @@ export default function PlayPage() {
         </div>
       )}
     </main>
+  )
+}
+export default function PlayPage() {
+  return (
+    <Suspense fallback={null}>
+      <PlayPageContent />
+    </Suspense>
   )
 }
