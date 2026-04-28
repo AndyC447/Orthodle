@@ -116,6 +116,8 @@ function shiftISODate(dateText: string, days: number) {
   return baseDate.toISOString().slice(0, 10)
 }
 
+const ANALYTICS_PAGE_SIZE = 1000
+
 export default function AdminPage() {
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
@@ -441,28 +443,57 @@ export default function AdminPage() {
   }
 
   async function loadAnalytics() {
-    const { data: visits, error: visitsError } = await supabase
-      .from('visits')
-      .select('session_id, created_at')
+    const visitPages: Array<{ session_id: string; created_at: string }> = []
+    let visitOffset = 0
 
-    if (visitsError) {
-      setStatus(`Failed to load visits: ${visitsError.message}`)
-      return
+    while (true) {
+      const { data, error } = await supabase
+        .from('visits')
+        .select('session_id, created_at')
+        .range(visitOffset, visitOffset + ANALYTICS_PAGE_SIZE - 1)
+
+      if (error) {
+        setStatus(`Failed to load visits: ${error.message}`)
+        return
+      }
+
+      if (!data || data.length === 0) break
+
+      visitPages.push(...data)
+
+      if (data.length < ANALYTICS_PAGE_SIZE) break
+      visitOffset += ANALYTICS_PAGE_SIZE
     }
 
-    const { data: guesses, error: guessesError } = await supabase
-      .from('guesses')
-      .select('session_id, is_correct, created_at, case_id, cases(level, case_date, answer, category)')
+    const guessPages: GuessAnalyticsRow[] = []
+    let guessOffset = 0
 
-    if (guessesError) {
-      setStatus(`Failed to load guesses: ${guessesError.message}`)
-      return
+    while (true) {
+      const { data, error } = await supabase
+        .from('guesses')
+        .select('session_id, is_correct, created_at, case_id, cases(level, case_date, answer, category)')
+        .range(guessOffset, guessOffset + ANALYTICS_PAGE_SIZE - 1)
+
+      if (error) {
+        setStatus(`Failed to load guesses: ${error.message}`)
+        return
+      }
+
+      if (!data || data.length === 0) break
+
+      guessPages.push(...(data as unknown as GuessAnalyticsRow[]))
+
+      if (data.length < ANALYTICS_PAGE_SIZE) break
+      guessOffset += ANALYTICS_PAGE_SIZE
     }
+
+    const visits = visitPages
+    const guesses = guessPages
 
     const byDate: Record<string, AnalyticsRow> = {}
     const sessionsByDate: Record<string, Set<string>> = {}
 
-    for (const visit of visits || []) {
+    for (const visit of visits) {
       const date = visit.created_at.slice(0, 10)
 
       if (!byDate[date]) {
@@ -481,7 +512,7 @@ export default function AdminPage() {
       sessionsByDate[date].add(visit.session_id)
     }
 
-    for (const guess of guesses || []) {
+    for (const guess of guesses) {
       const date = guess.created_at.slice(0, 10)
 
       if (!byDate[date]) {
@@ -518,11 +549,11 @@ export default function AdminPage() {
     }
     const caseTotals = new Map<string, CasePerformance & { playerSessions: Set<string> }>()
 
-    for (const visit of visits || []) {
+    for (const visit of visits) {
       allSessions.add(visit.session_id)
     }
 
-    for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
+    for (const guess of guesses) {
       allSessions.add(guess.session_id)
       const relatedCase = guess.cases
       if (!relatedCase || !guess.case_id) continue
@@ -556,9 +587,9 @@ export default function AdminPage() {
       levelTotals[levelValue].users = levelSessions[levelValue].size
     }
 
-    const totalVisits = (visits || []).length
-    const totalGuesses = (guesses || []).length
-    const totalCorrectGuesses = (guesses || []).filter(guess => guess.is_correct).length
+    const totalVisits = visits.length
+    const totalGuesses = guesses.length
+    const totalCorrectGuesses = guesses.filter(guess => guess.is_correct).length
     const todayRow = byDate[today] || {
       date: today,
       visits: 0,
