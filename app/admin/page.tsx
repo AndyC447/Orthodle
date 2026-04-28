@@ -182,6 +182,16 @@ export default function AdminPage() {
 
   const quickBrowseDates = groupedCases.slice(0, 8).map(group => group.date)
 
+  const todaysCases = useMemo(
+    () => groupedCases.find(group => group.date === today)?.items || [],
+    [groupedCases]
+  )
+
+  const previewClues = useMemo(
+    () => [clue1, clue2, clue3, clue4, clue5, clue6].map(item => item.trim()).filter(Boolean),
+    [clue1, clue2, clue3, clue4, clue5, clue6]
+  )
+
   const incompleteDates = useMemo(
     () =>
       groupedCases
@@ -210,24 +220,16 @@ export default function AdminPage() {
     })
   }
 
-  function formatFullDate(dateText: string) {
-    const date = new Date(`${dateText}T12:00:00`)
-    const day = date.getDate()
-    const suffix =
-      day >= 11 && day <= 13
-        ? 'th'
-        : day % 10 === 1
-          ? 'st'
-          : day % 10 === 2
-            ? 'nd'
-            : day % 10 === 3
-              ? 'rd'
-              : 'th'
+  function formatPreviewTeachingPoint(text: string) {
+    return text
+      .split(/\n+/)
+      .map(line => line.trim())
+      .filter(Boolean)
+  }
 
-    return date.toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    }).replace(',', ` ${day}${suffix},`)
+  function nextMissingLevelForDate(dateText: string): Level | null {
+    const items = groupedCases.find(group => group.date === dateText)?.items || []
+    return levelOrder.find(levelValue => !items.some(item => item.level === levelValue)) || null
   }
 
   async function unlockAdmin() {
@@ -742,7 +744,7 @@ export default function AdminPage() {
             </p>
             {incompleteDates.length > 0 && (
               <div className="mt-3 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm text-[#8a5a2b]">
-                Missing cases on {incompleteDates.map(item => `${formatFullDate(item.date)} (${item.ready}/3)`).join(', ')}
+                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/3)`).join(', ')}
               </div>
             )}
           </div>
@@ -755,6 +757,73 @@ export default function AdminPage() {
             Lock
           </button>
         </div>
+
+        <section className="mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                Today overview
+              </div>
+              <p className="mt-1 text-sm text-[#637268]">
+                Quick read on whether today’s card is fully scheduled.
+              </p>
+            </div>
+
+            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              {todaysCases.length}/3 ready
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2.5 md:grid-cols-3">
+            {levelOrder.map(levelValue => {
+              const item = todaysCases.find(entry => entry.level === levelValue)
+              const nextMissing = nextMissingLevelForDate(today)
+
+              return (
+                <div
+                  key={levelValue}
+                  className={
+                    item
+                      ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
+                      : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
+                  }
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                        {formatLevel(levelValue)}
+                      </div>
+                      <div className="mt-1.5 font-semibold text-[#102018]">
+                        {item ? item.answer : 'Not scheduled'}
+                      </div>
+                      <div className="mt-1 text-sm text-[#637268]">
+                        {item ? item.category : 'Open slot'}
+                      </div>
+                    </div>
+
+                    {item ? (
+                      <button
+                        type="button"
+                        onClick={() => editCase(item)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                      >
+                        Edit
+                      </button>
+                    ) : nextMissing === levelValue ? (
+                      <button
+                        type="button"
+                        onClick={() => startCaseFor(today, levelValue)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                      >
+                        Add
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
 
         <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
           <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
@@ -1017,6 +1086,109 @@ Pearl: Knee pain in teens -> always check the hip`}
               </button>
 
               {status && <p className="text-sm text-[#637268]">{status}</p>}
+
+              <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                      Preview
+                    </div>
+                    <p className="mt-1 text-[12px] text-[#637268]">
+                      A quick read on how this case will appear to players.
+                    </p>
+                  </div>
+                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    {caseDate} · {formatLevel(level)}
+                  </div>
+                </div>
+
+                <div className="mt-3 overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white">
+                  <div className="mx-px mt-px h-1.5 rounded-t-[15px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
+
+                  <div className="p-4">
+                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                      <span className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1">
+                        {category || 'Category'}
+                      </span>
+                      {contributorName && (
+                        <span className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1">
+                          {contributorName}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 space-y-3">
+                      <div className="font-serif text-[20px] font-bold leading-tight text-[#102018]">
+                        {answer || 'Diagnosis preview'}
+                      </div>
+
+                      <div className="font-serif text-[16px] leading-7 text-[#102018]">
+                        {prompt || 'Your case prompt will show up here.'}
+                      </div>
+
+                      {imageUrl && (
+                        <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                          <img
+                            src={imageUrl}
+                            alt="Case preview"
+                            className="max-h-56 rounded-lg object-contain"
+                          />
+                          {imageCredit && (
+                            <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit}</p>
+                          )}
+                          <p className="mt-1 text-[11px] text-[#637268]">
+                            {imageRevealClue === 'none'
+                              ? 'Image shows immediately.'
+                              : `Image reveals with clue ${imageRevealClue}.`}
+                          </p>
+                        </div>
+                      )}
+
+                      <div className="rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                          Clinical findings
+                        </div>
+                        {previewClues.length > 0 ? (
+                          <ul className="mt-2 space-y-2">
+                            {previewClues.map((clue, index) => (
+                              <li
+                                key={`${clue}-${index}`}
+                                className="text-sm leading-6 text-[#102018]"
+                              >
+                                <span className="mr-2 text-[#637268]">{index + 1}.</span>
+                                {clue}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-2 text-sm text-[#8a948d]">
+                            Add clues to preview the reveal sequence.
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                          Quick takeaway
+                        </div>
+                        {teachingPoint.trim() ? (
+                          <div className="mt-2 space-y-2">
+                            {formatPreviewTeachingPoint(teachingPoint).map((line, index) => (
+                              <p key={`${line}-${index}`} className="text-sm leading-6 text-[#102018]">
+                                {line}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-sm text-[#8a948d]">
+                            Add a short takeaway to show after the solve.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             )}
           </section>
@@ -1056,11 +1228,11 @@ Pearl: Knee pain in teens -> always check the hip`}
                               {item.category || 'Uncategorized'}
                             </div>
                             <div className="mt-1 text-xs text-[#8a948d]">
-                              By {item.contributor_name || 'Anonymous'} · {formatFullDate(item.created_at.slice(0, 10))}
+                              By {item.contributor_name || 'Anonymous'} · {item.created_at.slice(0, 10)}
                             </div>
                             {item.scheduled_date && (
                               <div className="mt-1 text-xs text-[#315f4d]">
-                                Scheduled for {formatFullDate(item.scheduled_date)}
+                                Scheduled for {item.scheduled_date}
                               </div>
                             )}
                           </div>
@@ -1369,7 +1541,7 @@ Pearl: Knee pain in teens -> always check the hip`}
                   visibleCaseGroups.map(group => (
                     <div key={group.date} className="rounded-lg border border-[#ded7ca] bg-white/70 p-3">
                       <div className="flex items-center justify-between gap-3">
-                        <div className="font-semibold text-[#102018]">{formatFullDate(group.date)}</div>
+                        <div className="font-semibold text-[#102018]">{group.date}</div>
                         <div className="text-xs uppercase tracking-[0.2em] text-[#637268]">
                           {group.items.length}/3 ready
                         </div>

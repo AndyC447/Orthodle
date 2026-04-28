@@ -12,6 +12,7 @@ type ArchiveCase = {
   case_date: string
   level: Level
   category: string | null
+  image_url: string | null
 }
 
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
@@ -19,14 +20,17 @@ const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 export default function ArchivePage() {
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedLevel, setSelectedLevel] = useState<'all' | Level>('all')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [imagingOnly, setImagingOnly] = useState(false)
 
   useEffect(() => {
     async function loadArchive() {
       const { data } = await supabase
         .from('cases')
-        .select('id, case_date, level, category')
+        .select('id, case_date, level, category, image_url')
         .order('case_date', { ascending: false })
-        .limit(120)
+        .limit(240)
 
       setCases((data || []) as ArchiveCase[])
       setLoading(false)
@@ -35,10 +39,29 @@ export default function ArchivePage() {
     void loadArchive()
   }, [])
 
+  const categoryOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        cases
+          .map(item => item.category?.trim())
+          .filter((item): item is string => Boolean(item))
+      )
+    ).sort((a, b) => a.localeCompare(b))
+  }, [cases])
+
+  const filteredCases = useMemo(() => {
+    return cases.filter(item => {
+      if (selectedLevel !== 'all' && item.level !== selectedLevel) return false
+      if (selectedCategory !== 'all' && (item.category || '') !== selectedCategory) return false
+      if (imagingOnly && !item.image_url) return false
+      return true
+    })
+  }, [cases, imagingOnly, selectedCategory, selectedLevel])
+
   const groupedDates = useMemo(() => {
     const grouped = new Map<string, ArchiveCase[]>()
 
-    for (const item of cases) {
+    for (const item of filteredCases) {
       const existing = grouped.get(item.case_date)
       if (existing) {
         existing.push(item)
@@ -53,7 +76,7 @@ export default function ArchivePage() {
         (a, b) => levelOrder.indexOf(a.level) - levelOrder.indexOf(b.level)
       ),
     }))
-  }, [cases])
+  }, [filteredCases])
 
   function formatDate(dateText: string) {
     return new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', {
@@ -70,6 +93,9 @@ export default function ArchivePage() {
     return 'Attending'
   }
 
+  const hasActiveFilters =
+    selectedLevel !== 'all' || selectedCategory !== 'all' || imagingOnly
+
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
       <Header />
@@ -85,6 +111,72 @@ export default function ArchivePage() {
           <p className="mt-2 max-w-2xl text-[13px] leading-5.5 text-[#637268]">
             Jump straight into earlier Orthodle cases by date and difficulty.
           </p>
+
+          <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+            <div className="grid gap-2.5 sm:grid-cols-3">
+              <label className="grid gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                Difficulty
+                <select
+                  value={selectedLevel}
+                  onChange={e => setSelectedLevel(e.target.value as 'all' | Level)}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]"
+                >
+                  <option value="all">All levels</option>
+                  <option value="med_student">Med Student</option>
+                  <option value="resident">Resident</option>
+                  <option value="attending">Attending</option>
+                </select>
+              </label>
+
+              <label className="grid gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                Category
+                <select
+                  value={selectedCategory}
+                  onChange={e => setSelectedCategory(e.target.value)}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]"
+                >
+                  <option value="all">All categories</option>
+                  {categoryOptions.map(option => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex items-end">
+                <span className="flex w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]">
+                  <span>Has imaging</span>
+                  <input
+                    type="checkbox"
+                    checked={imagingOnly}
+                    onChange={e => setImagingOnly(e.target.checked)}
+                    className="h-4 w-4 accent-[#1f6448]"
+                  />
+                </span>
+              </label>
+            </div>
+
+            {hasActiveFilters && (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-[12px] text-[#637268]">
+                  Showing {filteredCases.length} matching case{filteredCases.length === 1 ? '' : 's'}.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLevel('all')
+                    setSelectedCategory('all')
+                    setImagingOnly(false)
+                  }}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                >
+                  Clear filters
+                </button>
+              </div>
+            )}
+          </div>
 
           {loading ? (
             <p className="mt-5 text-sm text-[#637268]">Loading archive...</p>
