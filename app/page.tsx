@@ -1,9 +1,17 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
-import { getSessionId, recordGameResult, todayISO } from '@/lib/utils'
+import {
+  getStatsSummary,
+  getRoundProgress,
+  getSessionId,
+  recordGameResult,
+  saveRoundProgress,
+  todayISO,
+} from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -57,6 +65,7 @@ const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
 }))
 
 export default function PlayPage() {
+  const searchParams = useSearchParams()
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
   const [selectedDate, setSelectedDate] = useState(todayISO())
@@ -73,6 +82,44 @@ export default function PlayPage() {
   const [imageExpanded, setImageExpanded] = useState(false)
   const [imageHidden, setImageHidden] = useState(false)
   const [communityStats, setCommunityStats] = useState<CommunityCaseStats | null>(null)
+  const [showArchiveTools, setShowArchiveTools] = useState(false)
+  const [dailySummary, setDailySummary] = useState({
+    date: todayISO(),
+    played: 0,
+    wins: 0,
+    losses: 0,
+    levelsSolved: 0,
+    averageGuesses: null as number | null,
+    levels: [] as Array<{
+      level: Level
+      won: boolean
+      guessesUsed: number
+      answer: string
+      category: string
+    }>,
+  })
+
+  useEffect(() => {
+    const levelParam = searchParams.get('level')
+    const dateParam = searchParams.get('date')
+
+    if (
+      levelParam === 'med_student' ||
+      levelParam === 'resident' ||
+      levelParam === 'attending'
+    ) {
+      setSelectedLevel(levelParam)
+    }
+
+    if (dateParam && dateParam >= LAUNCH_DATE && dateParam <= todayISO()) {
+      setSelectedDate(dateParam)
+      setShowArchiveTools(true)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    setDailySummary(getStatsSummary().today)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -116,6 +163,16 @@ export default function PlayPage() {
         }
 
         setDailyCase(data)
+
+        const isArchiveCase = data.case_date !== todayISO()
+        const savedProgress = getRoundProgress(data.case_date, data.level, isArchiveCase)
+
+        if (savedProgress && savedProgress.caseId === data.id) {
+          setGuesses(savedProgress.guesses)
+          setGameWon(savedProgress.gameWon)
+          setGameOver(savedProgress.gameOver)
+          setMessage(savedProgress.message)
+        }
 
         const [{ data: visitRows }, { data: guessRows }] = await Promise.all([
           supabase.from('visits').select('session_id').eq('path', `/${selectedLevel}/${selectedDate}`),
@@ -271,34 +328,37 @@ export default function PlayPage() {
     setShowConfetti(false)
     requestAnimationFrame(() => {
       setShowConfetti(true)
-      window.setTimeout(() => setShowConfetti(false), 2600)
+      window.setTimeout(() => setShowConfetti(false), 3400)
     })
   }
 
   function buildShareText() {
     const score = gameWon ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`
-    const rows = guesses.map(item => (item.correct ? '🟩' : '🟧')).join('\n')
+    const boxes = Array.from({ length: MAX_GUESSES }, (_, index) => {
+      const item = guesses[index]
+
+      if (!item) return '⬜'
+      return item.correct ? '🟩' : '🟧'
+    }).join('')
     const prettyDate = formatArchiveDate(dailyCase?.case_date || selectedDate)
     const archiveLabel = (dailyCase?.case_date || selectedDate) === todayISO() ? '' : ' Archive'
 
     return [
       `Orthodle${archiveLabel} ${formatLevel(selectedLevel)} ${score}`,
       prettyDate,
-      rows,
+      boxes,
       'https://orthodle.com',
     ].join('\n')
   }
 
   async function shareResult() {
     const shareText = buildShareText()
-    const shareUrl = 'https://orthodle.com'
 
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Orthodle',
           text: shareText,
-          url: shareUrl,
         })
         return
       } catch (error) {
@@ -357,16 +417,28 @@ export default function PlayPage() {
     const data = await res.json()
     const nextGuessCount = guesses.length + 1
 
-    setGuesses(prev => [...prev, { text: currentGuess, correct: data.correct }])
+    const nextGuesses = [...guesses, { text: currentGuess, correct: data.correct }]
+
+    setGuesses(nextGuesses)
     setGuess('')
 
     if (data.correct) {
       setGameWon(true)
-      setMessage(
+      const nextMessage =
         `Correct — solved in ${nextGuessCount} ${
           nextGuessCount === 1 ? 'guess' : 'guesses'
         }.`
-      )
+      setMessage(nextMessage)
+      saveRoundProgress({
+        caseId: dailyCase.id,
+        caseDate: dailyCase.case_date,
+        level: dailyCase.level,
+        isArchive: dailyCase.case_date !== todayISO(),
+        guesses: nextGuesses,
+        gameWon: true,
+        gameOver: false,
+        message: nextMessage,
+      })
       triggerSuccessPulse()
       triggerConfetti()
       return
@@ -376,11 +448,33 @@ export default function PlayPage() {
 
     if (nextGuessCount >= MAX_GUESSES) {
       setGameOver(true)
-      setMessage(`Out of guesses. Answer: ${dailyCase.answer}`)
+      const nextMessage = `Out of guesses. Answer: ${dailyCase.answer}`
+      setMessage(nextMessage)
+      saveRoundProgress({
+        caseId: dailyCase.id,
+        caseDate: dailyCase.case_date,
+        level: dailyCase.level,
+        isArchive: dailyCase.case_date !== todayISO(),
+        guesses: nextGuesses,
+        gameWon: false,
+        gameOver: true,
+        message: nextMessage,
+      })
       return
     }
 
-    setMessage(`Not quite. ${MAX_GUESSES - nextGuessCount} guesses remaining.`)
+    const nextMessage = `Not quite. ${MAX_GUESSES - nextGuessCount} guesses remaining.`
+    setMessage(nextMessage)
+    saveRoundProgress({
+      caseId: dailyCase.id,
+      caseDate: dailyCase.case_date,
+      level: dailyCase.level,
+      isArchive: dailyCase.case_date !== todayISO(),
+      guesses: nextGuesses,
+      gameWon: false,
+      gameOver: false,
+      message: nextMessage,
+    })
   }
 
   useEffect(() => {
@@ -408,7 +502,12 @@ export default function PlayPage() {
       answer: dailyCase.answer,
       category: dailyCase.category,
     })
+    setDailySummary(getStatsSummary().today)
   }, [dailyCase, roundComplete, gameWon, guesses])
+
+  const todayCompletedLevels = new Set(dailySummary.levels.map(item => item.level)).size
+  const todayComplete = todayCompletedLevels === 3
+  const onTodayCard = selectedDate === todayISO()
 
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
@@ -475,6 +574,12 @@ export default function PlayPage() {
           animation: orthodle-success-pulse 0.85s ease-out;
         }
 
+        .orthodle-win-glow {
+          box-shadow:
+            0 18px 36px rgba(31, 122, 77, 0.12),
+            0 0 0 1px rgba(31, 122, 77, 0.08);
+        }
+
         .orthodle-confetti-piece {
           position: absolute;
           top: 0;
@@ -525,6 +630,17 @@ export default function PlayPage() {
           Guess the diagnosis.
         </h1>
 
+        {onTodayCard && todayComplete && (
+          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f6448]">
+              Daily card complete
+            </div>
+            <p className="mt-1.5 text-[13px] leading-5 text-[#637268]">
+              You&apos;ve already finished today&apos;s three cases. Check your stats or browse older cases in the archive.
+            </p>
+          </div>
+        )}
+
         <div className="mx-auto mt-3 grid max-w-lg grid-cols-3 rounded-2xl border border-[#ded7ca] bg-white p-1 shadow-sm">
           {levels.map(level => {
             const active = selectedLevel === level.key
@@ -561,16 +677,12 @@ export default function PlayPage() {
 
       <div className="mx-auto grid max-w-[980px] items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
         <section className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-[#ded7ca] bg-white shadow-sm">
+          <div className="overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="h-1.5 bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
             <div className="p-3.5 sm:px-3.5 sm:py-4">
               <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
-                <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#637268]">
-                  <span className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
-                    Case
-                  </span>
-                  <span>⌖</span>
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   <span>{dailyCase?.category || formatLevel(selectedLevel)}</span>
                 </div>
               </div>
@@ -711,96 +823,98 @@ export default function PlayPage() {
             <div
               className={
                 pulseSuccess
-                  ? 'orthodle-success-pulse rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm'
-                  : 'rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm'
+                  ? 'orthodle-success-pulse orthodle-win-glow rounded-2xl border border-[#d8e5dd] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
+                  : 'rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
               }
             >
-              <div
-                className={
-                  gameWon
-                    ? 'inline-flex rounded-full bg-[#e8f3ed] px-3 py-1.5 text-[13px] font-semibold text-[#1f6448]'
-                    : 'inline-flex rounded-full bg-[#fff1e8] px-3 py-1.5 text-[13px] font-semibold text-[#a24d24]'
-                }
-              >
-                {gameWon
-                  ? `Solved in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}`
-                  : 'Round complete'}
+              <div className="flex flex-col items-start gap-2">
+                <div
+                  className={
+                    gameWon
+                      ? 'inline-flex rounded-full border border-[#cfe2d8] bg-[#e8f3ed] px-3 py-1.5 text-[13px] font-semibold text-[#1f6448]'
+                      : 'inline-flex rounded-full bg-[#fff1e8] px-3 py-1.5 text-[13px] font-semibold text-[#a24d24]'
+                  }
+                >
+                  {gameWon
+                    ? `Solved in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}`
+                    : 'Round complete'}
+                </div>
+
+                {gameWon && (
+                  <button
+                    onClick={shareResult}
+                    className="inline-flex rounded-full border border-[#cfe2d8] bg-[#f2faf5] px-3 py-1.5 text-[13px] font-semibold text-[#1f6448] transition hover:bg-[#eaf6ef]"
+                  >
+                    Share the win
+                  </button>
+                )}
               </div>
 
               <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
-                    Diagnosis
-                  </div>
-
-                  <h3 className="mt-1.5 font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
+                  <h3 className="font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                     {dailyCase.answer}
                   </h3>
+                  {gameWon && (
+                    <p className="mt-1 max-w-md text-[12px] leading-5 text-[#637268]">
+                      {guesses.length === 1
+                        ? 'First-shot finish.'
+                        : guesses.length <= 3
+                          ? 'Strong solve.'
+                          : 'Clutched it late.'}{' '}
+                      Keep the takeaway handy.
+                    </p>
+                  )}
                 </div>
-
-                <button
-                  onClick={shareResult}
-                  className="hidden rounded-lg border border-[#ded7ca] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:scale-[1.02] hover:bg-[#f7f5f0] sm:block"
-                >
-                  Share result
-                </button>
               </div>
 
-              <div className="mt-4 rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-4">
+              <div className="mt-4 space-y-3">
                 {dailyCase.contributor_name && (
-                  <div className="mb-3 inline-flex rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
+                  <div className="inline-flex rounded-full border border-[#dfe7e1] bg-[#fbfdfb] px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
                     Contributed by {dailyCase.contributor_name}
                   </div>
                 )}
 
-                <div className="rounded-lg border border-dashed border-[#cfded4] bg-[#fcfffd] px-3 py-2.5">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                <div className="border-l-2 border-[#cfe2d8] pl-4">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                     Quick takeaway
                   </div>
-                  <div className="mt-1.5 space-y-1">
+                  <div className="mt-2 space-y-1">
                     {renderTeachingPoint(teachingPoint)}
                   </div>
                 </div>
 
                 {communityStats && (
-                  <>
-                    <div className="my-4 border-t border-dashed border-[#cfded4]" />
-
-                    <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                      Community stats
+                  <div className="grid gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-[12px] text-[#637268] sm:grid-cols-2">
+                    <div>
+                      Solve rate{' '}
+                      <span className="font-semibold text-[#102018]">
+                        {communityStats.solveRate !== null
+                          ? `${Math.round(communityStats.solveRate)}%`
+                          : '—'}
+                      </span>
                     </div>
-
-                    <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
-                        Solve rate:{' '}
-                        <span className="font-semibold text-[#102018]">
-                          {communityStats.solveRate !== null
-                            ? `${Math.round(communityStats.solveRate)}%`
-                            : '—'}
-                        </span>
-                      </div>
-                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
-                        Avg guesses:{' '}
-                        <span className="font-semibold text-[#102018]">
-                          {communityStats.averageGuessesPerPlayer?.toFixed(1) ?? '—'}
-                        </span>
-                      </div>
-                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
-                        Avg to solve:{' '}
-                        <span className="font-semibold text-[#102018]">
-                          {communityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
-                        </span>
-                      </div>
-                      <div className="rounded-lg border border-[#d8e5dd] bg-white px-3 py-2 text-[12px] text-[#637268]">
-                        First-try solves:{' '}
-                        <span className="font-semibold text-[#102018]">
-                          {communityStats.firstTrySolveRate !== null
-                            ? `${Math.round(communityStats.firstTrySolveRate)}%`
-                            : '—'}
-                        </span>
-                      </div>
+                    <div>
+                      Avg guesses{' '}
+                      <span className="font-semibold text-[#102018]">
+                        {communityStats.averageGuessesPerPlayer?.toFixed(1) ?? '—'}
+                      </span>
                     </div>
-                  </>
+                    <div>
+                      Avg to solve{' '}
+                      <span className="font-semibold text-[#102018]">
+                        {communityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
+                      </span>
+                    </div>
+                    <div>
+                      First-try solves{' '}
+                      <span className="font-semibold text-[#102018]">
+                        {communityStats.firstTrySolveRate !== null
+                          ? `${Math.round(communityStats.firstTrySolveRate)}%`
+                          : '—'}
+                      </span>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -843,7 +957,7 @@ export default function PlayPage() {
             </div>
           </div>
 
-          <div className="hidden rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:block">
+          <div className="hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
             <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               Your guesses
             </div>
@@ -891,11 +1005,17 @@ export default function PlayPage() {
             </div>
           </div>
 
-          <div className="hidden rounded-2xl border border-[#ded7ca] bg-white p-3.5 shadow-sm sm:block">
-            <div className="mb-2.5 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
-              Case date
-            </div>
+          <div className="hidden rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3 sm:block">
+            <button
+              type="button"
+              onClick={() => setShowArchiveTools(prev => !prev)}
+              className="mb-2 flex w-full items-center justify-between text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a857c]"
+            >
+              <span>Archive</span>
+              <span>{showArchiveTools ? 'Hide' : formatArchiveDate(selectedDate)}</span>
+            </button>
 
+            {showArchiveTools && (
             <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
               <button
                 type="button"
@@ -930,13 +1050,22 @@ export default function PlayPage() {
                 Next
               </button>
             </div>
+            )}
           </div>
 
         </aside>
       </div>
 
       <section className="mx-auto mt-4 max-w-lg px-4 sm:hidden">
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 rounded-2xl border border-[#ded7ca] bg-white px-2 py-2 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setShowArchiveTools(prev => !prev)}
+          className="mb-2 w-full rounded-full border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a857c]"
+        >
+          Archive · {showArchiveTools ? 'Hide' : formatArchiveDate(selectedDate)}
+        </button>
+        {showArchiveTools && (
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] px-2 py-2 shadow-none">
           <button
             type="button"
             onClick={() => shiftSelectedDate(-1)}
@@ -975,9 +1104,10 @@ export default function PlayPage() {
             Next
           </button>
         </div>
+        )}
       </section>
 
-      <footer className="mx-auto mt-8 max-w-4xl border-t border-[#ded7ca] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
+      <footer className="mx-auto mt-8 max-w-4xl border-t border-[#e7e1d6] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
         Orthodle — for education &amp; entertainment. Not medical advice.
       </footer>
 

@@ -685,7 +685,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
             </h1>
 
             <p className="mt-1.5 text-sm text-[#637268]">
-              Add cases, review community submissions, schedule future cases, and track usage.
+              Schedule cases, review submissions, and keep an eye on the daily flow.
             </p>
             {incompleteDates.length > 0 && (
               <div className="mt-3 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm text-[#8a5a2b]">
@@ -704,7 +704,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
         </div>
 
         <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
-          <section className="card rounded-2xl p-4">
+          <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-serif text-xl font-bold">
                 Create / Schedule Case
@@ -947,7 +947,7 @@ Pearl: Knee pain in teens -> always check the hip`}
           </section>
 
           <aside className="space-y-4">
-            <section className="card rounded-2xl p-4">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Submissions</h2>
                 <button
@@ -1029,7 +1029,7 @@ Pearl: Knee pain in teens -> always check the hip`}
               )}
             </section>
 
-            <section className="card rounded-2xl p-4">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Analytics</h2>
                 <button
@@ -1218,7 +1218,7 @@ Pearl: Knee pain in teens -> always check the hip`}
               )}
             </section>
 
-            <section className="card rounded-2xl p-4">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Cases by Date</h2>
                 <button

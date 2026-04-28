@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { normalizeAnswer } from '@/lib/utils'
+import { isAcceptedGuess } from '@/lib/utils'
 
 export async function POST(req: Request) {
   const { caseId, guess, sessionId } = await req.json()
@@ -13,8 +13,8 @@ export async function POST(req: Request) {
 
   if (error || !caseRow) return NextResponse.json({ error: 'Case not found' }, { status: 404 })
 
-  const accepted = [caseRow.answer, ...(caseRow.synonyms || [])].map(normalizeAnswer)
-  const correct = accepted.includes(normalizeAnswer(guess))
+  const accepted = [caseRow.answer, ...(caseRow.synonyms || [])]
+  const correct = isAcceptedGuess(guess, accepted)
 
   await supabase.from('guesses').insert({
     case_id: caseId,

@@ -206,12 +206,12 @@ export default function SubmitCasePage() {
     <main className="min-h-screen bg-[#fbfaf7]">
       <Header />
 
-      <div className="mx-auto max-w-3xl px-6 py-8">
+      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         <div className="text-center">
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
             Community Cases
           </div>
-          <h1 className="mt-3 font-serif text-4xl font-bold text-[#102018]">
+          <h1 className="mt-3 font-serif text-[32px] font-bold leading-tight text-[#102018] sm:text-4xl">
             Submit your own case
           </h1>
           <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
@@ -220,7 +220,7 @@ export default function SubmitCasePage() {
           </p>
         </div>
 
-        <section className="mt-6 rounded-2xl border border-[#ded7ca] bg-white p-5 shadow-sm">
+        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
           <div className="grid gap-3">
             <label className="grid gap-2 text-sm font-semibold text-[#637268]">
               Your Name
@@ -393,11 +393,11 @@ export default function SubmitCasePage() {
               {submitting ? 'Submitting...' : 'Submit case'}
             </button>
 
-            {status && <p className="text-sm text-[#637268]">{status}</p>}
+            {status && <p className="break-words text-sm leading-6 text-[#637268]">{status}</p>}
           </div>
         </section>
 
-        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-5 shadow-sm">
+        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:p-5">
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
             Submission status
           </div>
@@ -438,7 +438,7 @@ export default function SubmitCasePage() {
                   </div>
                 </div>
 
-                <div className="rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
+                <div className="max-w-full rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
                   {(lookupResult.category || 'Case submission').trim()} ·{' '}
                   {lookupResult.level === 'med_student'
                     ? 'Med Student'
@@ -452,7 +452,7 @@ export default function SubmitCasePage() {
                 {formatStatusDetail(lookupResult)}
               </p>
 
-              <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-[#8a948d]">
+              <p className="mt-2 break-all text-[11px] uppercase tracking-[0.2em] text-[#8a948d]">
                 Code: {lookupResult.id}
               </p>
             </div>

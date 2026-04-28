@@ -13,6 +13,63 @@ export function normalizeAnswer(value: string) {
     .replace(/\s+/g, ' ')
 }
 
+function levenshteinDistance(a: string, b: string) {
+  const rows = a.length + 1
+  const cols = b.length + 1
+  const matrix = Array.from({ length: rows }, () => Array<number>(cols).fill(0))
+
+  for (let i = 0; i < rows; i += 1) matrix[i][0] = i
+  for (let j = 0; j < cols; j += 1) matrix[0][j] = j
+
+  for (let i = 1; i < rows; i += 1) {
+    for (let j = 1; j < cols; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      )
+    }
+  }
+
+  return matrix[a.length][b.length]
+}
+
+function buildInitialism(value: string) {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .map(word => word[0])
+    .join('')
+}
+
+export function isAcceptedGuess(guess: string, acceptedAnswers: string[]) {
+  const normalizedGuess = normalizeAnswer(guess)
+  if (!normalizedGuess) return false
+
+  const normalizedAccepted = acceptedAnswers.map(normalizeAnswer).filter(Boolean)
+
+  if (normalizedAccepted.includes(normalizedGuess)) {
+    return true
+  }
+
+  for (const accepted of normalizedAccepted) {
+    if (buildInitialism(accepted) === normalizedGuess) {
+      return true
+    }
+
+    if (
+      accepted.length >= 8 &&
+      normalizedGuess.length >= 8 &&
+      levenshteinDistance(normalizedGuess, accepted) <= 1
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function getSessionId() {
   if (typeof window === 'undefined') return ''
   const key = 'orthodle_session_id'
@@ -36,6 +93,22 @@ export type StoredGameResult = {
   answer: string
   category: string
   completedAt: string
+}
+
+export type StoredRoundProgress = {
+  key: string
+  caseId: string
+  caseDate: string
+  level: StatsLevel
+  isArchive: boolean
+  guesses: Array<{
+    text: string
+    correct: boolean
+  }>
+  gameWon: boolean
+  gameOver: boolean
+  message: string
+  updatedAt: string
 }
 
 export type StatsSummary = {
@@ -94,6 +167,7 @@ export type StatsSummary = {
 }
 
 const STATS_STORAGE_KEY = 'orthodle_stats_v1'
+const ROUND_PROGRESS_STORAGE_KEY = 'orthodle_round_progress_v1'
 
 function getStoredResults() {
   if (typeof window === 'undefined') return [] as StoredGameResult[]
@@ -124,9 +198,35 @@ function setStoredResults(results: StoredGameResult[]) {
   )
 }
 
+function getStoredRoundProgress() {
+  if (typeof window === 'undefined') return [] as StoredRoundProgress[]
+
+  try {
+    const raw = window.localStorage.getItem(ROUND_PROGRESS_STORAGE_KEY)
+    if (!raw) return [] as StoredRoundProgress[]
+
+    const parsed = JSON.parse(raw) as { rounds?: StoredRoundProgress[] }
+    return Array.isArray(parsed.rounds) ? parsed.rounds : ([] as StoredRoundProgress[])
+  } catch {
+    return [] as StoredRoundProgress[]
+  }
+}
+
+function setStoredRoundProgress(rounds: StoredRoundProgress[]) {
+  if (typeof window === 'undefined') return
+
+  window.localStorage.setItem(
+    ROUND_PROGRESS_STORAGE_KEY,
+    JSON.stringify({
+      rounds: [...rounds].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 60),
+    })
+  )
+}
+
 export function clearStatsSummary() {
   if (typeof window === 'undefined') return
   window.localStorage.removeItem(STATS_STORAGE_KEY)
+  window.localStorage.removeItem(ROUND_PROGRESS_STORAGE_KEY)
 }
 
 export function getStatsLevelLabel(level: StatsLevel) {
@@ -158,6 +258,35 @@ export function recordGameResult(result: Omit<StoredGameResult, 'key' | 'complet
   if (!shouldReplace) return
 
   setStoredResults(results.map(entry => (entry.key === key ? nextEntry : entry)))
+}
+
+export function saveRoundProgress(progress: Omit<StoredRoundProgress, 'key' | 'updatedAt'>) {
+  const rounds = getStoredRoundProgress()
+  const key = `${progress.caseDate}:${progress.level}:${progress.isArchive ? 'archive' : 'daily'}`
+
+  const nextEntry: StoredRoundProgress = {
+    ...progress,
+    key,
+    updatedAt: new Date().toISOString(),
+  }
+
+  const existing = rounds.find(entry => entry.key === key)
+
+  if (!existing) {
+    setStoredRoundProgress([...rounds, nextEntry])
+    return
+  }
+
+  setStoredRoundProgress(rounds.map(entry => (entry.key === key ? nextEntry : entry)))
+}
+
+export function getRoundProgress(
+  caseDate: string,
+  level: StatsLevel,
+  isArchive: boolean
+) {
+  const key = `${caseDate}:${level}:${isArchive ? 'archive' : 'daily'}`
+  return getStoredRoundProgress().find(entry => entry.key === key) || null
 }
 
 export function getStatsSummary(): StatsSummary {

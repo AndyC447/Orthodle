@@ -11,6 +11,8 @@ import {
 
 export default function StatsPage() {
   const [statsSnapshot, setStatsSnapshot] = useState<StatsSummary | null>(null)
+  const [showDistribution, setShowDistribution] = useState(true)
+  const [showDifficulty, setShowDifficulty] = useState(false)
 
   useEffect(() => {
     const refreshStats = () => setStatsSnapshot(getStatsSummary())
@@ -49,7 +51,7 @@ export default function StatsPage() {
       <Header />
 
       <section className="mx-auto max-w-5xl px-6 pt-6 pb-1">
-        <div className="overflow-hidden rounded-[28px] border border-[#ded7ca] bg-white shadow-sm">
+        <div className="overflow-hidden rounded-[28px] border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="h-1.5 bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
           <div className="p-4 md:p-5">
@@ -61,10 +63,6 @@ export default function StatsPage() {
                 <h1 className="mt-2.5 font-serif text-[28px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                   Your daily performance
                 </h1>
-                <p className="mt-2.5 max-w-2xl text-[13px] leading-5.5 text-[#637268]">
-                  Results are saved on this browser after each completed case, so you can keep
-                  track of your streaks, daily card, and solve distribution over time.
-                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -131,16 +129,23 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_250px]">
-              <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-4">
-                <div className="flex items-center justify-between gap-3">
+              <div className="rounded-2xl border border-[#e7e1d6] bg-[#fbfaf7] p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowDistribution(prev => !prev)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
                   <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                     Guess distribution
                   </div>
                   <div className="text-[11px] text-[#637268]">
-                    Avg win: {formatAverage(statsSnapshot?.averageGuessesInWins ?? null)}
+                    {showDistribution
+                      ? 'Hide'
+                      : `Avg win ${formatAverage(statsSnapshot?.averageGuessesInWins ?? null)}`}
                   </div>
-                </div>
+                </button>
 
+                {showDistribution && (
                 <div className="mt-3.5 space-y-2.5">
                   {[1, 2, 3, 4, 5, 6].map(guessNumber => {
                     const count = statsSnapshot?.guessDistribution[guessNumber] || 0
@@ -169,9 +174,10 @@ export default function StatsPage() {
                     )
                   })}
                 </div>
+                )}
               </div>
 
-              <div className="rounded-2xl border border-[#ded7ca] bg-white p-4">
+              <div className="rounded-2xl border border-[#e7e1d6] bg-white p-4">
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                   Today&apos;s card
                 </div>
@@ -207,16 +213,21 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4">
-              <div className="mb-3 flex items-center justify-between gap-3">
+            <div className="mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-4">
+              <button
+                type="button"
+                onClick={() => setShowDifficulty(prev => !prev)}
+                className="mb-3 flex w-full items-center justify-between gap-3 text-left"
+              >
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                   By difficulty
                 </div>
                 <div className="text-[11px] text-[#637268]">
-                  Faster mobile snapshot
+                  {showDifficulty ? 'Hide' : 'Show'}
                 </div>
-              </div>
+              </button>
 
+              {showDifficulty && (
               <div className="grid gap-2.5 sm:grid-cols-3">
                 {(statsSnapshot?.byLevel || []).map(level => (
                   <div
@@ -255,6 +266,7 @@ export default function StatsPage() {
                   </div>
                 ))}
               </div>
+              )}
             </div>
           </div>
         </div>
