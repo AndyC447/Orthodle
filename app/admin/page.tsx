@@ -133,6 +133,7 @@ export default function AdminPage() {
   const [showAnalytics, setShowAnalytics] = useState(true)
   const [showCasesByDate, setShowCasesByDate] = useState(true)
   const [showSubmissions, setShowSubmissions] = useState(true)
+  const [browseDate, setBrowseDate] = useState('')
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -168,6 +169,13 @@ export default function AdminPage() {
     }))
   }, [cases])
 
+  const visibleCaseGroups = useMemo(() => {
+    if (!browseDate) return groupedCases
+    return groupedCases.filter(group => group.date === browseDate)
+  }, [browseDate, groupedCases])
+
+  const quickBrowseDates = groupedCases.slice(0, 8).map(group => group.date)
+
   const incompleteDates = useMemo(
     () =>
       groupedCases
@@ -187,6 +195,13 @@ export default function AdminPage() {
 
   function formatPercent(value: number) {
     return `${Math.round(value)}%`
+  }
+
+  function formatShortDate(dateText: string) {
+    return new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
   }
 
   async function unlockAdmin() {
@@ -677,7 +692,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
     <main>
       <Header />
 
-      <div className="mx-auto max-w-6xl px-6 py-7">
+      <div className="mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#102018]">
@@ -703,7 +718,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
           </button>
         </div>
 
-        <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
+        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
           <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-serif text-xl font-bold">
@@ -730,6 +745,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
 
             {showComposer && (
             <div className="mt-4 grid gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Publish Date
                 <input
@@ -752,6 +768,7 @@ for (const guess of (guesses || []) as unknown as GuessAnalyticsRow[]) {
                   <option value="attending">Attending</option>
                 </select>
               </label>
+              </div>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Contributor Credit
@@ -1221,21 +1238,77 @@ Pearl: Knee pain in teens -> always check the hip`}
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Cases by Date</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowCasesByDate(prev => !prev)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                >
-                  {showCasesByDate ? 'Hide' : 'Show'}
-                </button>
+                <div className="flex items-center gap-2">
+                  {browseDate && (
+                    <button
+                      type="button"
+                      onClick={() => setBrowseDate('')}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowCasesByDate(prev => !prev)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                  >
+                    {showCasesByDate ? 'Hide' : 'Show'}
+                  </button>
+                </div>
               </div>
 
               {showCasesByDate && (
               <div className="mt-4 space-y-3">
-                {groupedCases.length === 0 ? (
+                <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      Jump to date
+                      <input
+                        type="date"
+                        value={browseDate}
+                        onChange={e => setBrowseDate(e.target.value)}
+                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCaseDate(browseDate || today)
+                        setShowComposer(true)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    >
+                      Open in editor
+                    </button>
+                  </div>
+
+                  {quickBrowseDates.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {quickBrowseDates.map(date => (
+                        <button
+                          key={date}
+                          type="button"
+                          onClick={() => setBrowseDate(date)}
+                          className={
+                            browseDate === date
+                              ? 'rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]'
+                              : 'rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]'
+                          }
+                        >
+                          {formatShortDate(date)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {visibleCaseGroups.length === 0 ? (
                   <p className="text-sm text-[#637268]">No cases yet.</p>
                 ) : (
-                  groupedCases.map(group => (
+                  visibleCaseGroups.map(group => (
                     <div key={group.date} className="rounded-lg border border-[#ded7ca] bg-white/70 p-3">
                       <div className="flex items-center justify-between gap-3">
                         <div className="font-semibold text-[#102018]">{group.date}</div>

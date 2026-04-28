@@ -436,7 +436,7 @@ function PlayPageContent() {
 
   const filteredAnswerOptions = useMemo(() => {
     const query = normalizeAnswer(guess)
-    if (!query) return answerOptions.slice(0, 12)
+    if (!query) return []
 
     const startsWith = answerOptions.filter(option =>
       normalizeAnswer(option).startsWith(query)
@@ -758,7 +758,7 @@ const todayComplete = todayCompletedLevels === 3
 
       <div className="mx-auto grid max-w-[980px] items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
         <section className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="overflow-visible rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="h-1.5 bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
             <div className="p-3.5 sm:px-3.5 sm:py-4">
@@ -900,7 +900,7 @@ const todayComplete = todayCompletedLevels === 3
                   </div>
 
                   {renderSuggestionList(
-                    'absolute inset-x-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
+                    'absolute inset-x-0 top-[calc(100%+8px)] z-30 max-h-64 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
                   )}
                 </div>
 
@@ -1239,7 +1239,7 @@ const todayComplete = todayCompletedLevels === 3
               </div>
 
               {renderSuggestionList(
-                'absolute inset-x-0 bottom-[calc(100%+8px)] z-20 max-h-56 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.12)]'
+                'absolute inset-x-0 bottom-[calc(100%+8px)] z-50 max-h-56 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.12)]'
               )}
             </div>
             <p className="mt-2 text-[12px] leading-5 text-[#637268]">
