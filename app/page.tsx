@@ -779,8 +779,10 @@ const todayComplete = todayCompletedLevels === 3
 
       <div className="mx-auto grid max-w-[980px] items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
         <section className="space-y-4">
-          <div className="overflow-visible rounded-2xl border-x border-b border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="h-1.5 w-full rounded-t-[15px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
+          <div className="relative overflow-visible rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden rounded-t-[15px]">
+              <div className="h-1.5 w-full bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
+            </div>
 
             <div className="p-3.5 sm:px-3.5 sm:py-4">
               <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
