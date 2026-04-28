@@ -33,13 +33,6 @@ export default function StatsPage() {
     return value.toFixed(1)
   }
 
-  function formatShortDate(dateText: string) {
-    return new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-    })
-  }
-
   function resetStats() {
     const confirmed = window.confirm(
       'Clear your saved Orthodle stats on this browser? This will remove your local performance history.'
@@ -88,7 +81,7 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid grid-cols-2 gap-2.5 xl:grid-cols-4">
               <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5">
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Games played
@@ -127,7 +120,7 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5 xl:col-span-4">
+              <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5 col-span-2 xl:col-span-4">
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Archive plays
                 </div>
@@ -137,7 +130,7 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_250px]">
+            <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_250px]">
               <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
@@ -215,151 +208,52 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4">
-              <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                Recent days
-              </div>
-
-              {statsSnapshot && statsSnapshot.recentDays.length > 0 ? (
-                <div className="mt-3 space-y-2.5">
-                  {statsSnapshot.recentDays.map(day => (
-                    <div key={day.date} className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5">
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div className="font-serif text-[20px] font-bold text-[#102018]">
-                            {formatShortDate(day.date)}
-                          </div>
-                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-                            {day.wins}/{day.played} solved · avg {formatAverage(day.averageGuesses)} guesses
-                          </div>
-                        </div>
-
-                        <div className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[#637268]">
-                          {day.losses === 0 ? 'Clean card' : `${day.losses} miss${day.losses === 1 ? '' : 'es'}`}
-                        </div>
-                      </div>
-
-                      <div className="mt-2.5 grid gap-2 md:grid-cols-3">
-                        {day.levels.map(level => (
-                          <div
-                            key={`${day.date}-${level.level}`}
-                            className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5"
-                          >
-                            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                              {getStatsLevelLabel(level.level)}
-                            </div>
-                            <div className="mt-1.5 font-serif text-[14px] font-bold text-[#102018]">
-                              {level.answer}
-                            </div>
-                            <div className="mt-2 text-[12px] text-[#637268]">
-                              {level.won ? `${level.guessesUsed}/6` : 'Missed'}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-4 text-[13px] leading-6 text-[#637268]">
-                  Finish a daily case and your stats board will start filling in here automatically.
-                </p>
-              )}
-            </div>
-
-            <div className="mt-5 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-2xl border border-[#ded7ca] bg-white p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                   By difficulty
                 </div>
-
-                <div className="mt-3 space-y-2.5">
-                  {(statsSnapshot?.byLevel || []).map(level => (
-                    <div
-                      key={level.level}
-                      className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="font-serif text-[18px] font-bold text-[#102018]">
-                          {getStatsLevelLabel(level.level)}
-                        </div>
-                        <div className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#637268]">
-                          {level.played} played
-                        </div>
-                      </div>
-
-                      <div className="mt-3 grid grid-cols-3 gap-2">
-                        <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
-                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                            Win rate
-                          </div>
-                          <div className="mt-1 font-serif text-[16px] font-bold text-[#102018]">
-                            {level.played > 0 ? `${Math.round(level.winRate)}%` : '—'}
-                          </div>
-                        </div>
-
-                        <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
-                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                            Avg guesses
-                          </div>
-                          <div className="mt-1 font-serif text-[16px] font-bold text-[#102018]">
-                            {formatAverage(level.averageGuesses)}
-                          </div>
-                        </div>
-
-                        <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
-                          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                            Solved
-                          </div>
-                          <div className="mt-1 font-serif text-[16px] font-bold text-[#102018]">
-                            {level.wins}/{level.played}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="text-[11px] text-[#637268]">
+                  Faster mobile snapshot
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#ded7ca] bg-white p-4">
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                  By category
-                </div>
-
-                {statsSnapshot && statsSnapshot.byCategory.length > 0 ? (
-                  <div className="mt-3 space-y-2.5">
-                    {statsSnapshot.byCategory.map(category => (
-                      <div
-                        key={category.category}
-                        className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="font-serif text-[18px] font-bold text-[#102018]">
-                            {category.category}
-                          </div>
-                          <div className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#637268]">
-                            {category.played} played
-                          </div>
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                {(statsSnapshot?.byLevel || []).map(level => (
+                  <div
+                    key={level.level}
+                    className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3"
+                  >
+                    <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                      {getStatsLevelLabel(level.level)}
+                    </div>
+                    <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-[#8a948d]">
+                          Win
                         </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2 text-[12px] text-[#637268]">
-                          <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
-                            {Math.round(category.winRate)}% win rate
-                          </div>
-                          <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
-                            Avg {formatAverage(category.averageGuesses)} guesses
-                          </div>
-                          <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
-                            {category.wins}/{category.played} solved
-                          </div>
+                        <div className="mt-1 font-serif text-[15px] font-bold text-[#102018]">
+                          {level.played > 0 ? `${Math.round(level.winRate)}%` : '—'}
                         </div>
                       </div>
-                    ))}
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-[#8a948d]">
+                          Avg
+                        </div>
+                        <div className="mt-1 font-serif text-[15px] font-bold text-[#102018]">
+                          {formatAverage(level.averageGuesses)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase tracking-[0.14em] text-[#8a948d]">
+                          Solved
+                        </div>
+                        <div className="mt-1 font-serif text-[15px] font-bold text-[#102018]">
+                          {level.wins}/{level.played}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                ) : (
-                  <p className="mt-3 text-sm leading-6 text-[#637268]">
-                    Play a few more rounds and your category trends will show up here.
-                  </p>
-                )}
+                ))}
               </div>
             </div>
           </div>
