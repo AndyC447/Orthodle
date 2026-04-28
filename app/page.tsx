@@ -6,6 +6,8 @@ import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
 import {
   getStatsSummary,
+  normalizeAnswer,
+  ORTHO_DIAGNOSIS_BANK,
   getRoundProgress,
   getSessionId,
   recordGameResult,
@@ -71,6 +73,8 @@ function PlayPageContent() {
   const [selectedDate, setSelectedDate] = useState(todayISO())
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
+  const [answerOptions, setAnswerOptions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [guesses, setGuesses] = useState<Guess[]>([])
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -119,6 +123,34 @@ function PlayPageContent() {
 
   useEffect(() => {
     setDailySummary(getStatsSummary().today)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadAnswerOptions() {
+      const { data } = await supabase
+        .from('cases')
+        .select('answer')
+        .range(0, 1999)
+      if (cancelled) return
+
+      const uniqueAnswers = Array.from(
+        new Map(
+          [...ORTHO_DIAGNOSIS_BANK, ...((data || []).map(item => item.answer?.trim()).filter(Boolean) as string[])]
+            .filter(Boolean)
+            .map(answer => [normalizeAnswer(answer as string), answer as string])
+        ).values()
+      ).sort((a, b) => a.localeCompare(b))
+
+      setAnswerOptions(uniqueAnswers)
+    }
+
+    void loadAnswerOptions()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   useEffect(() => {
@@ -399,6 +431,50 @@ function PlayPageContent() {
       ) : (
         <div key={index} className="h-2.5" />
       )
+    )
+  }
+
+  const filteredAnswerOptions = useMemo(() => {
+    const query = normalizeAnswer(guess)
+    if (!query) return answerOptions.slice(0, 12)
+
+    const startsWith = answerOptions.filter(option =>
+      normalizeAnswer(option).startsWith(query)
+    )
+    const includes = answerOptions.filter(option => {
+      const normalized = normalizeAnswer(option)
+      return !normalized.startsWith(query) && normalized.includes(query)
+    })
+
+    return [...startsWith, ...includes].slice(0, 12)
+  }, [answerOptions, guess])
+
+  function selectSuggestion(option: string) {
+    setGuess(option)
+    setShowSuggestions(false)
+  }
+
+  function renderSuggestionList(className: string) {
+    if (!showSuggestions || mobileInputDisabled || filteredAnswerOptions.length === 0) return null
+
+    return (
+      <div
+        className={className}
+      >
+        {filteredAnswerOptions.map(option => (
+          <button
+            key={option}
+            type="button"
+            onMouseDown={e => {
+              e.preventDefault()
+              selectSuggestion(option)
+            }}
+            className="w-full border-b border-[#f0ebe1] px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7] last:border-b-0"
+          >
+            {option}
+          </button>
+        ))}
+      </div>
     )
   }
 
@@ -792,29 +868,40 @@ const todayComplete = todayCompletedLevels === 3
               </div>
 
               <div className="mt-3.5 hidden border-t border-[#ded7ca] pt-3 sm:block">
-                <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
-                  <input
-                    value={guess}
-                    onChange={e => setGuess(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && submitGuess()}
-                    placeholder={
-                      !dailyCase
-                        ? 'No case available'
-                        : gameWon || gameOver
-                          ? 'Round complete'
-                          : 'Type your diagnosis...'
-                    }
-                    disabled={!dailyCase || gameWon || gameOver}
-                    className="flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
-                  />
+                <div className="relative">
+                  <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
+                    <input
+                      value={guess}
+                      onChange={e => {
+                        setGuess(e.target.value)
+                        setShowSuggestions(true)
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
+                      onKeyDown={e => e.key === 'Enter' && submitGuess()}
+                      placeholder={
+                        !dailyCase
+                          ? 'No case available'
+                          : gameWon || gameOver
+                            ? 'Round complete'
+                            : 'Start typing to narrow the diagnosis...'
+                      }
+                      disabled={!dailyCase || gameWon || gameOver}
+                      className="flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                    />
 
-                  <button
-                    onClick={submitGuess}
-                    disabled={!dailyCase || gameWon || gameOver}
-                    className="rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                  >
-                    Submit
-                  </button>
+                    <button
+                      onClick={submitGuess}
+                      disabled={!dailyCase || gameWon || gameOver}
+                      className="rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                    >
+                      Submit
+                    </button>
+                  </div>
+
+                  {renderSuggestionList(
+                    'absolute inset-x-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
+                  )}
                 </div>
 
                 <p className="mt-2 text-[12px] leading-5 text-[#637268]">
@@ -1127,22 +1214,33 @@ const todayComplete = todayCompletedLevels === 3
           </button>
         ) : (
           <>
-            <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
-              <input
-                value={guess}
-                onChange={e => setGuess(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submitGuess()}
-                placeholder={!dailyCase ? 'No case available' : 'Type your diagnosis...'}
-                disabled={mobileInputDisabled}
-                className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3.5 py-3 text-[16px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
-              />
-              <button
-                onClick={submitGuess}
-                disabled={mobileInputDisabled}
-                className="rounded-xl bg-[#1f6448] px-4 py-3 text-[13px] font-bold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Guess
-              </button>
+            <div className="relative">
+              <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
+                <input
+                  value={guess}
+                  onChange={e => {
+                    setGuess(e.target.value)
+                    setShowSuggestions(true)
+                  }}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
+                  onKeyDown={e => e.key === 'Enter' && submitGuess()}
+                  placeholder={!dailyCase ? 'No case available' : 'Start typing to narrow the diagnosis...'}
+                  disabled={mobileInputDisabled}
+                  className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3.5 py-3 text-[16px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                />
+                <button
+                  onClick={submitGuess}
+                  disabled={mobileInputDisabled}
+                  className="rounded-xl bg-[#1f6448] px-4 py-3 text-[13px] font-bold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Guess
+                </button>
+              </div>
+
+              {renderSuggestionList(
+                'absolute inset-x-0 bottom-[calc(100%+8px)] z-20 max-h-56 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.12)]'
+              )}
             </div>
             <p className="mt-2 text-[12px] leading-5 text-[#637268]">
               {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
