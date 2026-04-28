@@ -185,14 +185,16 @@ export default function PlayPage() {
 
   function buildShareText() {
     const score = gameWon ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`
-    const guessRows = guesses.map(item => (item.correct ? '🟩' : '🟧')).join('')
-    const emptyRows = Array.from({ length: Math.max(0, MAX_GUESSES - guesses.length) })
-      .map(() => '⬜')
-      .join('')
-    const rows = [guessRows, emptyRows].filter(Boolean).join('\n')
+    const rows = guesses.map(item => (item.correct ? '🟩' : '🟧')).join('\n')
+    const prettyDate = new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
 
     return [
-      `Orthodle ${todayISO()} ${formatLevel(selectedLevel)} ${score}`,
+      `Orthodle ${formatLevel(selectedLevel)} ${score}`,
+      prettyDate,
       rows,
       'https://orthodle.com',
     ].join('\n')
@@ -644,13 +646,6 @@ export default function PlayPage() {
                   Share result
                 </button>
               </div>
-
-              <button
-                onClick={shareResult}
-                className="mt-3 flex w-full items-center justify-center rounded-xl bg-[#1f6448] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#174c37] sm:hidden"
-              >
-                Share your result
-              </button>
 
               <div className="mt-4 rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-4">
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
