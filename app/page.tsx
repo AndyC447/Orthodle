@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
 import { getSessionId, recordGameResult, todayISO } from '@/lib/utils'
@@ -48,6 +48,7 @@ const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
 }))
 
 export default function PlayPage() {
+  const findingsRef = useRef<HTMLDivElement | null>(null)
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
@@ -150,6 +151,7 @@ export default function PlayPage() {
   const imageRevealed =
     Boolean(dailyCase?.image_url) &&
     (roundComplete || imageRevealStep === null || unlockedFindings >= imageRevealStep)
+  const mobileInputDisabled = !dailyCase || gameWon || gameOver
 
   const teachingPoint =
     dailyCase?.teaching_point ||
@@ -291,6 +293,19 @@ export default function PlayPage() {
   }
 
   useEffect(() => {
+    if (unlockedFindings === 0 || roundComplete) return
+
+    const timeoutId = window.setTimeout(() => {
+      findingsRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 180)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [unlockedFindings, roundComplete])
+
+  useEffect(() => {
     if (!dailyCase || !roundComplete || guesses.length === 0) return
 
     recordGameResult({
@@ -399,14 +414,14 @@ export default function PlayPage() {
         </div>
       )}
 
-      <section className="mx-auto max-w-5xl px-6 pt-6 pb-1 text-center">
-        <h1 className="font-serif text-[42px] font-bold leading-[1.04] tracking-[-0.03em] text-[#102018] md:text-[46px]">
+      <section className="mx-auto max-w-5xl px-4 pt-4 pb-1 text-center sm:px-6 sm:pt-6">
+        <h1 className="font-serif text-[34px] font-bold leading-[1.02] tracking-[-0.03em] text-[#102018] sm:text-[42px] md:text-[46px]">
           Read the case.
           <br />
           Guess the diagnosis.
         </h1>
 
-        <div className="mx-auto mt-3.5 grid max-w-lg grid-cols-3 rounded-2xl border border-[#ded7ca] bg-white p-1 shadow-sm">
+        <div className="mx-auto mt-3 grid max-w-lg grid-cols-3 rounded-2xl border border-[#ded7ca] bg-white p-1 shadow-sm">
           {levels.map(level => {
             const active = selectedLevel === level.key
 
@@ -416,19 +431,19 @@ export default function PlayPage() {
                 onClick={() => setSelectedLevel(level.key)}
                 className={
                   active
-                    ? 'rounded-xl bg-[#1f6448] px-3 py-2.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01]'
-                    : 'rounded-xl px-3 py-2.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0]'
+                    ? 'rounded-xl bg-[#1f6448] px-2.5 py-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5'
+                    : 'rounded-xl px-2.5 py-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5'
                 }
               >
-                <div className="font-serif text-[13px] font-bold leading-none">
+                <div className="font-serif text-[12px] font-bold leading-none sm:text-[13px]">
                   {level.label}
                 </div>
 
                 <div
                   className={
                     active
-                      ? 'mt-1 text-[8px] font-semibold uppercase tracking-[0.22em] text-[#dbe7e0]'
-                      : 'mt-1 text-[8px] font-semibold uppercase tracking-[0.22em] text-[#637268]'
+                      ? 'mt-1 text-[7px] font-semibold uppercase tracking-[0.18em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
+                      : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.18em] text-[#637268] sm:text-[8px] sm:tracking-[0.22em]'
                   }
                 >
                   {level.subtitle}
@@ -437,16 +452,15 @@ export default function PlayPage() {
             )
           })}
         </div>
-
       </section>
 
-      <div className="mx-auto grid max-w-5xl items-start gap-4 px-6 py-2 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="mx-auto grid max-w-5xl items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[minmax(0,1fr)_280px]">
         <section className="space-y-4">
           <div className="overflow-hidden rounded-2xl border border-[#ded7ca] bg-white shadow-sm">
             <div className="h-1.5 bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
-            <div className="p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="p-3.5 sm:p-4">
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
                 <div className="flex items-center gap-3 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#637268]">
                   <span className="rounded-full border border-[#ded7ca] bg-white px-3 py-1">
                     Case
@@ -456,11 +470,11 @@ export default function PlayPage() {
                 </div>
               </div>
 
-              <h2 className="font-serif text-[26px] font-bold leading-tight tracking-[-0.025em] text-[#102018]">
+              <h2 className="font-serif text-[22px] font-bold leading-tight tracking-[-0.025em] text-[#102018] sm:text-[26px]">
                 What&apos;s the diagnosis?
               </h2>
 
-              <p className="mt-2.5 font-serif text-[17px] leading-[1.5] tracking-[-0.01em] text-[#102018]">
+              <p className="mt-2 font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:mt-2.5 sm:text-[17px]">
                 {loading
                   ? 'Loading...'
                   : dailyCase
@@ -470,7 +484,7 @@ export default function PlayPage() {
 
               {dailyCase?.image_url && imageRevealed && (
                 imageHidden ? (
-                  <div className="mt-4 flex items-center justify-between rounded-xl border border-dashed border-[#d9d4ca] bg-[#fbfaf7] px-3 py-2.5">
+                  <div className="mt-3.5 flex items-center justify-between rounded-xl border border-dashed border-[#d9d4ca] bg-[#fbfaf7] px-3 py-2.5">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                       Imaging hidden
                     </div>
@@ -482,7 +496,7 @@ export default function PlayPage() {
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-4 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2.5">
+                  <div className="mt-3.5 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                         Imaging
@@ -496,10 +510,10 @@ export default function PlayPage() {
                           Hide
                         </button>
                         <button
-                          onClick={() => setImageExpanded(prev => !prev)}
+                          onClick={() => setImageExpanded(true)}
                           className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
                         >
-                          {imageExpanded ? 'Minimize' : 'Enlarge'}
+                          Enlarge
                         </button>
                       </div>
                     </div>
@@ -511,7 +525,7 @@ export default function PlayPage() {
                       <img
                         src={dailyCase.image_url}
                         alt="Case image"
-                        className="block max-h-[320px] max-w-full bg-white object-contain"
+                        className="block max-h-[260px] max-w-full bg-white object-contain sm:max-h-[320px]"
                       />
                     </button>
                     {dailyCase.image_credit && (
@@ -523,7 +537,7 @@ export default function PlayPage() {
                 )
               )}
 
-              <div className="mt-4 border-t border-dashed border-[#ded7ca] pt-3">
+              <div ref={findingsRef} className="mt-4 border-t border-dashed border-[#ded7ca] pt-3">
                 <div className="flex items-center justify-between gap-4">
                   <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                     Clinical findings
@@ -541,11 +555,11 @@ export default function PlayPage() {
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className="orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-2.5 text-[#102018]"
+                        className="orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-[#102018] sm:px-3.5"
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
-                          <p className="font-serif text-[14px] leading-5.5 tracking-[-0.01em]">
+                          <p className="font-serif text-[14px] leading-5.5 tracking-[-0.01em] sm:text-[15px]">
                             {finding}
                           </p>
                         </div>
@@ -559,7 +573,7 @@ export default function PlayPage() {
                 )}
               </div>
 
-              <div className="mt-3.5 border-t border-[#ded7ca] pt-3">
+              <div className="mt-3.5 hidden border-t border-[#ded7ca] pt-3 sm:block">
                 <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
                   <input
                     value={guess}
@@ -612,7 +626,7 @@ export default function PlayPage() {
                   : 'Round complete'}
               </div>
 
-              <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+              <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
                     Diagnosis
@@ -625,11 +639,18 @@ export default function PlayPage() {
 
                 <button
                   onClick={shareResult}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:scale-[1.02] hover:bg-[#f7f5f0]"
+                  className="hidden rounded-lg border border-[#ded7ca] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:scale-[1.02] hover:bg-[#f7f5f0] sm:block"
                 >
                   Share result
                 </button>
               </div>
+
+              <button
+                onClick={shareResult}
+                className="mt-3 flex w-full items-center justify-center rounded-xl bg-[#1f6448] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#174c37] sm:hidden"
+              >
+                Share your result
+              </button>
 
               <div className="mt-4 rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-4">
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
@@ -667,7 +688,42 @@ export default function PlayPage() {
         </section>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-[#ded7ca] bg-white p-3 shadow-sm sm:hidden">
+            <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
+              <span>Your guesses</span>
+              <span className="font-semibold text-[#637268]">
+                {guesses.length}/{MAX_GUESSES}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-6 gap-1.5">
+              {Array.from({ length: MAX_GUESSES }).map((_, i) => {
+                const item = guesses[i]
+
+                return (
+                  <div
+                    key={`mobile-${i}`}
+                    className={
+                      item
+                        ? item.correct
+                          ? 'flex min-h-[52px] flex-col items-center justify-center rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-1 py-1.5 text-[#102018]'
+                          : 'flex min-h-[52px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1.5 text-[#102018]'
+                        : 'flex min-h-[52px] flex-col items-center justify-center rounded-lg border border-dashed border-[#ded7ca] bg-white px-1 py-1.5 text-[#9aa39c]'
+                    }
+                  >
+                    <span className="text-[10px] font-mono text-[#637268]">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+                    <span className="mt-1 text-[11px] font-semibold">
+                      {item ? (item.correct ? '✓' : '×') : '•'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="hidden rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:block">
             <div className="mb-3 flex justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
               <span className="font-semibold text-[#637268]">
@@ -721,9 +777,44 @@ export default function PlayPage() {
         </aside>
       </div>
 
-      <footer className="mx-auto mt-10 max-w-4xl border-t border-[#ded7ca] px-6 py-7 text-center text-[10px] uppercase tracking-[0.3em] text-[#637268]">
+      <footer className="mx-auto mt-8 max-w-4xl border-t border-[#ded7ca] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
         Orthodle — for education &amp; entertainment. Not medical advice.
       </footer>
+
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur sm:hidden">
+        {roundComplete ? (
+          <button
+            type="button"
+            onClick={shareResult}
+            className="w-full rounded-xl bg-[#1f6448] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+          >
+            Share result
+          </button>
+        ) : (
+          <>
+            <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
+              <input
+                value={guess}
+                onChange={e => setGuess(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && submitGuess()}
+                placeholder={!dailyCase ? 'No case available' : 'Type your diagnosis...'}
+                disabled={mobileInputDisabled}
+                className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3.5 py-3 text-[14px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+              />
+              <button
+                onClick={submitGuess}
+                disabled={mobileInputDisabled}
+                className="rounded-xl bg-[#1f6448] px-4 py-3 text-[13px] font-bold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Guess
+              </button>
+            </div>
+            <p className="mt-2 text-[12px] leading-5 text-[#637268]">
+              {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
+            </p>
+          </>
+        )}
+      </div>
 
       {dailyCase?.image_url && imageRevealed && imageExpanded && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8">
