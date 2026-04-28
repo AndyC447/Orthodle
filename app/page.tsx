@@ -505,8 +505,13 @@ function PlayPageContent() {
     setDailySummary(getStatsSummary().today)
   }, [dailyCase, roundComplete, gameWon, guesses])
 
-  const todayCompletedLevels = new Set(dailySummary.levels.map(item => item.level)).size
-  const todayComplete = todayCompletedLevels === 3
+  const todayCompletedLevels = new Set(
+  dailySummary.levels
+    .filter(item => item.won || item.guessesUsed === 6) // completed (win OR used all guesses)
+    .map(item => item.level)
+).size
+
+const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
 
   return (
