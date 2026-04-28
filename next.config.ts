@@ -5,7 +5,10 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: '**' }
     ]
-  }
+  },
+  experimental: {
+    turbo: false,
+  },
 }
 
 export default nextConfig
