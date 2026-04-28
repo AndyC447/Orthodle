@@ -102,8 +102,19 @@ type CasePerformance = {
   players: number
 }
 
+type ReminderStats = {
+  activeSubscribers: number
+  totalSubscribers: number
+}
+
 const today = new Date().toISOString().slice(0, 10)
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
+
+function shiftISODate(dateText: string, days: number) {
+  const baseDate = new Date(`${dateText}T12:00:00`)
+  baseDate.setDate(baseDate.getDate() + days)
+  return baseDate.toISOString().slice(0, 10)
+}
 
 export default function AdminPage() {
   const [password, setPassword] = useState('')
@@ -133,13 +144,17 @@ export default function AdminPage() {
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null)
   const [levelAnalytics, setLevelAnalytics] = useState<LevelAnalytics[]>([])
   const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
+  const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
-  const [showCasesByDate, setShowCasesByDate] = useState(true)
+  const [showCasesByDate, setShowCasesByDate] = useState(false)
   const [showSubmissions, setShowSubmissions] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
+  const [testReminderEmail, setTestReminderEmail] = useState('andycontreras123@gmail.com')
+  const [testReminderStatus, setTestReminderStatus] = useState('')
+  const [sendingTestReminder, setSendingTestReminder] = useState(false)
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -153,6 +168,7 @@ export default function AdminPage() {
     loadCases()
     loadAnalytics()
     loadSubmissions()
+    loadReminderStats()
   }, [isUnlocked])
 
   const groupedCases = useMemo(() => {
@@ -181,10 +197,16 @@ export default function AdminPage() {
   }, [browseDate, groupedCases])
 
   const quickBrowseDates = groupedCases.slice(0, 8).map(group => group.date)
+  const tomorrow = shiftISODate(today, 1)
 
   const todaysCases = useMemo(
     () => groupedCases.find(group => group.date === today)?.items || [],
     [groupedCases]
+  )
+
+  const tomorrowsCases = useMemo(
+    () => groupedCases.find(group => group.date === tomorrow)?.items || [],
+    [groupedCases, tomorrow]
   )
 
   const previewClues = useMemo(
@@ -253,12 +275,14 @@ export default function AdminPage() {
     }
 
     window.sessionStorage.setItem('orthodle_admin_unlocked', 'true')
+    window.sessionStorage.setItem('orthodle_admin_password', trimmedPassword)
     setIsUnlocked(true)
     setPassword('')
   }
 
   function lockAdmin() {
     window.sessionStorage.removeItem('orthodle_admin_unlocked')
+    window.sessionStorage.removeItem('orthodle_admin_password')
     setIsUnlocked(false)
     setPassword('')
     setAuthError('')
@@ -582,6 +606,51 @@ export default function AdminPage() {
     )
   }
 
+  async function loadReminderStats() {
+    try {
+      const response = await fetch('/api/reminders/stats')
+
+      if (!response.ok) return
+
+      const data = await response.json()
+      setReminderStats({
+        activeSubscribers: data.activeSubscribers || 0,
+        totalSubscribers: data.totalSubscribers || 0,
+      })
+    } catch {
+      // Keep reminders stats optional if the endpoint is not configured yet.
+    }
+  }
+
+  async function sendTestReminder() {
+    setSendingTestReminder(true)
+    setTestReminderStatus('')
+
+    try {
+      const adminPassword = window.sessionStorage.getItem('orthodle_admin_password') || ''
+      const response = await fetch('/api/reminders/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: testReminderEmail,
+          password: adminPassword,
+        }),
+      })
+
+      const data = await response.json()
+      if (!response.ok) {
+        setTestReminderStatus(data.error || 'Could not send test reminder.')
+        return
+      }
+
+      setTestReminderStatus(data.message || 'Test reminder sent.')
+    } catch {
+      setTestReminderStatus('Could not send test reminder.')
+    } finally {
+      setSendingTestReminder(false)
+    }
+  }
+
   async function uploadImage(file: File) {
     setStatus('Uploading image...')
 
@@ -813,6 +882,73 @@ export default function AdminPage() {
                       <button
                         type="button"
                         onClick={() => startCaseFor(today, levelValue)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                      >
+                        Add
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                Tomorrow overview
+              </div>
+              <p className="mt-1 text-sm text-[#637268]">
+                A quick way to tee up tomorrow&apos;s card before it goes live.
+              </p>
+            </div>
+
+            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              {tomorrowsCases.length}/3 ready
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-2.5 md:grid-cols-3">
+            {levelOrder.map(levelValue => {
+              const item = tomorrowsCases.find(entry => entry.level === levelValue)
+              const nextMissing = nextMissingLevelForDate(tomorrow)
+
+              return (
+                <div
+                  key={`tomorrow-${levelValue}`}
+                  className={
+                    item
+                      ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
+                      : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
+                  }
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                        {formatLevel(levelValue)}
+                      </div>
+                      <div className="mt-1.5 font-semibold text-[#102018]">
+                        {item ? item.answer : 'Not scheduled'}
+                      </div>
+                      <div className="mt-1 text-sm text-[#637268]">
+                        {item ? item.category : 'Open slot'}
+                      </div>
+                    </div>
+
+                    {item ? (
+                      <button
+                        type="button"
+                        onClick={() => editCase(item)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                      >
+                        Edit
+                      </button>
+                    ) : nextMissing === levelValue ? (
+                      <button
+                        type="button"
+                        onClick={() => startCaseFor(tomorrow, levelValue)}
                         className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
                       >
                         Add
@@ -1328,6 +1464,24 @@ Pearl: Knee pain in teens -> always check the hip`}
                           {analyticsSummary.averageGuessesPerUser.toFixed(1)}
                         </div>
                       </div>
+
+                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                          Reminder subs
+                        </div>
+                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                          {reminderStats?.activeSubscribers ?? 0}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                          Reminder total
+                        </div>
+                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                          {reminderStats?.totalSubscribers ?? 0}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
@@ -1362,101 +1516,33 @@ Pearl: Knee pain in teens -> always check the hip`}
                       </div>
                     </div>
 
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                        By difficulty
+                    <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                        Test reminder email
                       </div>
-                      <div className="mt-3 space-y-2">
-                        {levelAnalytics.map(row => (
-                          <div
-                            key={row.level}
-                            className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="font-semibold text-[#102018]">
-                                {formatLevel(row.level)}
-                              </div>
-                              <div className="text-sm text-[#637268]">
-                                {row.users} users
-                              </div>
-                            </div>
-                            <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[#637268]">
-                              <div>Guesses: {row.guesses}</div>
-                              <div>
-                                Accuracy:{' '}
-                                {formatPercent(
-                                  row.guesses > 0
-                                    ? (row.correctGuesses / row.guesses) * 100
-                                    : 0
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                        Top cases
-                      </div>
-                      <div className="mt-3 space-y-2">
-                        {casePerformance.length === 0 ? (
-                          <p className="text-sm text-[#637268]">No case performance data yet.</p>
-                        ) : (
-                          casePerformance.map(item => (
-                            <div
-                              key={item.caseId}
-                              className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                                    {item.caseDate} · {formatLevel(item.level)}
-                                  </div>
-                                  <div className="mt-1 font-semibold text-[#102018]">
-                                    {item.answer}
-                                  </div>
-                                  <div className="text-sm text-[#637268]">{item.category}</div>
-                                </div>
-                                <div className="text-right text-sm text-[#637268]">
-                                  <div>{item.players} players</div>
-                                  <div>{item.guesses} guesses</div>
-                                </div>
-                              </div>
-                            </div>
-                          ))
+                      <div className="mt-3 flex flex-col gap-2">
+                        <input
+                          type="email"
+                          value={testReminderEmail}
+                          onChange={e => setTestReminderEmail(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && sendTestReminder()}
+                          placeholder="Email address"
+                          className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                        />
+                        <button
+                          type="button"
+                          onClick={sendTestReminder}
+                          disabled={sendingTestReminder}
+                          className="rounded-lg bg-[#1f6448] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {sendingTestReminder ? 'Sending...' : 'Send test reminder'}
+                        </button>
+                        {testReminderStatus && (
+                          <p className="text-sm text-[#637268]">{testReminderStatus}</p>
                         )}
                       </div>
                     </div>
 
-                    <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                        Daily activity
-                      </div>
-                      <div className="mt-3 space-y-2">
-                        {analytics.length === 0 ? (
-                          <p className="text-sm text-[#637268]">No analytics yet.</p>
-                        ) : (
-                          analytics.map(row => (
-                            <div
-                              key={row.date}
-                              className="rounded-lg border border-[#ded7ca] bg-white/70 p-3"
-                            >
-                              <div className="font-semibold text-[#102018]">
-                                {row.date}
-                              </div>
-                              <div className="mt-2 grid grid-cols-2 gap-2 text-sm text-[#637268]">
-                                <div>Visits: {row.visits}</div>
-                                <div>Users: {row.unique_sessions}</div>
-                                <div>Guesses: {row.guesses}</div>
-                                <div>Correct: {row.correct_guesses}</div>
-                              </div>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
                   </>
                 ) : (
                   <p className="text-sm text-[#637268]">No analytics yet.</p>

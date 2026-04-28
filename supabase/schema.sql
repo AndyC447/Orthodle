@@ -70,6 +70,23 @@ create table if not exists case_submissions (
   created_at timestamptz default now()
 );
 
+create table if not exists email_reminders (
+  id uuid primary key default uuid_generate_v4(),
+  email text not null,
+  active boolean not null default true,
+  timezone text,
+  source_path text,
+  unsubscribe_token text not null unique,
+  sent_count integer not null default 0,
+  last_sent_at timestamptz,
+  last_sent_on date,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create unique index if not exists email_reminders_email_idx
+on email_reminders (email);
+
 create or replace view daily_analytics as
 select
   c.case_date,
@@ -86,6 +103,7 @@ alter table cases enable row level security;
 alter table guesses enable row level security;
 alter table visits enable row level security;
 alter table case_submissions enable row level security;
+alter table email_reminders enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);

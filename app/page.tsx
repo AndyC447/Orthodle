@@ -88,7 +88,9 @@ function PlayPageContent() {
   const [imageExpanded, setImageExpanded] = useState(false)
   const [imageHidden, setImageHidden] = useState(false)
   const [communityStats, setCommunityStats] = useState<CommunityCaseStats | null>(null)
-  const [showArchiveTools, setShowArchiveTools] = useState(false)
+  const [reminderEmail, setReminderEmail] = useState('')
+  const [reminderStatus, setReminderStatus] = useState('')
+  const [isSavingReminder, setIsSavingReminder] = useState(false)
   const [dailySummary, setDailySummary] = useState({
     date: todayISO(),
     played: 0,
@@ -119,7 +121,6 @@ function PlayPageContent() {
 
     if (dateParam && dateParam >= LAUNCH_DATE && dateParam <= todayISO()) {
       setSelectedDate(dateParam)
-      setShowArchiveTools(true)
     }
   }, [searchParams])
 
@@ -301,17 +302,6 @@ function PlayPageContent() {
     })
   }
 
-  function shiftSelectedDate(direction: -1 | 1) {
-    const baseDate = new Date(`${selectedDate}T12:00:00`)
-    baseDate.setDate(baseDate.getDate() + direction)
-    const nextDate = baseDate.toISOString().slice(0, 10)
-
-    if (nextDate < LAUNCH_DATE) return
-    if (nextDate > todayISO()) return
-
-    setSelectedDate(nextDate)
-  }
-
   const findings = useMemo(() => {
     if (!dailyCase) return []
 
@@ -411,6 +401,44 @@ function PlayPageContent() {
 
     await navigator.clipboard.writeText(shareText)
     setMessage('Result copied.')
+  }
+
+  async function subscribeToReminder() {
+    const email = reminderEmail.trim()
+
+    if (!email) {
+      setReminderStatus('Enter an email to get the reminder.')
+      return
+    }
+
+    setIsSavingReminder(true)
+    setReminderStatus('')
+
+    try {
+      const response = await fetch('/api/reminders/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          sourcePath: window.location.pathname,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setReminderStatus(data.error || 'Could not save your reminder.')
+        return
+      }
+
+      setReminderStatus(data.message || 'You’re signed up.')
+      setReminderEmail('')
+    } catch {
+      setReminderStatus('Could not save your reminder.')
+    } finally {
+      setIsSavingReminder(false)
+    }
   }
 
   function renderFormattedLine(line: string) {
@@ -694,17 +722,6 @@ const todayComplete = todayCompletedLevels === 3
           will-change: transform, opacity;
         }
 
-        .orthodle-date-input {
-          position: absolute;
-          inset: 0;
-          opacity: 0;
-          cursor: pointer;
-        }
-
-        .orthodle-date-input::-webkit-calendar-picker-indicator {
-          opacity: 0;
-          cursor: pointer;
-        }
       `}</style>
 
       {showConfetti && (
@@ -1128,107 +1145,8 @@ const todayComplete = todayCompletedLevels === 3
             </div>
           </div>
 
-          <div className="hidden rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3 sm:block">
-            <button
-              type="button"
-              onClick={() => setShowArchiveTools(prev => !prev)}
-              className="mb-2 flex w-full items-center justify-between text-left text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a857c]"
-            >
-              <span>Archive</span>
-              <span>{showArchiveTools ? 'Hide' : formatArchiveDate(selectedDate)}</span>
-            </button>
-
-            {showArchiveTools && (
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-              <button
-                type="button"
-                onClick={() => shiftSelectedDate(-1)}
-                disabled={selectedDate === LAUNCH_DATE}
-                className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Prev
-              </button>
-
-              <div className="relative min-w-0 text-center">
-                <div className="w-full rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-2 py-2 text-center text-[12px] font-semibold leading-4.5 text-[#102018]">
-                  {formatArchiveDate(selectedDate)}
-                </div>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  min={LAUNCH_DATE}
-                  max={todayISO()}
-                  onChange={e => setSelectedDate(e.target.value)}
-                  className="orthodle-date-input"
-                  aria-label="Select case date"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={() => shiftSelectedDate(1)}
-                disabled={selectedDate === todayISO()}
-                className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-            )}
-          </div>
-
         </aside>
       </div>
-
-      <section className="mx-auto mt-4 max-w-lg px-4 sm:hidden">
-        <button
-          type="button"
-          onClick={() => setShowArchiveTools(prev => !prev)}
-          className="mb-2 w-full rounded-full border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a857c]"
-        >
-          Archive · {showArchiveTools ? 'Hide' : formatArchiveDate(selectedDate)}
-        </button>
-        {showArchiveTools && (
-        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-end gap-2 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] px-2 py-2 shadow-none">
-          <button
-            type="button"
-            onClick={() => shiftSelectedDate(-1)}
-            disabled={selectedDate === LAUNCH_DATE}
-            className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Prev
-          </button>
-
-          <div className="relative min-w-0 px-1 text-center">
-            <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-              Case date
-            </div>
-            <div>
-              <div className="w-full rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-2 py-2 text-center text-[12px] font-semibold text-[#102018]">
-                {formatArchiveDate(selectedDate)}
-              </div>
-            </div>
-            <input
-              type="date"
-              value={selectedDate}
-              min={LAUNCH_DATE}
-              max={todayISO()}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="orthodle-date-input"
-              aria-label="Select case date"
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => shiftSelectedDate(1)}
-            disabled={selectedDate === todayISO()}
-            className="rounded-xl border border-[#ded7ca] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-        )}
-      </section>
 
       <footer className="mx-auto mt-8 max-w-4xl border-t border-[#e7e1d6] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
         Orthodle — for education &amp; entertainment. Not medical advice.
