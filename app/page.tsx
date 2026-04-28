@@ -91,6 +91,9 @@ function PlayPageContent() {
   const [reminderEmail, setReminderEmail] = useState('')
   const [reminderStatus, setReminderStatus] = useState('')
   const [isSavingReminder, setIsSavingReminder] = useState(false)
+  const [feedbackText, setFeedbackText] = useState('')
+  const [feedbackStatus, setFeedbackStatus] = useState('')
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false)
   const [dailySummary, setDailySummary] = useState({
     date: todayISO(),
     played: 0,
@@ -449,6 +452,38 @@ function PlayPageContent() {
     } finally {
       setIsSavingReminder(false)
     }
+  }
+
+  async function submitCaseFeedback() {
+    if (!dailyCase) return
+
+    const trimmedFeedback = feedbackText.trim()
+    if (!trimmedFeedback) {
+      setFeedbackStatus('Enter feedback before sending.')
+      return
+    }
+
+    setIsSavingFeedback(true)
+    setFeedbackStatus('')
+
+    const { error } = await supabase.from('case_feedback').insert({
+      case_id: dailyCase.id,
+      case_date: dailyCase.case_date,
+      level: dailyCase.level,
+      answer: dailyCase.answer,
+      feedback_text: trimmedFeedback,
+      session_id: getSessionId() || null,
+    })
+
+    if (error) {
+      setFeedbackStatus('Could not send feedback right now.')
+      setIsSavingFeedback(false)
+      return
+    }
+
+    setFeedbackText('')
+    setFeedbackStatus('Thanks for the feedback.')
+    setIsSavingFeedback(false)
   }
 
   function renderFormattedLine(line: string) {
@@ -1066,6 +1101,33 @@ const todayComplete = todayCompletedLevels === 3
                     </div>
                   </div>
                 )}
+
+                <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Case feedback
+                  </div>
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                    <input
+                      type="text"
+                      value={feedbackText}
+                      onChange={e => setFeedbackText(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && submitCaseFeedback()}
+                      placeholder="Share feedback on this case"
+                      className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitCaseFeedback}
+                      disabled={isSavingFeedback}
+                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fdfdfb] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSavingFeedback ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
+                  {feedbackStatus && (
+                    <p className="mt-1.5 text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
+                  )}
+                </div>
               </div>
             </div>
           )}

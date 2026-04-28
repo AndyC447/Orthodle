@@ -93,6 +93,17 @@ create table if not exists diagnosis_choices (
   created_at timestamptz default now()
 );
 
+create table if not exists case_feedback (
+  id uuid primary key default uuid_generate_v4(),
+  case_id uuid references cases(id) on delete set null,
+  case_date date,
+  level text,
+  answer text,
+  feedback_text text not null,
+  session_id text,
+  created_at timestamptz default now()
+);
+
 create or replace view daily_analytics as
 select
   c.case_date,
@@ -111,6 +122,7 @@ alter table visits enable row level security;
 alter table case_submissions enable row level security;
 alter table email_reminders enable row level security;
 alter table diagnosis_choices enable row level security;
+alter table case_feedback enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);
@@ -125,6 +137,9 @@ create policy "public read diagnosis choices" on diagnosis_choices for select us
 create policy "public insert diagnosis choices" on diagnosis_choices for insert with check (true);
 create policy "public update diagnosis choices" on diagnosis_choices for update using (true) with check (true);
 create policy "public delete diagnosis choices" on diagnosis_choices for delete using (true);
+create policy "public read case feedback" on case_feedback for select using (true);
+create policy "public insert case feedback" on case_feedback for insert with check (true);
+create policy "public delete case feedback" on case_feedback for delete using (true);
 
 insert into cases (case_date, level, category, prompt, answer, synonyms, clue_1, clue_2)
 values (

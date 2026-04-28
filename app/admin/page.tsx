@@ -1462,6 +1462,22 @@ Pearl: Knee pain in teens -> always check the hip`}
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
+                <h2 className="font-serif text-xl font-bold">Feedback</h2>
+                <Link
+                  href="/admin/feedback"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                >
+                  Open sheet
+                </Link>
+              </div>
+
+              <p className="mt-2 text-sm text-[#637268]">
+                Review comments players leave after finishing a case on a dedicated feedback page.
+              </p>
+            </section>
+
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+              <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Analytics</h2>
                 <button
                   type="button"
