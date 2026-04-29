@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://orthodle.com'),
   title: 'Orthodle – Daily Orthopaedic Diagnosis Game',
   description:
     'Guess the orthopaedic diagnosis from clinical clues. A daily orthopaedic case game for medical students, residents, and attendings.',
@@ -28,11 +29,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico' },
+      { url: '/favicon.png', type: 'image/png', sizes: '64x64' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
       { url: '/icon.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/favicon.ico',
+    shortcut: '/favicon.png',
     apple: '/favicon.svg',
   },
   robots: {

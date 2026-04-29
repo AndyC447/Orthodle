@@ -388,10 +388,10 @@ function PlayPageContent() {
     const archiveLabel = (dailyCase?.case_date || selectedDate) === todayISO() ? '' : ' Archive'
 
     return [
-      `Orthodle${archiveLabel} ${formatLevel(selectedLevel)} ${score}`,
-      prettyDate,
+      `Orthodle${archiveLabel} ${score}`,
+      `${formatLevel(selectedLevel)} • ${prettyDate}`,
       boxes,
-      'https://orthodle.com',
+      'orthodle.com',
     ].join('\n')
   }
 
@@ -401,7 +401,6 @@ function PlayPageContent() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Orthodle',
           text: shareText,
         })
         return
@@ -1028,7 +1027,7 @@ const todayComplete = todayCompletedLevels === 3
                 {gameWon && (
                   <button
                     onClick={shareResult}
-                    className="inline-flex rounded-full border border-[#cfe2d8] bg-[#f2faf5] px-3 py-1.5 text-[13px] font-semibold text-[#1f6448] transition hover:bg-[#eaf6ef]"
+                    className="inline-flex items-center rounded-full bg-[#c76b3a] px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.22)] transition hover:-translate-y-0.5 hover:bg-[#b65d30]"
                   >
                     Share the win
                   </button>
@@ -1229,9 +1228,9 @@ const todayComplete = todayCompletedLevels === 3
           <button
             type="button"
             onClick={shareResult}
-            className="w-full rounded-xl bg-[#1f6448] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+            className="w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_-2px_18px_rgba(199,107,58,0.2)] transition hover:bg-[#b65d30]"
           >
-            Share result
+            Share the win
           </button>
         ) : (
           <>
