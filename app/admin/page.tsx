@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
-import { todayISO } from '@/lib/utils'
+import { normalizeAnswer, ORTHO_DIAGNOSIS_BANK, todayISO } from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -109,6 +109,10 @@ type ReminderStats = {
   totalSubscribers: number
 }
 
+type DiagnosisChoiceLite = {
+  label: string
+}
+
 const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 
@@ -155,6 +159,7 @@ export default function AdminPage() {
   const [levelAnalytics, setLevelAnalytics] = useState<LevelAnalytics[]>([])
   const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
   const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
+  const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
@@ -179,6 +184,7 @@ export default function AdminPage() {
     loadAnalytics()
     loadSubmissions()
     loadReminderStats()
+    loadDiagnosisChoices()
   }, [isUnlocked])
 
   const groupedCases = useMemo(() => {
@@ -223,6 +229,68 @@ export default function AdminPage() {
     () => [clue1, clue2, clue3, clue4, clue5, clue6].map(item => item.trim()).filter(Boolean),
     [clue1, clue2, clue3, clue4, clue5, clue6]
   )
+
+  const composerGuardrails = useMemo(() => {
+    const issues: string[] = []
+    const answerPool = new Set<string>()
+
+    for (const label of ORTHO_DIAGNOSIS_BANK) {
+      answerPool.add(normalizeAnswer(label))
+    }
+
+    for (const item of diagnosisChoices) {
+      if (item.label?.trim()) {
+        answerPool.add(normalizeAnswer(item.label))
+      }
+    }
+
+    for (const item of cases) {
+      if (item.answer?.trim()) {
+        answerPool.add(normalizeAnswer(item.answer))
+      }
+    }
+
+    if (answer.trim() && !answerPool.has(normalizeAnswer(answer))) {
+      issues.push('This answer is not in the master answer list yet.')
+    }
+
+    if (previewClues.length === 0) {
+      issues.push('No clues are filled in yet.')
+    }
+
+    if (!imageUrl && imageRevealClue !== 'none') {
+      issues.push('Image reveal is set, but no image is attached.')
+    }
+
+    if (imageUrl && imageRevealClue !== 'none') {
+      const revealIndex = Number(imageRevealClue)
+      const clueAtReveal = [clue1, clue2, clue3, clue4, clue5, clue6][revealIndex - 1]
+
+      if (!clueAtReveal?.trim()) {
+        issues.push(`Image reveal is tied to Clue ${revealIndex}, but that clue is empty.`)
+      }
+    }
+
+    if (caseDate === today) {
+      issues.push('This case is set to publish today, not tomorrow.')
+    }
+
+    return issues
+  }, [
+    answer,
+    caseDate,
+    cases,
+    clue1,
+    clue2,
+    clue3,
+    clue4,
+    clue5,
+    clue6,
+    diagnosisChoices,
+    imageRevealClue,
+    imageUrl,
+    previewClues.length,
+  ])
 
   const incompleteDates = useMemo(
     () =>
@@ -663,6 +731,15 @@ export default function AdminPage() {
     } catch {
       // Keep reminders stats optional if the endpoint is not configured yet.
     }
+  }
+
+  async function loadDiagnosisChoices() {
+    const { data } = await supabase
+      .from('diagnosis_choices')
+      .select('label')
+      .order('label', { ascending: true })
+
+    setDiagnosisChoices((data || []) as DiagnosisChoiceLite[])
   }
 
   async function sendTestReminder() {
@@ -1289,6 +1366,19 @@ Pearl: Knee pain in teens -> always check the hip`}
                   Line breaks are preserved. Use `**bold**` and `*italics*` for emphasis.
                 </span>
               </label>
+
+              {composerGuardrails.length > 0 && (
+                <div className="rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3 text-sm text-[#8a5a2b]">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#8a5a2b]">
+                    Guardrails
+                  </div>
+                  <div className="mt-2 space-y-1.5">
+                    {composerGuardrails.map(issue => (
+                      <p key={issue}>{issue}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={saveCase}
