@@ -26,6 +26,15 @@ export const metadata: Metadata = {
     siteName: 'Orthodle',
     type: 'website',
   },
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/favicon.svg',
+  },
   robots: {
     index: true,
     follow: true,
