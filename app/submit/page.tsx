@@ -326,6 +326,8 @@ export default function SubmitCasePage() {
                 <option value="2">Reveal with Clue 2</option>
                 <option value="3">Reveal with Clue 3</option>
                 <option value="4">Reveal with Clue 4</option>
+                <option value="5">Reveal with Clue 5</option>
+                <option value="6">Reveal with Clue 6</option>
               </select>
             </label>
 

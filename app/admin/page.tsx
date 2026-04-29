@@ -76,7 +76,7 @@ type GuessAnalyticsRow = {
 
 type AnalyticsSummary = {
   totalVisits: number
-  totalUsers: number
+  cumulativeDailyUsers: number
   totalGuesses: number
   totalCorrectGuesses: number
   guessAccuracy: number
@@ -131,7 +131,7 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState('')
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [authReady, setAuthReady] = useState(false)
-  const [caseDate, setCaseDate] = useState(today)
+  const [caseDate, setCaseDate] = useState(shiftISODate(today, 1))
   const [level, setLevel] = useState<Level>('med_student')
   const [contributorName, setContributorName] = useState('')
   const [category, setCategory] = useState('')
@@ -321,7 +321,7 @@ export default function AdminPage() {
   }
 
   function clearForm() {
-    setCaseDate(today)
+    setCaseDate(shiftISODate(today, 1))
     setLevel('med_student')
     setContributorName('')
     setCategory('')
@@ -598,6 +598,10 @@ export default function AdminPage() {
     const totalVisits = visits.length
     const totalGuesses = guesses.length
     const totalCorrectGuesses = guesses.filter(guess => guess.is_correct).length
+    const cumulativeDailyUsers = Object.values(byDate).reduce(
+      (sum, row) => sum + row.unique_sessions,
+      0
+    )
     const todayRow = byDate[today] || {
       date: today,
       visits: 0,
@@ -614,7 +618,7 @@ export default function AdminPage() {
 
     setAnalyticsSummary({
       totalVisits,
-      totalUsers: allSessions.size,
+      cumulativeDailyUsers,
       totalGuesses,
       totalCorrectGuesses,
       guessAccuracy: totalGuesses > 0 ? (totalCorrectGuesses / totalGuesses) * 100 : 0,
@@ -1173,6 +1177,8 @@ export default function AdminPage() {
                   <option value="2">Reveal with Clue 2</option>
                   <option value="3">Reveal with Clue 3</option>
                   <option value="4">Reveal with Clue 4</option>
+                  <option value="5">Reveal with Clue 5</option>
+                  <option value="6">Reveal with Clue 6</option>
                 </select>
               </label>
 
@@ -1533,10 +1539,10 @@ Pearl: Knee pain in teens -> always check the hip`}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Total users
+                          Cumulative daily users
                         </div>
                         <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.totalUsers}
+                          {analyticsSummary.cumulativeDailyUsers}
                         </div>
                       </div>
 

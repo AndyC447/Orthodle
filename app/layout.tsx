@@ -26,6 +26,10 @@ export const metadata: Metadata = {
     siteName: 'Orthodle',
     type: 'website',
   },
+  robots: {
+    index: true,
+    follow: true,
+  },
   verification: {
     google: '7nsFxYXgmXDHxuvuObjayAFGult90NKlzKeT-7IORAA',
   },
