@@ -719,6 +719,37 @@ export default function AdminPage() {
       return
     }
 
+    const { data: existingCase, error: existingCaseError } = await supabase
+      .from('cases')
+      .select('id, answer, prompt, category')
+      .eq('case_date', caseDate)
+      .eq('level', level)
+      .maybeSingle()
+
+    if (existingCaseError) {
+      setStatus(`Could not check existing case: ${existingCaseError.message}`)
+      return
+    }
+
+    const isMeaningfullyDifferent =
+      existingCase &&
+      (
+        (existingCase.answer || '').trim() !== answer.trim() ||
+        (existingCase.prompt || '').trim() !== prompt.trim() ||
+        (existingCase.category || '').trim() !== category.trim()
+      )
+
+    if (isMeaningfullyDifferent) {
+      const confirmed = window.confirm(
+        `A ${formatLevel(level)} case already exists for ${caseDate}.\n\nCurrent case: ${existingCase.answer || 'Untitled case'}\n\nDo you want to replace it?`
+      )
+
+      if (!confirmed) {
+        setStatus('Save canceled. Existing case was not replaced.')
+        return
+      }
+    }
+
     const synonymArray = synonyms
       .split(',')
       .map(s => s.trim())
