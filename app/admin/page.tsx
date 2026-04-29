@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
+import { todayISO } from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -108,13 +109,19 @@ type ReminderStats = {
   totalSubscribers: number
 }
 
-const today = new Date().toISOString().slice(0, 10)
+const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 
 function shiftISODate(dateText: string, days: number) {
   const baseDate = new Date(`${dateText}T12:00:00`)
   baseDate.setDate(baseDate.getDate() + days)
   return baseDate.toISOString().slice(0, 10)
+}
+
+function timestampToLocalISO(timestamp: string) {
+  const date = new Date(timestamp)
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
+  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 10)
 }
 
 const ANALYTICS_PAGE_SIZE = 1000
@@ -495,7 +502,7 @@ export default function AdminPage() {
     const sessionsByDate: Record<string, Set<string>> = {}
 
     for (const visit of visits) {
-      const date = visit.created_at.slice(0, 10)
+      const date = timestampToLocalISO(visit.created_at)
 
       if (!byDate[date]) {
         byDate[date] = {
@@ -514,7 +521,7 @@ export default function AdminPage() {
     }
 
     for (const guess of guesses) {
-      const date = guess.created_at.slice(0, 10)
+      const date = timestampToLocalISO(guess.created_at)
 
       if (!byDate[date]) {
         byDate[date] = {
