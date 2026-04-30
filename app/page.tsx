@@ -68,32 +68,10 @@ const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
   color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
 }))
 
-const LEVEL_TAGLINES: Record<Level, string[]> = {
-  med_student: [
-    'START HERE',
-    'BUILDING BLOCKS',
-    'CLINICAL BASICS',
-    'ANKI BREAK',
-    'WARM UP',
-    'FUNDAMENTALS',
-  ],
-  resident: [
-    'MAKE THE CALL',
-    'KNOW YOUR STUFF',
-    'THINK FAST',
-    'MIDNIGHT CONSULT',
-    'CELCIUS BREAK',
-    'HOLDING THE PAGER',
-  ],
-  attending: [
-    'CONNECT THE DOTS',
-    'BIG PICTURE',
-    'EXPERIENCED EYE',
-    'TRUST YOUR INSTINCTS',
-    'THE ART OF ORTHO',
-    'CLINICAL PEARLS',
-    'SUBTLE CLUES',
-  ],
+const DEFAULT_LEVEL_TAGLINES: Record<Level, string> = {
+  med_student: 'START HERE',
+  resident: 'MAKE THE CALL',
+  attending: 'CONNECT THE DOTS',
 }
 
 function PlayPageContent() {
@@ -122,6 +100,7 @@ function PlayPageContent() {
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackStatus, setFeedbackStatus] = useState('')
   const [isSavingFeedback, setIsSavingFeedback] = useState(false)
+  const [levelTaglines, setLevelTaglines] = useState<Record<Level, string>>(DEFAULT_LEVEL_TAGLINES)
   const [dailySummary, setDailySummary] = useState({
     date: todayISO(),
     played: 0,
@@ -163,7 +142,7 @@ function PlayPageContent() {
     let cancelled = false
 
     async function loadAnswerOptions() {
-      const [{ data: caseAnswers }, { data: customChoices }] = await Promise.all([
+      const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }] = await Promise.all([
         supabase
           .from('cases')
           .select('answer')
@@ -172,6 +151,9 @@ function PlayPageContent() {
           .from('diagnosis_choices')
           .select('label')
           .order('label', { ascending: true }),
+        supabase
+          .from('difficulty_taglines')
+          .select('level, text'),
       ])
       if (cancelled) return
 
@@ -188,6 +170,16 @@ function PlayPageContent() {
       ).sort((a, b) => a.localeCompare(b))
 
       setAnswerOptions(uniqueAnswers)
+
+      if (taglineRows && taglineRows.length > 0) {
+        const nextTaglines = { ...DEFAULT_LEVEL_TAGLINES }
+        for (const row of taglineRows as Array<{ level: Level; text: string }>) {
+          if (row.level && row.text) {
+            nextTaglines[row.level] = row.text.toUpperCase()
+          }
+        }
+        setLevelTaglines(nextTaglines)
+      }
     }
 
     void loadAnswerOptions()
@@ -710,20 +702,6 @@ function PlayPageContent() {
 
 const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
-  const taglineIndex = useMemo(() => {
-    const base = new Date(`${selectedDate}T12:00:00`).getTime()
-    return Math.abs(Math.floor(base / (1000 * 60 * 60 * 24)))
-  }, [selectedDate])
-  const selectedTaglines = useMemo(
-    () =>
-      Object.fromEntries(
-        (Object.keys(LEVEL_TAGLINES) as Level[]).map(levelKey => {
-          const options = LEVEL_TAGLINES[levelKey]
-          return [levelKey, options[taglineIndex % options.length]]
-        })
-      ) as Record<Level, string>,
-    [taglineIndex]
-  )
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
   const streakBadge =
     onTodayCard && statsSummary.currentStreak >= 2
@@ -889,7 +867,7 @@ const todayComplete = todayCompletedLevels === 3
                       : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.18em] text-[#637268] sm:text-[8px] sm:tracking-[0.22em]'
                   }
                 >
-                  {selectedTaglines[level.key]}
+                  {levelTaglines[level.key]}
                 </div>
               </button>
             )
@@ -1285,7 +1263,11 @@ const todayComplete = todayCompletedLevels === 3
       </div>
 
       <footer className="mx-auto mt-8 max-w-4xl border-t border-[#e7e1d6] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
-        Orthodle — for education &amp; entertainment. Not medical advice.
+        Orthodle — for education &amp; entertainment. Not medical{' '}
+        <a href="/admin" className="underline underline-offset-2 transition hover:text-[#102018]">
+          advice
+        </a>
+        .
       </footer>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur sm:hidden">

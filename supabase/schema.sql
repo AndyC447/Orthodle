@@ -113,6 +113,12 @@ create table if not exists case_feedback (
   created_at timestamptz default now()
 );
 
+create table if not exists difficulty_taglines (
+  level text primary key,
+  text text not null,
+  updated_at timestamptz default now()
+);
+
 create or replace view daily_analytics as
 select
   c.case_date,
@@ -133,6 +139,7 @@ alter table case_ideas enable row level security;
 alter table email_reminders enable row level security;
 alter table diagnosis_choices enable row level security;
 alter table case_feedback enable row level security;
+alter table difficulty_taglines enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);
@@ -152,6 +159,16 @@ create policy "public delete diagnosis choices" on diagnosis_choices for delete 
 create policy "public read case feedback" on case_feedback for select using (true);
 create policy "public insert case feedback" on case_feedback for insert with check (true);
 create policy "public delete case feedback" on case_feedback for delete using (true);
+create policy "public read difficulty taglines" on difficulty_taglines for select using (true);
+create policy "public insert difficulty taglines" on difficulty_taglines for insert with check (true);
+create policy "public update difficulty taglines" on difficulty_taglines for update using (true) with check (true);
+
+insert into difficulty_taglines (level, text)
+values
+  ('med_student', 'START HERE'),
+  ('resident', 'MAKE THE CALL'),
+  ('attending', 'CONNECT THE DOTS')
+on conflict (level) do nothing;
 
 insert into cases (case_date, level, category, prompt, answer, synonyms, clue_1, clue_2)
 values (

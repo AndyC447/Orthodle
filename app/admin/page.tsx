@@ -113,6 +113,16 @@ type DiagnosisChoiceLite = {
   label: string
 }
 
+type CaseCommunityStats = {
+  players: number
+  totalGuesses: number
+  totalCorrectGuesses: number
+  solveRate: number | null
+  averageGuessesPerPlayer: number | null
+  averageGuessesToSolve: number | null
+  firstTrySolveRate: number | null
+}
+
 const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 
@@ -160,6 +170,7 @@ export default function AdminPage() {
   const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
   const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
+  const [caseCommunityStats, setCaseCommunityStats] = useState<CaseCommunityStats | null>(null)
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
@@ -183,6 +194,11 @@ export default function AdminPage() {
     loadReminderStats()
     loadDiagnosisChoices()
   }, [isUnlocked])
+
+  useEffect(() => {
+    if (!isUnlocked) return
+    void loadCaseCommunityStats()
+  }, [isUnlocked, caseDate, level, cases])
 
   const groupedCases = useMemo(() => {
     const grouped = new Map<string, CaseRow[]>()
@@ -737,6 +753,84 @@ export default function AdminPage() {
       .order('label', { ascending: true })
 
     setDiagnosisChoices((data || []) as DiagnosisChoiceLite[])
+  }
+
+  async function loadCaseCommunityStats() {
+    const matchingCase = cases.find(item => item.case_date === caseDate && item.level === level)
+
+    if (!matchingCase) {
+      setCaseCommunityStats(null)
+      return
+    }
+
+    const casePath = `/${level}/${caseDate}`
+    const [{ data: visitRows }, { data: guessRows, error: guessError }] = await Promise.all([
+      supabase.from('visits').select('session_id').eq('path', casePath),
+      supabase
+        .from('guesses')
+        .select('session_id, is_correct, created_at')
+        .eq('case_id', matchingCase.id)
+        .order('created_at', { ascending: true }),
+    ])
+
+    if (guessError) {
+      setStatus(`Could not load case stats: ${guessError.message}`)
+      setCaseCommunityStats(null)
+      return
+    }
+
+    const players = new Set<string>([
+      ...((visitRows || []).map(item => item.session_id)),
+      ...((guessRows || []).map(item => item.session_id)),
+    ])
+
+    const guessesBySession = new Map<
+      string,
+      Array<{ is_correct: boolean; created_at: string }>
+    >()
+
+    for (const guessRow of guessRows || []) {
+      const item = {
+        is_correct: Boolean(guessRow.is_correct),
+        created_at: guessRow.created_at,
+      }
+      const existing = guessesBySession.get(guessRow.session_id)
+
+      if (existing) {
+        existing.push(item)
+      } else {
+        guessesBySession.set(guessRow.session_id, [item])
+      }
+    }
+
+    let solvedPlayers = 0
+    let firstTrySolves = 0
+    let totalGuessesBeforeSolve = 0
+
+    for (const sessionGuesses of guessesBySession.values()) {
+      const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
+      if (solvedIndex === -1) continue
+
+      solvedPlayers += 1
+      totalGuessesBeforeSolve += solvedIndex + 1
+
+      if (solvedIndex === 0) {
+        firstTrySolves += 1
+      }
+    }
+
+    setCaseCommunityStats({
+      players: players.size,
+      totalGuesses: (guessRows || []).length,
+      totalCorrectGuesses: (guessRows || []).filter(item => item.is_correct).length,
+      solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
+      averageGuessesPerPlayer:
+        players.size > 0 ? (guessRows || []).length / players.size : null,
+      averageGuessesToSolve:
+        solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
+      firstTrySolveRate:
+        solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
+    })
   }
 
   async function sendTestReminder() {
@@ -1403,6 +1497,78 @@ Pearl: Knee pain in teens -> always check the hip`}
 
               {status && <p className="text-sm text-[#637268]">{status}</p>}
 
+              <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                    Case stats
+                  </div>
+                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    Read only
+                  </div>
+                </div>
+
+                {caseCommunityStats ? (
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                        Players
+                      </div>
+                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                        {caseCommunityStats.players}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                        Total guesses
+                      </div>
+                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                        {caseCommunityStats.totalGuesses}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                        Solve rate
+                      </div>
+                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                        {caseCommunityStats.solveRate !== null
+                          ? formatPercent(caseCommunityStats.solveRate)
+                          : '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                        Avg guesses / player
+                      </div>
+                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                        {caseCommunityStats.averageGuessesPerPlayer?.toFixed(1) ?? '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                        Avg to solve
+                      </div>
+                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                        {caseCommunityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                        First-try solves
+                      </div>
+                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                        {caseCommunityStats.firstTrySolveRate !== null
+                          ? formatPercent(caseCommunityStats.firstTrySolveRate)
+                          : '—'}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-sm text-[#637268]">
+                    No saved case stats for this date and level yet.
+                  </p>
+                )}
+              </div>
+
               <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3.5">
                 <div className="flex items-center justify-between gap-3">
                   <div>
@@ -1510,6 +1676,18 @@ Pearl: Knee pain in teens -> always check the hip`}
           </section>
 
           <aside className="space-y-3">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-serif text-xl font-bold">Button Subtitles</h2>
+                <Link
+                  href="/admin/taglines"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                >
+                  Open sheet
+                </Link>
+              </div>
+            </section>
+
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Submissions</h2>
