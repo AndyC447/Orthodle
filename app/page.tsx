@@ -804,15 +804,6 @@ const todayComplete = todayCompletedLevels === 3
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
       : null
-  const solvedTone = gameWon
-    ? guesses.length === 1
-      ? `Lights out. ${formatLevel(selectedLevel)} never had a chance.`
-      : guesses.length <= 3
-        ? 'Nice pull. That one read clean.'
-        : guesses.length <= 5
-          ? 'Stayed patient and found it.'
-          : 'Late save. Count it.'
-    : 'Missed this one, but the takeaway is worth the round.'
 
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
@@ -1167,9 +1158,6 @@ const todayComplete = todayCompletedLevels === 3
                   <h3 className="font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                     {dailyCase.answer}
                   </h3>
-                  <p className="mt-1 max-w-md text-[12px] leading-5 text-[#637268]">
-                    {solvedTone} Keep the takeaway handy.
-                  </p>
                 </div>
               </div>
 
@@ -1254,6 +1242,7 @@ const todayComplete = todayCompletedLevels === 3
         </section>
 
         <aside className="space-y-3">
+          {!roundComplete && (
           <div className="rounded-2xl border border-[#ded7ca] bg-white p-3 shadow-sm sm:hidden">
             <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
@@ -1288,7 +1277,9 @@ const todayComplete = todayCompletedLevels === 3
               })}
             </div>
           </div>
+          )}
 
+          {!roundComplete && (
           <div className="hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
             <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               Your guesses
@@ -1336,6 +1327,7 @@ const todayComplete = todayCompletedLevels === 3
               })}
             </div>
           </div>
+          )}
 
         </aside>
       </div>
