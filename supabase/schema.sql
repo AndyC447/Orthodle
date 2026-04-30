@@ -164,12 +164,13 @@ create policy "public delete case feedback" on case_feedback for delete using (t
 create policy "public read difficulty taglines" on difficulty_taglines for select using (true);
 create policy "public insert difficulty taglines" on difficulty_taglines for insert with check (true);
 create policy "public update difficulty taglines" on difficulty_taglines for update using (true) with check (true);
+create policy "public delete difficulty taglines" on difficulty_taglines for delete using (true);
 
-insert into difficulty_taglines (level, text)
+insert into difficulty_taglines (level, text, position)
 values
-  ('med_student', 'START HERE'),
-  ('resident', 'MAKE THE CALL'),
-  ('attending', 'CONNECT THE DOTS')
+  ('med_student', 'START HERE', 0),
+  ('resident', 'MAKE THE CALL', 0),
+  ('attending', 'CONNECT THE DOTS', 0)
 on conflict do nothing;
 
 insert into cases (case_date, level, category, prompt, answer, synonyms, clue_1, clue_2)

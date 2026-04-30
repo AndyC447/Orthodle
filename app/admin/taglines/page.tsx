@@ -20,14 +20,20 @@ const DEFAULT_TAGLINES: Record<Level, string[]> = {
 }
 
 const LEVEL_ORDER: Level[] = ['med_student', 'resident', 'attending']
+const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
 
 export default function AdminTaglinesPage() {
   const [authReady, setAuthReady] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
-  const [rows, setRows] = useState<Record<Level, string>>({
-    med_student: DEFAULT_TAGLINES.med_student.join('\n'),
-    resident: DEFAULT_TAGLINES.resident.join('\n'),
-    attending: DEFAULT_TAGLINES.attending.join('\n'),
+  const [todayRows, setTodayRows] = useState<Record<Level, string>>({
+    med_student: DEFAULT_TAGLINES.med_student[0],
+    resident: DEFAULT_TAGLINES.resident[0],
+    attending: DEFAULT_TAGLINES.attending[0],
+  })
+  const [futureRows, setFutureRows] = useState<Record<Level, string>>({
+    med_student: '',
+    resident: '',
+    attending: '',
   })
   const [status, setStatus] = useState('')
 
@@ -64,18 +70,33 @@ export default function AdminTaglinesPage() {
       byLevel[item.level].push(item.text)
     }
 
-    setRows({
-      med_student: (byLevel.med_student.length > 0 ? byLevel.med_student : DEFAULT_TAGLINES.med_student).join('\n'),
-      resident: (byLevel.resident.length > 0 ? byLevel.resident : DEFAULT_TAGLINES.resident).join('\n'),
-      attending: (byLevel.attending.length > 0 ? byLevel.attending : DEFAULT_TAGLINES.attending).join('\n'),
+    const resolved = {
+      med_student: byLevel.med_student.length > 0 ? byLevel.med_student : DEFAULT_TAGLINES.med_student,
+      resident: byLevel.resident.length > 0 ? byLevel.resident : DEFAULT_TAGLINES.resident,
+      attending: byLevel.attending.length > 0 ? byLevel.attending : DEFAULT_TAGLINES.attending,
+    }
+
+    setTodayRows({
+      med_student: resolved.med_student[0] || DEFAULT_TAGLINES.med_student[0],
+      resident: resolved.resident[0] || DEFAULT_TAGLINES.resident[0],
+      attending: resolved.attending[0] || DEFAULT_TAGLINES.attending[0],
+    })
+
+    setFutureRows({
+      med_student: resolved.med_student.slice(1).join('\n'),
+      resident: resolved.resident.slice(1).join('\n'),
+      attending: resolved.attending.slice(1).join('\n'),
     })
   }
 
   async function saveLevel(level: Level) {
-    const items = rows[level]
-      .split('\n')
-      .map(item => item.trim().toUpperCase())
-      .filter(Boolean)
+    const items = Array.from(
+      new Set(
+        [todayRows[level], ...futureRows[level].split('\n')]
+          .map(item => item.trim().toUpperCase())
+          .filter(Boolean)
+      )
+    )
 
     if (items.length === 0) {
       setStatus('Each level needs at least one subtitle.')
@@ -105,11 +126,17 @@ export default function AdminTaglinesPage() {
       return
     }
 
-    setRows(prev => ({
+    setTodayRows(prev => ({
       ...prev,
-      [level]: items.join('\n'),
+      [level]: items[0],
     }))
+    setFutureRows(prev => ({
+      ...prev,
+      [level]: items.slice(1).join('\n'),
+    }))
+    window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)
     setStatus(`${formatLevel(level)} subtitles updated.`)
+    await loadRows()
   }
 
   function formatLevel(level: Level) {
@@ -204,20 +231,42 @@ export default function AdminTaglinesPage() {
                   </button>
                 </div>
 
-                <textarea
-                  value={rows[level]}
-                  onChange={e =>
-                    setRows(prev => ({
-                      ...prev,
-                      [level]: e.target.value.toUpperCase(),
-                    }))
-                  }
-                  rows={6}
-                  placeholder="One subtitle per line"
-                  className="mt-3 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                />
+                <label className="mt-3 grid gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    Today
+                  </span>
+                  <input
+                    value={todayRows[level]}
+                    onChange={e =>
+                      setTodayRows(prev => ({
+                        ...prev,
+                        [level]: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    placeholder="Today's subtitle"
+                    className="w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                </label>
+
+                <label className="mt-3 grid gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    Upcoming list
+                  </span>
+                  <textarea
+                    value={futureRows[level]}
+                    onChange={e =>
+                      setFutureRows(prev => ({
+                        ...prev,
+                        [level]: e.target.value.toUpperCase(),
+                      }))
+                    }
+                    rows={5}
+                    placeholder="One subtitle per line for tomorrow and after"
+                    className="w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                </label>
                 <p className="mt-2 text-xs text-[#8a948d]">
-                  One line per option. The site rotates through these automatically by day.
+                  The top field is today. The first line in the list becomes tomorrow.
                 </p>
               </div>
             ))}
