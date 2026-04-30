@@ -1151,7 +1151,7 @@ const todayComplete = todayCompletedLevels === 3
                 )}
               </div>
 
-              <div className="mt-3.5 hidden border-t border-[#ded7ca] pt-3 sm:block">
+              <div className="mt-3.5 border-t border-[#ded7ca] pt-3">
                 <div className="relative">
                   <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
                     <input
@@ -1179,7 +1179,7 @@ const todayComplete = todayCompletedLevels === 3
                       disabled={!dailyCase || gameWon || gameOver}
                       className="rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                     >
-                      Submit
+                      Guess
                     </button>
                   </div>
 
@@ -1284,7 +1284,7 @@ const todayComplete = todayCompletedLevels === 3
                   <button
                     type="button"
                     onClick={shareResult}
-                    className="hidden w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.18)] transition hover:bg-[#b65d30] sm:block"
+                    className="w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.18)] transition hover:bg-[#b65d30]"
                   >
                     Share the win
                   </button>
@@ -1415,62 +1415,6 @@ const todayComplete = todayCompletedLevels === 3
         </a>
         .
       </footer>
-
-      {roundComplete ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur sm:hidden">
-          <div className="mx-auto max-w-md">
-            <button
-              type="button"
-              onClick={shareResult}
-              className="w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_-2px_18px_rgba(199,107,58,0.2)] transition hover:bg-[#b65d30]"
-            >
-              Share the win
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5ddd2] bg-[#fbfaf7]/96 px-4 pb-[max(.8rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_22px_rgba(16,32,24,0.07)] backdrop-blur sm:hidden">
-          <>
-            <div className="relative">
-              <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
-                <input
-                  value={guess}
-                  onChange={e => {
-                    setGuess(e.target.value)
-                    setShowSuggestions(true)
-                  }}
-                  onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => {
-                    setIsMobileInputFocused(false)
-                    window.setTimeout(() => setShowSuggestions(false), 120)
-                  }}
-                  onTouchStart={() => setIsMobileInputFocused(true)}
-                  onKeyDown={e => e.key === 'Enter' && submitGuess()}
-                  placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
-                  disabled={mobileInputDisabled}
-                  className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-[16px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
-                />
-                <button
-                  onClick={submitGuess}
-                  disabled={mobileInputDisabled}
-                  className="rounded-xl bg-[#1f6448] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Guess
-                </button>
-              </div>
-
-              {renderSuggestionList(
-                'absolute inset-x-0 bottom-[calc(100%+8px)] z-50 max-h-56 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.12)]'
-              )}
-            </div>
-            {!isMobileInputFocused && (
-              <p className="mt-1.5 text-[11.5px] leading-4.5 text-[#637268]">
-                {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
-              </p>
-            )}
-          </>
-        </div>
-      )}
 
       {dailyCase?.image_url && imageRevealed && imageExpanded && (
         <div
