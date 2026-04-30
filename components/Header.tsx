@@ -103,13 +103,6 @@ export function Header() {
                 >
                   Archive
                 </Link>
-                <Link
-                  href="/admin"
-                  onClick={() => setMenuOpen(false)}
-                  className="mt-1 block rounded-xl border-t border-[#f3eee5] px-3 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#7a857c] transition hover:bg-[#fbfaf7]"
-                >
-                  Admin
-                </Link>
               </div>
             </div>
           )}

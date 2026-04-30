@@ -95,6 +95,10 @@ export default function ArchivePage() {
 
   const hasActiveFilters =
     selectedLevel !== 'all' || selectedCategory !== 'all' || imagingOnly
+  const surpriseTarget =
+    filteredCases.length > 0
+      ? filteredCases[Math.floor(Math.random() * filteredCases.length)]
+      : null
 
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
@@ -111,6 +115,17 @@ export default function ArchivePage() {
           <p className="mt-2 max-w-2xl text-[13px] leading-5.5 text-[#637268]">
             Jump straight into earlier Orthodle cases by date and difficulty.
           </p>
+
+          {surpriseTarget && (
+            <div className="mt-4">
+              <Link
+                href={`/?date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
+                className="inline-flex rounded-full border border-[#ead9b7] bg-[#fff8ef] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a24d24] transition hover:bg-[#fff2e2]"
+              >
+                Surprise me
+              </Link>
+            </div>
+          )}
 
           <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
             <div className="grid gap-2.5 sm:grid-cols-3">

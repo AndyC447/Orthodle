@@ -54,9 +54,9 @@ const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
 
 const levels = [
-  { key: 'med_student' as Level, label: 'Med Student', subtitle: 'Foundations' },
-  { key: 'resident' as Level, label: 'Resident', subtitle: 'Clinic & Call' },
-  { key: 'attending' as Level, label: 'Attending', subtitle: 'Zebras & Nuance' },
+  { key: 'med_student' as Level, label: 'Med Student' },
+  { key: 'resident' as Level, label: 'Resident' },
+  { key: 'attending' as Level, label: 'Attending' },
 ]
 
 const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
@@ -67,6 +67,34 @@ const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
   rotation: -24 + (index % 7) * 9,
   color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
 }))
+
+const LEVEL_TAGLINES: Record<Level, string[]> = {
+  med_student: [
+    'START HERE',
+    'BUILDING BLOCKS',
+    'CLINICAL BASICS',
+    'ANKI BREAK',
+    'WARM UP',
+    'FUNDAMENTALS',
+  ],
+  resident: [
+    'MAKE THE CALL',
+    'KNOW YOUR STUFF',
+    'THINK FAST',
+    'MIDNIGHT CONSULT',
+    'CELCIUS BREAK',
+    'HOLDING THE PAGER',
+  ],
+  attending: [
+    'CONNECT THE DOTS',
+    'BIG PICTURE',
+    'EXPERIENCED EYE',
+    'TRUST YOUR INSTINCTS',
+    'THE ART OF ORTHO',
+    'CLINICAL PEARLS',
+    'SUBTLE CLUES',
+  ],
+}
 
 function PlayPageContent() {
   const searchParams = useSearchParams()
@@ -682,6 +710,38 @@ function PlayPageContent() {
 
 const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
+  const taglineIndex = useMemo(() => {
+    const base = new Date(`${selectedDate}T12:00:00`).getTime()
+    return Math.abs(Math.floor(base / (1000 * 60 * 60 * 24)))
+  }, [selectedDate])
+  const selectedTaglines = useMemo(
+    () =>
+      Object.fromEntries(
+        (Object.keys(LEVEL_TAGLINES) as Level[]).map(levelKey => {
+          const options = LEVEL_TAGLINES[levelKey]
+          return [levelKey, options[taglineIndex % options.length]]
+        })
+      ) as Record<Level, string>,
+    [taglineIndex]
+  )
+  const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
+  const streakBadge =
+    onTodayCard && statsSummary.currentStreak >= 2
+      ? `${statsSummary.currentStreak}-DAY STREAK`
+      : null
+  const perfectCard =
+    onTodayCard &&
+    dailySummary.levels.length === 3 &&
+    dailySummary.levels.every(item => item.won)
+  const solvedTone = gameWon
+    ? guesses.length === 1
+      ? `Lights out. ${formatLevel(selectedLevel)} never had a chance.`
+      : guesses.length <= 3
+        ? 'Nice pull. That one read clean.'
+        : guesses.length <= 5
+          ? 'Stayed patient and found it.'
+          : 'Late save. Count it.'
+    : 'Missed this one, but the takeaway is worth the round.'
 
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
@@ -829,7 +889,7 @@ const todayComplete = todayCompletedLevels === 3
                       : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.18em] text-[#637268] sm:text-[8px] sm:tracking-[0.22em]'
                   }
                 >
-                  {level.subtitle}
+                  {selectedTaglines[level.key]}
                 </div>
               </button>
             )
@@ -1024,6 +1084,18 @@ const todayComplete = todayCompletedLevels === 3
                     : 'Round complete'}
                 </div>
 
+                {streakBadge && (
+                  <div className="inline-flex rounded-full border border-[#ead9b7] bg-[#fff8ef] px-3 py-1.5 text-[11px] font-semibold text-[#a24d24]">
+                    {streakBadge}
+                  </div>
+                )}
+
+                {perfectCard && (
+                  <div className="inline-flex rounded-full border border-[#d8e5dd] bg-[#f3faf6] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]">
+                    PERFECT CARD
+                  </div>
+                )}
+
                 {gameWon && (
                   <button
                     onClick={shareResult}
@@ -1039,16 +1111,9 @@ const todayComplete = todayCompletedLevels === 3
                   <h3 className="font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                     {dailyCase.answer}
                   </h3>
-                  {gameWon && (
-                    <p className="mt-1 max-w-md text-[12px] leading-5 text-[#637268]">
-                      {guesses.length === 1
-                        ? 'First-shot finish.'
-                        : guesses.length <= 3
-                          ? 'Strong solve.'
-                          : 'Clutched it late.'}{' '}
-                      Keep the takeaway handy.
-                    </p>
-                  )}
+                  <p className="mt-1 max-w-md text-[12px] leading-5 text-[#637268]">
+                    {solvedTone} Keep the takeaway handy.
+                  </p>
                 </div>
               </div>
 

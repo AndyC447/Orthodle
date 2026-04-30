@@ -403,6 +403,9 @@ export default function AdminPage() {
     setClue2('')
     setClue3('')
     setClue4('')
+    setClue5('')
+    setClue6('')
+    setImageRevealClue('none')
     setTeachingPoint('')
     setActiveSubmissionId(null)
     setStatus('')
@@ -419,7 +422,7 @@ export default function AdminPage() {
     setImageUrl(c.image_url || '')
     setImageCredit(c.image_credit || '')
     setImageRevealClue(
-      c.image_reveal_clue && c.image_reveal_clue >= 1 && c.image_reveal_clue <= 4
+      c.image_reveal_clue && c.image_reveal_clue >= 1 && c.image_reveal_clue <= 6
         ? String(c.image_reveal_clue)
         : 'none'
     )
@@ -446,7 +449,7 @@ export default function AdminPage() {
     setImageUrl(submission.image_url || '')
     setImageCredit(submission.image_credit || '')
     setImageRevealClue(
-      submission.image_reveal_clue && submission.image_reveal_clue >= 1 && submission.image_reveal_clue <= 4
+      submission.image_reveal_clue && submission.image_reveal_clue >= 1 && submission.image_reveal_clue <= 6
         ? String(submission.image_reveal_clue)
         : 'none'
     )
@@ -471,7 +474,7 @@ export default function AdminPage() {
       .select('*')
       .order('case_date', { ascending: false })
       .order('level', { ascending: true })
-      .limit(30)
+      .limit(200)
 
     if (error) {
       setStatus(`Failed to load cases: ${error.message}`)
@@ -479,6 +482,31 @@ export default function AdminPage() {
     }
 
     setCases(data || [])
+  }
+
+  async function deleteCase(caseToDelete: Pick<CaseRow, 'id' | 'case_date' | 'level' | 'answer'>) {
+    const confirmed = window.confirm(
+      `Delete the ${formatLevel(caseToDelete.level)} case for ${caseToDelete.case_date}?\n\n${caseToDelete.answer}\n\nThis cannot be undone.`
+    )
+
+    if (!confirmed) return
+
+    const { error } = await supabase
+      .from('cases')
+      .delete()
+      .eq('id', caseToDelete.id)
+
+    if (error) {
+      setStatus(`Could not delete case: ${error.message}`)
+      return
+    }
+
+    if (caseDate === caseToDelete.case_date && level === caseToDelete.level) {
+      clearForm()
+    }
+
+    setStatus(`Deleted ${formatLevel(caseToDelete.level)} case for ${caseToDelete.case_date}.`)
+    await loadCases()
   }
 
   async function loadSubmissions() {
@@ -1387,6 +1415,33 @@ Pearl: Knee pain in teens -> always check the hip`}
                 Save / Update Case
               </button>
 
+              <button
+                type="button"
+                onClick={async () => {
+                  const { data: existingCase, error } = await supabase
+                    .from('cases')
+                    .select('id, case_date, level, answer')
+                    .eq('case_date', caseDate)
+                    .eq('level', level)
+                    .maybeSingle()
+
+                  if (error) {
+                    setStatus(`Could not check case before deleting: ${error.message}`)
+                    return
+                  }
+
+                  if (!existingCase) {
+                    setStatus('No saved case exists for this date and level yet.')
+                    return
+                  }
+
+                  await deleteCase(existingCase as Pick<CaseRow, 'id' | 'case_date' | 'level' | 'answer'>)
+                }}
+                className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-5 py-3 text-sm font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
+              >
+                Delete current slot
+              </button>
+
               {status && <p className="text-sm text-[#637268]">{status}</p>}
 
               <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3.5">
@@ -1883,12 +1938,21 @@ Pearl: Knee pain in teens -> always check the hip`}
                                   )}
                                 </div>
 
-                                <button
-                                  onClick={() => editCase(item)}
-                                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                                >
-                                  Edit
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => editCase(item)}
+                                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => void deleteCase(item)}
+                                    className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-sm font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           )
