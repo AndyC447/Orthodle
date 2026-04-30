@@ -1261,6 +1261,16 @@ const todayComplete = todayCompletedLevels === 3
                     <p className="mt-1.5 text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
                   )}
                 </div>
+
+                {gameWon && (
+                  <button
+                    type="button"
+                    onClick={shareResult}
+                    className="hidden w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.18)] transition hover:bg-[#b65d30] sm:block"
+                  >
+                    Share the win
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1304,7 +1314,6 @@ const todayComplete = todayCompletedLevels === 3
           </div>
           )}
 
-          {!roundComplete && (
           <div className="hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
             <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               Your guesses
@@ -1352,7 +1361,6 @@ const todayComplete = todayCompletedLevels === 3
               })}
             </div>
           </div>
-          )}
 
         </aside>
       </div>
@@ -1366,7 +1374,7 @@ const todayComplete = todayCompletedLevels === 3
       </footer>
 
       {roundComplete ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur sm:hidden">
           <div className="mx-auto max-w-md">
             <button
               type="button"
