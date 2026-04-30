@@ -265,9 +265,6 @@ export default function AdminTaglinesPage() {
                     className="w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
                   />
                 </label>
-                <p className="mt-2 text-xs text-[#8a948d]">
-                  The top field is today. The first line in the list becomes tomorrow.
-                </p>
               </div>
             ))}
           </div>

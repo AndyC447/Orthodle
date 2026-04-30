@@ -804,10 +804,6 @@ const todayComplete = todayCompletedLevels === 3
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
       : null
-  const perfectCard =
-    onTodayCard &&
-    dailySummary.levels.length === 3 &&
-    dailySummary.levels.every(item => item.won)
   const solvedTone = gameWon
     ? guesses.length === 1
       ? `Lights out. ${formatLevel(selectedLevel)} never had a chance.`
@@ -1164,21 +1160,6 @@ const todayComplete = todayCompletedLevels === 3
                     {streakBadge}
                   </div>
                 )}
-
-                {perfectCard && (
-                  <div className="inline-flex rounded-full border border-[#d8e5dd] bg-[#f3faf6] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]">
-                    PERFECT CARD
-                  </div>
-                )}
-
-                {gameWon && (
-                  <button
-                    onClick={shareResult}
-                    className="inline-flex items-center rounded-full bg-[#c76b3a] px-3.5 py-2 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.22)] transition hover:-translate-y-0.5 hover:bg-[#b65d30]"
-                  >
-                    Share the win
-                  </button>
-                )}
               </div>
 
               <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
@@ -1192,14 +1173,14 @@ const todayComplete = todayCompletedLevels === 3
                 </div>
               </div>
 
-              <div className="mt-4 space-y-3">
+              <div className="mt-3 space-y-3 sm:mt-4">
                 {dailyCase.contributor_name && (
-                  <div className="inline-flex rounded-full border border-[#dfe7e1] bg-[#fbfdfb] px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
+                  <div className="hidden rounded-full border border-[#dfe7e1] bg-[#fbfdfb] px-3 py-1 text-[11px] font-semibold text-[#315f4d] sm:inline-flex">
                     Contributed by {dailyCase.contributor_name}
                   </div>
                 )}
 
-                <div className="border-l-2 border-[#cfe2d8] pl-4">
+                <div className="border-l-2 border-[#cfe2d8] pl-3 sm:pl-4">
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                     Quick takeaway
                   </div>
@@ -1209,7 +1190,7 @@ const todayComplete = todayCompletedLevels === 3
                 </div>
 
                 {communityStats && (
-                  <div className="grid gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-[12px] text-[#637268] sm:grid-cols-2">
+                  <div className="grid gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-[11.5px] text-[#637268] sm:grid-cols-2 sm:text-[12px]">
                     <div>
                       Solve rate{' '}
                       <span className="font-semibold text-[#102018]">
