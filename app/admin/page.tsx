@@ -948,8 +948,8 @@ export default function AdminPage() {
     <main>
       <Header />
 
-      <div className="mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-7">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="font-serif text-3xl font-bold text-[#102018]">
               Admin Dashboard
@@ -971,7 +971,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        <section className="mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <section className="mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
@@ -984,7 +984,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2.5 md:grid-cols-3">
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
             {levelOrder.map(levelValue => {
               const item = todaysCases.find(entry => entry.level === levelValue)
               const nextMissing = nextMissingLevelForDate(today)
@@ -1035,7 +1035,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <section className="mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
@@ -1048,7 +1048,7 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2.5 md:grid-cols-3">
+          <div className="mt-3 grid gap-2 md:grid-cols-3">
             {levelOrder.map(levelValue => {
               const item = tomorrowsCases.find(entry => entry.level === levelValue)
               const nextMissing = nextMissingLevelForDate(tomorrow)
@@ -1099,8 +1099,8 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_340px]">
-          <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_320px]">
+          <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-serif text-xl font-bold">
                 Create / Schedule Case
@@ -1125,8 +1125,8 @@ export default function AdminPage() {
             </div>
 
             {showComposer && (
-            <div className="mt-4 grid gap-3">
-              <div className="grid gap-3 sm:grid-cols-2">
+            <div className="mt-3 grid gap-2.5">
+              <div className="grid gap-2.5 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Publish Date
                 <input
@@ -1509,8 +1509,8 @@ Pearl: Knee pain in teens -> always check the hip`}
             )}
           </section>
 
-          <aside className="space-y-4">
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <aside className="space-y-3">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Submissions</h2>
                 <Link
@@ -1521,12 +1521,9 @@ Pearl: Knee pain in teens -> always check the hip`}
                 </Link>
               </div>
 
-              <p className="mt-3 text-sm leading-6 text-[#637268]">
-                Review full case submissions in a dedicated sheet instead of keeping them expanded on the main dashboard.
-              </p>
             </section>
 
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Answer Choices</h2>
                 <Link
@@ -1538,7 +1535,7 @@ Pearl: Knee pain in teens -> always check the hip`}
               </div>
             </section>
 
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Feedback</h2>
                 <Link
@@ -1550,7 +1547,7 @@ Pearl: Knee pain in teens -> always check the hip`}
               </div>
             </section>
 
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Analytics</h2>
                 <button
