@@ -160,12 +160,10 @@ export default function AdminPage() {
   const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
   const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
-  const [submissions, setSubmissions] = useState<SubmissionRow[]>([])
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
   const [showCasesByDate, setShowCasesByDate] = useState(false)
-  const [showSubmissions, setShowSubmissions] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
   const [testReminderEmail, setTestReminderEmail] = useState('andycontreras123@gmail.com')
   const [testReminderStatus, setTestReminderStatus] = useState('')
@@ -182,7 +180,6 @@ export default function AdminPage() {
 
     loadCases()
     loadAnalytics()
-    loadSubmissions()
     loadReminderStats()
     loadDiagnosisChoices()
   }, [isUnlocked])
@@ -516,43 +513,6 @@ export default function AdminPage() {
 
     setStatus(`Deleted ${formatLevel(caseToDelete.level)} case for ${caseToDelete.case_date}.`)
     await loadCases()
-  }
-
-  async function loadSubmissions() {
-    const { data, error } = await supabase
-      .from('case_submissions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(40)
-
-    if (error) {
-      setStatus(`Failed to load submissions: ${error.message}`)
-      return
-    }
-
-    setSubmissions((data || []) as SubmissionRow[])
-  }
-
-  async function updateSubmissionStatus(
-    submissionId: string,
-    nextStatus: 'accepted' | 'needs_edits' | 'rejected'
-  ) {
-    const { error } = await supabase
-      .from('case_submissions')
-      .update({ status: nextStatus })
-      .eq('id', submissionId)
-
-    if (error) {
-      setStatus(`Failed to update submission: ${error.message}`)
-      return
-    }
-
-    if (activeSubmissionId === submissionId && nextStatus === 'rejected') {
-      clearForm()
-    }
-
-    setStatus(`Submission marked as ${nextStatus.replace('_', ' ')}.`)
-    await loadSubmissions()
   }
 
   async function loadAnalytics() {
@@ -927,7 +887,6 @@ export default function AdminPage() {
 
     clearForm()
     await loadCases()
-    await loadSubmissions()
   }
 
   if (!authReady) {
@@ -996,9 +955,6 @@ export default function AdminPage() {
               Admin Dashboard
             </h1>
 
-            <p className="mt-1.5 text-sm text-[#637268]">
-              Schedule cases, review submissions, and keep an eye on the daily flow.
-            </p>
             {incompleteDates.length > 0 && (
               <div className="mt-3 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm text-[#8a5a2b]">
                 Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/3)`).join(', ')}
@@ -1021,9 +977,6 @@ export default function AdminPage() {
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                 Today overview
               </div>
-              <p className="mt-1 text-sm text-[#637268]">
-                Quick read on whether today’s card is fully scheduled.
-              </p>
             </div>
 
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
@@ -1088,9 +1041,6 @@ export default function AdminPage() {
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                 Tomorrow overview
               </div>
-              <p className="mt-1 text-sm text-[#637268]">
-                A quick way to tee up tomorrow&apos;s card before it goes live.
-              </p>
             </div>
 
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
@@ -1563,83 +1513,17 @@ Pearl: Knee pain in teens -> always check the hip`}
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
                 <h2 className="font-serif text-xl font-bold">Submissions</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowSubmissions(prev => !prev)}
+                <Link
+                  href="/admin/submissions"
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
                 >
-                  {showSubmissions ? 'Hide' : 'Show'}
-                </button>
+                  Open sheet
+                </Link>
               </div>
 
-              {showSubmissions && (
-                <div className="mt-4 space-y-2">
-                  {submissions.length === 0 ? (
-                    <p className="text-sm text-[#637268]">No submissions yet.</p>
-                  ) : (
-                    submissions.map(item => (
-                      <div
-                        key={item.id}
-                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                              {item.status} · {formatLevel(item.level)}
-                            </div>
-                            <div className="mt-1 font-semibold text-[#102018]">
-                              {item.answer}
-                            </div>
-                            <div className="text-sm text-[#637268]">
-                              {item.category || 'Uncategorized'}
-                            </div>
-                            <div className="mt-1 text-xs text-[#8a948d]">
-                              By {item.contributor_name || 'Anonymous'} · {item.created_at.slice(0, 10)}
-                            </div>
-                            {item.scheduled_date && (
-                              <div className="mt-1 text-xs text-[#315f4d]">
-                                Scheduled for {item.scheduled_date}
-                              </div>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() => editSubmission(item)}
-                            className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                          >
-                            Review
-                          </button>
-                        </div>
-
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            onClick={() => updateSubmissionStatus(item.id, 'accepted')}
-                            className="rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#1f6448] transition hover:bg-[#dff0e7]"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateSubmissionStatus(item.id, 'needs_edits')}
-                            className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#a06a2c] transition hover:bg-[#fff5e4]"
-                          >
-                            Needs edits
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => updateSubmissionStatus(item.id, 'rejected')}
-                            className="rounded-lg border border-[#f0d7c8] bg-[#fff1e8] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-[#a24d24] transition hover:bg-[#ffe8da]"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
+              <p className="mt-3 text-sm leading-6 text-[#637268]">
+                Review full case submissions in a dedicated sheet instead of keeping them expanded on the main dashboard.
+              </p>
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
@@ -1652,10 +1536,6 @@ Pearl: Knee pain in teens -> always check the hip`}
                   Open sheet
                 </Link>
               </div>
-
-              <p className="mt-2 text-sm text-[#637268]">
-                Manage custom diagnosis choices on a dedicated page with spreadsheet-style editing and batch add.
-              </p>
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
@@ -1668,10 +1548,6 @@ Pearl: Knee pain in teens -> always check the hip`}
                   Open sheet
                 </Link>
               </div>
-
-              <p className="mt-2 text-sm text-[#637268]">
-                Review comments players leave after finishing a case on a dedicated feedback page.
-              </p>
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
@@ -1883,93 +1759,6 @@ Pearl: Knee pain in teens -> always check the hip`}
                   )}
                 </div>
 
-                {visibleCaseGroups.length === 0 ? (
-                  <p className="text-sm text-[#637268]">No cases yet.</p>
-                ) : (
-                  visibleCaseGroups.map(group => (
-                    <div key={group.date} className="rounded-lg border border-[#ded7ca] bg-white/70 p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="font-semibold text-[#102018]">{group.date}</div>
-                        <div className="text-xs uppercase tracking-[0.2em] text-[#637268]">
-                          {group.items.length}/3 ready
-                        </div>
-                      </div>
-
-                      <div className="mt-3 space-y-2">
-                        {levelOrder.map(levelValue => {
-                          const item = group.items.find(entry => entry.level === levelValue)
-
-                          if (!item) {
-                            return (
-                              <div
-                                key={`${group.date}-${levelValue}`}
-                                className="rounded-lg border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-3 py-2.5"
-                              >
-                                <div className="flex items-center justify-between gap-3">
-                                  <div>
-                                    <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                                      {formatLevel(levelValue)}
-                                    </div>
-                                    <div className="mt-1 text-sm text-[#8a948d]">
-                                      No case scheduled yet.
-                                    </div>
-                                  </div>
-
-                                  <button
-                                    onClick={() => startCaseFor(group.date, levelValue)}
-                                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                                  >
-                                    Add
-                                  </button>
-                                </div>
-                              </div>
-                            )
-                          }
-
-                          return (
-                            <div
-                              key={item.id}
-                              className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5"
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                                    {formatLevel(item.level)}
-                                  </div>
-                                  <div className="mt-1 font-semibold text-[#102018]">
-                                    {item.answer}
-                                  </div>
-                                  <div className="text-sm text-[#637268]">{item.category}</div>
-                                  {item.image_url && (
-                                    <div className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#1f6448]">
-                                      Includes image
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => editCase(item)}
-                                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => void deleteCase(item)}
-                                    className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-sm font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
-                                  >
-                                    Delete
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
               )}
             </section>
