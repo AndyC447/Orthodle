@@ -70,6 +70,15 @@ create table if not exists case_submissions (
   created_at timestamptz default now()
 );
 
+create table if not exists case_ideas (
+  id uuid primary key default uuid_generate_v4(),
+  contributor_name text,
+  suggested_level text,
+  title text not null,
+  description text not null,
+  created_at timestamptz default now()
+);
+
 create table if not exists email_reminders (
   id uuid primary key default uuid_generate_v4(),
   email text not null,
@@ -120,6 +129,7 @@ alter table cases enable row level security;
 alter table guesses enable row level security;
 alter table visits enable row level security;
 alter table case_submissions enable row level security;
+alter table case_ideas enable row level security;
 alter table email_reminders enable row level security;
 alter table diagnosis_choices enable row level security;
 alter table case_feedback enable row level security;
@@ -133,6 +143,8 @@ create policy "public insert visits" on visits for insert with check (true);
 create policy "public read case submissions" on case_submissions for select using (true);
 create policy "public insert case submissions" on case_submissions for insert with check (true);
 create policy "public update case submissions" on case_submissions for update using (true) with check (true);
+create policy "public read case ideas" on case_ideas for select using (true);
+create policy "public insert case ideas" on case_ideas for insert with check (true);
 create policy "public read diagnosis choices" on diagnosis_choices for select using (true);
 create policy "public insert diagnosis choices" on diagnosis_choices for insert with check (true);
 create policy "public update diagnosis choices" on diagnosis_choices for update using (true) with check (true);

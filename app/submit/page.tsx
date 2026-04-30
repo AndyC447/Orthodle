@@ -19,6 +19,13 @@ type SubmissionLookup = {
 const SUBMISSION_LOOKUP_KEY = 'orthodle_last_submission_code'
 
 export default function SubmitCasePage() {
+  const [showFullSubmission, setShowFullSubmission] = useState(false)
+  const [ideaName, setIdeaName] = useState('')
+  const [ideaLevel, setIdeaLevel] = useState<'any' | Level>('any')
+  const [ideaTitle, setIdeaTitle] = useState('')
+  const [ideaDetails, setIdeaDetails] = useState('')
+  const [ideaStatus, setIdeaStatus] = useState('')
+  const [submittingIdea, setSubmittingIdea] = useState(false)
   const [contributorName, setContributorName] = useState('')
   const [level, setLevel] = useState<Level>('med_student')
   const [category, setCategory] = useState('')
@@ -208,6 +215,36 @@ export default function SubmitCasePage() {
     setStatus('Thanks — your case was submitted for review.')
   }
 
+  async function submitIdea() {
+    if (!ideaTitle.trim() || !ideaDetails.trim()) {
+      setIdeaStatus('Add a short title and a few details for the idea.')
+      return
+    }
+
+    setSubmittingIdea(true)
+    setIdeaStatus('')
+
+    const { error } = await supabase.from('case_ideas').insert({
+      contributor_name: ideaName.trim() || null,
+      suggested_level: ideaLevel === 'any' ? null : ideaLevel,
+      title: ideaTitle.trim(),
+      description: ideaDetails.trim(),
+    })
+
+    setSubmittingIdea(false)
+
+    if (error) {
+      setIdeaStatus(`Could not send idea: ${error.message}`)
+      return
+    }
+
+    setIdeaName('')
+    setIdeaLevel('any')
+    setIdeaTitle('')
+    setIdeaDetails('')
+    setIdeaStatus('Thanks — your case idea was sent.')
+  }
+
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
       <Header />
@@ -226,7 +263,102 @@ export default function SubmitCasePage() {
         </div>
 
         <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
-          <div className="grid gap-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+            Quick idea
+          </div>
+          <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
+            Recommend a case idea
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
+            Don&apos;t want to build the full case? Send a quick concept and we can develop it later.
+          </p>
+
+          <div className="mt-4 grid gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Your Name
+                <input
+                  value={ideaName}
+                  onChange={e => setIdeaName(e.target.value)}
+                  placeholder="Optional"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Best Fit
+                <select
+                  value={ideaLevel}
+                  onChange={e => setIdeaLevel(e.target.value as 'any' | Level)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                >
+                  <option value="any">Any level</option>
+                  <option value="med_student">Med Student</option>
+                  <option value="resident">Resident</option>
+                  <option value="attending">Attending</option>
+                </select>
+              </label>
+            </div>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Idea Title
+              <input
+                value={ideaTitle}
+                onChange={e => setIdeaTitle(e.target.value)}
+                placeholder="Paget's disease with incidental elevated alk phos"
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Idea Details
+              <textarea
+                value={ideaDetails}
+                onChange={e => setIdeaDetails(e.target.value)}
+                rows={3}
+                placeholder="A few lines on the concept, why it would be fun, key clue ideas, or imaging you have in mind..."
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={submitIdea}
+              disabled={submittingIdea}
+              className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-5 py-3 text-sm font-semibold text-[#102018] transition hover:bg-white disabled:opacity-60"
+            >
+              {submittingIdea ? 'Sending idea...' : 'Send idea'}
+            </button>
+
+            {ideaStatus && <p className="break-words text-sm leading-6 text-[#637268]">{ideaStatus}</p>}
+          </div>
+        </section>
+
+        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+                Full submission
+              </div>
+              <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
+                Build the full case
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
+                Use the full form if you want to submit the whole stem, answer, clues, and optional imaging.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowFullSubmission(prev => !prev)}
+              className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+            >
+              {showFullSubmission ? 'Hide' : 'Show'}
+            </button>
+          </div>
+
+          {showFullSubmission && (
+          <div className="mt-4 grid gap-3">
             <label className="grid gap-2 text-sm font-semibold text-[#637268]">
               Your Name
               <input
@@ -422,6 +554,7 @@ export default function SubmitCasePage() {
 
             {status && <p className="break-words text-sm leading-6 text-[#637268]">{status}</p>}
           </div>
+          )}
         </section>
 
         <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:p-5">

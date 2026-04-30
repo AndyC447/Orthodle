@@ -491,13 +491,20 @@ export default function AdminPage() {
 
     if (!confirmed) return
 
-    const { error } = await supabase
-      .from('cases')
-      .delete()
-      .eq('id', caseToDelete.id)
+    const adminPassword = window.sessionStorage.getItem('orthodle_admin_password') || ''
+    const response = await fetch('/api/admin-delete-case', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        password: adminPassword,
+        caseId: caseToDelete.id,
+      }),
+    })
 
-    if (error) {
-      setStatus(`Could not delete case: ${error.message}`)
+    const data = await response.json()
+
+    if (!response.ok) {
+      setStatus(`Could not delete case: ${data.error || 'Unknown error'}`)
       return
     }
 
