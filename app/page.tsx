@@ -124,6 +124,7 @@ function PlayPageContent() {
   const searchParams = useSearchParams()
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
+  const imageTouchStartY = useRef<number | null>(null)
   const today = todayISO()
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
   const [selectedDate, setSelectedDate] = useState(today)
@@ -131,6 +132,7 @@ function PlayPageContent() {
   const [guess, setGuess] = useState('')
   const [answerOptions, setAnswerOptions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isMobileInputFocused, setIsMobileInputFocused] = useState(false)
   const [guesses, setGuesses] = useState<Guess[]>([])
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
@@ -782,7 +784,7 @@ function PlayPageContent() {
   }, [dailyCase, roundComplete, gameWon, guesses])
 
   useEffect(() => {
-    if (!gameWon || !roundComplete) return
+    if (!roundComplete) return
     if (typeof window === 'undefined' || window.innerWidth >= 640) return
 
     const timeoutId = window.setTimeout(() => {
@@ -790,7 +792,7 @@ function PlayPageContent() {
         behavior: 'smooth',
         block: 'start',
       })
-    }, 220)
+    }, gameWon ? 500 : 280)
 
     return () => window.clearTimeout(timeoutId)
   }, [gameWon, roundComplete])
@@ -824,6 +826,13 @@ const todayComplete = todayCompletedLevels === 3
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
       : null
+  const hasMobileInteraction =
+    guesses.length > 0 ||
+    guess.trim().length > 0 ||
+    selectedLevel !== 'med_student' ||
+    roundComplete
+  const latestFindingIndex =
+    !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
 
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
@@ -968,8 +977,8 @@ const todayComplete = todayCompletedLevels === 3
         </div>
       )}
 
-      <section className="mx-auto max-w-5xl px-4 pt-3 pb-1 text-center sm:px-6 sm:pt-6">
-        <h1 className="font-serif text-[30px] font-bold leading-[0.98] tracking-[-0.035em] text-[#102018] sm:text-[42px] md:text-[46px]">
+      <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
+        <h1 className={`font-serif font-bold leading-[0.98] tracking-[-0.035em] text-[#102018] sm:text-[42px] md:text-[46px] ${hasMobileInteraction ? 'text-[25px]' : 'text-[30px]'}`}>
           Read the case.
           <br />
           Guess the diagnosis.
@@ -986,7 +995,7 @@ const todayComplete = todayCompletedLevels === 3
           </div>
         )}
 
-        <div className="mx-auto mt-2.5 grid max-w-lg grid-cols-3 rounded-[22px] border border-[#e6dfd3] bg-white p-1 shadow-[0_8px_18px_rgba(16,32,24,0.05)]">
+        <div className={`mx-auto grid max-w-lg grid-cols-3 rounded-[22px] border border-[#e6dfd3] bg-white p-1 shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${hasMobileInteraction ? 'mt-2' : 'mt-2.5'}`}>
           {levels.map(level => {
             const active = selectedLevel === level.key
 
@@ -996,8 +1005,8 @@ const todayComplete = todayCompletedLevels === 3
                 onClick={() => setSelectedLevel(level.key)}
                 className={
                   active
-                    ? 'rounded-[18px] bg-[#1f6448] px-2 py-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5'
-                    : 'rounded-[18px] px-2 py-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5'
+                    ? `rounded-[18px] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
+                    : `rounded-[18px] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
                 }
               >
                 <div className="font-serif text-[11px] font-bold leading-none sm:text-[13px]">
@@ -1020,7 +1029,7 @@ const todayComplete = todayCompletedLevels === 3
 
       </section>
 
-      <div className="mx-auto grid max-w-[980px] items-start gap-2.5 px-4 py-1.5 pb-24 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
+      <div className={`mx-auto grid max-w-[980px] items-start gap-2.5 px-4 py-1.5 pb-24 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6 ${hasMobileInteraction ? 'pt-1' : ''}`}>
         <section className="space-y-4">
           <div className="relative overflow-visible rounded-2xl border border-[#ebe3d7] bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
             <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden rounded-t-[15px]">
@@ -1030,6 +1039,7 @@ const todayComplete = todayCompletedLevels === 3
             <div className="p-3 sm:px-3.5 sm:py-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
                   <span>{dailyCase?.category || formatLevel(selectedLevel)}</span>
                 </div>
               </div>
@@ -1123,7 +1133,7 @@ const todayComplete = todayCompletedLevels === 3
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className="orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-[#102018] sm:px-3.5"
+                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7] shadow-[0_8px_18px_rgba(199,107,58,0.08)]' : ''} orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-[#102018] sm:px-3.5`}
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
@@ -1204,7 +1214,7 @@ const todayComplete = todayCompletedLevels === 3
                 >
                   {gameWon
                     ? `Solved in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}`
-                    : 'Round complete'}
+                    : 'Case revealed'}
                 </div>
 
                 {streakBadge && (
@@ -1219,6 +1229,11 @@ const todayComplete = todayCompletedLevels === 3
                   <h3 className="orthodle-answer-pop font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                     {dailyCase.answer}
                   </h3>
+                  {!gameWon && (
+                    <p className="mt-1 text-[12px] leading-5 text-[#637268]">
+                      Missed this one, but the takeaway below is worth the round.
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -1265,6 +1280,16 @@ const todayComplete = todayCompletedLevels === 3
                   </div>
                 )}
 
+                {gameWon && (
+                  <button
+                    type="button"
+                    onClick={shareResult}
+                    className="hidden w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.18)] transition hover:bg-[#b65d30] sm:block"
+                  >
+                    Share the win
+                  </button>
+                )}
+
                 <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <input
@@ -1289,15 +1314,6 @@ const todayComplete = todayCompletedLevels === 3
                   )}
                 </div>
 
-                {gameWon && (
-                  <button
-                    type="button"
-                    onClick={shareResult}
-                    className="hidden w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.18)] transition hover:bg-[#b65d30] sm:block"
-                  >
-                    Share the win
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -1305,7 +1321,7 @@ const todayComplete = todayCompletedLevels === 3
 
         <aside className="space-y-3">
           {!roundComplete && (
-          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
+          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
             <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
               <span className="font-semibold text-[#637268]">
@@ -1313,7 +1329,7 @@ const todayComplete = todayCompletedLevels === 3
               </span>
             </div>
 
-            <div className="grid grid-cols-6 gap-1.5">
+            <div className="grid grid-cols-6 gap-1">
               {Array.from({ length: MAX_GUESSES }).map((_, i) => {
                 const item = guesses[i]
 
@@ -1325,7 +1341,7 @@ const todayComplete = todayCompletedLevels === 3
                         ? item.correct
                           ? 'flex min-h-[48px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
                           : 'flex min-h-[48px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
-                        : 'flex min-h-[48px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
+                        : 'flex min-h-[46px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
                     }
                   >
                     <span className="text-[9px] font-mono text-[#637268]">
@@ -1413,7 +1429,7 @@ const todayComplete = todayCompletedLevels === 3
           </div>
         </div>
       ) : (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5ddd2] bg-[#fbfaf7]/96 px-4 pb-[max(.8rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-8px_22px_rgba(16,32,24,0.07)] backdrop-blur sm:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5ddd2] bg-[#fbfaf7]/96 px-4 pb-[max(.8rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_22px_rgba(16,32,24,0.07)] backdrop-blur sm:hidden">
           <>
             <div className="relative">
               <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
@@ -1424,7 +1440,11 @@ const todayComplete = todayCompletedLevels === 3
                     setShowSuggestions(true)
                   }}
                   onFocus={() => setShowSuggestions(true)}
-                  onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
+                  onBlur={() => {
+                    setIsMobileInputFocused(false)
+                    window.setTimeout(() => setShowSuggestions(false), 120)
+                  }}
+                  onTouchStart={() => setIsMobileInputFocused(true)}
                   onKeyDown={e => e.key === 'Enter' && submitGuess()}
                   placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                   disabled={mobileInputDisabled}
@@ -1443,15 +1463,20 @@ const todayComplete = todayCompletedLevels === 3
                 'absolute inset-x-0 bottom-[calc(100%+8px)] z-50 max-h-56 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.12)]'
               )}
             </div>
-            <p className="mt-1.5 text-[11.5px] leading-4.5 text-[#637268]">
-              {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
-            </p>
+            {!isMobileInputFocused && (
+              <p className="mt-1.5 text-[11.5px] leading-4.5 text-[#637268]">
+                {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
+              </p>
+            )}
           </>
         </div>
       )}
 
       {dailyCase?.image_url && imageRevealed && imageExpanded && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8"
+          onClick={() => setImageExpanded(false)}
+        >
           <div className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
               <div>
@@ -1471,7 +1496,21 @@ const todayComplete = todayCompletedLevels === 3
               </button>
             </div>
 
-            <div className="bg-[#f7f4ee] p-5">
+            <div
+              className="bg-[#f7f4ee] p-5"
+              onClick={e => e.stopPropagation()}
+              onTouchStart={e => {
+                imageTouchStartY.current = e.touches[0]?.clientY ?? null
+              }}
+              onTouchEnd={e => {
+                const startY = imageTouchStartY.current
+                const endY = e.changedTouches[0]?.clientY ?? null
+                if (startY !== null && endY !== null && endY - startY > 70) {
+                  setImageExpanded(false)
+                }
+                imageTouchStartY.current = null
+              }}
+            >
               <img
                 src={dailyCase.image_url}
                 alt="Expanded case image"
