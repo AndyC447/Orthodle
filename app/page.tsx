@@ -59,13 +59,15 @@ const levels = [
   { key: 'attending' as Level, label: 'Attending' },
 ]
 
-const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
+const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
   id: index,
-  left: 6 + index * 5.1,
-  delay: (index % 6) * 0.08,
-  duration: 2.4 + (index % 5) * 0.18,
-  rotation: -24 + (index % 7) * 9,
+  left: 3 + index * 3.4,
+  delay: (index % 7) * 0.06,
+  duration: 2.5 + (index % 6) * 0.18,
+  rotation: -32 + (index % 9) * 9,
   color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
+  size: index % 5 === 0 ? 8 : index % 3 === 0 ? 12 : 10,
+  shape: index % 4 === 0 ? 'circle' : index % 5 === 0 ? 'diamond' : 'pill',
 }))
 
 const DEFAULT_LEVEL_TAGLINES: Record<Level, string[]> = {
@@ -834,9 +836,13 @@ const todayComplete = todayCompletedLevels === 3
             transform: scale(1);
             box-shadow: 0 0 0 0 rgba(31, 122, 77, 0.35);
           }
-          45% {
-            transform: scale(1.025);
-            box-shadow: 0 0 0 10px rgba(31, 122, 77, 0);
+          35% {
+            transform: scale(1.04);
+            box-shadow: 0 0 0 12px rgba(31, 122, 77, 0.08);
+          }
+          65% {
+            transform: scale(0.995);
+            box-shadow: 0 0 0 20px rgba(31, 122, 77, 0);
           }
           100% {
             transform: scale(1);
@@ -858,6 +864,21 @@ const todayComplete = todayCompletedLevels === 3
           }
         }
 
+        @keyframes orthodle-answer-pop {
+          0% {
+            opacity: 0;
+            transform: translateY(6px) scale(0.98);
+          }
+          60% {
+            opacity: 1;
+            transform: translateY(0) scale(1.02);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
         .orthodle-shake {
           animation: orthodle-shake 0.42s ease-in-out;
         }
@@ -867,7 +888,7 @@ const todayComplete = todayCompletedLevels === 3
         }
 
         .orthodle-success-pulse {
-          animation: orthodle-success-pulse 0.85s ease-out;
+          animation: orthodle-success-pulse 1.05s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
         .orthodle-win-glow {
@@ -888,6 +909,10 @@ const todayComplete = todayCompletedLevels === 3
           will-change: transform, opacity;
         }
 
+        .orthodle-answer-pop {
+          animation: orthodle-answer-pop 0.5s ease-out both;
+        }
+
       `}</style>
 
       {showConfetti && (
@@ -901,7 +926,16 @@ const todayComplete = todayCompletedLevels === 3
                 backgroundColor: piece.color,
                 animationDelay: `${piece.delay}s`,
                 animationDuration: `${piece.duration}s`,
-                transform: `rotate(${piece.rotation}deg)`,
+                transform:
+                  piece.shape === 'diamond'
+                    ? `rotate(${piece.rotation}deg)`
+                    : piece.shape === 'circle'
+                      ? 'rotate(0deg)'
+                      : `rotate(${piece.rotation}deg)`,
+                width: `${piece.size}px`,
+                height: piece.shape === 'circle' ? `${piece.size}px` : `${piece.size * 1.7}px`,
+                borderRadius:
+                  piece.shape === 'circle' ? '999px' : piece.shape === 'diamond' ? '3px' : '999px',
               }}
             />
           ))}
@@ -1155,7 +1189,7 @@ const todayComplete = todayCompletedLevels === 3
 
               <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <h3 className="font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
+                  <h3 className="orthodle-answer-pop font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                     {dailyCase.answer}
                   </h3>
                 </div>
@@ -1168,7 +1202,7 @@ const todayComplete = todayCompletedLevels === 3
                   </div>
                 )}
 
-                <div className="border-l-2 border-[#cfe2d8] pl-3 sm:pl-4">
+                <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                     Quick takeaway
                   </div>
@@ -1178,19 +1212,13 @@ const todayComplete = todayCompletedLevels === 3
                 </div>
 
                 {communityStats && (
-                  <div className="grid gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-[11.5px] text-[#637268] sm:grid-cols-2 sm:text-[12px]">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-[11.5px] text-[#637268] sm:text-[12px]">
                     <div>
                       Solve rate{' '}
                       <span className="font-semibold text-[#102018]">
                         {communityStats.solveRate !== null
                           ? `${Math.round(communityStats.solveRate)}%`
                           : '—'}
-                      </span>
-                    </div>
-                    <div>
-                      Avg guesses{' '}
-                      <span className="font-semibold text-[#102018]">
-                        {communityStats.averageGuessesPerPlayer?.toFixed(1) ?? '—'}
                       </span>
                     </div>
                     <div>
@@ -1211,10 +1239,7 @@ const todayComplete = todayCompletedLevels === 3
                 )}
 
                 <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                    Case feedback
-                  </div>
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <input
                       type="text"
                       value={feedbackText}
@@ -1340,16 +1365,20 @@ const todayComplete = todayCompletedLevels === 3
         .
       </footer>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur sm:hidden">
-        {roundComplete ? (
-          <button
-            type="button"
-            onClick={shareResult}
-            className="w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_-2px_18px_rgba(199,107,58,0.2)] transition hover:bg-[#b65d30]"
-          >
-            Share the win
-          </button>
-        ) : (
+      {roundComplete ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur">
+          <div className="mx-auto max-w-md">
+            <button
+              type="button"
+              onClick={shareResult}
+              className="w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_-2px_18px_rgba(199,107,58,0.2)] transition hover:bg-[#b65d30]"
+            >
+              Share the win
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur sm:hidden">
           <>
             <div className="relative">
               <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
@@ -1383,8 +1412,8 @@ const todayComplete = todayCompletedLevels === 3
               {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
             </p>
           </>
-        )}
-      </div>
+        </div>
+      )}
 
       {dailyCase?.image_url && imageRevealed && imageExpanded && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8">
