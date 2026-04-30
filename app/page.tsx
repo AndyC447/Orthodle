@@ -61,12 +61,15 @@ const levels = [
 
 const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
   id: index,
-  left: 3 + index * 3.4,
-  delay: (index % 7) * 0.06,
-  duration: 2.5 + (index % 6) * 0.18,
-  rotation: -32 + (index % 9) * 9,
+  left: 18 + (index % 14) * 4.6,
+  burstX: -180 + (index % 9) * 45,
+  burstY: 70 + (index % 6) * 24,
+  driftX: -80 + (index % 11) * 16,
+  delay: (index % 10) * 0.025,
+  duration: 1.25 + (index % 5) * 0.12,
+  rotation: -120 + (index % 13) * 18,
   color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
-  size: index % 5 === 0 ? 8 : index % 3 === 0 ? 12 : 10,
+  size: index % 5 === 0 ? 8 : index % 3 === 0 ? 13 : 10,
   shape: index % 4 === 0 ? 'circle' : index % 5 === 0 ? 'diamond' : 'pill',
 }))
 
@@ -120,6 +123,7 @@ function writePlayBootstrapCache(cache: Omit<PlayBootstrapCache, 'savedAt'>) {
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const findingsRef = useRef<HTMLDivElement | null>(null)
+  const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const today = todayISO()
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
   const [selectedDate, setSelectedDate] = useState(today)
@@ -475,7 +479,7 @@ function PlayPageContent() {
     setShowConfetti(false)
     requestAnimationFrame(() => {
       setShowConfetti(true)
-      window.setTimeout(() => setShowConfetti(false), 3400)
+      window.setTimeout(() => setShowConfetti(false), 1850)
     })
   }
 
@@ -777,6 +781,20 @@ function PlayPageContent() {
     setDailySummary(getStatsSummary().today)
   }, [dailyCase, roundComplete, gameWon, guesses])
 
+  useEffect(() => {
+    if (!gameWon || !roundComplete) return
+    if (typeof window === 'undefined' || window.innerWidth >= 640) return
+
+    const timeoutId = window.setTimeout(() => {
+      solvedCardRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    }, 220)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [gameWon, roundComplete])
+
   const todayCompletedLevels = new Set(
   dailySummary.levels
     .filter(item => item.won || item.guessesUsed === 6) // completed (win OR used all guesses)
@@ -850,17 +868,21 @@ const todayComplete = todayCompletedLevels === 3
           }
         }
 
-        @keyframes orthodle-confetti-fall {
+        @keyframes orthodle-confetti-burst {
           0% {
             opacity: 0;
-            transform: translate3d(0, -24px, 0) rotate(0deg) scale(0.9);
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(0.7);
           }
-          10% {
+          8% {
             opacity: 1;
+          }
+          25% {
+            opacity: 1;
+            transform: translate3d(var(--burst-x), calc(var(--burst-y) * -1), 0) rotate(calc(var(--rotation) * 0.45)) scale(1);
           }
           100% {
             opacity: 0;
-            transform: translate3d(0, 92vh, 0) rotate(540deg) scale(1);
+            transform: translate3d(calc(var(--burst-x) + var(--drift-x)), 96vh, 0) rotate(calc(var(--rotation) * 2.2)) scale(0.92);
           }
         }
 
@@ -899,11 +921,11 @@ const todayComplete = todayCompletedLevels === 3
 
         .orthodle-confetti-piece {
           position: absolute;
-          top: 0;
+          top: 8vh;
           width: 10px;
           height: 18px;
           border-radius: 999px;
-          animation-name: orthodle-confetti-fall;
+          animation-name: orthodle-confetti-burst;
           animation-timing-function: ease-out;
           animation-fill-mode: forwards;
           will-change: transform, opacity;
@@ -926,6 +948,10 @@ const todayComplete = todayCompletedLevels === 3
                 backgroundColor: piece.color,
                 animationDelay: `${piece.delay}s`,
                 animationDuration: `${piece.duration}s`,
+                ['--burst-x' as string]: `${piece.burstX}px`,
+                ['--burst-y' as string]: `${piece.burstY}px`,
+                ['--drift-x' as string]: `${piece.driftX}px`,
+                ['--rotation' as string]: `${piece.rotation}deg`,
                 transform:
                   piece.shape === 'diamond'
                     ? `rotate(${piece.rotation}deg)`
@@ -1161,6 +1187,7 @@ const todayComplete = todayCompletedLevels === 3
 
           {roundComplete && dailyCase && (
             <div
+              ref={solvedCardRef}
               className={
                 pulseSuccess
                   ? 'orthodle-success-pulse orthodle-win-glow rounded-2xl border border-[#d8e5dd] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
