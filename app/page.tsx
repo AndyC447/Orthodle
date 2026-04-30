@@ -968,8 +968,8 @@ const todayComplete = todayCompletedLevels === 3
         </div>
       )}
 
-      <section className="mx-auto max-w-5xl px-4 pt-4 pb-1 text-center sm:px-6 sm:pt-6">
-        <h1 className="font-serif text-[34px] font-bold leading-[1.02] tracking-[-0.03em] text-[#102018] sm:text-[42px] md:text-[46px]">
+      <section className="mx-auto max-w-5xl px-4 pt-3 pb-1 text-center sm:px-6 sm:pt-6">
+        <h1 className="font-serif text-[30px] font-bold leading-[0.98] tracking-[-0.035em] text-[#102018] sm:text-[42px] md:text-[46px]">
           Read the case.
           <br />
           Guess the diagnosis.
@@ -986,7 +986,7 @@ const todayComplete = todayCompletedLevels === 3
           </div>
         )}
 
-        <div className="mx-auto mt-3 grid max-w-lg grid-cols-3 rounded-2xl border border-[#ded7ca] bg-white p-1 shadow-sm">
+        <div className="mx-auto mt-2.5 grid max-w-lg grid-cols-3 rounded-[22px] border border-[#e6dfd3] bg-white p-1 shadow-[0_8px_18px_rgba(16,32,24,0.05)]">
           {levels.map(level => {
             const active = selectedLevel === level.key
 
@@ -996,19 +996,19 @@ const todayComplete = todayCompletedLevels === 3
                 onClick={() => setSelectedLevel(level.key)}
                 className={
                   active
-                    ? 'rounded-xl bg-[#1f6448] px-2.5 py-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5'
-                    : 'rounded-xl px-2.5 py-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5'
+                    ? 'rounded-[18px] bg-[#1f6448] px-2 py-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5'
+                    : 'rounded-[18px] px-2 py-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5'
                 }
               >
-                <div className="font-serif text-[12px] font-bold leading-none sm:text-[13px]">
+                <div className="font-serif text-[11px] font-bold leading-none sm:text-[13px]">
                   {level.label}
                 </div>
 
                 <div
                   className={
                     active
-                      ? 'mt-1 text-[7px] font-semibold uppercase tracking-[0.18em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
-                      : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.18em] text-[#637268] sm:text-[8px] sm:tracking-[0.22em]'
+                      ? 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.16em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
+                      : 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.16em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
                   }
                 >
                   {selectedTaglines[level.key]}
@@ -1020,15 +1020,15 @@ const todayComplete = todayCompletedLevels === 3
 
       </section>
 
-      <div className="mx-auto grid max-w-[980px] items-start gap-3 px-4 py-2 pb-28 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
+      <div className="mx-auto grid max-w-[980px] items-start gap-2.5 px-4 py-1.5 pb-24 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6">
         <section className="space-y-4">
-          <div className="relative overflow-visible rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="relative overflow-visible rounded-2xl border border-[#ebe3d7] bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
             <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden rounded-t-[15px]">
               <div className="h-1.5 w-full bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
             </div>
 
-            <div className="p-3.5 sm:px-3.5 sm:py-4">
-              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
+            <div className="p-3 sm:px-3.5 sm:py-4">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   <span>{dailyCase?.category || formatLevel(selectedLevel)}</span>
                 </div>
@@ -1036,7 +1036,7 @@ const todayComplete = todayCompletedLevels === 3
 
               <div className="mt-1 sm:mt-2.5">
                 {loading ? (
-                  <p className="font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
+                  <p className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
                     Loading...
                   </p>
                 ) : dailyCase ? (
@@ -1044,7 +1044,7 @@ const todayComplete = todayCompletedLevels === 3
                     {renderCasePrompt(dailyCase.prompt)}
                   </div>
                 ) : (
-                  <p className="font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
+                  <p className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
                     No case available for this level today.
                   </p>
                 )}
@@ -1105,7 +1105,7 @@ const todayComplete = todayCompletedLevels === 3
                 )
               )}
 
-              <div ref={findingsRef} className="mt-4 border-t border-dashed border-[#ded7ca] pt-3">
+              <div ref={findingsRef} className="mt-3.5 border-t border-dashed border-[#ded7ca] pt-3">
                 <div className="flex items-center justify-between gap-4">
                   <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                     Clinical findings
@@ -1135,7 +1135,7 @@ const todayComplete = todayCompletedLevels === 3
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-[12.5px] leading-5 text-[#8a948d]">
+                  <p className="mt-2 text-[12px] leading-5 text-[#8a948d]">
                     Incorrect guesses will reveal additional clinical findings and any delayed imaging clues.
                   </p>
                 )}
@@ -1305,7 +1305,7 @@ const todayComplete = todayCompletedLevels === 3
 
         <aside className="space-y-3">
           {!roundComplete && (
-          <div className="rounded-2xl border border-[#ded7ca] bg-white p-3 shadow-sm sm:hidden">
+          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
             <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
               <span className="font-semibold text-[#637268]">
@@ -1323,15 +1323,15 @@ const todayComplete = todayCompletedLevels === 3
                     className={
                       item
                         ? item.correct
-                          ? 'flex min-h-[52px] flex-col items-center justify-center rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-1 py-1.5 text-[#102018]'
-                          : 'flex min-h-[52px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1.5 text-[#102018]'
-                        : 'flex min-h-[52px] flex-col items-center justify-center rounded-lg border border-dashed border-[#ded7ca] bg-white px-1 py-1.5 text-[#9aa39c]'
+                          ? 'flex min-h-[48px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
+                          : 'flex min-h-[48px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
+                        : 'flex min-h-[48px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
                     }
                   >
-                    <span className="text-[10px] font-mono text-[#637268]">
+                    <span className="text-[9px] font-mono text-[#637268]">
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span className="mt-1 text-[11px] font-semibold">
+                    <span className="mt-1 text-[10px] font-semibold">
                       {item ? (item.correct ? '✓' : '×') : '•'}
                     </span>
                   </div>
@@ -1413,7 +1413,7 @@ const todayComplete = todayCompletedLevels === 3
           </div>
         </div>
       ) : (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ded7ca] bg-[#fbfaf7]/96 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 shadow-[0_-10px_30px_rgba(16,32,24,0.08)] backdrop-blur sm:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e5ddd2] bg-[#fbfaf7]/96 px-4 pb-[max(.8rem,env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-8px_22px_rgba(16,32,24,0.07)] backdrop-blur sm:hidden">
           <>
             <div className="relative">
               <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
@@ -1428,12 +1428,12 @@ const todayComplete = todayCompletedLevels === 3
                   onKeyDown={e => e.key === 'Enter' && submitGuess()}
                   placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                   disabled={mobileInputDisabled}
-                  className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3.5 py-3 text-[16px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                  className="flex-1 rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-[16px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
                 />
                 <button
                   onClick={submitGuess}
                   disabled={mobileInputDisabled}
-                  className="rounded-xl bg-[#1f6448] px-4 py-3 text-[13px] font-bold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="rounded-xl bg-[#1f6448] px-4 py-2.5 text-[13px] font-bold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Guess
                 </button>
@@ -1443,7 +1443,7 @@ const todayComplete = todayCompletedLevels === 3
                 'absolute inset-x-0 bottom-[calc(100%+8px)] z-50 max-h-56 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.12)]'
               )}
             </div>
-            <p className="mt-2 text-[12px] leading-5 text-[#637268]">
+            <p className="mt-1.5 text-[11.5px] leading-4.5 text-[#637268]">
               {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
             </p>
           </>
