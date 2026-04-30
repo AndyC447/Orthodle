@@ -10,12 +10,13 @@ type Level = 'med_student' | 'resident' | 'attending'
 type TaglineRow = {
   level: Level
   text: string
+  position: number
 }
 
-const DEFAULT_TAGLINES: Record<Level, string> = {
-  med_student: 'START HERE',
-  resident: 'MAKE THE CALL',
-  attending: 'CONNECT THE DOTS',
+const DEFAULT_TAGLINES: Record<Level, string[]> = {
+  med_student: ['START HERE'],
+  resident: ['MAKE THE CALL'],
+  attending: ['CONNECT THE DOTS'],
 }
 
 const LEVEL_ORDER: Level[] = ['med_student', 'resident', 'attending']
@@ -23,7 +24,11 @@ const LEVEL_ORDER: Level[] = ['med_student', 'resident', 'attending']
 export default function AdminTaglinesPage() {
   const [authReady, setAuthReady] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
-  const [rows, setRows] = useState<TaglineRow[]>([])
+  const [rows, setRows] = useState<Record<Level, string>>({
+    med_student: DEFAULT_TAGLINES.med_student.join('\n'),
+    resident: DEFAULT_TAGLINES.resident.join('\n'),
+    attending: DEFAULT_TAGLINES.attending.join('\n'),
+  })
   const [status, setStatus] = useState('')
 
   useEffect(() => {
@@ -40,47 +45,71 @@ export default function AdminTaglinesPage() {
   async function loadRows() {
     const { data, error } = await supabase
       .from('difficulty_taglines')
-      .select('level, text')
+      .select('level, text, position')
       .order('level', { ascending: true })
+      .order('position', { ascending: true })
 
     if (error) {
       setStatus(`Could not load taglines: ${error.message}`)
       return
     }
 
-    const byLevel = new Map<Level, string>()
-    for (const item of (data || []) as TaglineRow[]) {
-      byLevel.set(item.level, item.text)
+    const byLevel: Record<Level, string[]> = {
+      med_student: [],
+      resident: [],
+      attending: [],
     }
 
-    setRows(
-      LEVEL_ORDER.map(level => ({
-        level,
-        text: byLevel.get(level) || DEFAULT_TAGLINES[level],
-      }))
-    )
+    for (const item of (data || []) as TaglineRow[]) {
+      byLevel[item.level].push(item.text)
+    }
+
+    setRows({
+      med_student: (byLevel.med_student.length > 0 ? byLevel.med_student : DEFAULT_TAGLINES.med_student).join('\n'),
+      resident: (byLevel.resident.length > 0 ? byLevel.resident : DEFAULT_TAGLINES.resident).join('\n'),
+      attending: (byLevel.attending.length > 0 ? byLevel.attending : DEFAULT_TAGLINES.attending).join('\n'),
+    })
   }
 
-  async function saveRow(level: Level, text: string) {
-    const trimmedText = text.trim().toUpperCase()
-    if (!trimmedText) {
-      setStatus('Taglines cannot be blank.')
+  async function saveLevel(level: Level) {
+    const items = rows[level]
+      .split('\n')
+      .map(item => item.trim().toUpperCase())
+      .filter(Boolean)
+
+    if (items.length === 0) {
+      setStatus('Each level needs at least one subtitle.')
       return
     }
 
-    const { error } = await supabase
+    const { error: deleteError } = await supabase
       .from('difficulty_taglines')
-      .upsert({ level, text: trimmedText }, { onConflict: 'level' })
+      .delete()
+      .eq('level', level)
+
+    if (deleteError) {
+      setStatus(`Could not clear old subtitles: ${deleteError.message}`)
+      return
+    }
+
+    const { error } = await supabase.from('difficulty_taglines').insert(
+      items.map((text, index) => ({
+        level,
+        text,
+        position: index,
+      }))
+    )
 
     if (error) {
-      setStatus(`Could not save tagline: ${error.message}`)
+      setStatus(`Could not save subtitles: ${error.message}`)
       return
     }
 
-    setRows(prev =>
-      prev.map(row => (row.level === level ? { ...row, text: trimmedText } : row))
-    )
-    setStatus(`${formatLevel(level)} subtitle updated.`)
+    setRows(prev => ({
+      ...prev,
+      [level]: items.join('\n'),
+    }))
+    setStatus(`${formatLevel(level)} subtitles updated.`)
   }
 
   function formatLevel(level: Level) {
@@ -155,50 +184,43 @@ export default function AdminTaglinesPage() {
               Subtitle sheet
             </h2>
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {rows.length} rows
+              3 levels
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-xl border border-[#e7e1d6]">
-            <div className="grid grid-cols-[180px_minmax(0,1fr)_100px] border-b border-[#e7e1d6] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              <div>Level</div>
-              <div>Subtitle text</div>
-              <div className="text-center">Save</div>
-            </div>
-
-            <div>
-              {rows.map(row => (
-                <div
-                  key={row.level}
-                  className="grid grid-cols-[180px_minmax(0,1fr)_100px] items-center gap-2 border-b border-[#f1ece2] px-3 py-3 last:border-b-0"
-                >
+          <div className="mt-4 space-y-4">
+            {LEVEL_ORDER.map(level => (
+              <div key={level} className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
+                <div className="flex items-center justify-between gap-3">
                   <div className="text-sm font-semibold text-[#102018]">
-                    {formatLevel(row.level)}
+                    {formatLevel(level)}
                   </div>
-                  <input
-                    type="text"
-                    value={row.text}
-                    onChange={e =>
-                      setRows(prev =>
-                        prev.map(item =>
-                          item.level === row.level
-                            ? { ...item, text: e.target.value.toUpperCase() }
-                            : item
-                        )
-                      )
-                    }
-                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                  />
                   <button
                     type="button"
-                    onClick={() => saveRow(row.level, row.text)}
+                    onClick={() => saveLevel(level)}
                     className="rounded-lg border border-[#ded7ca] px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white"
                   >
                     Save
                   </button>
                 </div>
-              ))}
-            </div>
+
+                <textarea
+                  value={rows[level]}
+                  onChange={e =>
+                    setRows(prev => ({
+                      ...prev,
+                      [level]: e.target.value.toUpperCase(),
+                    }))
+                  }
+                  rows={6}
+                  placeholder="One subtitle per line"
+                  className="mt-3 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+                <p className="mt-2 text-xs text-[#8a948d]">
+                  One line per option. The site rotates through these automatically by day.
+                </p>
+              </div>
+            ))}
           </div>
         </section>
       </div>

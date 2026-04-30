@@ -114,8 +114,10 @@ create table if not exists case_feedback (
 );
 
 create table if not exists difficulty_taglines (
-  level text primary key,
+  id uuid primary key default uuid_generate_v4(),
+  level text not null,
   text text not null,
+  position integer not null default 0,
   updated_at timestamptz default now()
 );
 
@@ -168,7 +170,7 @@ values
   ('med_student', 'START HERE'),
   ('resident', 'MAKE THE CALL'),
   ('attending', 'CONNECT THE DOTS')
-on conflict (level) do nothing;
+on conflict do nothing;
 
 insert into cases (case_date, level, category, prompt, answer, synonyms, clue_1, clue_2)
 values (

@@ -153,16 +153,22 @@ export default function AdminAnswerChoicesPage() {
       return
     }
 
-    const { error } = await supabase.from('diagnosis_choices').insert({ label })
+    const { data, error } = await supabase
+      .from('diagnosis_choices')
+      .insert({ label })
+      .select('*')
+      .single()
 
     if (error) {
       setStatus(`Could not add answer choice: ${error.message}`)
       return
     }
 
+    setChoices(prev =>
+      [...prev, data as DiagnosisChoiceRow].sort((a, b) => a.label.localeCompare(b.label))
+    )
     setNewChoice('')
     setStatus('Answer choice added.')
-    await loadChoices()
   }
 
   async function addBatchChoices() {
@@ -188,20 +194,23 @@ export default function AdminAnswerChoicesPage() {
       return
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('diagnosis_choices')
       .insert(uniqueLabels.map(label => ({ label })))
+      .select('*')
 
     if (error) {
       setStatus(`Could not add batch choices: ${error.message}`)
       return
     }
 
+    setChoices(prev =>
+      [...prev, ...((data || []) as DiagnosisChoiceRow[])].sort((a, b) => a.label.localeCompare(b.label))
+    )
     setBatchChoices('')
     setStatus(
       `${uniqueLabels.length} answer choice${uniqueLabels.length === 1 ? '' : 's'} added${skippedCount > 0 ? `, ${skippedCount} skipped as duplicates` : ''}.`
     )
-    await loadChoices()
   }
 
   async function updateChoice(id: string, label: string) {
@@ -228,8 +237,12 @@ export default function AdminAnswerChoicesPage() {
       return
     }
 
+    setChoices(prev =>
+      prev
+        .map(choice => (choice.id === id ? { ...choice, label: trimmedLabel } : choice))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    )
     setStatus('Answer choice updated.')
-    await loadChoices()
   }
 
   async function removeChoice(id: string) {
@@ -240,8 +253,8 @@ export default function AdminAnswerChoicesPage() {
       return
     }
 
+    setChoices(prev => prev.filter(choice => choice.id !== id))
     setStatus('Answer choice removed.')
-    await loadChoices()
   }
 
   if (!authReady) {

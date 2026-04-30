@@ -171,6 +171,8 @@ export default function AdminPage() {
   const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
   const [caseCommunityStats, setCaseCommunityStats] = useState<CaseCommunityStats | null>(null)
+  const [submissionSummary, setSubmissionSummary] = useState({ total: 0, hasNew: false })
+  const [feedbackSummary, setFeedbackSummary] = useState({ total: 0, hasNew: false })
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
@@ -193,6 +195,8 @@ export default function AdminPage() {
     loadAnalytics()
     loadReminderStats()
     loadDiagnosisChoices()
+    loadSubmissionSummary()
+    loadFeedbackSummary()
   }, [isUnlocked])
 
   useEffect(() => {
@@ -753,6 +757,40 @@ export default function AdminPage() {
       .order('label', { ascending: true })
 
     setDiagnosisChoices((data || []) as DiagnosisChoiceLite[])
+  }
+
+  async function loadSubmissionSummary() {
+    const { data, error, count } = await supabase
+      .from('case_submissions')
+      .select('created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (error) return
+
+    const latestCreatedAt = data?.[0]?.created_at || null
+    const seenAt = window.localStorage.getItem('orthodle_seen_submissions_at')
+    setSubmissionSummary({
+      total: count || 0,
+      hasNew: Boolean(latestCreatedAt && latestCreatedAt !== seenAt),
+    })
+  }
+
+  async function loadFeedbackSummary() {
+    const { data, error, count } = await supabase
+      .from('case_feedback')
+      .select('created_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (error) return
+
+    const latestCreatedAt = data?.[0]?.created_at || null
+    const seenAt = window.localStorage.getItem('orthodle_seen_feedback_at')
+    setFeedbackSummary({
+      total: count || 0,
+      hasNew: Boolean(latestCreatedAt && latestCreatedAt !== seenAt),
+    })
   }
 
   async function loadCaseCommunityStats() {
@@ -1678,7 +1716,12 @@ Pearl: Knee pain in teens -> always check the hip`}
           <aside className="space-y-3">
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-serif text-xl font-bold">Button Subtitles</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-serif text-xl font-bold">Button Subtitles</h2>
+                  <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    Rotate daily
+                  </div>
+                </div>
                 <Link
                   href="/admin/taglines"
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
@@ -1690,15 +1733,26 @@ Pearl: Knee pain in teens -> always check the hip`}
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-serif text-xl font-bold">Submissions</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-serif text-xl font-bold">Submissions</h2>
+                  {submissionSummary.hasNew && (
+                    <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
+                      New
+                    </div>
+                  )}
+                </div>
                 <Link
                   href="/admin/submissions"
+                  onClick={() => {
+                    window.localStorage.setItem('orthodle_seen_submissions_at', new Date().toISOString())
+                    setSubmissionSummary(prev => ({ ...prev, hasNew: false }))
+                  }}
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
                 >
                   Open sheet
                 </Link>
               </div>
-
+              <p className="mt-2 text-sm text-[#8a948d]">{submissionSummary.total} total</p>
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
@@ -1715,14 +1769,26 @@ Pearl: Knee pain in teens -> always check the hip`}
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
               <div className="flex items-center justify-between gap-3">
-                <h2 className="font-serif text-xl font-bold">Feedback</h2>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-serif text-xl font-bold">Feedback</h2>
+                  {feedbackSummary.hasNew && (
+                    <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
+                      New
+                    </div>
+                  )}
+                </div>
                 <Link
                   href="/admin/feedback"
+                  onClick={() => {
+                    window.localStorage.setItem('orthodle_seen_feedback_at', new Date().toISOString())
+                    setFeedbackSummary(prev => ({ ...prev, hasNew: false }))
+                  }}
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
                 >
                   Open sheet
                 </Link>
               </div>
+              <p className="mt-2 text-sm text-[#8a948d]">{feedbackSummary.total} total</p>
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">

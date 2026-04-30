@@ -68,17 +68,59 @@ const confettiPieces = Array.from({ length: 18 }, (_, index) => ({
   color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
 }))
 
-const DEFAULT_LEVEL_TAGLINES: Record<Level, string> = {
-  med_student: 'START HERE',
-  resident: 'MAKE THE CALL',
-  attending: 'CONNECT THE DOTS',
+const DEFAULT_LEVEL_TAGLINES: Record<Level, string[]> = {
+  med_student: ['START HERE'],
+  resident: ['MAKE THE CALL'],
+  attending: ['CONNECT THE DOTS'],
+}
+
+const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
+const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
+
+type PlayBootstrapCache = {
+  savedAt: number
+  answerOptions: string[]
+  levelTaglines: Record<Level, string[]>
+}
+
+function readPlayBootstrapCache() {
+  if (typeof window === 'undefined') return null as PlayBootstrapCache | null
+
+  try {
+    const raw = window.sessionStorage.getItem(PLAY_BOOTSTRAP_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as PlayBootstrapCache
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > PLAY_BOOTSTRAP_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)
+      return null
+    }
+
+    return parsed
+  } catch {
+    window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)
+    return null
+  }
+}
+
+function writePlayBootstrapCache(cache: Omit<PlayBootstrapCache, 'savedAt'>) {
+  if (typeof window === 'undefined') return
+
+  window.sessionStorage.setItem(
+    PLAY_BOOTSTRAP_CACHE_KEY,
+    JSON.stringify({
+      ...cache,
+      savedAt: Date.now(),
+    })
+  )
 }
 
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const findingsRef = useRef<HTMLDivElement | null>(null)
+  const today = todayISO()
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
-  const [selectedDate, setSelectedDate] = useState(todayISO())
+  const [selectedDate, setSelectedDate] = useState(today)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
   const [answerOptions, setAnswerOptions] = useState<string[]>([])
@@ -100,9 +142,9 @@ function PlayPageContent() {
   const [feedbackText, setFeedbackText] = useState('')
   const [feedbackStatus, setFeedbackStatus] = useState('')
   const [isSavingFeedback, setIsSavingFeedback] = useState(false)
-  const [levelTaglines, setLevelTaglines] = useState<Record<Level, string>>(DEFAULT_LEVEL_TAGLINES)
+  const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [dailySummary, setDailySummary] = useState({
-    date: todayISO(),
+    date: today,
     played: 0,
     wins: 0,
     losses: 0,
@@ -129,10 +171,10 @@ function PlayPageContent() {
       setSelectedLevel(levelParam)
     }
 
-    if (dateParam && dateParam >= LAUNCH_DATE && dateParam <= todayISO()) {
+    if (dateParam && dateParam >= LAUNCH_DATE && dateParam <= today) {
       setSelectedDate(dateParam)
     }
-  }, [searchParams])
+  }, [searchParams, today])
 
   useEffect(() => {
     setDailySummary(getStatsSummary().today)
@@ -142,6 +184,14 @@ function PlayPageContent() {
     let cancelled = false
 
     async function loadAnswerOptions() {
+      const cached = readPlayBootstrapCache()
+
+      if (cached) {
+        setAnswerOptions(cached.answerOptions)
+        setLevelTaglines(cached.levelTaglines)
+        return
+      }
+
       const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }] = await Promise.all([
         supabase
           .from('cases')
@@ -153,7 +203,9 @@ function PlayPageContent() {
           .order('label', { ascending: true }),
         supabase
           .from('difficulty_taglines')
-          .select('level, text'),
+          .select('level, text, position')
+          .order('level', { ascending: true })
+          .order('position', { ascending: true }),
       ])
       if (cancelled) return
 
@@ -171,15 +223,44 @@ function PlayPageContent() {
 
       setAnswerOptions(uniqueAnswers)
 
+      const nextTaglines = {
+        med_student: [...DEFAULT_LEVEL_TAGLINES.med_student],
+        resident: [...DEFAULT_LEVEL_TAGLINES.resident],
+        attending: [...DEFAULT_LEVEL_TAGLINES.attending],
+      }
+
       if (taglineRows && taglineRows.length > 0) {
-        const nextTaglines = { ...DEFAULT_LEVEL_TAGLINES }
+        nextTaglines.med_student = []
+        nextTaglines.resident = []
+        nextTaglines.attending = []
+
         for (const row of taglineRows as Array<{ level: Level; text: string }>) {
           if (row.level && row.text) {
-            nextTaglines[row.level] = row.text.toUpperCase()
+            nextTaglines[row.level].push(row.text.toUpperCase())
           }
         }
-        setLevelTaglines(nextTaglines)
       }
+
+      const resolvedTaglines = {
+        med_student:
+          nextTaglines.med_student.length > 0
+            ? nextTaglines.med_student
+            : DEFAULT_LEVEL_TAGLINES.med_student,
+        resident:
+          nextTaglines.resident.length > 0
+            ? nextTaglines.resident
+            : DEFAULT_LEVEL_TAGLINES.resident,
+        attending:
+          nextTaglines.attending.length > 0
+            ? nextTaglines.attending
+            : DEFAULT_LEVEL_TAGLINES.attending,
+      }
+
+      setLevelTaglines(resolvedTaglines)
+      writePlayBootstrapCache({
+        answerOptions: uniqueAnswers,
+        levelTaglines: resolvedTaglines,
+      })
     }
 
     void loadAnswerOptions()
@@ -232,7 +313,7 @@ function PlayPageContent() {
 
         setDailyCase(data)
 
-        const isArchiveCase = data.case_date !== todayISO()
+        const isArchiveCase = data.case_date !== today
         const savedProgress = getRoundProgress(data.case_date, data.level, isArchiveCase)
 
         if (savedProgress && savedProgress.caseId === data.id) {
@@ -319,7 +400,7 @@ function PlayPageContent() {
     return () => {
       cancelled = true
     }
-  }, [selectedLevel, selectedDate])
+  }, [selectedLevel, selectedDate, today])
 
   function formatLevel(level: Level) {
     if (level === 'med_student') return 'Med Student'
@@ -703,6 +784,22 @@ function PlayPageContent() {
 const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
+  const taglineIndex = useMemo(() => {
+    const base = new Date(`${selectedDate}T12:00:00`).getTime()
+    return Math.abs(Math.floor(base / (1000 * 60 * 60 * 24)))
+  }, [selectedDate])
+  const selectedTaglines = useMemo(
+    () =>
+      ({
+        med_student:
+          levelTaglines.med_student[taglineIndex % levelTaglines.med_student.length],
+        resident:
+          levelTaglines.resident[taglineIndex % levelTaglines.resident.length],
+        attending:
+          levelTaglines.attending[taglineIndex % levelTaglines.attending.length],
+      }) as Record<Level, string>,
+    [levelTaglines, taglineIndex]
+  )
   const streakBadge =
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
@@ -867,7 +964,7 @@ const todayComplete = todayCompletedLevels === 3
                       : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.18em] text-[#637268] sm:text-[8px] sm:tracking-[0.22em]'
                   }
                 >
-                  {levelTaglines[level.key]}
+                  {selectedTaglines[level.key]}
                 </div>
               </button>
             )
@@ -1264,7 +1361,7 @@ const todayComplete = todayCompletedLevels === 3
 
       <footer className="mx-auto mt-8 max-w-4xl border-t border-[#e7e1d6] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
         Orthodle — for education &amp; entertainment. Not medical{' '}
-        <a href="/admin" className="underline underline-offset-2 transition hover:text-[#102018]">
+        <a href="/admin" className="transition hover:text-[#102018]">
           advice
         </a>
         .

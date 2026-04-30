@@ -243,62 +243,86 @@ export type StatsSummary = {
 const STATS_STORAGE_KEY = 'orthodle_stats_v1'
 const ROUND_PROGRESS_STORAGE_KEY = 'orthodle_round_progress_v1'
 
+let storedResultsCache: StoredGameResult[] | null = null
+let storedRoundProgressCache: StoredRoundProgress[] | null = null
+
 function getStoredResults() {
   if (typeof window === 'undefined') return [] as StoredGameResult[]
+  if (storedResultsCache) return storedResultsCache
 
   try {
     const raw = window.localStorage.getItem(STATS_STORAGE_KEY)
-    if (!raw) return [] as StoredGameResult[]
+    if (!raw) {
+      storedResultsCache = []
+      return storedResultsCache
+    }
 
     const parsed = JSON.parse(raw) as { results?: StoredGameResult[] }
-    return Array.isArray(parsed.results) ? parsed.results : ([] as StoredGameResult[])
+    storedResultsCache = Array.isArray(parsed.results) ? parsed.results : ([] as StoredGameResult[])
+    return storedResultsCache
   } catch {
-    return [] as StoredGameResult[]
+    storedResultsCache = []
+    return storedResultsCache
   }
 }
 
 function setStoredResults(results: StoredGameResult[]) {
   if (typeof window === 'undefined') return
 
+  const nextResults = [...results].sort((a, b) => {
+    if (a.caseDate !== b.caseDate) return b.caseDate.localeCompare(a.caseDate)
+    if (a.completedAt !== b.completedAt) return b.completedAt.localeCompare(a.completedAt)
+    return a.level.localeCompare(b.level)
+  })
+
+  storedResultsCache = nextResults
+
   window.localStorage.setItem(
     STATS_STORAGE_KEY,
     JSON.stringify({
-      results: [...results].sort((a, b) => {
-        if (a.caseDate !== b.caseDate) return b.caseDate.localeCompare(a.caseDate)
-        if (a.completedAt !== b.completedAt) return b.completedAt.localeCompare(a.completedAt)
-        return a.level.localeCompare(b.level)
-      }),
+      results: nextResults,
     })
   )
 }
 
 function getStoredRoundProgress() {
   if (typeof window === 'undefined') return [] as StoredRoundProgress[]
+  if (storedRoundProgressCache) return storedRoundProgressCache
 
   try {
     const raw = window.localStorage.getItem(ROUND_PROGRESS_STORAGE_KEY)
-    if (!raw) return [] as StoredRoundProgress[]
+    if (!raw) {
+      storedRoundProgressCache = []
+      return storedRoundProgressCache
+    }
 
     const parsed = JSON.parse(raw) as { rounds?: StoredRoundProgress[] }
-    return Array.isArray(parsed.rounds) ? parsed.rounds : ([] as StoredRoundProgress[])
+    storedRoundProgressCache = Array.isArray(parsed.rounds) ? parsed.rounds : ([] as StoredRoundProgress[])
+    return storedRoundProgressCache
   } catch {
-    return [] as StoredRoundProgress[]
+    storedRoundProgressCache = []
+    return storedRoundProgressCache
   }
 }
 
 function setStoredRoundProgress(rounds: StoredRoundProgress[]) {
   if (typeof window === 'undefined') return
 
+  const nextRounds = [...rounds].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 60)
+  storedRoundProgressCache = nextRounds
+
   window.localStorage.setItem(
     ROUND_PROGRESS_STORAGE_KEY,
     JSON.stringify({
-      rounds: [...rounds].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 60),
+      rounds: nextRounds,
     })
   )
 }
 
 export function clearStatsSummary() {
   if (typeof window === 'undefined') return
+  storedResultsCache = null
+  storedRoundProgressCache = null
   window.localStorage.removeItem(STATS_STORAGE_KEY)
   window.localStorage.removeItem(ROUND_PROGRESS_STORAGE_KEY)
 }

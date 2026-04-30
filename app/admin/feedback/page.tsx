@@ -55,8 +55,8 @@ export default function AdminFeedbackPage() {
       return
     }
 
+    setFeedbackRows(prev => prev.filter(item => item.id !== id))
     setStatus('Feedback removed.')
-    await loadFeedback()
   }
 
   function formatLevel(level: FeedbackRow['level']) {

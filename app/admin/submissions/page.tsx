@@ -77,8 +77,17 @@ export default function AdminSubmissionsPage() {
       return
     }
 
+    setSubmissions(prev =>
+      prev.map(item =>
+        item.id === submissionId
+          ? {
+              ...item,
+              status: nextStatus,
+            }
+          : item
+      )
+    )
     setStatus(`Submission marked as ${nextStatus.replace('_', ' ')}.`)
-    await loadSubmissions()
   }
 
   function formatLevel(level: Level) {
