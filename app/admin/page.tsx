@@ -504,7 +504,9 @@ export default function AdminPage() {
     const data = await response.json()
 
     if (!response.ok) {
-      setStatus(`Could not delete case: ${data.error || 'Unknown error'}`)
+      const nextMessage = `Could not delete case: ${data.error || 'Unknown error'}`
+      setStatus(nextMessage)
+      window.alert(nextMessage)
       return
     }
 
