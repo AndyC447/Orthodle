@@ -171,8 +171,16 @@ export default function AdminPage() {
   const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
   const [caseCommunityStats, setCaseCommunityStats] = useState<CaseCommunityStats | null>(null)
-  const [submissionSummary, setSubmissionSummary] = useState({ total: 0, hasNew: false })
-  const [feedbackSummary, setFeedbackSummary] = useState({ total: 0, hasNew: false })
+  const [submissionSummary, setSubmissionSummary] = useState({
+    total: 0,
+    hasNew: false,
+    latestCreatedAt: null as string | null,
+  })
+  const [feedbackSummary, setFeedbackSummary] = useState({
+    total: 0,
+    hasNew: false,
+    latestCreatedAt: null as string | null,
+  })
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
@@ -773,6 +781,7 @@ export default function AdminPage() {
     setSubmissionSummary({
       total: count || 0,
       hasNew: Boolean(latestCreatedAt && latestCreatedAt !== seenAt),
+      latestCreatedAt,
     })
   }
 
@@ -790,6 +799,7 @@ export default function AdminPage() {
     setFeedbackSummary({
       total: count || 0,
       hasNew: Boolean(latestCreatedAt && latestCreatedAt !== seenAt),
+      latestCreatedAt,
     })
   }
 
@@ -1744,7 +1754,12 @@ Pearl: Knee pain in teens -> always check the hip`}
                 <Link
                   href="/admin/submissions"
                   onClick={() => {
-                    window.localStorage.setItem('orthodle_seen_submissions_at', new Date().toISOString())
+                    if (submissionSummary.latestCreatedAt) {
+                      window.localStorage.setItem(
+                        'orthodle_seen_submissions_at',
+                        submissionSummary.latestCreatedAt
+                      )
+                    }
                     setSubmissionSummary(prev => ({ ...prev, hasNew: false }))
                   }}
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
@@ -1780,7 +1795,12 @@ Pearl: Knee pain in teens -> always check the hip`}
                 <Link
                   href="/admin/feedback"
                   onClick={() => {
-                    window.localStorage.setItem('orthodle_seen_feedback_at', new Date().toISOString())
+                    if (feedbackSummary.latestCreatedAt) {
+                      window.localStorage.setItem(
+                        'orthodle_seen_feedback_at',
+                        feedbackSummary.latestCreatedAt
+                      )
+                    }
                     setFeedbackSummary(prev => ({ ...prev, hasNew: false }))
                   }}
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
