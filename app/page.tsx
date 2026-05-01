@@ -1276,12 +1276,6 @@ const todayComplete = todayCompletedLevels === 3
                         >
                           Hide
                         </button>
-                        <button
-                          onClick={() => setImageExpanded(true)}
-                          className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
-                        >
-                          Enlarge
-                        </button>
                       </div>
                     </div>
 
