@@ -1165,11 +1165,8 @@ const todayComplete = todayCompletedLevels === 3
           <div className="w-full max-w-sm rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_18px_40px_rgba(16,32,24,0.18)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                  How to play
-                </div>
                 <h2 className="mt-2 font-serif text-[28px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
-                  Guess the diagnosis
+                  How to play
                 </h2>
               </div>
               <button
@@ -1223,7 +1220,7 @@ const todayComplete = todayCompletedLevels === 3
                 type="button"
                 onClick={dismissHomepageAnnouncement}
                 aria-label="Dismiss message"
-                className="shrink-0 rounded-full border border-[#ead9b7] bg-white px-2 py-1 text-[11px] font-semibold leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018]"
+                className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#ead9b7] bg-white text-[11px] font-semibold leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018]"
               >
                 ×
               </button>
@@ -1426,9 +1423,11 @@ const todayComplete = todayCompletedLevels === 3
                   )}
                 </div>
 
-                <p className="mt-2 text-[12px] leading-5 text-[#637268]">
-                  {message || `${MAX_GUESSES - guesses.length} guesses remaining`}
-                </p>
+                {message && (
+                  <p className="mt-2 text-[12px] leading-5 text-[#637268]">
+                    {message}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -1537,8 +1536,8 @@ const todayComplete = todayCompletedLevels === 3
           )}
 
           <div className="hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
-            <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
-              Your guesses
+            <div className="mb-3 flex justify-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
+              <span>Your guesses</span>
             </div>
 
             <div className="space-y-1.5">
@@ -1588,11 +1587,8 @@ const todayComplete = todayCompletedLevels === 3
         <aside className="space-y-3">
           {!roundComplete && (
           <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
-            <div className="mb-2 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
+            <div className="mb-2 flex justify-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
-              <span className="font-semibold text-[#637268]">
-                {guesses.length}/{MAX_GUESSES}
-              </span>
             </div>
 
             <div className="grid grid-cols-6 gap-1">

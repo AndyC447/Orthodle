@@ -50,7 +50,7 @@ export function Header() {
         </div>
 
         <div
-          className="relative"
+          className="relative -m-2 p-2"
           onMouseEnter={openMenu}
           onMouseLeave={scheduleCloseMenu}
         >
