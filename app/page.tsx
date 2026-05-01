@@ -1217,7 +1217,7 @@ const todayComplete = todayCompletedLevels === 3
 
       </section>
 
-      <div className={`mx-auto grid max-w-[980px] items-start gap-2.5 px-4 py-1.5 pb-24 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6 ${hasMobileInteraction ? 'pt-1' : ''}`}>
+      <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-24 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
         <section className="space-y-4">
           <div className="relative overflow-visible rounded-2xl border border-[#ebe3d7] bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
             <div className="pointer-events-none absolute left-[3px] right-[3px] top-[-1px] overflow-hidden rounded-t-[16px]">
@@ -1341,7 +1341,7 @@ const todayComplete = todayCompletedLevels === 3
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-[12px] leading-5 text-[#8a948d]">
+                  <p className="mt-2 text-center text-[12px] leading-5 text-[#8a948d]">
                     Incorrect guesses will reveal additional clinical findings and any delayed imaging clues.
                   </p>
                 )}
@@ -1493,6 +1493,54 @@ const todayComplete = todayCompletedLevels === 3
               </div>
             </div>
           )}
+
+          <div className="hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
+            <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
+              Your guesses
+            </div>
+
+            <div className="space-y-1.5">
+              {Array.from({ length: MAX_GUESSES }).map((_, i) => {
+                const item = guesses[i]
+                const isLatestCorrect = item?.correct && i === guesses.length - 1 && gameWon
+
+                return (
+                  <div
+                    key={`desktop-inline-${i}`}
+                    className={
+                      item
+                        ? item.correct
+                          ? `${
+                              isLatestCorrect ? 'orthodle-success-pulse' : ''
+                            } flex min-h-[38px] items-center gap-2 rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm`
+                          : 'flex min-h-[38px] items-center gap-2 rounded-lg bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm'
+                        : 'flex min-h-[38px] items-center gap-2 rounded-lg border border-dashed border-[#ded7ca] bg-white px-3 py-1.5 text-[12px] text-[#9aa39c] transition duration-200 hover:bg-[#fbfaf7]'
+                    }
+                  >
+                    <span className="w-5 font-mono text-[11px] text-[#637268]">
+                      {String(i + 1).padStart(2, '0')}
+                    </span>
+
+                    <span
+                      className={
+                        item
+                          ? item.correct
+                            ? 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1f7a4d] text-[10px] text-white'
+                            : 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c76b3a] text-[10px] text-white'
+                          : 'h-5 w-5 shrink-0 rounded-full bg-[#f1eee8]'
+                      }
+                    >
+                      {item ? (item.correct ? '✓' : '×') : ''}
+                    </span>
+
+                    <span className="truncate font-serif text-[13px] font-bold leading-none">
+                      {item?.text || '—'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </section>
 
         <aside className="space-y-3">
@@ -1532,54 +1580,6 @@ const todayComplete = todayCompletedLevels === 3
             </div>
           </div>
           )}
-
-          <div className="hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
-            <div className="mb-3 text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
-              Your guesses
-            </div>
-
-            <div className="space-y-1.5">
-              {Array.from({ length: MAX_GUESSES }).map((_, i) => {
-                const item = guesses[i]
-                const isLatestCorrect = item?.correct && i === guesses.length - 1 && gameWon
-
-                return (
-                  <div
-                    key={i}
-                    className={
-                      item
-                        ? item.correct
-                          ? `${
-                              isLatestCorrect ? 'orthodle-success-pulse' : ''
-                            } flex min-h-[38px] items-center gap-2 rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm`
-                          : 'flex min-h-[38px] items-center gap-2 rounded-lg bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm'
-                        : 'flex min-h-[38px] items-center gap-2 rounded-lg border border-dashed border-[#ded7ca] bg-white px-3 py-1.5 text-[12px] text-[#9aa39c] transition duration-200 hover:bg-[#fbfaf7]'
-                    }
-                  >
-                    <span className="w-5 font-mono text-[11px] text-[#637268]">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-
-                    <span
-                      className={
-                        item
-                          ? item.correct
-                            ? 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1f7a4d] text-[10px] text-white'
-                            : 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c76b3a] text-[10px] text-white'
-                          : 'h-5 w-5 shrink-0 rounded-full bg-[#f1eee8]'
-                      }
-                    >
-                      {item ? (item.correct ? '✓' : '×') : ''}
-                    </span>
-
-                    <span className="truncate font-serif text-[13px] font-bold leading-none">
-                      {item?.text || '—'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
 
         </aside>
       </div>
