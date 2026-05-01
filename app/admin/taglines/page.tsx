@@ -8,8 +8,10 @@ import { supabase } from '@/lib/supabase'
 type Level = 'med_student' | 'resident' | 'attending'
 
 type TaglineRow = {
+  id?: string
   level: Level
   text: string
+  updated_at?: string
 }
 
 const DEFAULT_TAGLINES: Record<Level, string> = {
@@ -41,9 +43,9 @@ export default function AdminTaglinesPage() {
   async function loadRows() {
     const { data, error } = await supabase
       .from('difficulty_taglines')
-      .select('level, text, position')
-      .order('level', { ascending: true })
-      .order('position', { ascending: true })
+      .select('id, level, text, position, updated_at')
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: false })
 
     if (error) {
       setStatus(`Could not load subtitles: ${error.message}`)
@@ -52,16 +54,10 @@ export default function AdminTaglinesPage() {
 
     const nextRows = { ...DEFAULT_TAGLINES }
 
-    for (const item of (data || []) as Array<TaglineRow & { position?: number }>) {
-      if (!nextRows[item.level] && item.text) {
-        nextRows[item.level] = item.text.toUpperCase()
-      }
-    }
-
     for (const level of LEVEL_ORDER) {
-      const firstRow = (data || []).find(item => item.level === level && item.text?.trim())
-      if (firstRow?.text) {
-        nextRows[level] = firstRow.text.toUpperCase()
+      const latestRow = (data || []).find(item => item.level === level && item.text?.trim())
+      if (latestRow?.text) {
+        nextRows[level] = latestRow.text.toUpperCase()
       }
     }
 
@@ -72,7 +68,6 @@ export default function AdminTaglinesPage() {
     const payload = LEVEL_ORDER.map(level => ({
       level,
       text: (rows[level] || DEFAULT_TAGLINES[level]).trim().toUpperCase(),
-      position: 0,
     }))
 
     if (payload.some(item => !item.text)) {
@@ -80,21 +75,61 @@ export default function AdminTaglinesPage() {
       return
     }
 
-    const { error: deleteError } = await supabase
-      .from('difficulty_taglines')
-      .delete()
-      .in('level', LEVEL_ORDER)
+    for (const item of payload) {
+      const { data: existingRows, error: existingError } = await supabase
+        .from('difficulty_taglines')
+        .select('id')
+        .eq('level', item.level)
+        .order('updated_at', { ascending: false })
+        .order('id', { ascending: false })
 
-    if (deleteError) {
-      setStatus(`Could not clear old subtitles: ${deleteError.message}`)
-      return
-    }
+      if (existingError) {
+        setStatus(`Could not load existing subtitles: ${existingError.message}`)
+        return
+      }
 
-    const { error } = await supabase.from('difficulty_taglines').insert(payload)
+      if (!existingRows || existingRows.length === 0) {
+        const { error: insertError } = await supabase.from('difficulty_taglines').insert({
+          level: item.level,
+          text: item.text,
+          position: 0,
+        })
 
-    if (error) {
-      setStatus(`Could not save subtitles: ${error.message}`)
-      return
+        if (insertError) {
+          setStatus(`Could not save subtitles: ${insertError.message}`)
+          return
+        }
+        continue
+      }
+
+      const primaryId = existingRows[0].id
+      const duplicateIds = existingRows.slice(1).map(row => row.id)
+
+      const { error: updateError } = await supabase
+        .from('difficulty_taglines')
+        .update({
+          text: item.text,
+          position: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', primaryId)
+
+      if (updateError) {
+        setStatus(`Could not save subtitles: ${updateError.message}`)
+        return
+      }
+
+      if (duplicateIds.length > 0) {
+        const { error: cleanupError } = await supabase
+          .from('difficulty_taglines')
+          .delete()
+          .in('id', duplicateIds)
+
+        if (cleanupError) {
+          setStatus(`Saved, but could not clean old subtitle duplicates: ${cleanupError.message}`)
+          return
+        }
+      }
     }
 
     window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)

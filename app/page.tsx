@@ -2,6 +2,7 @@
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
 import {
@@ -61,6 +62,8 @@ type HomepageAnnouncementRow = {
 
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
+const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
+const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
 
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
@@ -175,12 +178,21 @@ function isTooGenericSuggestionQuery(query: string) {
   return false
 }
 
+function isLocalhostBrowser() {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
+}
+
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const imageTouchStartY = useRef<number | null>(null)
+  const imagePanStart = useRef<{ x: number; y: number } | null>(null)
+  const imagePinchStart = useRef<number | null>(null)
+  const imageScaleStart = useRef<number>(1)
   const today = todayISO()
   const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
   const [selectedDate, setSelectedDate] = useState(today)
@@ -203,9 +215,11 @@ function PlayPageContent() {
   const [reminderEmail, setReminderEmail] = useState('')
   const [reminderStatus, setReminderStatus] = useState('')
   const [isSavingReminder, setIsSavingReminder] = useState(false)
-  const [feedbackText, setFeedbackText] = useState('')
-  const [feedbackStatus, setFeedbackStatus] = useState('')
-  const [isSavingFeedback, setIsSavingFeedback] = useState(false)
+  const [reactionStatus, setReactionStatus] = useState('')
+  const [submittingReaction, setSubmittingReaction] = useState<string | null>(null)
+  const [submittedReactionTags, setSubmittedReactionTags] = useState<string[]>([])
+  const [imageScale, setImageScale] = useState(1)
+  const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<string | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
@@ -256,6 +270,29 @@ function PlayPageContent() {
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !dailyCase) {
+      setSubmittedReactionTags([])
+      return
+    }
+
+    const saved = window.localStorage.getItem(
+      `${REACTION_STORAGE_PREFIX}:${dailyCase.id}`
+    )
+
+    if (!saved) {
+      setSubmittedReactionTags([])
+      return
+    }
+
+    try {
+      const parsed = JSON.parse(saved) as string[]
+      setSubmittedReactionTags(Array.isArray(parsed) ? parsed : [])
+    } catch {
+      setSubmittedReactionTags([])
+    }
+  }, [dailyCase])
+
+  useEffect(() => {
     let cancelled = false
 
     async function loadAnswerOptions() {
@@ -278,9 +315,9 @@ function PlayPageContent() {
           .order('label', { ascending: true }),
         supabase
           .from('difficulty_taglines')
-          .select('level, text, position')
-          .order('level', { ascending: true })
-          .order('position', { ascending: true }),
+          .select('level, text, position, updated_at, id')
+          .order('updated_at', { ascending: false })
+          .order('id', { ascending: false }),
       ])
       if (cancelled) return
 
@@ -461,10 +498,12 @@ function PlayPageContent() {
           setSelectedLevel(data.level)
         }
 
-        void supabase.from('visits').insert({
-          session_id: sessionId,
-          path: `/${data.level}/${data.case_date}`,
-        })
+        if (!isLocalhostBrowser()) {
+          void supabase.from('visits').insert({
+            session_id: sessionId,
+            path: `/${data.level}/${data.case_date}`,
+          })
+        }
 
         setDailyCase(data)
 
@@ -650,6 +689,24 @@ function PlayPageContent() {
     })
   }
 
+  function resetExpandedImageView() {
+    setImageScale(1)
+    setImageOffset({ x: 0, y: 0 })
+    imagePanStart.current = null
+    imagePinchStart.current = null
+    imageScaleStart.current = 1
+  }
+
+  function openExpandedImage() {
+    resetExpandedImageView()
+    setImageExpanded(true)
+  }
+
+  function closeExpandedImage() {
+    setImageExpanded(false)
+    resetExpandedImageView()
+  }
+
   function buildShareText() {
     const score = gameWon ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`
     const boxes = Array.from({ length: MAX_GUESSES }, (_, index) => {
@@ -662,8 +719,9 @@ function PlayPageContent() {
     const archiveLabel = (dailyCase?.case_date || selectedDate) === todayISO() ? '' : ' Archive'
 
     return [
-      `Orthodle${archiveLabel} ${score}`,
-      `${formatLevel(selectedLevel)} • ${prettyDate}`,
+      `ORTHODLE${archiveLabel.toUpperCase()} ${score}`,
+      `${formatLevel(selectedLevel).toUpperCase()} • ${selectedTaglines[selectedLevel]}`,
+      prettyDate,
       boxes,
       'orthodle.com',
     ].join('\n')
@@ -727,36 +785,64 @@ function PlayPageContent() {
     }
   }
 
-  async function submitCaseFeedback() {
+  async function submitQuickReaction(tag: string) {
     if (!dailyCase) return
-
-    const trimmedFeedback = feedbackText.trim()
-    if (!trimmedFeedback) {
-      setFeedbackStatus('Enter feedback before sending.')
+    if (submittedReactionTags.includes(tag)) {
+      setReactionStatus('You already sent that reaction for this case.')
+      return
+    }
+    if (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) {
+      setReactionStatus('You already marked this case as too hard.')
+      return
+    }
+    if (tag === 'Too hard' && submittedReactionTags.includes('Too easy')) {
+      setReactionStatus('You already marked this case as too easy.')
       return
     }
 
-    setIsSavingFeedback(true)
-    setFeedbackStatus('')
+    setSubmittingReaction(tag)
+    setReactionStatus('')
+
+    if (isLocalhostBrowser()) {
+      const nextTags = [...submittedReactionTags, tag]
+      setSubmittedReactionTags(nextTags)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          `${REACTION_STORAGE_PREFIX}:${dailyCase.id}`,
+          JSON.stringify(nextTags)
+        )
+      }
+      setReactionStatus('Saved locally for testing only.')
+      setSubmittingReaction(null)
+      return
+    }
 
     const { error } = await supabase.from('case_feedback').insert({
       case_id: dailyCase.id,
       case_date: dailyCase.case_date,
       level: dailyCase.level,
       answer: dailyCase.answer,
-      feedback_text: trimmedFeedback,
+      feedback_text: '',
+      feedback_tags: [tag],
       session_id: getSessionId() || null,
     })
 
     if (error) {
-      setFeedbackStatus('Could not send feedback right now.')
-      setIsSavingFeedback(false)
+      setReactionStatus('Could not save reaction right now.')
+      setSubmittingReaction(null)
       return
     }
 
-    setFeedbackText('')
-    setFeedbackStatus('Thanks for the feedback.')
-    setIsSavingFeedback(false)
+    const nextTags = [...submittedReactionTags, tag]
+    setSubmittedReactionTags(nextTags)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        `${REACTION_STORAGE_PREFIX}:${dailyCase.id}`,
+        JSON.stringify(nextTags)
+      )
+    }
+    setReactionStatus('Thanks for the feedback.')
+    setSubmittingReaction(null)
   }
 
   function renderFormattedLine(line: string) {
@@ -891,7 +977,7 @@ function PlayPageContent() {
 
     if (nextGuessCount >= MAX_GUESSES) {
       setGameOver(true)
-      const nextMessage = `Out of guesses. Answer: ${dailyCase.answer}`
+      const nextMessage = 'Out of guesses.'
       setMessage(nextMessage)
       saveRoundProgress({
         caseId: dailyCase.id,
@@ -969,12 +1055,12 @@ function PlayPageContent() {
   }, [gameWon, roundComplete])
 
   const todayCompletedLevels = new Set(
-  dailySummary.levels
-    .filter(item => item.won || item.guessesUsed === 6) // completed (win OR used all guesses)
-    .map(item => item.level)
-).size
+    dailySummary.levels
+      .filter(item => item.won || item.guessesUsed === 6)
+      .map(item => item.level)
+  ).size
 
-const todayComplete = todayCompletedLevels === 3
+  const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
   const selectedTaglines = useMemo(
@@ -995,6 +1081,16 @@ const todayComplete = todayCompletedLevels === 3
     guess.trim().length > 0 ||
     selectedLevel !== 'med_student' ||
     roundComplete
+
+  useEffect(() => {
+    if (!onTodayCard || !todayComplete || typeof window === 'undefined') return
+    const celebrationKey = `orthodle_daily_complete_${today}`
+    if (window.sessionStorage.getItem(celebrationKey)) return
+    window.sessionStorage.setItem(celebrationKey, 'true')
+    triggerConfetti()
+    triggerSuccessPulse()
+  }, [onTodayCard, todayComplete, today])
+
   const latestFindingIndex =
     !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
   const homepageAnnouncementKey = homepageAnnouncement
@@ -1200,13 +1296,27 @@ const todayComplete = todayCompletedLevels === 3
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
         {onTodayCard && todayComplete && (
-          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)]">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f6448]">
               Daily card complete
             </div>
             <p className="mt-1.5 text-[13px] leading-5 text-[#637268]">
-              You&apos;ve already finished today&apos;s three cases. Check your stats or browse older cases in the archive.
+              All three cases are locked in for today. Nice work.
             </p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              <Link
+                href="/stats"
+                className="rounded-full border border-[#cfded4] bg-white px-3.5 py-1.5 text-[11px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8]"
+              >
+                View stats
+              </Link>
+              <Link
+                href="/archive"
+                className="rounded-full border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-1.5 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
+              >
+                Browse archive
+              </Link>
+            </div>
           </div>
         )}
 
@@ -1220,9 +1330,9 @@ const todayComplete = todayCompletedLevels === 3
                 type="button"
                 onClick={dismissHomepageAnnouncement}
                 aria-label="Dismiss message"
-                className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#ead9b7] bg-white text-[11px] font-semibold leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018]"
+                className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#ead9b7] bg-white text-[13px] font-medium leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018]"
               >
-                ×
+                <span className="-mt-px">×</span>
               </button>
             </div>
           </div>
@@ -1262,7 +1372,7 @@ const todayComplete = todayCompletedLevels === 3
 
       </section>
 
-      <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-10 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
+      <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-4 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
         <section className="space-y-4">
           <div className="relative overflow-visible rounded-2xl border border-[#ebe3d7] bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
             <div className="pointer-events-none absolute left-[3px] right-[3px] top-[-1px] overflow-hidden rounded-t-[16px]">
@@ -1328,7 +1438,7 @@ const todayComplete = todayCompletedLevels === 3
                       {visibleImages.map((image, index) => (
                         <div key={`${image.url}-${index}`}>
                           <button
-                            onClick={() => setImageExpanded(true)}
+                            onClick={openExpandedImage}
                             className="flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
                           >
                             <img
@@ -1355,12 +1465,6 @@ const todayComplete = todayCompletedLevels === 3
                   <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                     Clinical findings
                   </div>
-
-                  {unlockedFindings > 0 && (
-                    <div className="justify-self-end rounded-full border border-[#ded7ca] bg-[#f7f5f0] px-2.5 py-0.5 text-[11px] text-[#637268]">
-                      {unlockedFindings}/{findings.length || 6}
-                    </div>
-                  )}
                 </div>
 
                 {visibleFindings.length > 0 ? (
@@ -1423,7 +1527,7 @@ const todayComplete = todayCompletedLevels === 3
                   )}
                 </div>
 
-                {message && (
+                {message && !roundComplete && (
                   <p className="mt-2 text-[12px] leading-5 text-[#637268]">
                     {message}
                   </p>
@@ -1470,64 +1574,85 @@ const todayComplete = todayCompletedLevels === 3
                   </div>
                 </div>
 
-                {communityStats && (
-                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-center text-[11.5px] text-[#637268] sm:text-[12px]">
-                    <div>
-                      Solve rate{' '}
-                      <span className="font-semibold text-[#102018]">
-                        {communityStats.solveRate !== null
-                          ? `${Math.round(communityStats.solveRate)}%`
-                          : '—'}
-                      </span>
-                    </div>
-                    <div>
-                      Avg to solve{' '}
-                      <span className="font-semibold text-[#102018]">
-                        {communityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
-                      </span>
-                    </div>
-                    <div>
-                      First-try solves{' '}
-                      <span className="font-semibold text-[#102018]">
-                        {communityStats.firstTrySolveRate !== null
-                          ? `${Math.round(communityStats.firstTrySolveRate)}%`
-                          : '—'}
-                      </span>
-                    </div>
+                {(communityStats || roundComplete) && (
+                  <div className="mx-auto flex w-full max-w-[420px] flex-col items-center">
+                    {communityStats && (
+                      <div className="grid w-full grid-cols-3 gap-3 border-t border-[#ebe5db] pt-3 text-center text-[11.5px] text-[#637268] sm:text-[12px]">
+                        <div>
+                          Solve rate{' '}
+                          <span className="font-semibold text-[#102018]">
+                            {communityStats.solveRate !== null
+                              ? `${Math.round(communityStats.solveRate)}%`
+                              : '—'}
+                          </span>
+                        </div>
+                        <div>
+                          Avg to solve{' '}
+                          <span className="font-semibold text-[#102018]">
+                            {communityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
+                          </span>
+                        </div>
+                        <div>
+                          First-try solves{' '}
+                          <span className="font-semibold text-[#102018]">
+                            {communityStats.firstTrySolveRate !== null
+                              ? `${Math.round(communityStats.firstTrySolveRate)}%`
+                              : '—'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {roundComplete && (
+                      <div className="mt-3 w-full">
+                        <button
+                          type="button"
+                          onClick={shareResult}
+                          className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#174c37]"
+                        >
+                          Share the case
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
-                  <div className="mx-auto flex max-w-[560px] flex-col gap-2 sm:flex-row sm:items-center">
-                    {gameWon && (
-                      <button
-                        type="button"
-                        onClick={shareResult}
-                        className="rounded-lg border border-[#ead9b7] bg-[#fff8ef] px-4 py-2 text-[12px] font-semibold text-[#a24d24] transition hover:bg-[#fff2e2]"
-                      >
-                        Share the win
-                      </button>
-                    )}
-                    <input
-                      type="text"
-                      value={feedbackText}
-                      onChange={e => setFeedbackText(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && submitCaseFeedback()}
-                      placeholder="Share feedback on this case"
-                      className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                      style={{ textAlign: 'center' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={submitCaseFeedback}
-                      disabled={isSavingFeedback}
-                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fdfdfb] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {isSavingFeedback ? 'Sending...' : 'Send'}
-                    </button>
+                  <div className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    Feedback
                   </div>
-                  {feedbackStatus && (
-                    <p className="mt-1.5 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {FEEDBACK_TAG_OPTIONS.map(tag => {
+                      const alreadySent = submittedReactionTags.includes(tag)
+                      const isPositiveReaction = tag === 'Great case'
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => void submitQuickReaction(tag)}
+                          disabled={
+                            submittingReaction !== null ||
+                            alreadySent ||
+                            (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
+                            (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
+                          }
+                          className={`rounded-lg border px-3 py-2 text-[11px] font-semibold transition ${
+                            submittingReaction === tag
+                              ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                              : alreadySent
+                                ? isPositiveReaction
+                                  ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                                  : 'border-[#ead9b7] bg-[#fff3e8] text-[#a24d24]'
+                                : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
+                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                        >
+                          {submittingReaction === tag ? 'Saving...' : alreadySent ? 'Sent' : tag}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {reactionStatus && (
+                    <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
                   )}
                 </div>
 
@@ -1622,7 +1747,7 @@ const todayComplete = todayCompletedLevels === 3
         </aside>
       </div>
 
-      <footer className="mx-auto mt-8 max-w-4xl border-t border-[#e7e1d6] px-4 py-6 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
+      <footer className="mx-auto mt-3 max-w-4xl border-t border-[#e7e1d6] px-4 py-5 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
         Orthodle — for education &amp; entertainment. Not medical{' '}
         <a href="/admin" className="transition hover:text-[#102018]">
           advice
@@ -1633,7 +1758,7 @@ const todayComplete = todayCompletedLevels === 3
       {visibleImages.length > 0 && imageRevealed && imageExpanded && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8"
-          onClick={() => setImageExpanded(false)}
+          onClick={closeExpandedImage}
         >
           <div className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
@@ -1641,13 +1766,10 @@ const todayComplete = todayCompletedLevels === 3
                 <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                   Imaging
                 </div>
-                <div className="mt-1 font-serif text-[22px] font-bold text-[#102018]">
-                  Expanded case image
-                </div>
               </div>
 
               <button
-                onClick={() => setImageExpanded(false)}
+                onClick={closeExpandedImage}
                 className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#102018] transition hover:bg-white"
               >
                 Minimize
@@ -1659,12 +1781,46 @@ const todayComplete = todayCompletedLevels === 3
               onClick={e => e.stopPropagation()}
               onTouchStart={e => {
                 imageTouchStartY.current = e.touches[0]?.clientY ?? null
+                if (e.touches.length === 2) {
+                  const [a, b] = [e.touches[0], e.touches[1]]
+                  imagePinchStart.current = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+                  imageScaleStart.current = imageScale
+                  imagePanStart.current = null
+                } else if (e.touches.length === 1 && imageScale > 1) {
+                  imagePanStart.current = {
+                    x: e.touches[0].clientX - imageOffset.x,
+                    y: e.touches[0].clientY - imageOffset.y,
+                  }
+                }
+              }}
+              onTouchMove={e => {
+                if (e.touches.length === 2 && imagePinchStart.current) {
+                  const [a, b] = [e.touches[0], e.touches[1]]
+                  const nextDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+                  const nextScale = Math.min(3, Math.max(1, imageScaleStart.current * (nextDistance / imagePinchStart.current)))
+                  setImageScale(nextScale)
+                  if (nextScale <= 1.02) {
+                    setImageOffset({ x: 0, y: 0 })
+                  }
+                  e.preventDefault()
+                } else if (e.touches.length === 1 && imagePanStart.current && imageScale > 1) {
+                  const nextX = e.touches[0].clientX - imagePanStart.current.x
+                  const nextY = e.touches[0].clientY - imagePanStart.current.y
+                  setImageOffset({ x: nextX, y: nextY })
+                  e.preventDefault()
+                }
               }}
               onTouchEnd={e => {
                 const startY = imageTouchStartY.current
                 const endY = e.changedTouches[0]?.clientY ?? null
-                if (startY !== null && endY !== null && endY - startY > 70) {
-                  setImageExpanded(false)
+                if (startY !== null && endY !== null && endY - startY > 70 && imageScale <= 1.05) {
+                  closeExpandedImage()
+                }
+                if (e.touches.length < 2) imagePinchStart.current = null
+                if (e.touches.length === 0) imagePanStart.current = null
+                if (imageScale < 1.02) {
+                  setImageScale(1)
+                  setImageOffset({ x: 0, y: 0 })
                 }
                 imageTouchStartY.current = null
               }}
@@ -1675,7 +1831,12 @@ const todayComplete = todayCompletedLevels === 3
                     <img
                       src={image.url}
                       alt={image.alt}
-                      className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain"
+                      className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain transition-transform"
+                      style={{
+                        transform: `translate(${imageOffset.x}px, ${imageOffset.y}px) scale(${imageScale})`,
+                        transformOrigin: 'center center',
+                        touchAction: 'none',
+                      }}
                     />
                     {image.credit && (
                       <p className="mt-3 text-center text-[10px] leading-4 text-[#8a948d]">

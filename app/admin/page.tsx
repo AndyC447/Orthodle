@@ -155,6 +155,7 @@ function timestampToLocalISO(timestamp: string) {
 const ANALYTICS_PAGE_SIZE = 1000
 
 export default function AdminPage() {
+  const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -1827,114 +1828,142 @@ Pearl: Knee pain in teens -> always check the hip`}
                       A quick read on how this case will appear to players.
                     </p>
                   </div>
-                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    {caseDate} · {formatLevel(level)}
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="inline-flex rounded-full border border-[#ded7ca] bg-white p-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode('mobile')}
+                        className={`rounded-full px-2.5 py-1 transition ${
+                          previewMode === 'mobile'
+                            ? 'bg-[#1f6448] text-white'
+                            : 'text-[#637268] hover:bg-[#fbfaf7]'
+                        }`}
+                      >
+                        Mobile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewMode('desktop')}
+                        className={`rounded-full px-2.5 py-1 transition ${
+                          previewMode === 'desktop'
+                            ? 'bg-[#1f6448] text-white'
+                            : 'text-[#637268] hover:bg-[#fbfaf7]'
+                        }`}
+                      >
+                        Desktop
+                      </button>
+                    </div>
+                    <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                      {caseDate} · {formatLevel(level)}
+                    </div>
                   </div>
                 </div>
 
-                <div className="mt-3 overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white">
-                  <div className="mx-px mt-px h-1.5 rounded-t-[15px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
+                <div className={`mt-3 ${previewMode === 'mobile' ? 'mx-auto max-w-[390px]' : ''}`}>
+                  <div className={`overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white ${previewMode === 'mobile' ? 'shadow-[0_18px_36px_rgba(16,32,24,0.10)]' : ''}`}>
+                    <div className="mx-px mt-px h-1.5 rounded-t-[15px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
-                  <div className="p-4">
-                    <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                      <span className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1">
-                        {category || 'Category'}
-                      </span>
-                      {contributorName && (
-                        <span className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1">
-                          {contributorName}
+                    <div className={previewMode === 'mobile' ? 'px-3 py-4' : 'p-4'}>
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                        <span className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1">
+                          {category || 'Category'}
                         </span>
-                      )}
-                    </div>
-
-                    <div className="mt-3 space-y-3">
-                      <div className="font-serif text-[20px] font-bold leading-tight text-[#102018]">
-                        {answer || 'Diagnosis preview'}
-                      </div>
-
-                      <div className="font-serif text-[16px] leading-7 text-[#102018]">
-                        {prompt || 'Your case prompt will show up here.'}
-                      </div>
-
-                      {(imageUrl || imageUrl2) && (
-                        <div className={`grid gap-2 ${imageUrl && imageUrl2 ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
-                          {imageUrl && (
-                            <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                              <img
-                                src={imageUrl}
-                                alt="Case preview"
-                                className="max-h-56 rounded-lg object-contain"
-                              />
-                              {imageCredit && (
-                                <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit}</p>
-                              )}
-                              <p className="mt-1 text-[11px] text-[#637268]">
-                                {imageRevealClue === 'none'
-                                  ? 'Image 1 shows immediately.'
-                                  : `Image 1 reveals with clue ${imageRevealClue}.`}
-                              </p>
-                            </div>
-                          )}
-                          {imageUrl2 && (
-                            <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                              <img
-                                src={imageUrl2}
-                                alt="Second case preview"
-                                className="max-h-56 rounded-lg object-contain"
-                              />
-                              {imageCredit2 && (
-                                <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit2}</p>
-                              )}
-                              <p className="mt-1 text-[11px] text-[#637268]">
-                                {imageRevealClue2 === 'none'
-                                  ? 'Image 2 shows immediately.'
-                                  : `Image 2 reveals with clue ${imageRevealClue2}.`}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      <div className="rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-                          Clinical findings
-                        </div>
-                        {previewClues.length > 0 ? (
-                          <ul className="mt-2 space-y-2">
-                            {previewClues.map((clue, index) => (
-                              <li
-                                key={`${clue}-${index}`}
-                                className="text-sm leading-6 text-[#102018]"
-                              >
-                                <span className="mr-2 text-[#637268]">{index + 1}.</span>
-                                {clue}
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-2 text-sm text-[#8a948d]">
-                            Add clues to preview the reveal sequence.
-                          </p>
+                        {contributorName && (
+                          <span className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1">
+                            {contributorName}
+                          </span>
                         )}
                       </div>
 
-                      <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-                          Quick takeaway
+                      <div className={previewMode === 'mobile' ? 'mt-3 space-y-2.5' : 'mt-3 space-y-3'}>
+                        <div className={`font-serif font-bold leading-tight text-[#102018] ${previewMode === 'mobile' ? 'text-[18px]' : 'text-[20px]'}`}>
+                          {answer || 'Diagnosis preview'}
                         </div>
-                        {teachingPoint.trim() ? (
-                          <div className="mt-2 space-y-2">
-                            {formatPreviewTeachingPoint(teachingPoint).map((line, index) => (
-                              <p key={`${line}-${index}`} className="text-sm leading-6 text-[#102018]">
-                                {line}
-                              </p>
-                            ))}
+
+                        <div className={`font-serif text-[#102018] ${previewMode === 'mobile' ? 'text-[15px] leading-7' : 'text-[16px] leading-7'}`}>
+                          {prompt || 'Your case prompt will show up here.'}
+                        </div>
+
+                        {(imageUrl || imageUrl2) && (
+                          <div className={`grid gap-2 ${imageUrl && imageUrl2 ? (previewMode === 'mobile' ? 'grid-cols-1' : 'md:grid-cols-2') : 'grid-cols-1'}`}>
+                            {imageUrl && (
+                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                                <img
+                                  src={imageUrl}
+                                  alt="Case preview"
+                                  className="max-h-56 rounded-lg object-contain"
+                                />
+                                {imageCredit && (
+                                  <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit}</p>
+                                )}
+                                <p className="mt-1 text-[11px] text-[#637268]">
+                                  {imageRevealClue === 'none'
+                                    ? 'Image 1 shows immediately.'
+                                    : `Image 1 reveals with clue ${imageRevealClue}.`}
+                                </p>
+                              </div>
+                            )}
+                            {imageUrl2 && (
+                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                                <img
+                                  src={imageUrl2}
+                                  alt="Second case preview"
+                                  className="max-h-56 rounded-lg object-contain"
+                                />
+                                {imageCredit2 && (
+                                  <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit2}</p>
+                                )}
+                                <p className="mt-1 text-[11px] text-[#637268]">
+                                  {imageRevealClue2 === 'none'
+                                    ? 'Image 2 shows immediately.'
+                                    : `Image 2 reveals with clue ${imageRevealClue2}.`}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        ) : (
-                          <p className="mt-2 text-sm text-[#8a948d]">
-                            Add a short takeaway to show after the solve.
-                          </p>
                         )}
+
+                        <div className="rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                            Clinical findings
+                          </div>
+                          {previewClues.length > 0 ? (
+                            <ul className="mt-2 space-y-2">
+                              {previewClues.map((clue, index) => (
+                                <li
+                                  key={`${clue}-${index}`}
+                                  className="text-sm leading-6 text-[#102018]"
+                                >
+                                  <span className="mr-2 text-[#637268]">{index + 1}.</span>
+                                  {clue}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-sm text-[#8a948d]">
+                              Add clues to preview the reveal sequence.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                            Quick takeaway
+                          </div>
+                          {teachingPoint.trim() ? (
+                            <div className="mt-2 space-y-2">
+                              {formatPreviewTeachingPoint(teachingPoint).map((line, index) => (
+                                <p key={`${line}-${index}`} className="text-sm leading-6 text-[#102018]">
+                                  {line}
+                                </p>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-sm text-[#8a948d]">
+                              Add a short takeaway to show after the solve.
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

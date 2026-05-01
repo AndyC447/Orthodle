@@ -29,10 +29,60 @@ export default function StatsPage() {
     1,
     ...Object.values(statsSnapshot?.guessDistribution || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 })
   )
+  const distributionColors = {
+    1: 'from-[#1f6448] to-[#2d8b61]',
+    2: 'from-[#3e7f51] to-[#5f9a67]',
+    3: 'from-[#6a8750] to-[#8da260]',
+    4: 'from-[#948553] to-[#b29863]',
+    5: 'from-[#b17948] to-[#c98a55]',
+    6: 'from-[#c76b3a] to-[#d88b57]',
+  } as const
 
   function formatAverage(value: number | null) {
     if (value === null) return '—'
     return value.toFixed(1)
+  }
+
+  function getWinRateTheme(winRate: number | null) {
+    if (winRate === null) {
+      return {
+        card: 'border-[#ead9b7] bg-[#fffaf1]',
+        value: 'text-[#a35d32]',
+      }
+    }
+
+    if (winRate > 90) {
+      return {
+        card: 'border-[#cfe0d5] bg-[#f3fbf6]',
+        value: 'text-[#1f6448]',
+      }
+    }
+
+    if (winRate >= 80) {
+      return {
+        card: 'border-[#d8e3cf] bg-[#f7fbf1]',
+        value: 'text-[#4f7f52]',
+      }
+    }
+
+    if (winRate >= 70) {
+      return {
+        card: 'border-[#e0dfc9] bg-[#fcfaef]',
+        value: 'text-[#7a8453]',
+      }
+    }
+
+    if (winRate >= 60) {
+      return {
+        card: 'border-[#ead9b7] bg-[#fffaf1]',
+        value: 'text-[#a07a3f]',
+      }
+    }
+
+    return {
+      card: 'border-[#f0d7c8] bg-[#fff3eb]',
+      value: 'text-[#c76b3a]',
+    }
   }
 
   function resetStats() {
@@ -57,10 +107,7 @@ export default function StatsPage() {
           <div className="p-4 md:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
-                  Stats
-                </div>
-                <h1 className="mt-2.5 font-serif text-[28px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
+                <h1 className="font-serif text-[28px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                   Your daily performance
                 </h1>
               </div>
@@ -89,11 +136,15 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] p-3.5">
+              <div className={`rounded-2xl border p-3.5 ${getWinRateTheme(
+                statsSnapshot && statsSnapshot.gamesPlayed > 0 ? statsSnapshot.winRate : null
+              ).card}`}>
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Win rate
                 </div>
-                <div className="mt-2.5 font-serif text-[25px] font-bold text-[#a35d32]">
+                <div className={`mt-2.5 font-serif text-[25px] font-bold ${getWinRateTheme(
+                  statsSnapshot && statsSnapshot.gamesPlayed > 0 ? statsSnapshot.winRate : null
+                ).value}`}>
                   {statsSnapshot && statsSnapshot.gamesPlayed > 0
                     ? `${Math.round(statsSnapshot.winRate)}%`
                     : '—'}
@@ -121,7 +172,7 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_250px]">
-              <div className="rounded-2xl border border-[#e7e1d6] bg-[#fbfaf7] p-4">
+              <div className="flex h-full min-h-[350px] flex-col rounded-2xl border border-[#e7e1d6] bg-[#fbfaf7] p-4">
                 <button
                   type="button"
                   onClick={() => setShowDistribution(prev => !prev)}
@@ -138,7 +189,7 @@ export default function StatsPage() {
                 </button>
 
                 {showDistribution && (
-                <div className="mt-3.5 space-y-2.5">
+                <div className="mt-3.5 flex flex-1 flex-col justify-between gap-2.5">
                   {[1, 2, 3, 4, 5, 6].map(guessNumber => {
                     const count = statsSnapshot?.guessDistribution[guessNumber] || 0
                     const width = `${Math.max(count > 0 ? 14 : 0, (count / maxDistribution) * 100)}%`
@@ -153,7 +204,7 @@ export default function StatsPage() {
                         </div>
                         <div className="h-6 overflow-hidden rounded-full bg-[#ece8df]">
                           <div
-                            className="flex h-full items-center justify-end rounded-full bg-gradient-to-r from-[#8a5a3a] to-[#5f3e2a] px-2.5 text-[11px] font-bold text-white transition-[width] duration-500"
+                            className={`flex h-full items-center justify-end rounded-full bg-gradient-to-r px-2.5 text-[11px] font-bold text-white transition-[width] duration-500 ${distributionColors[guessNumber as keyof typeof distributionColors]}`}
                             style={{ width }}
                           >
                             {count > 0 ? count : ''}

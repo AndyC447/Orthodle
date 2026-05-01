@@ -118,9 +118,12 @@ create table if not exists case_feedback (
   level text,
   answer text,
   feedback_text text not null,
+  feedback_tags text[] default '{}',
   session_id text,
   created_at timestamptz default now()
 );
+
+alter table case_feedback add column if not exists feedback_tags text[] default '{}';
 
 create table if not exists difficulty_taglines (
   id uuid primary key default uuid_generate_v4(),
