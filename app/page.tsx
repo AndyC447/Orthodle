@@ -305,13 +305,12 @@ function PlayPageContent() {
       }
 
       if (taglineRows && taglineRows.length > 0) {
-        nextTaglines.med_student = []
-        nextTaglines.resident = []
-        nextTaglines.attending = []
-
-        for (const row of taglineRows as Array<{ level: Level; text: string }>) {
-          if (row.level && row.text) {
-            nextTaglines[row.level].push(row.text.toUpperCase())
+        for (const level of levels.map(item => item.key)) {
+          const firstRow = (taglineRows as Array<{ level: Level; text: string }>).find(
+            row => row.level === level && row.text?.trim()
+          )
+          if (firstRow?.text) {
+            nextTaglines[level] = [firstRow.text.toUpperCase()]
           }
         }
       }
@@ -1185,9 +1184,10 @@ const todayComplete = todayCompletedLevels === 3
 
             <div className="mt-4 space-y-3 text-[14px] leading-6 text-[#102018]">
               <p><strong>1.</strong> Read the case and narrow the diagnosis.</p>
-              <p><strong>2.</strong> Wrong guesses unlock more clinical findings.</p>
-              <p><strong>3.</strong> Imaging may appear later as part of the clues.</p>
-              <p><strong>4.</strong> You get 6 guesses total for each case.</p>
+              <p><strong>2.</strong> There are 3 new cases every day, each with increasing difficulty.</p>
+              <p><strong>3.</strong> Wrong guesses unlock more clinical findings.</p>
+              <p><strong>4.</strong> Imaging may appear later as part of the clues.</p>
+              <p><strong>5.</strong> You get 6 guesses total for each case.</p>
             </div>
 
             <button
