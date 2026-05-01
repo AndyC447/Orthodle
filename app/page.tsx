@@ -1155,7 +1155,7 @@ const todayComplete = todayCompletedLevels === 3
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
         {onTodayCard && todayComplete && (
-          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f6448]">
               Daily card complete
             </div>
@@ -1263,12 +1263,13 @@ const todayComplete = todayCompletedLevels === 3
                   </div>
                 ) : (
                   <div className="mt-3.5 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+                  <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+                      <div />
+                      <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                         Imaging
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => setImageHidden(true)}
                           className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
@@ -1310,13 +1311,14 @@ const todayComplete = todayCompletedLevels === 3
               )}
 
               <div ref={findingsRef} className="mt-3.5 border-t border-dashed border-[#ded7ca] pt-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+                <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+                  <div />
+                  <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                     Clinical findings
                   </div>
 
                   {unlockedFindings > 0 && (
-                    <div className="rounded-full border border-[#ded7ca] bg-[#f7f5f0] px-2.5 py-0.5 text-[11px] text-[#637268]">
+                    <div className="justify-self-end rounded-full border border-[#ded7ca] bg-[#f7f5f0] px-2.5 py-0.5 text-[11px] text-[#637268]">
                       {unlockedFindings}/{findings.length || 6}
                     </div>
                   )}
@@ -1398,29 +1400,9 @@ const todayComplete = todayCompletedLevels === 3
                   : 'rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
               }
             >
-              <div className="flex flex-col items-start gap-2">
-                <div
-                  className={
-                    gameWon
-                      ? 'inline-flex rounded-full border border-[#cfe2d8] bg-[#e8f3ed] px-3 py-1.5 text-[13px] font-semibold text-[#1f6448]'
-                      : 'inline-flex rounded-full bg-[#fff1e8] px-3 py-1.5 text-[13px] font-semibold text-[#a24d24]'
-                  }
-                >
-                  {gameWon
-                    ? `Solved in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}`
-                    : 'Case revealed'}
-                </div>
-
-                {streakBadge && (
-                  <div className="inline-flex rounded-full border border-[#ead9b7] bg-[#fff8ef] px-3 py-1.5 text-[11px] font-semibold text-[#a24d24]">
-                    {streakBadge}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h3 className="orthodle-answer-pop font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
+              <div className="mt-1">
+                <div className="text-center">
+                  <h3 className="orthodle-answer-pop font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448]">
                     {dailyCase.answer}
                   </h3>
                   {!gameWon && (
@@ -1431,7 +1413,7 @@ const todayComplete = todayCompletedLevels === 3
                 </div>
               </div>
 
-              <div className="mt-3 space-y-3 sm:mt-4">
+              <div className="mt-3 space-y-3 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4">
                 {dailyCase.contributor_name && (
                   <div className="hidden rounded-full border border-[#dfe7e1] bg-[#fbfdfb] px-3 py-1 text-[11px] font-semibold text-[#315f4d] sm:inline-flex">
                     Contributed by {dailyCase.contributor_name}
@@ -1439,7 +1421,7 @@ const todayComplete = todayCompletedLevels === 3
                 )}
 
                 <div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                  <div className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                     Quick takeaway
                   </div>
                   <div className="mt-2 space-y-1">
@@ -1448,7 +1430,7 @@ const todayComplete = todayCompletedLevels === 3
                 </div>
 
                 {communityStats && (
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-[11.5px] text-[#637268] sm:text-[12px]">
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 border-t border-[#ebe5db] pt-3 text-center text-[11.5px] text-[#637268] sm:text-[12px]">
                     <div>
                       Solve rate{' '}
                       <span className="font-semibold text-[#102018]">
@@ -1474,18 +1456,17 @@ const todayComplete = todayCompletedLevels === 3
                   </div>
                 )}
 
-                {gameWon && (
-                  <button
-                    type="button"
-                    onClick={shareResult}
-                    className="w-full rounded-xl bg-[#c76b3a] px-4 py-3 text-sm font-semibold text-white shadow-[0_8px_18px_rgba(199,107,58,0.18)] transition hover:bg-[#b65d30]"
-                  >
-                    Share the win
-                  </button>
-                )}
-
                 <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="mx-auto flex max-w-[560px] flex-col gap-2 sm:flex-row sm:items-center">
+                    {gameWon && (
+                      <button
+                        type="button"
+                        onClick={shareResult}
+                        className="rounded-lg border border-[#ead9b7] bg-[#fff8ef] px-4 py-2 text-[12px] font-semibold text-[#a24d24] transition hover:bg-[#fff2e2]"
+                      >
+                        Share the win
+                      </button>
+                    )}
                     <input
                       type="text"
                       value={feedbackText}
@@ -1493,6 +1474,7 @@ const todayComplete = todayCompletedLevels === 3
                       onKeyDown={e => e.key === 'Enter' && submitCaseFeedback()}
                       placeholder="Share feedback on this case"
                       className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                      style={{ textAlign: 'center' }}
                     />
                     <button
                       type="button"
@@ -1504,7 +1486,7 @@ const todayComplete = todayCompletedLevels === 3
                     </button>
                   </div>
                   {feedbackStatus && (
-                    <p className="mt-1.5 text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
+                    <p className="mt-1.5 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
                   )}
                 </div>
 
