@@ -958,6 +958,12 @@ function PlayPageContent() {
         behavior: 'smooth',
         block: 'start',
       })
+
+      if (gameWon) {
+        window.setTimeout(() => {
+          triggerSuccessPulse()
+        }, 520)
+      }
     }, gameWon ? 500 : 280)
 
     return () => window.clearTimeout(timeoutId)
