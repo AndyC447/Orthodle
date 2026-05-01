@@ -978,7 +978,7 @@ const todayComplete = todayCompletedLevels === 3
       )}
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
-        <h1 className={`font-serif font-bold leading-[0.98] tracking-[-0.035em] text-[#102018] sm:text-[42px] md:text-[46px] ${hasMobileInteraction ? 'text-[25px]' : 'text-[30px]'}`}>
+        <h1 className={`hidden font-serif font-bold leading-[0.98] tracking-[-0.035em] text-[#102018] sm:block sm:text-[42px] md:text-[46px] ${hasMobileInteraction ? 'text-[25px]' : 'text-[30px]'}`}>
           Read the case.
           <br />
           Guess the diagnosis.
