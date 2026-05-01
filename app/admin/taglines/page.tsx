@@ -22,6 +22,24 @@ const DEFAULT_TAGLINES: Record<Level, string[]> = {
 const LEVEL_ORDER: Level[] = ['med_student', 'resident', 'attending']
 const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
 
+function normalizeSubtitleList(today: string, upcomingText: string) {
+  const normalizedToday = today.trim().toUpperCase()
+  const seen = new Set<string>(normalizedToday ? [normalizedToday] : [])
+  const upcoming: string[] = []
+
+  for (const item of upcomingText.split('\n')) {
+    const normalized = item.trim().toUpperCase()
+    if (!normalized || seen.has(normalized)) continue
+    seen.add(normalized)
+    upcoming.push(normalized)
+  }
+
+  return {
+    today: normalizedToday,
+    upcoming,
+  }
+}
+
 export default function AdminTaglinesPage() {
   const [authReady, setAuthReady] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -76,27 +94,35 @@ export default function AdminTaglinesPage() {
       attending: byLevel.attending.length > 0 ? byLevel.attending : DEFAULT_TAGLINES.attending,
     }
 
+    const medStudentClean = normalizeSubtitleList(
+      resolved.med_student[0] || DEFAULT_TAGLINES.med_student[0],
+      resolved.med_student.slice(1).join('\n')
+    )
+    const residentClean = normalizeSubtitleList(
+      resolved.resident[0] || DEFAULT_TAGLINES.resident[0],
+      resolved.resident.slice(1).join('\n')
+    )
+    const attendingClean = normalizeSubtitleList(
+      resolved.attending[0] || DEFAULT_TAGLINES.attending[0],
+      resolved.attending.slice(1).join('\n')
+    )
+
     setTodayRows({
-      med_student: resolved.med_student[0] || DEFAULT_TAGLINES.med_student[0],
-      resident: resolved.resident[0] || DEFAULT_TAGLINES.resident[0],
-      attending: resolved.attending[0] || DEFAULT_TAGLINES.attending[0],
+      med_student: medStudentClean.today || DEFAULT_TAGLINES.med_student[0],
+      resident: residentClean.today || DEFAULT_TAGLINES.resident[0],
+      attending: attendingClean.today || DEFAULT_TAGLINES.attending[0],
     })
 
     setFutureRows({
-      med_student: resolved.med_student.slice(1).join('\n'),
-      resident: resolved.resident.slice(1).join('\n'),
-      attending: resolved.attending.slice(1).join('\n'),
+      med_student: medStudentClean.upcoming.join('\n'),
+      resident: residentClean.upcoming.join('\n'),
+      attending: attendingClean.upcoming.join('\n'),
     })
   }
 
   async function saveLevel(level: Level) {
-    const items = Array.from(
-      new Set(
-        [todayRows[level], ...futureRows[level].split('\n')]
-          .map(item => item.trim().toUpperCase())
-          .filter(Boolean)
-      )
-    )
+    const cleaned = normalizeSubtitleList(todayRows[level], futureRows[level])
+    const items = [cleaned.today, ...cleaned.upcoming].filter(Boolean)
 
     if (items.length === 0) {
       setStatus('Each level needs at least one subtitle.')
@@ -128,11 +154,11 @@ export default function AdminTaglinesPage() {
 
     setTodayRows(prev => ({
       ...prev,
-      [level]: items[0],
+      [level]: cleaned.today,
     }))
     setFutureRows(prev => ({
       ...prev,
-      [level]: items.slice(1).join('\n'),
+      [level]: cleaned.upcoming.join('\n'),
     }))
     window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)
     setStatus(`${formatLevel(level)} subtitles updated.`)

@@ -50,6 +50,14 @@ type CommunityCaseStats = {
   firstTrySolveRate: number | null
 }
 
+type HomepageAnnouncementRow = {
+  message: string
+  start_date: string
+  end_date: string | null
+}
+
+const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
+
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
 
@@ -151,6 +159,8 @@ function PlayPageContent() {
   const [feedbackStatus, setFeedbackStatus] = useState('')
   const [isSavingFeedback, setIsSavingFeedback] = useState(false)
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
+  const [homepageAnnouncement, setHomepageAnnouncement] = useState<string | null>(null)
+  const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
   const [dailySummary, setDailySummary] = useState({
     date: today,
     played: 0,
@@ -186,6 +196,13 @@ function PlayPageContent() {
 
   useEffect(() => {
     setDailySummary(getStatsSummary().today)
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setDismissedHomepageAnnouncementKey(
+      window.localStorage.getItem(HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY)
+    )
   }, [])
 
   useEffect(() => {
@@ -277,6 +294,31 @@ function PlayPageContent() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadHomepageAnnouncement() {
+      const { data } = await supabase
+        .from('homepage_announcements')
+        .select('message, start_date, end_date')
+        .lte('start_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order('start_date', { ascending: false })
+        .limit(1)
+
+      if (cancelled) return
+
+      const activeAnnouncement = (data as HomepageAnnouncementRow[] | null)?.[0] || null
+      setHomepageAnnouncement(activeAnnouncement?.message?.trim() || null)
+    }
+
+    void loadHomepageAnnouncement()
+
+    return () => {
+      cancelled = true
+    }
+  }, [today])
 
   useEffect(() => {
     let cancelled = false
@@ -833,6 +875,19 @@ const todayComplete = todayCompletedLevels === 3
     roundComplete
   const latestFindingIndex =
     !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
+  const homepageAnnouncementKey = homepageAnnouncement
+    ? `${today}:${homepageAnnouncement}`
+    : null
+  const showHomepageAnnouncement =
+    onTodayCard &&
+    Boolean(homepageAnnouncement) &&
+    homepageAnnouncementKey !== dismissedHomepageAnnouncementKey
+
+  function dismissHomepageAnnouncement() {
+    if (!homepageAnnouncementKey || typeof window === 'undefined') return
+    window.localStorage.setItem(HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY, homepageAnnouncementKey)
+    setDismissedHomepageAnnouncementKey(homepageAnnouncementKey)
+  }
 
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
@@ -992,6 +1047,24 @@ const todayComplete = todayCompletedLevels === 3
             <p className="mt-1.5 text-[13px] leading-5 text-[#637268]">
               You&apos;ve already finished today&apos;s three cases. Check your stats or browse older cases in the archive.
             </p>
+          </div>
+        )}
+
+        {showHomepageAnnouncement && homepageAnnouncement && (
+          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[13px] leading-5 text-[#102018] sm:text-[14px]">
+                {homepageAnnouncement}
+              </p>
+              <button
+                type="button"
+                onClick={dismissHomepageAnnouncement}
+                aria-label="Dismiss message"
+                className="shrink-0 rounded-full border border-[#ead9b7] bg-white px-2 py-1 text-[11px] font-semibold leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018]"
+              >
+                ×
+              </button>
+            </div>
           </div>
         )}
 

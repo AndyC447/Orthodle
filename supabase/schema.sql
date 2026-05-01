@@ -121,6 +121,14 @@ create table if not exists difficulty_taglines (
   updated_at timestamptz default now()
 );
 
+create table if not exists homepage_announcements (
+  id uuid primary key default uuid_generate_v4(),
+  message text not null,
+  start_date date not null,
+  end_date date,
+  created_at timestamptz default now()
+);
+
 create or replace view daily_analytics as
 select
   c.case_date,
@@ -142,6 +150,7 @@ alter table email_reminders enable row level security;
 alter table diagnosis_choices enable row level security;
 alter table case_feedback enable row level security;
 alter table difficulty_taglines enable row level security;
+alter table homepage_announcements enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);
@@ -165,12 +174,24 @@ create policy "public read difficulty taglines" on difficulty_taglines for selec
 create policy "public insert difficulty taglines" on difficulty_taglines for insert with check (true);
 create policy "public update difficulty taglines" on difficulty_taglines for update using (true) with check (true);
 create policy "public delete difficulty taglines" on difficulty_taglines for delete using (true);
+create policy "public read homepage announcements" on homepage_announcements for select using (true);
+create policy "public insert homepage announcements" on homepage_announcements for insert with check (true);
+create policy "public update homepage announcements" on homepage_announcements for update using (true) with check (true);
+create policy "public delete homepage announcements" on homepage_announcements for delete using (true);
 
 insert into difficulty_taglines (level, text, position)
 values
   ('med_student', 'START HERE', 0),
   ('resident', 'MAKE THE CALL', 0),
   ('attending', 'CONNECT THE DOTS', 0)
+on conflict do nothing;
+
+insert into homepage_announcements (message, start_date, end_date)
+values (
+  'Thank you to all who have participated in the cases this week, happy Friday!',
+  '2026-05-01',
+  '2026-05-01'
+)
 on conflict do nothing;
 
 insert into cases (case_date, level, category, prompt, answer, synonyms, clue_1, clue_2)

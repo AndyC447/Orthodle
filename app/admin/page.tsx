@@ -123,6 +123,14 @@ type CaseCommunityStats = {
   firstTrySolveRate: number | null
 }
 
+type HomepageAnnouncementRow = {
+  id: string
+  message: string
+  start_date: string
+  end_date: string | null
+  created_at: string
+}
+
 const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 
@@ -181,6 +189,11 @@ export default function AdminPage() {
     hasNew: false,
     latestCreatedAt: null as string | null,
   })
+  const [homepageAnnouncements, setHomepageAnnouncements] = useState<HomepageAnnouncementRow[]>([])
+  const [announcementMessage, setAnnouncementMessage] = useState('')
+  const [announcementStartDate, setAnnouncementStartDate] = useState(shiftISODate(today, 1))
+  const [announcementEndDate, setAnnouncementEndDate] = useState(shiftISODate(today, 1))
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
@@ -205,6 +218,7 @@ export default function AdminPage() {
     loadDiagnosisChoices()
     loadSubmissionSummary()
     loadFeedbackSummary()
+    loadHomepageAnnouncements()
   }, [isUnlocked])
 
   useEffect(() => {
@@ -801,6 +815,74 @@ export default function AdminPage() {
       hasNew: Boolean(latestCreatedAt && latestCreatedAt !== seenAt),
       latestCreatedAt,
     })
+  }
+
+  async function loadHomepageAnnouncements() {
+    const { data } = await supabase
+      .from('homepage_announcements')
+      .select('id, message, start_date, end_date, created_at')
+      .order('start_date', { ascending: false })
+
+    setHomepageAnnouncements((data as HomepageAnnouncementRow[] | null) || [])
+  }
+
+  function resetAnnouncementForm() {
+    setEditingAnnouncementId(null)
+    setAnnouncementMessage('')
+    setAnnouncementStartDate(tomorrow)
+    setAnnouncementEndDate(tomorrow)
+  }
+
+  async function saveHomepageAnnouncement() {
+    const trimmedMessage = announcementMessage.trim()
+
+    if (!trimmedMessage) {
+      setStatus('Add a homepage note before saving.')
+      return
+    }
+
+    const payload = {
+      message: trimmedMessage,
+      start_date: announcementStartDate,
+      end_date: announcementEndDate || null,
+    }
+
+    const result = editingAnnouncementId
+      ? await supabase.from('homepage_announcements').update(payload).eq('id', editingAnnouncementId)
+      : await supabase.from('homepage_announcements').insert(payload)
+
+    if (result.error) {
+      setStatus('Could not save the homepage note.')
+      return
+    }
+
+    setStatus(editingAnnouncementId ? 'Homepage note updated.' : 'Homepage note scheduled.')
+    resetAnnouncementForm()
+    await loadHomepageAnnouncements()
+  }
+
+  function editHomepageAnnouncement(item: HomepageAnnouncementRow) {
+    setEditingAnnouncementId(item.id)
+    setAnnouncementMessage(item.message)
+    setAnnouncementStartDate(item.start_date)
+    setAnnouncementEndDate(item.end_date || item.start_date)
+    setStatus('')
+  }
+
+  async function deleteHomepageAnnouncement(id: string) {
+    const { error } = await supabase.from('homepage_announcements').delete().eq('id', id)
+
+    if (error) {
+      setStatus('Could not delete the homepage note.')
+      return
+    }
+
+    if (editingAnnouncementId === id) {
+      resetAnnouncementForm()
+    }
+
+    setStatus('Homepage note deleted.')
+    setHomepageAnnouncements(prev => prev.filter(item => item.id !== id))
   }
 
   async function loadCaseCommunityStats() {
@@ -1738,6 +1820,108 @@ Pearl: Knee pain in teens -> always check the hip`}
                 >
                   Open sheet
                 </Link>
+              </div>
+            </section>
+
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-serif text-xl font-bold">Homepage Notes</h2>
+                <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                  {homepageAnnouncements.length} scheduled
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-2.5">
+                <textarea
+                  value={announcementMessage}
+                  onChange={e => setAnnouncementMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Add a short homepage note"
+                  className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                    Start
+                    <input
+                      type="date"
+                      value={announcementStartDate}
+                      onChange={e => setAnnouncementStartDate(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                    />
+                  </label>
+
+                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                    End
+                    <input
+                      type="date"
+                      value={announcementEndDate}
+                      onChange={e => setAnnouncementEndDate(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveHomepageAnnouncement()}
+                    className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
+                  >
+                    {editingAnnouncementId ? 'Update note' : 'Schedule note'}
+                  </button>
+                  {editingAnnouncementId && (
+                    <button
+                      type="button"
+                      onClick={resetAnnouncementForm}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Home page preview
+                  </div>
+                  <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+                    {announcementMessage.trim() || 'Your scheduled homepage note will preview here.'}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  {homepageAnnouncements.map(item => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
+                    >
+                      <p className="text-sm leading-5 text-[#102018]">{item.message}</p>
+                      <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                        {item.start_date}
+                        {item.end_date && item.end_date !== item.start_date
+                          ? ` to ${item.end_date}`
+                          : ''}
+                      </p>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editHomepageAnnouncement(item)}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteHomepageAnnouncement(item.id)}
+                          className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
 
