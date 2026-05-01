@@ -476,13 +476,15 @@ export default function AdminPage() {
     setImageUrl('')
     setImageCredit('')
     setImageRevealClue('none')
+    setImageUrl2('')
+    setImageCredit2('')
+    setImageRevealClue2('none')
     setClue1('')
     setClue2('')
     setClue3('')
     setClue4('')
     setClue5('')
     setClue6('')
-    setImageRevealClue('none')
     setTeachingPoint('')
     setActiveSubmissionId(null)
     setStatus('')
@@ -1944,11 +1946,11 @@ Pearl: Knee pain in teens -> always check the hip`}
 
           <aside className="space-y-3">
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-serif text-xl font-bold">Button Subtitles</h2>
                   <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    Rotate daily
+                    Today&apos;s captions
                   </div>
                 </div>
                 <Link
@@ -1961,7 +1963,7 @@ Pearl: Knee pain in teens -> always check the hip`}
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="font-serif text-xl font-bold">Homepage Notes</h2>
                 <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                   {homepageAnnouncements.length} scheduled
@@ -2063,8 +2065,8 @@ Pearl: Knee pain in teens -> always check the hip`}
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-serif text-xl font-bold">Submissions</h2>
                   {submissionSummary.hasNew && (
                     <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
@@ -2092,7 +2094,7 @@ Pearl: Knee pain in teens -> always check the hip`}
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h2 className="font-serif text-xl font-bold">Answer Choices</h2>
                 <Link
                   href="/admin/answer-choices"
@@ -2104,8 +2106,8 @@ Pearl: Knee pain in teens -> always check the hip`}
             </section>
 
             <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                   <h2 className="font-serif text-xl font-bold">Feedback</h2>
                   {feedbackSummary.hasNew && (
                     <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">

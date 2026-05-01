@@ -60,6 +60,7 @@ type HomepageAnnouncementRow = {
 }
 
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
+const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
 
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
@@ -208,6 +209,7 @@ function PlayPageContent() {
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<string | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
+  const [showTutorial, setShowTutorial] = useState(false)
   const [dailySummary, setDailySummary] = useState({
     date: today,
     played: 0,
@@ -250,6 +252,7 @@ function PlayPageContent() {
     setDismissedHomepageAnnouncementKey(
       window.localStorage.getItem(HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY)
     )
+    setShowTutorial(!window.localStorage.getItem(TUTORIAL_DISMISS_KEY))
   }, [])
 
   useEffect(() => {
@@ -969,21 +972,14 @@ function PlayPageContent() {
 const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
-  const taglineIndex = useMemo(() => {
-    const base = new Date(`${selectedDate}T12:00:00`).getTime()
-    return Math.abs(Math.floor(base / (1000 * 60 * 60 * 24)))
-  }, [selectedDate])
   const selectedTaglines = useMemo(
     () =>
       ({
-        med_student:
-          levelTaglines.med_student[taglineIndex % levelTaglines.med_student.length],
-        resident:
-          levelTaglines.resident[taglineIndex % levelTaglines.resident.length],
-        attending:
-          levelTaglines.attending[taglineIndex % levelTaglines.attending.length],
+        med_student: levelTaglines.med_student[0] || DEFAULT_LEVEL_TAGLINES.med_student[0],
+        resident: levelTaglines.resident[0] || DEFAULT_LEVEL_TAGLINES.resident[0],
+        attending: levelTaglines.attending[0] || DEFAULT_LEVEL_TAGLINES.attending[0],
       }) as Record<Level, string>,
-    [levelTaglines, taglineIndex]
+    [levelTaglines]
   )
   const streakBadge =
     onTodayCard && statsSummary.currentStreak >= 2
@@ -1008,6 +1004,12 @@ const todayComplete = todayCompletedLevels === 3
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
     window.localStorage.setItem(HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY, homepageAnnouncementKey)
     setDismissedHomepageAnnouncementKey(homepageAnnouncementKey)
+  }
+
+  function dismissTutorial() {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(TUTORIAL_DISMISS_KEY, 'true')
+    setShowTutorial(false)
   }
 
   return (
@@ -1153,6 +1155,46 @@ const todayComplete = todayCompletedLevels === 3
         </div>
       )}
 
+      {showTutorial && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#102018]/60 px-4">
+          <div className="w-full max-w-sm rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_18px_40px_rgba(16,32,24,0.18)]">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                  How to play
+                </div>
+                <h2 className="mt-2 font-serif text-[28px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
+                  Guess the diagnosis
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={dismissTutorial}
+                aria-label="Close tutorial"
+                className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2 py-1 text-[11px] font-semibold text-[#637268] transition hover:bg-white"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3 text-[14px] leading-6 text-[#102018]">
+              <p><strong>1.</strong> Read the case and narrow the diagnosis.</p>
+              <p><strong>2.</strong> Wrong guesses unlock more clinical findings.</p>
+              <p><strong>3.</strong> Imaging may appear later as part of the clues.</p>
+              <p><strong>4.</strong> You get 6 guesses total for each case.</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={dismissTutorial}
+              className="mt-5 w-full rounded-xl bg-[#1f6448] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+            >
+              Start playing
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
         {onTodayCard && todayComplete && (
           <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
@@ -1217,7 +1259,7 @@ const todayComplete = todayCompletedLevels === 3
 
       </section>
 
-      <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-24 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
+      <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-10 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
         <section className="space-y-4">
           <div className="relative overflow-visible rounded-2xl border border-[#ebe3d7] bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
             <div className="pointer-events-none absolute left-[3px] right-[3px] top-[-1px] overflow-hidden rounded-t-[16px]">

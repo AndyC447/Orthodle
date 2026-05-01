@@ -328,8 +328,8 @@ export default function SubmitCasePage() {
         </section>
 
         <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                 Full submission
               </div>
@@ -344,7 +344,7 @@ export default function SubmitCasePage() {
             <button
               type="button"
               onClick={() => setShowFullSubmission(prev => !prev)}
-              className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+              className="shrink-0 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
             >
               {showFullSubmission ? 'Hide' : 'Show'}
             </button>

@@ -118,14 +118,6 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5 col-span-2 xl:col-span-4">
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                  Archive plays
-                </div>
-                <div className="mt-2.5 font-serif text-[25px] font-bold text-[#102018]">
-                  {statsSnapshot?.archiveGamesPlayed || 0}
-                </div>
-              </div>
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_250px]">

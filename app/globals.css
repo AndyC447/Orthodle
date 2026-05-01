@@ -17,6 +17,15 @@ body {
   color: var(--ink);
 }
 
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select,
+  button {
+    font-size: 16px;
+  }
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
