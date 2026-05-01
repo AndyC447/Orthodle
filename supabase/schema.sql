@@ -12,6 +12,9 @@ create table if not exists cases (
   image_url text,
   image_credit text,
   image_reveal_clue integer,
+  image_url_2 text,
+  image_credit_2 text,
+  image_reveal_clue_2 integer,
   clue_1 text,
   clue_2 text,
   clue_3 text,
@@ -25,6 +28,9 @@ create table if not exists cases (
 alter table cases add column if not exists contributor_name text;
 alter table cases add column if not exists image_credit text;
 alter table cases add column if not exists image_reveal_clue integer;
+alter table cases add column if not exists image_url_2 text;
+alter table cases add column if not exists image_credit_2 text;
+alter table cases add column if not exists image_reveal_clue_2 integer;
 alter table cases add column if not exists clue_4 text;
 alter table cases add column if not exists clue_5 text;
 alter table cases add column if not exists clue_6 text;
@@ -60,6 +66,9 @@ create table if not exists case_submissions (
   image_url text,
   image_credit text,
   image_reveal_clue integer,
+  image_url_2 text,
+  image_credit_2 text,
+  image_reveal_clue_2 integer,
   clue_1 text,
   clue_2 text,
   clue_3 text,

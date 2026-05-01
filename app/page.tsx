@@ -29,6 +29,9 @@ type Case = {
   image_url: string | null
   image_credit: string | null
   image_reveal_clue: number | null
+  image_url_2: string | null
+  image_credit_2: string | null
+  image_reveal_clue_2: number | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
@@ -69,12 +72,12 @@ const levels = [
 
 const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
   id: index,
-  left: 18 + (index % 14) * 4.6,
+  left: 4 + ((index * 17) % 92),
   burstX: -180 + (index % 9) * 45,
   burstY: 70 + (index % 6) * 24,
   driftX: -80 + (index % 11) * 16,
   delay: (index % 10) * 0.025,
-  duration: 1.25 + (index % 5) * 0.12,
+  duration: 1.38 + (index % 5) * 0.13,
   rotation: -120 + (index % 13) * 18,
   color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
   size: index % 5 === 0 ? 8 : index % 3 === 0 ? 13 : 10,
@@ -86,6 +89,33 @@ const DEFAULT_LEVEL_TAGLINES: Record<Level, string[]> = {
   resident: ['MAKE THE CALL'],
   attending: ['CONNECT THE DOTS'],
 }
+
+const GENERIC_DIAGNOSIS_TERMS = new Set([
+  'fracture',
+  'tear',
+  'injury',
+  'disease',
+  'syndrome',
+  'sprain',
+  'strain',
+  'rupture',
+  'dislocation',
+  'instability',
+  'bursitis',
+  'tendinopathy',
+  'tendonitis',
+  'tenosynovitis',
+  'arthritis',
+  'necrosis',
+  'impingement',
+  'radiculopathy',
+  'compression',
+  'herniation',
+  'stenosis',
+  'deformity',
+  'lesion',
+  'pain',
+])
 
 const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
@@ -128,8 +158,25 @@ function writePlayBootstrapCache(cache: Omit<PlayBootstrapCache, 'savedAt'>) {
   )
 }
 
+function isTooGenericSuggestionQuery(query: string) {
+  const tokens = query.split(' ').filter(Boolean)
+  if (tokens.length === 0) return true
+  const isGenericLikeToken = (token: string) =>
+    Array.from(GENERIC_DIAGNOSIS_TERMS).some(
+      generic =>
+        token === generic ||
+        generic.startsWith(token) ||
+        token.startsWith(generic)
+    )
+
+  if (tokens.length === 1 && isGenericLikeToken(tokens[0])) return true
+  if (tokens.every(token => isGenericLikeToken(token))) return true
+  return false
+}
+
 function PlayPageContent() {
   const searchParams = useSearchParams()
+  const caseParam = searchParams.get('case')
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const imageTouchStartY = useRef<number | null>(null)
@@ -299,6 +346,10 @@ function PlayPageContent() {
     let cancelled = false
 
     async function loadHomepageAnnouncement() {
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
       const { data } = await supabase
         .from('homepage_announcements')
         .select('message, start_date, end_date')
@@ -310,7 +361,28 @@ function PlayPageContent() {
       if (cancelled) return
 
       const activeAnnouncement = (data as HomepageAnnouncementRow[] | null)?.[0] || null
-      setHomepageAnnouncement(activeAnnouncement?.message?.trim() || null)
+
+      if (activeAnnouncement?.message?.trim()) {
+        setHomepageAnnouncement(activeAnnouncement.message.trim())
+        return
+      }
+
+      if (!isLocalhost) {
+        setHomepageAnnouncement(null)
+        return
+      }
+
+      const { data: upcomingData } = await supabase
+        .from('homepage_announcements')
+        .select('message, start_date, end_date')
+        .gte('start_date', today)
+        .order('start_date', { ascending: true })
+        .limit(1)
+
+      if (cancelled) return
+
+      const upcomingAnnouncement = (upcomingData as HomepageAnnouncementRow[] | null)?.[0] || null
+      setHomepageAnnouncement(upcomingAnnouncement?.message?.trim() || null)
     }
 
     void loadHomepageAnnouncement()
@@ -341,17 +413,29 @@ function PlayPageContent() {
       try {
         const sessionId = getSessionId()
 
-        void supabase.from('visits').insert({
-          session_id: sessionId,
-          path: `/${selectedLevel}/${selectedDate}`,
-        })
+        let data: Case | null = null
+        let error: { message?: string } | null = null
 
-        const { data, error } = await supabase
-          .from('cases')
-          .select('*')
-          .eq('case_date', selectedDate)
-          .eq('level', selectedLevel)
-          .maybeSingle()
+        if (caseParam) {
+          const result = await supabase
+            .from('cases')
+            .select('*')
+            .eq('id', caseParam)
+            .maybeSingle()
+
+          data = (result.data as Case | null) || null
+          error = result.error
+        } else {
+          const result = await supabase
+            .from('cases')
+            .select('*')
+            .eq('case_date', selectedDate)
+            .eq('level', selectedLevel)
+            .maybeSingle()
+
+          data = (result.data as Case | null) || null
+          error = result.error
+        }
 
         if (cancelled) return
 
@@ -360,6 +444,25 @@ function PlayPageContent() {
           setDailyCase(null)
           return
         }
+
+        if (data.case_date < LAUNCH_DATE) {
+          setMessage(`No ${formatLevel(selectedLevel)} case is available for ${formatArchiveDate(selectedDate)}.`)
+          setDailyCase(null)
+          return
+        }
+
+        if (data.case_date !== selectedDate) {
+          setSelectedDate(data.case_date)
+        }
+
+        if (data.level !== selectedLevel) {
+          setSelectedLevel(data.level)
+        }
+
+        void supabase.from('visits').insert({
+          session_id: sessionId,
+          path: `/${data.level}/${data.case_date}`,
+        })
 
         setDailyCase(data)
 
@@ -374,7 +477,7 @@ function PlayPageContent() {
         }
 
         const [{ data: visitRows }, { data: guessRows }] = await Promise.all([
-          supabase.from('visits').select('session_id').eq('path', `/${selectedLevel}/${selectedDate}`),
+          supabase.from('visits').select('session_id').eq('path', `/${data.level}/${data.case_date}`),
           supabase
             .from('guesses')
             .select('session_id, is_correct, created_at')
@@ -450,7 +553,7 @@ function PlayPageContent() {
     return () => {
       cancelled = true
     }
-  }, [selectedLevel, selectedDate, today])
+  }, [caseParam, selectedLevel, selectedDate, today])
 
   function formatLevel(level: Level) {
     if (level === 'med_student') return 'Med Student'
@@ -492,9 +595,27 @@ function PlayPageContent() {
     dailyCase?.image_url && dailyCase?.image_reveal_clue && dailyCase.image_reveal_clue >= 1
       ? dailyCase.image_reveal_clue
       : null
-  const imageRevealed =
+  const secondImageRevealStep =
+    dailyCase?.image_url_2 &&
+    dailyCase?.image_reveal_clue_2 &&
+    dailyCase.image_reveal_clue_2 >= 1
+      ? dailyCase.image_reveal_clue_2
+      : null
+  const firstImageRevealed =
     Boolean(dailyCase?.image_url) &&
     (roundComplete || imageRevealStep === null || unlockedFindings >= imageRevealStep)
+  const secondImageRevealed =
+    Boolean(dailyCase?.image_url_2) &&
+    (roundComplete || secondImageRevealStep === null || unlockedFindings >= secondImageRevealStep)
+  const imageRevealed = firstImageRevealed || secondImageRevealed
+  const visibleImages = [
+    firstImageRevealed && dailyCase?.image_url
+      ? { url: dailyCase.image_url, credit: dailyCase.image_credit, alt: 'Case image 1' }
+      : null,
+    secondImageRevealed && dailyCase?.image_url_2
+      ? { url: dailyCase.image_url_2, credit: dailyCase.image_credit_2, alt: 'Case image 2' }
+      : null,
+  ].filter(Boolean) as Array<{ url: string; credit: string | null; alt: string }>
   const mobileInputDisabled = !dailyCase || gameWon || gameOver
 
   const teachingPoint =
@@ -680,7 +801,7 @@ function PlayPageContent() {
 
   const filteredAnswerOptions = useMemo(() => {
     const query = normalizeAnswer(guess)
-    if (!query) return []
+    if (!query || query.length < 2 || isTooGenericSuggestionQuery(query)) return []
 
     const startsWith = answerOptions.filter(option =>
       normalizeAnswer(option).startsWith(query)
@@ -985,7 +1106,7 @@ const todayComplete = todayCompletedLevels === 3
 
         .orthodle-confetti-piece {
           position: absolute;
-          top: 8vh;
+          top: 0;
           width: 10px;
           height: 18px;
           border-radius: 999px;
@@ -1033,12 +1154,6 @@ const todayComplete = todayCompletedLevels === 3
       )}
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
-        <h1 className={`hidden font-serif font-bold leading-[0.98] tracking-[-0.035em] text-[#102018] sm:block sm:text-[42px] md:text-[46px] ${hasMobileInteraction ? 'text-[25px]' : 'text-[30px]'}`}>
-          Read the case.
-          <br />
-          Guess the diagnosis.
-        </h1>
-
         {onTodayCard && todayComplete && (
           <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f6448]">
@@ -1051,9 +1166,9 @@ const todayComplete = todayCompletedLevels === 3
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (
-          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-[13px] leading-5 text-[#102018] sm:text-[14px]">
+              <p className="flex-1 text-[13px] leading-5 text-[#102018] sm:text-[14px]">
                 {homepageAnnouncement}
               </p>
               <button
@@ -1105,7 +1220,7 @@ const todayComplete = todayCompletedLevels === 3
       <div className={`mx-auto grid max-w-[980px] items-start gap-2.5 px-4 py-1.5 pb-24 sm:gap-4 sm:px-6 sm:pb-8 lg:grid-cols-[620px_280px] lg:justify-center lg:gap-6 ${hasMobileInteraction ? 'pt-1' : ''}`}>
         <section className="space-y-4">
           <div className="relative overflow-visible rounded-2xl border border-[#ebe3d7] bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
-            <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden rounded-t-[15px]">
+            <div className="pointer-events-none absolute left-[3px] right-[3px] top-[-1px] overflow-hidden rounded-t-[16px]">
               <div className="h-1.5 w-full bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
             </div>
 
@@ -1133,7 +1248,7 @@ const todayComplete = todayCompletedLevels === 3
                 )}
               </div>
 
-              {dailyCase?.image_url && imageRevealed && (
+              {visibleImages.length > 0 && imageRevealed && (
                 imageHidden ? (
                   <div className="mt-3.5 flex items-center justify-between rounded-xl border border-dashed border-[#d9d4ca] bg-[#fbfaf7] px-3 py-2.5">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -1169,21 +1284,27 @@ const todayComplete = todayCompletedLevels === 3
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => setImageExpanded(true)}
-                      className="flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
-                    >
-                      <img
-                        src={dailyCase.image_url}
-                        alt="Case image"
-                        className="block max-h-[260px] max-w-full bg-white object-contain sm:max-h-[320px]"
-                      />
-                    </button>
-                    {dailyCase.image_credit && (
-                      <p className="mt-2 text-[10px] leading-4 text-[#8a948d]">
-                        {dailyCase.image_credit}
-                      </p>
-                    )}
+                    <div className={`grid gap-2 ${visibleImages.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      {visibleImages.map((image, index) => (
+                        <div key={`${image.url}-${index}`}>
+                          <button
+                            onClick={() => setImageExpanded(true)}
+                            className="flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
+                          >
+                            <img
+                              src={image.url}
+                              alt={image.alt}
+                              className="block max-h-[260px] max-w-full bg-white object-contain sm:max-h-[320px]"
+                            />
+                          </button>
+                          {image.credit && (
+                            <p className="mt-2 text-[10px] leading-4 text-[#8a948d]">
+                              {image.credit}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )
               )}
@@ -1489,7 +1610,7 @@ const todayComplete = todayCompletedLevels === 3
         .
       </footer>
 
-      {dailyCase?.image_url && imageRevealed && imageExpanded && (
+      {visibleImages.length > 0 && imageRevealed && imageExpanded && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8"
           onClick={() => setImageExpanded(false)}
@@ -1528,16 +1649,22 @@ const todayComplete = todayCompletedLevels === 3
                 imageTouchStartY.current = null
               }}
             >
-              <img
-                src={dailyCase.image_url}
-                alt="Expanded case image"
-                className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain"
-              />
-              {dailyCase.image_credit && (
-                <p className="mt-3 text-center text-[10px] leading-4 text-[#8a948d]">
-                  {dailyCase.image_credit}
-                </p>
-              )}
+              <div className={`grid gap-3 ${visibleImages.length > 1 ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+                {visibleImages.map((image, index) => (
+                  <div key={`expanded-${image.url}-${index}`}>
+                    <img
+                      src={image.url}
+                      alt={image.alt}
+                      className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain"
+                    />
+                    {image.credit && (
+                      <p className="mt-3 text-center text-[10px] leading-4 text-[#8a948d]">
+                        {image.credit}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>

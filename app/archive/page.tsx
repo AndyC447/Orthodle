@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
+import { clearStatsSummary, getCompletedCaseKeys, todayISO } from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -16,19 +17,28 @@ type ArchiveCase = {
 }
 
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
+const LAUNCH_DATE = '2026-04-27'
 
 export default function ArchivePage() {
+  const today = todayISO()
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedLevel, setSelectedLevel] = useState<'all' | Level>('all')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [imagingOnly, setImagingOnly] = useState(false)
+  const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    setCompletedArchiveKeys(getCompletedCaseKeys(true))
+  }, [])
 
   useEffect(() => {
     async function loadArchive() {
       const { data } = await supabase
         .from('cases')
         .select('id, case_date, level, category, image_url')
+        .gte('case_date', LAUNCH_DATE)
+        .lte('case_date', today)
         .order('case_date', { ascending: false })
         .limit(240)
 
@@ -37,7 +47,7 @@ export default function ArchivePage() {
     }
 
     void loadArchive()
-  }, [])
+  }, [today])
 
   const categoryOptions = useMemo(() => {
     return Array.from(
@@ -51,12 +61,13 @@ export default function ArchivePage() {
 
   const filteredCases = useMemo(() => {
     return cases.filter(item => {
+      if (item.case_date === today) return false
       if (selectedLevel !== 'all' && item.level !== selectedLevel) return false
       if (selectedCategory !== 'all' && (item.category || '') !== selectedCategory) return false
       if (imagingOnly && !item.image_url) return false
       return true
     })
-  }, [cases, imagingOnly, selectedCategory, selectedLevel])
+  }, [cases, imagingOnly, selectedCategory, selectedLevel, today])
 
   const groupedDates = useMemo(() => {
     const grouped = new Map<string, ArchiveCase[]>()
@@ -95,9 +106,16 @@ export default function ArchivePage() {
 
   const hasActiveFilters =
     selectedLevel !== 'all' || selectedCategory !== 'all' || imagingOnly
+  const surprisePool = useMemo(() => {
+    const unseenCases = filteredCases.filter(
+      item => !completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
+    )
+
+    return unseenCases.length > 0 ? unseenCases : filteredCases
+  }, [completedArchiveKeys, filteredCases])
   const surpriseTarget =
-    filteredCases.length > 0
-      ? filteredCases[Math.floor(Math.random() * filteredCases.length)]
+    surprisePool.length > 0
+      ? surprisePool[Math.floor(Math.random() * surprisePool.length)]
       : null
 
   return (
@@ -117,13 +135,23 @@ export default function ArchivePage() {
           </p>
 
           {surpriseTarget && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
-                href={`/?date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
+                href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
                 className="inline-flex rounded-full border border-[#ead9b7] bg-[#fff8ef] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a24d24] transition hover:bg-[#fff2e2]"
               >
                 Surprise me
               </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  clearStatsSummary()
+                  setCompletedArchiveKeys(new Set())
+                }}
+                className="inline-flex rounded-full border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-[#fbfaf7]"
+              >
+                Reset cases
+              </button>
             </div>
           )}
 
@@ -211,11 +239,14 @@ export default function ArchivePage() {
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     {levelOrder.map(level => {
                       const item = group.items.find(entry => entry.level === level)
+                      const isCompleted = item
+                        ? completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
+                        : false
 
                       return item ? (
                         <Link
                           key={`${group.date}-${level}`}
-                          href={`/?date=${group.date}&level=${level}`}
+                          href={`/?case=${item.id}&date=${group.date}&level=${level}`}
                           className="rounded-xl border border-[#ded7ca] bg-white px-3 py-3 transition hover:bg-[#f8fbf9]"
                         >
                           <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -224,8 +255,8 @@ export default function ArchivePage() {
                           <div className="mt-1.5 font-serif text-[16px] font-bold text-[#102018]">
                             {item.category || 'Case'}
                           </div>
-                          <div className="mt-2 text-[12px] text-[#1f6448]">
-                            Open case
+                          <div className={`mt-2 text-[12px] ${isCompleted ? 'text-[#a24d24]' : 'text-[#1f6448]'}`}>
+                            {isCompleted ? 'Completed case' : 'Open case'}
                           </div>
                         </Link>
                       ) : (

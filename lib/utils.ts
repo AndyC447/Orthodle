@@ -387,6 +387,16 @@ export function getRoundProgress(
   return getStoredRoundProgress().find(entry => entry.key === key) || null
 }
 
+export function getCompletedCaseKeys(isArchive?: boolean) {
+  const results = getStoredResults()
+
+  return new Set(
+    results
+      .filter(result => (typeof isArchive === 'boolean' ? result.isArchive === isArchive : true))
+      .map(result => result.key)
+  )
+}
+
 export function getStatsSummary(): StatsSummary {
   const results = getStoredResults()
   const dailyResults = results.filter(result => !result.isArchive)

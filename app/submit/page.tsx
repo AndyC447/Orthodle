@@ -35,6 +35,9 @@ export default function SubmitCasePage() {
   const [imageUrl, setImageUrl] = useState('')
   const [imageCredit, setImageCredit] = useState('')
   const [imageRevealClue, setImageRevealClue] = useState('none')
+  const [imageUrl2, setImageUrl2] = useState('')
+  const [imageCredit2, setImageCredit2] = useState('')
+  const [imageRevealClue2, setImageRevealClue2] = useState('none')
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
@@ -84,6 +87,9 @@ export default function SubmitCasePage() {
     setImageUrl('')
     setImageCredit('')
     setImageRevealClue('none')
+    setImageUrl2('')
+    setImageCredit2('')
+    setImageRevealClue2('none')
     setClue1('')
     setClue2('')
     setClue3('')
@@ -170,6 +176,8 @@ export default function SubmitCasePage() {
 
     const parsedImageRevealClue =
       imageUrl && imageRevealClue !== 'none' ? Number(imageRevealClue) : null
+    const parsedImageRevealClue2 =
+      imageUrl2 && imageRevealClue2 !== 'none' ? Number(imageRevealClue2) : null
 
     const { data, error } = await supabase
       .from('case_submissions')
@@ -183,6 +191,9 @@ export default function SubmitCasePage() {
       image_url: imageUrl || null,
       image_credit: imageCredit || null,
       image_reveal_clue: parsedImageRevealClue,
+      image_url_2: imageUrl2 || null,
+      image_credit_2: imageCredit2 || null,
+      image_reveal_clue_2: parsedImageRevealClue2,
       clue_1: clue1 || null,
       clue_2: clue2 || null,
       clue_3: clue3 || null,
@@ -451,6 +462,43 @@ export default function SubmitCasePage() {
                 value={imageCredit}
                 onChange={e => setImageCredit(e.target.value)}
                 placeholder="Optional small credit shown under the image"
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Second Image URL
+              <input
+                value={imageUrl2}
+                onChange={e => setImageUrl2(e.target.value)}
+                placeholder="Paste a second hosted image URL"
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Second Image Reveal
+              <select
+                value={imageRevealClue2}
+                onChange={e => setImageRevealClue2(e.target.value)}
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              >
+                <option value="none">Show immediately</option>
+                <option value="1">Reveal with Clue 1</option>
+                <option value="2">Reveal with Clue 2</option>
+                <option value="3">Reveal with Clue 3</option>
+                <option value="4">Reveal with Clue 4</option>
+                <option value="5">Reveal with Clue 5</option>
+                <option value="6">Reveal with Clue 6</option>
+              </select>
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Second Image Credit
+              <input
+                value={imageCredit2}
+                onChange={e => setImageCredit2(e.target.value)}
+                placeholder="Optional small credit shown under the second image"
                 className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
               />
             </label>

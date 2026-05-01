@@ -20,6 +20,9 @@ type CaseRow = {
   image_url: string | null
   image_credit: string | null
   image_reveal_clue: number | null
+  image_url_2: string | null
+  image_credit_2: string | null
+  image_reveal_clue_2: number | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
@@ -43,6 +46,9 @@ type SubmissionRow = {
   image_url: string | null
   image_credit: string | null
   image_reveal_clue: number | null
+  image_url_2: string | null
+  image_credit_2: string | null
+  image_reveal_clue_2: number | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
@@ -163,6 +169,9 @@ export default function AdminPage() {
   const [imageUrl, setImageUrl] = useState('')
   const [imageCredit, setImageCredit] = useState('')
   const [imageRevealClue, setImageRevealClue] = useState('none')
+  const [imageUrl2, setImageUrl2] = useState('')
+  const [imageCredit2, setImageCredit2] = useState('')
+  const [imageRevealClue2, setImageRevealClue2] = useState('none')
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
@@ -251,7 +260,13 @@ export default function AdminPage() {
     return groupedCases.filter(group => group.date === browseDate)
   }, [browseDate, groupedCases])
 
-  const quickBrowseDates = groupedCases.slice(0, 8).map(group => group.date)
+  const quickBrowseDates = useMemo(() => {
+    const baseDates = groupedCases.slice(0, 8).map(group => group.date)
+    if (browseDate && !baseDates.includes(browseDate)) {
+      return [browseDate, ...baseDates].slice(0, 8)
+    }
+    return baseDates
+  }, [browseDate, groupedCases])
   const tomorrow = shiftISODate(today, 1)
 
   const todaysCases = useMemo(
@@ -262,6 +277,11 @@ export default function AdminPage() {
   const tomorrowsCases = useMemo(
     () => groupedCases.find(group => group.date === tomorrow)?.items || [],
     [groupedCases, tomorrow]
+  )
+
+  const browsedCases = useMemo(
+    () => groupedCases.find(group => group.date === browseDate)?.items || [],
+    [browseDate, groupedCases]
   )
 
   const previewClues = useMemo(
@@ -310,6 +330,19 @@ export default function AdminPage() {
       }
     }
 
+    if (!imageUrl2 && imageRevealClue2 !== 'none') {
+      issues.push('Second image reveal is set, but no second image is attached.')
+    }
+
+    if (imageUrl2 && imageRevealClue2 !== 'none') {
+      const revealIndex = Number(imageRevealClue2)
+      const clueAtReveal = [clue1, clue2, clue3, clue4, clue5, clue6][revealIndex - 1]
+
+      if (!clueAtReveal?.trim()) {
+        issues.push(`Second image reveal is tied to Clue ${revealIndex}, but that clue is empty.`)
+      }
+    }
+
     if (caseDate === today) {
       issues.push('This case is set to publish today, not tomorrow.')
     }
@@ -327,7 +360,9 @@ export default function AdminPage() {
     clue6,
     diagnosisChoices,
     imageRevealClue,
+    imageRevealClue2,
     imageUrl,
+    imageUrl2,
     previewClues.length,
   ])
 
@@ -416,6 +451,9 @@ export default function AdminPage() {
     setImageUrl('')
     setImageCredit('')
     setImageRevealClue('none')
+    setImageUrl2('')
+    setImageCredit2('')
+    setImageRevealClue2('none')
     setClue1('')
     setClue2('')
     setClue3('')
@@ -465,6 +503,13 @@ export default function AdminPage() {
         ? String(c.image_reveal_clue)
         : 'none'
     )
+    setImageUrl2(c.image_url_2 || '')
+    setImageCredit2(c.image_credit_2 || '')
+    setImageRevealClue2(
+      c.image_reveal_clue_2 && c.image_reveal_clue_2 >= 1 && c.image_reveal_clue_2 <= 6
+        ? String(c.image_reveal_clue_2)
+        : 'none'
+    )
     setClue1(c.clue_1 || '')
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
@@ -490,6 +535,13 @@ export default function AdminPage() {
     setImageRevealClue(
       submission.image_reveal_clue && submission.image_reveal_clue >= 1 && submission.image_reveal_clue <= 6
         ? String(submission.image_reveal_clue)
+        : 'none'
+    )
+    setImageUrl2(submission.image_url_2 || '')
+    setImageCredit2(submission.image_credit_2 || '')
+    setImageRevealClue2(
+      submission.image_reveal_clue_2 && submission.image_reveal_clue_2 >= 1 && submission.image_reveal_clue_2 <= 6
+        ? String(submission.image_reveal_clue_2)
         : 'none'
     )
     setClue1(submission.clue_1 || '')
@@ -1059,6 +1111,8 @@ export default function AdminPage() {
 
     const parsedImageRevealClue =
       imageUrl && imageRevealClue !== 'none' ? Number(imageRevealClue) : null
+    const parsedImageRevealClue2 =
+      imageUrl2 && imageRevealClue2 !== 'none' ? Number(imageRevealClue2) : null
 
     const { error } = await supabase.from('cases').upsert(
       {
@@ -1072,6 +1126,9 @@ export default function AdminPage() {
         image_url: imageUrl || null,
         image_credit: imageCredit || null,
         image_reveal_clue: parsedImageRevealClue,
+        image_url_2: imageUrl2 || null,
+        image_credit_2: imageCredit2 || null,
+        image_reveal_clue_2: parsedImageRevealClue2,
         clue_1: clue1 || null,
         clue_2: clue2 || null,
         clue_3: clue3 || null,
@@ -1480,6 +1537,43 @@ export default function AdminPage() {
                 />
               </label>
 
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Second Image URL
+                <input
+                  value={imageUrl2}
+                  onChange={e => setImageUrl2(e.target.value)}
+                  placeholder="Paste a second hosted image URL"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Second Image Reveal
+                <select
+                  value={imageRevealClue2}
+                  onChange={e => setImageRevealClue2(e.target.value)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                >
+                  <option value="none">Show immediately</option>
+                  <option value="1">Reveal with Clue 1</option>
+                  <option value="2">Reveal with Clue 2</option>
+                  <option value="3">Reveal with Clue 3</option>
+                  <option value="4">Reveal with Clue 4</option>
+                  <option value="5">Reveal with Clue 5</option>
+                  <option value="6">Reveal with Clue 6</option>
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                Second Image Credit
+                <input
+                  value={imageCredit2}
+                  onChange={e => setImageCredit2(e.target.value)}
+                  placeholder="Optional small credit shown under the second image"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
               {imageUrl && (
                 <div className="rounded-lg border border-[#ded7ca] p-2.5">
                   <img
@@ -1498,6 +1592,28 @@ export default function AdminPage() {
                     className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
                   >
                     Remove image
+                  </button>
+                </div>
+              )}
+
+              {imageUrl2 && (
+                <div className="rounded-lg border border-[#ded7ca] p-2.5">
+                  <img
+                    src={imageUrl2}
+                    alt="Uploaded second case"
+                    className="max-h-48 rounded-lg object-contain"
+                  />
+                  <p className="mt-2 break-all text-xs text-[#637268]">
+                    {imageUrl2}
+                  </p>
+                  {imageCredit2 && (
+                    <p className="mt-1 text-[11px] text-[#8a948d]">{imageCredit2}</p>
+                  )}
+                  <button
+                    onClick={() => setImageUrl2('')}
+                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                  >
+                    Remove second image
                   </button>
                 </div>
               )}
@@ -1738,21 +1854,42 @@ Pearl: Knee pain in teens -> always check the hip`}
                         {prompt || 'Your case prompt will show up here.'}
                       </div>
 
-                      {imageUrl && (
-                        <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                          <img
-                            src={imageUrl}
-                            alt="Case preview"
-                            className="max-h-56 rounded-lg object-contain"
-                          />
-                          {imageCredit && (
-                            <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit}</p>
+                      {(imageUrl || imageUrl2) && (
+                        <div className={`grid gap-2 ${imageUrl && imageUrl2 ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
+                          {imageUrl && (
+                            <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                              <img
+                                src={imageUrl}
+                                alt="Case preview"
+                                className="max-h-56 rounded-lg object-contain"
+                              />
+                              {imageCredit && (
+                                <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit}</p>
+                              )}
+                              <p className="mt-1 text-[11px] text-[#637268]">
+                                {imageRevealClue === 'none'
+                                  ? 'Image 1 shows immediately.'
+                                  : `Image 1 reveals with clue ${imageRevealClue}.`}
+                              </p>
+                            </div>
                           )}
-                          <p className="mt-1 text-[11px] text-[#637268]">
-                            {imageRevealClue === 'none'
-                              ? 'Image shows immediately.'
-                              : `Image reveals with clue ${imageRevealClue}.`}
-                          </p>
+                          {imageUrl2 && (
+                            <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                              <img
+                                src={imageUrl2}
+                                alt="Second case preview"
+                                className="max-h-56 rounded-lg object-contain"
+                              />
+                              {imageCredit2 && (
+                                <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit2}</p>
+                              )}
+                              <p className="mt-1 text-[11px] text-[#637268]">
+                                {imageRevealClue2 === 'none'
+                                  ? 'Image 2 shows immediately.'
+                                  : `Image 2 reveals with clue ${imageRevealClue2}.`}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -2200,6 +2337,69 @@ Pearl: Knee pain in teens -> always check the hip`}
                           {formatShortDate(date)}
                         </button>
                       ))}
+                    </div>
+                  )}
+
+                  {browseDate && (
+                    <div className="mt-4 rounded-xl border border-[#e7e1d6] bg-white p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                          {browseDate} overview
+                        </div>
+                        <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                          {browsedCases.length}/3 ready
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid gap-2">
+                        {levelOrder.map(levelValue => {
+                          const item = browsedCases.find(entry => entry.level === levelValue)
+                          const nextMissing = nextMissingLevelForDate(browseDate)
+
+                          return (
+                            <div
+                              key={`browse-${browseDate}-${levelValue}`}
+                              className={
+                                item
+                                  ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
+                                  : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
+                              }
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                                    {formatLevel(levelValue)}
+                                  </div>
+                                  <div className="mt-1.5 font-semibold text-[#102018]">
+                                    {item ? item.answer : 'Not scheduled'}
+                                  </div>
+                                  <div className="mt-1 text-sm text-[#637268]">
+                                    {item ? item.category : 'Open slot'}
+                                  </div>
+                                </div>
+
+                                {item ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => editCase(item)}
+                                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                                  >
+                                    Edit
+                                  </button>
+                                ) : nextMissing === levelValue ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => startCaseFor(browseDate, levelValue)}
+                                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                                  >
+                                    Add
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
