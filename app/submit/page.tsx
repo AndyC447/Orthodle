@@ -250,12 +250,6 @@ export default function SubmitCasePage() {
       <Header />
 
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-        <div className="text-center">
-          <h1 className="mt-3 font-serif text-[32px] font-bold leading-tight text-[#102018] sm:text-4xl">
-            Submit your own case
-          </h1>
-        </div>
-
         <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
           <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
             Recommend a case idea
