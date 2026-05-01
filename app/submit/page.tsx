@@ -251,27 +251,15 @@ export default function SubmitCasePage() {
 
       <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
         <div className="text-center">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-            Case Submission
-          </div>
           <h1 className="mt-3 font-serif text-[32px] font-bold leading-tight text-[#102018] sm:text-4xl">
             Submit your own case
           </h1>
-          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
-            Share a case idea with clues, imaging, and an optional credit name.
-          </p>
         </div>
 
         <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-            Quick idea
-          </div>
           <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
             Recommend a case idea
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
-            Don&apos;t want to build the full case? Send a quick concept and we can develop it later.
-          </p>
 
           <div className="mt-4 grid gap-3">
             <div className="grid gap-3 sm:grid-cols-2">
