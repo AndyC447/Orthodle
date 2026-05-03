@@ -1676,7 +1676,7 @@ function PlayPageContent() {
 
                 <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
                   <div className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    Feedback
+                    Share any feedback here
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
                     {FEEDBACK_TAG_OPTIONS.map(tag => {
