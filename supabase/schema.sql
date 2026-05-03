@@ -49,8 +49,21 @@ create table if not exists visits (
   id uuid primary key default uuid_generate_v4(),
   session_id text not null,
   path text,
+  browser_timezone text,
+  browser_locale text,
+  geo_country text,
+  geo_region text,
+  geo_city text,
+  geo_timezone text,
   created_at timestamptz default now()
 );
+
+alter table visits add column if not exists browser_timezone text;
+alter table visits add column if not exists browser_locale text;
+alter table visits add column if not exists geo_country text;
+alter table visits add column if not exists geo_region text;
+alter table visits add column if not exists geo_city text;
+alter table visits add column if not exists geo_timezone text;
 
 create table if not exists case_submissions (
   id uuid primary key default uuid_generate_v4(),

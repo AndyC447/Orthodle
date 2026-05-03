@@ -499,9 +499,16 @@ function PlayPageContent() {
         }
 
         if (!isLocalhostBrowser()) {
-          void supabase.from('visits').insert({
-            session_id: sessionId,
-            path: `/${data.level}/${data.case_date}`,
+          void fetch('/api/visit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId,
+              path: `/${data.level}/${data.case_date}`,
+              browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+              browserLocale:
+                (typeof navigator !== 'undefined' && (navigator.language || navigator.languages?.[0])) || null,
+            }),
           })
         }
 

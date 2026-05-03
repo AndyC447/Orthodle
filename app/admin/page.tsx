@@ -67,6 +67,17 @@ type AnalyticsRow = {
   unique_sessions: number
 }
 
+type VisitAnalyticsRow = {
+  session_id: string
+  created_at: string
+  browser_timezone: string | null
+  browser_locale: string | null
+  geo_country: string | null
+  geo_region: string | null
+  geo_city: string | null
+  geo_timezone: string | null
+}
+
 type GuessAnalyticsRow = {
   session_id: string
   is_correct: boolean
@@ -113,6 +124,11 @@ type CasePerformance = {
 type ReminderStats = {
   activeSubscribers: number
   totalSubscribers: number
+}
+
+type AudienceSummary = {
+  topRegions: Array<{ label: string; count: number }>
+  topTimezones: Array<{ label: string; count: number }>
 }
 
 type DiagnosisChoiceLite = {
@@ -187,6 +203,10 @@ export default function AdminPage() {
   const [levelAnalytics, setLevelAnalytics] = useState<LevelAnalytics[]>([])
   const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
   const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
+  const [audienceSummary, setAudienceSummary] = useState<AudienceSummary>({
+    topRegions: [],
+    topTimezones: [],
+  })
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
   const [caseCommunityStats, setCaseCommunityStats] = useState<CaseCommunityStats | null>(null)
   const [submissionSummary, setSubmissionSummary] = useState({
@@ -613,13 +633,13 @@ export default function AdminPage() {
   }
 
   async function loadAnalytics() {
-    const visitPages: Array<{ session_id: string; created_at: string }> = []
+    const visitPages: VisitAnalyticsRow[] = []
     let visitOffset = 0
 
     while (true) {
       const { data, error } = await supabase
         .from('visits')
-        .select('session_id, created_at')
+        .select('session_id, created_at, browser_timezone, browser_locale, geo_country, geo_region, geo_city, geo_timezone')
         .range(visitOffset, visitOffset + ANALYTICS_PAGE_SIZE - 1)
 
       if (error) {
@@ -629,7 +649,7 @@ export default function AdminPage() {
 
       if (!data || data.length === 0) break
 
-      visitPages.push(...data)
+      visitPages.push(...(data as VisitAnalyticsRow[]))
 
       if (data.length < ANALYTICS_PAGE_SIZE) break
       visitOffset += ANALYTICS_PAGE_SIZE
@@ -718,9 +738,28 @@ export default function AdminPage() {
       attending: { level: 'attending', users: 0, guesses: 0, correctGuesses: 0 },
     }
     const caseTotals = new Map<string, CasePerformance & { playerSessions: Set<string> }>()
+    const regionCounts = new Map<string, number>()
+    const timezoneCounts = new Map<string, number>()
+    const sessionGeoSeen = new Set<string>()
 
     for (const visit of visits) {
       allSessions.add(visit.session_id)
+      if (!sessionGeoSeen.has(visit.session_id)) {
+        sessionGeoSeen.add(visit.session_id)
+        const regionLabel =
+          visit.geo_region && visit.geo_country
+            ? `${visit.geo_region}, ${visit.geo_country}`
+            : visit.geo_country || visit.browser_locale || null
+        const timezoneLabel = visit.geo_timezone || visit.browser_timezone || null
+
+        if (regionLabel) {
+          regionCounts.set(regionLabel, (regionCounts.get(regionLabel) || 0) + 1)
+        }
+
+        if (timezoneLabel) {
+          timezoneCounts.set(timezoneLabel, (timezoneCounts.get(timezoneLabel) || 0) + 1)
+        }
+      }
     }
 
     for (const guess of guesses) {
@@ -809,6 +848,16 @@ export default function AdminPage() {
         })
         .slice(0, 6)
     )
+    setAudienceSummary({
+      topRegions: Array.from(regionCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([label, count]) => ({ label, count })),
+      topTimezones: Array.from(timezoneCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([label, count]) => ({ label, count })),
+    })
   }
 
   async function loadReminderStats() {
@@ -2276,6 +2325,44 @@ Pearl: Knee pain in teens -> always check the hip`}
                           <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
                             Correct
                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                          Top regions
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {audienceSummary.topRegions.length > 0 ? (
+                            audienceSummary.topRegions.map(item => (
+                              <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-[#102018]">
+                                <span>{item.label}</span>
+                                <span className="font-semibold text-[#637268]">{item.count}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-[#637268]">No region data yet.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                          Top timezones
+                        </div>
+                        <div className="mt-3 space-y-2">
+                          {audienceSummary.topTimezones.length > 0 ? (
+                            audienceSummary.topTimezones.map(item => (
+                              <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-[#102018]">
+                                <span>{item.label}</span>
+                                <span className="font-semibold text-[#637268]">{item.count}</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-sm text-[#637268]">No timezone data yet.</p>
+                          )}
                         </div>
                       </div>
                     </div>
