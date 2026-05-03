@@ -1676,7 +1676,7 @@ function PlayPageContent() {
 
                 <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
                   <div className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    Share any feedback here
+                    How was the case?
                   </div>
                   <div className="flex flex-wrap justify-center gap-2">
                     {FEEDBACK_TAG_OPTIONS.map(tag => {
@@ -1716,7 +1716,7 @@ function PlayPageContent() {
                       type="text"
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
-                      placeholder="Share a note about this case"
+                      placeholder="Share any feedback on the site here"
                       className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
                     />
                     <button
