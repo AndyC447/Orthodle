@@ -93,8 +93,10 @@ type GuessAnalyticsRow = {
 
 type AnalyticsSummary = {
   totalVisits: number
+  totalUniqueUsers: number
   cumulativeDailyUsers: number
   totalGuesses: number
+  archivePlays: number
   totalCorrectGuesses: number
   guessAccuracy: number
   averageGuessesPerUser: number
@@ -119,11 +121,6 @@ type CasePerformance = {
   guesses: number
   correctGuesses: number
   players: number
-}
-
-type ReminderStats = {
-  activeSubscribers: number
-  totalSubscribers: number
 }
 
 type AudienceSummary = {
@@ -202,7 +199,6 @@ export default function AdminPage() {
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null)
   const [levelAnalytics, setLevelAnalytics] = useState<LevelAnalytics[]>([])
   const [casePerformance, setCasePerformance] = useState<CasePerformance[]>([])
-  const [reminderStats, setReminderStats] = useState<ReminderStats | null>(null)
   const [audienceSummary, setAudienceSummary] = useState<AudienceSummary>({
     topRegions: [],
     topTimezones: [],
@@ -227,11 +223,8 @@ export default function AdminPage() {
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
-  const [showCasesByDate, setShowCasesByDate] = useState(false)
+  const [showCasesByDate, setShowCasesByDate] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
-  const [testReminderEmail, setTestReminderEmail] = useState('andycontreras123@gmail.com')
-  const [testReminderStatus, setTestReminderStatus] = useState('')
-  const [sendingTestReminder, setSendingTestReminder] = useState(false)
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -244,7 +237,6 @@ export default function AdminPage() {
 
     loadCases()
     loadAnalytics()
-    loadReminderStats()
     loadDiagnosisChoices()
     loadSubmissionSummary()
     loadFeedbackSummary()
@@ -797,12 +789,26 @@ export default function AdminPage() {
     }
 
     const totalVisits = visits.length
+    const totalUniqueUsers = allSessions.size
     const totalGuesses = guesses.length
     const totalCorrectGuesses = guesses.filter(guess => guess.is_correct).length
     const cumulativeDailyUsers = Object.values(byDate).reduce(
       (sum, row) => sum + row.unique_sessions,
       0
     )
+    const archivePlaySessions = new Set<string>()
+    for (const guess of guesses) {
+      const caseDate = guess.cases?.case_date
+      if (!caseDate || caseDate >= today) continue
+
+      const archiveKey =
+        guess.case_id && guess.session_id
+          ? `${guess.session_id}__${guess.case_id}`
+          : `${guess.session_id}__${caseDate}__${guess.cases?.level || 'unknown'}`
+
+      archivePlaySessions.add(archiveKey)
+    }
+    const archivePlays = archivePlaySessions.size
     const todayRow = byDate[today] || {
       date: today,
       visits: 0,
@@ -819,11 +825,13 @@ export default function AdminPage() {
 
     setAnalyticsSummary({
       totalVisits,
+      totalUniqueUsers,
       cumulativeDailyUsers,
       totalGuesses,
+      archivePlays,
       totalCorrectGuesses,
       guessAccuracy: totalGuesses > 0 ? (totalCorrectGuesses / totalGuesses) * 100 : 0,
-      averageGuessesPerUser: allSessions.size > 0 ? totalGuesses / allSessions.size : 0,
+      averageGuessesPerUser: totalUniqueUsers > 0 ? totalGuesses / totalUniqueUsers : 0,
       todayUsers: todayRow.unique_sessions,
       todayGuesses: todayRow.guesses,
       todayCorrectGuesses: todayRow.correct_guesses,
@@ -858,22 +866,6 @@ export default function AdminPage() {
         .slice(0, 6)
         .map(([label, count]) => ({ label, count })),
     })
-  }
-
-  async function loadReminderStats() {
-    try {
-      const response = await fetch('/api/reminders/stats')
-
-      if (!response.ok) return
-
-      const data = await response.json()
-      setReminderStats({
-        activeSubscribers: data.activeSubscribers || 0,
-        totalSubscribers: data.totalSubscribers || 0,
-      })
-    } catch {
-      // Keep reminders stats optional if the endpoint is not configured yet.
-    }
   }
 
   async function loadDiagnosisChoices() {
@@ -1065,35 +1057,6 @@ export default function AdminPage() {
       firstTrySolveRate:
         solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
     })
-  }
-
-  async function sendTestReminder() {
-    setSendingTestReminder(true)
-    setTestReminderStatus('')
-
-    try {
-      const adminPassword = window.sessionStorage.getItem('orthodle_admin_password') || ''
-      const response = await fetch('/api/reminders/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: testReminderEmail,
-          password: adminPassword,
-        }),
-      })
-
-      const data = await response.json()
-      if (!response.ok) {
-        setTestReminderStatus(data.error || 'Could not send test reminder.')
-        return
-      }
-
-      setTestReminderStatus(data.message || 'Test reminder sent.')
-    } catch {
-      setTestReminderStatus('Could not send test reminder.')
-    } finally {
-      setSendingTestReminder(false)
-    }
   }
 
   async function uploadImage(file: File, slot: 1 | 2 = 1) {
@@ -2244,7 +2207,16 @@ Pearl: Knee pain in teens -> always check the hip`}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Cumulative daily users
+                          Total users
+                        </div>
+                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                          {analyticsSummary.totalUniqueUsers}
+                        </div>
+                      </div>
+
+                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                          Combined daily users
                         </div>
                         <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
                           {analyticsSummary.cumulativeDailyUsers}
@@ -2280,19 +2252,10 @@ Pearl: Knee pain in teens -> always check the hip`}
 
                       <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Reminder subs
+                          Archive plays
                         </div>
                         <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {reminderStats?.activeSubscribers ?? 0}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Reminder total
-                        </div>
-                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {reminderStats?.totalSubscribers ?? 0}
+                          {analyticsSummary.archivePlays}
                         </div>
                       </div>
                     </div>
@@ -2337,8 +2300,8 @@ Pearl: Knee pain in teens -> always check the hip`}
                         <div className="mt-3 space-y-2">
                           {audienceSummary.topRegions.length > 0 ? (
                             audienceSummary.topRegions.map(item => (
-                              <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-[#102018]">
-                                <span>{item.label}</span>
+                              <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
+                                <span className="min-w-0 break-all">{item.label}</span>
                                 <span className="font-semibold text-[#637268]">{item.count}</span>
                               </div>
                             ))
@@ -2355,8 +2318,8 @@ Pearl: Knee pain in teens -> always check the hip`}
                         <div className="mt-3 space-y-2">
                           {audienceSummary.topTimezones.length > 0 ? (
                             audienceSummary.topTimezones.map(item => (
-                              <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-[#102018]">
-                                <span>{item.label}</span>
+                              <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
+                                <span className="min-w-0 break-all">{item.label}</span>
                                 <span className="font-semibold text-[#637268]">{item.count}</span>
                               </div>
                             ))
@@ -2364,33 +2327,6 @@ Pearl: Knee pain in teens -> always check the hip`}
                             <p className="text-sm text-[#637268]">No timezone data yet.</p>
                           )}
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                        Test reminder email
-                      </div>
-                      <div className="mt-3 flex flex-col gap-2">
-                        <input
-                          type="email"
-                          value={testReminderEmail}
-                          onChange={e => setTestReminderEmail(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && sendTestReminder()}
-                          placeholder="Email address"
-                          className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                        />
-                        <button
-                          type="button"
-                          onClick={sendTestReminder}
-                          disabled={sendingTestReminder}
-                          className="rounded-lg bg-[#1f6448] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {sendingTestReminder ? 'Sending...' : 'Send test reminder'}
-                        </button>
-                        {testReminderStatus && (
-                          <p className="text-sm text-[#637268]">{testReminderStatus}</p>
-                        )}
                       </div>
                     </div>
 

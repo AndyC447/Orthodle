@@ -218,6 +218,9 @@ function PlayPageContent() {
   const [reactionStatus, setReactionStatus] = useState('')
   const [submittingReaction, setSubmittingReaction] = useState<string | null>(null)
   const [submittedReactionTags, setSubmittedReactionTags] = useState<string[]>([])
+  const [feedbackText, setFeedbackText] = useState('')
+  const [isSavingFeedback, setIsSavingFeedback] = useState(false)
+  const [feedbackStatus, setFeedbackStatus] = useState('')
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
@@ -272,6 +275,9 @@ function PlayPageContent() {
   useEffect(() => {
     if (typeof window === 'undefined' || !dailyCase) {
       setSubmittedReactionTags([])
+      setReactionStatus('')
+      setFeedbackStatus('')
+      setFeedbackText('')
       return
     }
 
@@ -290,6 +296,9 @@ function PlayPageContent() {
     } catch {
       setSubmittedReactionTags([])
     }
+    setReactionStatus('')
+    setFeedbackStatus('')
+    setFeedbackText('')
   }, [dailyCase])
 
   useEffect(() => {
@@ -850,6 +859,47 @@ function PlayPageContent() {
     }
     setReactionStatus('Thanks for the feedback.')
     setSubmittingReaction(null)
+  }
+
+  async function submitTypedFeedback() {
+    if (!dailyCase) return
+
+    const trimmed = feedbackText.trim()
+
+    if (!trimmed) {
+      setFeedbackStatus('Add a note before sending.')
+      return
+    }
+
+    setIsSavingFeedback(true)
+    setFeedbackStatus('')
+
+    if (isLocalhostBrowser()) {
+      setFeedbackStatus('Saved locally for testing only.')
+      setFeedbackText('')
+      setIsSavingFeedback(false)
+      return
+    }
+
+    const { error } = await supabase.from('case_feedback').insert({
+      case_id: dailyCase.id,
+      case_date: dailyCase.case_date,
+      level: dailyCase.level,
+      answer: dailyCase.answer,
+      feedback_text: trimmed,
+      feedback_tags: [],
+      session_id: getSessionId() || null,
+    })
+
+    if (error) {
+      setFeedbackStatus('Could not save feedback right now.')
+      setIsSavingFeedback(false)
+      return
+    }
+
+    setFeedbackText('')
+    setFeedbackStatus('Thanks for the feedback.')
+    setIsSavingFeedback(false)
   }
 
   function renderFormattedLine(line: string) {
@@ -1660,6 +1710,26 @@ function PlayPageContent() {
                   </div>
                   {reactionStatus && (
                     <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
+                  )}
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="text"
+                      value={feedbackText}
+                      onChange={e => setFeedbackText(e.target.value)}
+                      placeholder="Share a note about this case"
+                      className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void submitTypedFeedback()}
+                      disabled={isSavingFeedback}
+                      className="shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {isSavingFeedback ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
+                  {feedbackStatus && (
+                    <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
                   )}
                 </div>
 

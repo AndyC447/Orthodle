@@ -24,6 +24,8 @@ export default function AdminFeedbackPage() {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [feedbackRows, setFeedbackRows] = useState<FeedbackRow[]>([])
   const [status, setStatus] = useState('')
+  const [showAllReactionCases, setShowAllReactionCases] = useState(false)
+  const [showReactionsByCase, setShowReactionsByCase] = useState(false)
 
   const feedbackTagSummary = useMemo(() => {
     const counts = Object.fromEntries(
@@ -87,6 +89,15 @@ export default function AdminFeedbackPage() {
       return b.total - a.total
     })
   }, [feedbackRows])
+
+  const recentReactionCases = useMemo(() => {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - 2)
+    const cutoffIso = cutoff.toISOString().slice(0, 10)
+    return reactionsByCase.filter(item => item.caseDate >= cutoffIso)
+  }, [reactionsByCase])
+
+  const visibleReactionCases = showAllReactionCases ? reactionsByCase : recentReactionCases
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -242,7 +253,7 @@ export default function AdminFeedbackPage() {
                           {item.feedback_tags.map(tag => (
                             <span
                               key={`${item.id}-${tag}`}
-                              className="rounded-full border border-[#ead9b7] bg-[#fff6ed] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#a24d24]"
+                              className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#102018]"
                             >
                               {tag}
                             </span>
@@ -279,9 +290,9 @@ export default function AdminFeedbackPage() {
             {FEEDBACK_TAG_OPTIONS.map(tag => (
               <div
                 key={tag}
-                className="rounded-xl border border-[#ead9b7] bg-[#fffaf4] px-3 py-3 text-center"
+                className="rounded-xl border border-[#ded7ca] bg-white px-3 py-3 text-center"
               >
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#a24d24]">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#102018]">
                   {tag}
                 </div>
                 <div className="mt-1 font-serif text-2xl font-bold text-[#102018]">
@@ -297,21 +308,34 @@ export default function AdminFeedbackPage() {
             <h2 className="font-serif text-xl font-bold text-[#102018]">
               Reactions by case
             </h2>
-            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {reactionsByCase.length} cases
+            <div className="flex items-center gap-2">
+              <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                {reactionsByCase.length} cases
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReactionsByCase(prev => !prev)}
+                className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+              >
+                {showReactionsByCase ? 'Hide' : 'Show'}
+              </button>
             </div>
           </div>
 
-          {reactionsByCase.length === 0 ? (
+          {!showReactionsByCase ? (
+            <p className="mt-4 text-sm text-[#637268]">
+              Showing this section is optional. It starts collapsed to keep the page lighter.
+            </p>
+          ) : reactionsByCase.length === 0 ? (
             <p className="mt-4 text-sm text-[#637268]">
               No quick reactions yet.
             </p>
           ) : (
             <div className="mt-4 space-y-3">
-              {reactionsByCase.map(item => (
+              {visibleReactionCases.map(item => (
                 <div
                   key={`${item.caseDate}-${item.level}-${item.answer}`}
-                  className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3"
+                  className="rounded-xl border border-[#e7e1d6] bg-white p-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
@@ -331,9 +355,9 @@ export default function AdminFeedbackPage() {
                     {FEEDBACK_TAG_OPTIONS.map(tag => (
                       <div
                         key={`${item.caseDate}-${item.answer}-${tag}`}
-                        className="rounded-lg border border-[#ead9b7] bg-white px-3 py-2 text-center"
+                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-center"
                       >
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#a24d24]">
+                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018]">
                           {tag}
                         </div>
                         <div className="mt-1 text-lg font-semibold text-[#102018]">
@@ -344,6 +368,17 @@ export default function AdminFeedbackPage() {
                   </div>
                 </div>
               ))}
+              {reactionsByCase.length > recentReactionCases.length && (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllReactionCases(prev => !prev)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+                  >
+                    {showAllReactionCases ? 'Show recent only' : 'Show more'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </section>
