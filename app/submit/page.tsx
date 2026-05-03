@@ -59,7 +59,7 @@ export default function SubmitCasePage() {
     void checkSubmissionStatus(savedCode)
   }, [])
 
-  async function uploadImage(file: File) {
+  async function uploadImage(file: File, slot: 1 | 2 = 1) {
     setStatus('Uploading image...')
 
     const fileExt = file.name.split('.').pop()
@@ -73,6 +73,12 @@ export default function SubmitCasePage() {
     }
 
     const { data } = supabase.storage.from('case-images').getPublicUrl(fileName)
+    if (slot === 2) {
+      setImageUrl2(data.publicUrl)
+      setStatus('Second image uploaded.')
+      return
+    }
+
     setImageUrl(data.publicUrl)
     setStatus('Image uploaded.')
   }
@@ -433,7 +439,7 @@ export default function SubmitCasePage() {
                 accept="image/*"
                 onChange={e => {
                   const file = e.target.files?.[0]
-                  if (file) uploadImage(file)
+                  if (file) uploadImage(file, 1)
                 }}
                 className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
               />
@@ -473,6 +479,19 @@ export default function SubmitCasePage() {
                 onChange={e => setImageUrl2(e.target.value)}
                 placeholder="Paste a second hosted image URL"
                 className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Upload Second X-ray / Image
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) uploadImage(file, 2)
+                }}
+                className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
               />
             </label>
 
