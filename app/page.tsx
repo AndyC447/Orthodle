@@ -1598,8 +1598,8 @@ function PlayPageContent() {
 
       <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-4 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
         <section className="space-y-4">
-          <div className="relative overflow-visible rounded-2xl border border-[#ebe3d7] bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
-            <div className="pointer-events-none absolute left-[3px] right-[3px] top-[-1px] overflow-hidden rounded-t-[16px]">
+          <div className="relative overflow-hidden rounded-2xl border border-[#ebe3d7] border-t-transparent bg-white shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
+            <div className="pointer-events-none absolute inset-x-0 top-0 overflow-hidden rounded-t-[15px]">
               <div className="h-1.5 w-full bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
             </div>
 
