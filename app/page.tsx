@@ -87,6 +87,11 @@ const levels = [
   { key: 'attending' as Level, label: 'Attending' },
 ]
 
+const nextLevelMap: Partial<Record<Level, Level>> = {
+  med_student: 'resident',
+  resident: 'attending',
+}
+
 const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
   id: index,
   left: 4 + ((index * 17) % 92),
@@ -1238,6 +1243,7 @@ function PlayPageContent() {
 
   const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
+  const nextLevel = nextLevelMap[selectedLevel]
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
   const selectedTaglines = useMemo(
     () =>
@@ -1257,6 +1263,8 @@ function PlayPageContent() {
     guess.trim().length > 0 ||
     selectedLevel !== 'med_student' ||
     roundComplete
+  const canAdvanceToNextLevel =
+    Boolean(nextLevel) && onTodayCard && roundComplete && !caseParam && !imageExpanded
 
   useEffect(() => {
     if (!onTodayCard || !todayComplete || typeof window === 'undefined') return
@@ -1266,6 +1274,15 @@ function PlayPageContent() {
     triggerConfetti()
     triggerSuccessPulse()
   }, [onTodayCard, todayComplete, today])
+
+  function moveToNextLevel() {
+    if (!nextLevel) return
+    setSelectedLevel(nextLevel)
+    setGuess('')
+    setMessage('')
+    setImageHidden(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   const latestFindingIndex =
     !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
@@ -1485,12 +1502,41 @@ function PlayPageContent() {
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
         {onTodayCard && todayComplete && (
-          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)]">
+          <div className="mx-auto mt-3 max-w-xl rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-4 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)]">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f6448]">
               Daily card complete
             </div>
-            <p className="mt-1.5 text-[13px] leading-5 text-[#637268]">
-              All three cases are locked in for today. Nice work.
+            <p className="mt-1.5 text-[14px] leading-5 text-[#102018]">
+              All three cases are locked in for today.
+            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-xl border border-[#cfded4] bg-white px-3 py-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Solved
+                </div>
+                <div className="mt-1 font-serif text-[18px] font-bold text-[#1f6448]">
+                  {dailySummary.wins}/3
+                </div>
+              </div>
+              <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Avg guesses
+                </div>
+                <div className="mt-1 font-serif text-[18px] font-bold text-[#102018]">
+                  {dailySummary.averageGuesses !== null ? dailySummary.averageGuesses.toFixed(1) : '—'}
+                </div>
+              </div>
+              <div className="rounded-xl border border-[#ead9b7] bg-white px-3 py-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Streak
+                </div>
+                <div className="mt-1 font-serif text-[18px] font-bold text-[#a24d24]">
+                  {statsSummary.currentStreak}
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 text-[12px] leading-5 text-[#637268]">
+              Fresh cases drop tomorrow. Keep the streak alive.
             </p>
             <div className="mt-3 flex flex-wrap justify-center gap-2">
               <Link
@@ -1753,6 +1799,16 @@ function PlayPageContent() {
                     {message}
                   </p>
                 )}
+
+                {canAdvanceToNextLevel && nextLevel && (
+                  <button
+                    type="button"
+                    onClick={moveToNextLevel}
+                    className="mt-3 w-full rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[12px] font-semibold text-[#1f6448] transition hover:bg-white"
+                  >
+                    Try the {formatLevel(nextLevel)} case
+                  </button>
+                )}
               </div>
           </div>
 
@@ -2006,19 +2062,33 @@ function PlayPageContent() {
                 <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                   Imaging
                 </div>
+                <div className="mt-1 text-[10px] text-[#8a948d]">
+                  Pinch to zoom. Swipe down to close.
+                </div>
               </div>
 
-              <button
-                onClick={closeExpandedImage}
-                className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px] sm:tracking-[0.18em]"
-              >
-                Minimize
-              </button>
+              <div className="flex items-center gap-2">
+                {imageScale > 1.02 && (
+                  <button
+                    onClick={resetExpandedImageView}
+                    className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-3 sm:py-1.5 sm:text-[10px]"
+                  >
+                    Reset
+                  </button>
+                )}
+                <button
+                  onClick={closeExpandedImage}
+                  className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px] sm:tracking-[0.18em]"
+                >
+                  Minimize
+                </button>
+              </div>
             </div>
 
             <div
               className="bg-[#f7f4ee] p-5"
               onClick={e => e.stopPropagation()}
+              onDoubleClick={resetExpandedImageView}
               onTouchStart={e => {
                 imageTouchStartY.current = e.touches[0]?.clientY ?? null
                 if (e.touches.length === 2) {

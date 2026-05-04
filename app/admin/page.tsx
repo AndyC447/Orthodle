@@ -1380,7 +1380,7 @@ export default function AdminPage() {
   }
 
   return (
-    <main>
+    <main className="app-surface min-h-screen">
       <Header />
 
       <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
@@ -1637,109 +1637,101 @@ export default function AdminPage() {
                 />
               </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Question Image URL
-                <input
-                  value={imageUrl}
-                  onChange={e => setImageUrl(e.target.value)}
-                  placeholder="Paste a hosted x-ray or image URL"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Images
+                </div>
+                <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Image 1 URL
+                    <input
+                      value={imageUrl}
+                      onChange={e => setImageUrl(e.target.value)}
+                      placeholder="Paste a hosted x-ray or image URL"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Upload X-ray / Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) uploadImage(file, 1)
-                  }}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
-                />
-                <span className="text-xs font-normal text-[#8a948d]">
-                  Upload an x-ray, MRI, clinical photo, or other question image. You can choose
-                  when it appears as a clue.
-                </span>
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Image 1 Reveal
+                    <select
+                      value={imageRevealClue}
+                      onChange={e => setImageRevealClue(e.target.value)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    >
+                      <option value="none">Show immediately</option>
+                      <option value="1">Reveal with Clue 1</option>
+                      <option value="2">Reveal with Clue 2</option>
+                      <option value="3">Reveal with Clue 3</option>
+                      <option value="4">Reveal with Clue 4</option>
+                      <option value="5">Reveal with Clue 5</option>
+                      <option value="6">Reveal with Clue 6</option>
+                    </select>
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Image Reveal
-                <select
-                  value={imageRevealClue}
-                  onChange={e => setImageRevealClue(e.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                >
-                  <option value="none">Show immediately</option>
-                  <option value="1">Reveal with Clue 1</option>
-                  <option value="2">Reveal with Clue 2</option>
-                  <option value="3">Reveal with Clue 3</option>
-                  <option value="4">Reveal with Clue 4</option>
-                  <option value="5">Reveal with Clue 5</option>
-                  <option value="6">Reveal with Clue 6</option>
-                </select>
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Image 1 Credit
+                    <input
+                      value={imageCredit}
+                      onChange={e => setImageCredit(e.target.value)}
+                      placeholder="Optional small credit"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Image Credit
-                <input
-                  value={imageCredit}
-                  onChange={e => setImageCredit(e.target.value)}
-                  placeholder="Optional small credit shown under the image"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Image 2 URL
+                    <div className="flex gap-2">
+                      <input
+                        value={imageUrl2}
+                        onChange={e => setImageUrl2(e.target.value)}
+                        placeholder="Optional second hosted image URL"
+                        className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                      {imageUrl2 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageUrl2('')
+                            setImageCredit2('')
+                            setImageRevealClue2('none')
+                          }}
+                          className="rounded-lg border border-[#ead9b7] px-3 py-2 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Second Image URL
-                <input
-                  value={imageUrl2}
-                  onChange={e => setImageUrl2(e.target.value)}
-                  placeholder="Paste a second hosted image URL"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Image 2 Reveal
+                    <select
+                      value={imageRevealClue2}
+                      onChange={e => setImageRevealClue2(e.target.value)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    >
+                      <option value="none">Show immediately</option>
+                      <option value="1">Reveal with Clue 1</option>
+                      <option value="2">Reveal with Clue 2</option>
+                      <option value="3">Reveal with Clue 3</option>
+                      <option value="4">Reveal with Clue 4</option>
+                      <option value="5">Reveal with Clue 5</option>
+                      <option value="6">Reveal with Clue 6</option>
+                    </select>
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Upload Second X-ray / Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={e => {
-                    const file = e.target.files?.[0]
-                    if (file) uploadImage(file, 2)
-                  }}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Second Image Reveal
-                <select
-                  value={imageRevealClue2}
-                  onChange={e => setImageRevealClue2(e.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                >
-                  <option value="none">Show immediately</option>
-                  <option value="1">Reveal with Clue 1</option>
-                  <option value="2">Reveal with Clue 2</option>
-                  <option value="3">Reveal with Clue 3</option>
-                  <option value="4">Reveal with Clue 4</option>
-                  <option value="5">Reveal with Clue 5</option>
-                  <option value="6">Reveal with Clue 6</option>
-                </select>
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Second Image Credit
-                <input
-                  value={imageCredit2}
-                  onChange={e => setImageCredit2(e.target.value)}
-                  placeholder="Optional small credit shown under the second image"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268] sm:col-span-2">
+                    Image 2 Credit
+                    <input
+                      value={imageCredit2}
+                      onChange={e => setImageCredit2(e.target.value)}
+                      placeholder="Optional second image credit"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
+                </div>
+              </div>
 
               {imageUrl && (
                 <div className="rounded-lg border border-[#ded7ca] p-2.5">
@@ -1779,61 +1771,68 @@ export default function AdminPage() {
                 </div>
               )}
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Clue 1
-                <input
-                  value={clue1}
-                  onChange={e => setClue1(e.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Clues
+                </div>
+                <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Clue 1
+                    <input
+                      value={clue1}
+                      onChange={e => setClue1(e.target.value)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Clue 2
-                <input
-                  value={clue2}
-                  onChange={e => setClue2(e.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Clue 2
+                    <input
+                      value={clue2}
+                      onChange={e => setClue2(e.target.value)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Clue 3
-                <input
-                  value={clue3}
-                  onChange={e => setClue3(e.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Clue 3
+                    <input
+                      value={clue3}
+                      onChange={e => setClue3(e.target.value)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Clue 4
-                <input
-                  value={clue4}
-                  onChange={e => setClue4(e.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Clue 4
+                    <input
+                      value={clue4}
+                      onChange={e => setClue4(e.target.value)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Clue 5
-                <input
-                  value={clue5}
-                  onChange={e => setClue5(e.target.value)}
-                  placeholder="Optional"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Clue 5
+                    <input
+                      value={clue5}
+                      onChange={e => setClue5(e.target.value)}
+                      placeholder="Optional"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Clue 6
-                <input
-                  value={clue6}
-                  onChange={e => setClue6(e.target.value)}
-                  placeholder="Optional"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Clue 6
+                    <input
+                      value={clue6}
+                      onChange={e => setClue6(e.target.value)}
+                      placeholder="Optional"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
+                </div>
+              </div>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Teaching Point

@@ -26,6 +26,21 @@ export const metadata: Metadata = {
     url: 'https://orthodle.com',
     siteName: 'Orthodle',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'Orthodle daily orthopaedic diagnosis game',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Orthodle – Daily Orthopaedic Diagnosis Game',
+    description:
+      'Daily orthopaedic case game for med students, residents, and attendings.',
+    images: ['/opengraph-image'],
   },
   icons: {
     icon: [

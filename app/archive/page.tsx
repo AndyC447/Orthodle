@@ -117,6 +117,18 @@ export default function ArchivePage() {
     surprisePool.length > 0
       ? surprisePool[Math.floor(Math.random() * surprisePool.length)]
       : null
+  const imagingPick = useMemo(() => {
+    const pool = filteredCases.filter(item => item.image_url)
+    return pool.length > 0 ? pool[0] : null
+  }, [filteredCases])
+  const attendingPick = useMemo(() => {
+    const pool = filteredCases.filter(item => item.level === 'attending')
+    return pool.length > 0 ? pool[0] : null
+  }, [filteredCases])
+  const medStudentPick = useMemo(() => {
+    const pool = filteredCases.filter(item => item.level === 'med_student')
+    return pool.length > 0 ? pool[0] : null
+  }, [filteredCases])
 
   return (
     <main className="app-surface min-h-screen">
@@ -154,6 +166,45 @@ export default function ArchivePage() {
               </button>
             </div>
           )}
+
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-3">
+            {[
+              {
+                label: 'Unplayed pick',
+                helper: 'Jump into something you likely have not seen yet.',
+                target: surpriseTarget,
+              },
+              {
+                label: 'Imaging pick',
+                helper: 'Browse a case with imaging built in.',
+                target: imagingPick,
+              },
+              {
+                label: 'Attending challenge',
+                helper: 'Take a tougher archive swing.',
+                target: attendingPick || medStudentPick,
+              },
+            ].map(item => (
+              <div key={item.label} className="rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                  {item.label}
+                </div>
+                <p className="mt-1.5 text-[12px] leading-5 text-[#637268]">
+                  {item.helper}
+                </p>
+                {item.target ? (
+                  <Link
+                    href={`/?case=${item.target.id}&date=${item.target.case_date}&level=${item.target.level}`}
+                    className="mt-3 inline-flex rounded-full border border-[#ded7ca] bg-white px-3.5 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Open {formatLevel(item.target.level)}
+                  </Link>
+                ) : (
+                  <div className="mt-3 text-[11px] text-[#8a948d]">No match yet.</div>
+                )}
+              </div>
+            ))}
+          </div>
 
           <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
             <div className="grid gap-2.5 sm:grid-cols-3">
