@@ -151,6 +151,15 @@ create table if not exists homepage_announcements (
   message text not null,
   start_date date not null,
   end_date date,
+  survey_enabled boolean not null default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists homepage_announcement_responses (
+  id uuid primary key default uuid_generate_v4(),
+  announcement_id uuid not null references homepage_announcements(id) on delete cascade,
+  response text not null,
+  session_id text,
   created_at timestamptz default now()
 );
 
@@ -176,6 +185,7 @@ alter table diagnosis_choices enable row level security;
 alter table case_feedback enable row level security;
 alter table difficulty_taglines enable row level security;
 alter table homepage_announcements enable row level security;
+alter table homepage_announcement_responses enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);
@@ -203,6 +213,8 @@ create policy "public read homepage announcements" on homepage_announcements for
 create policy "public insert homepage announcements" on homepage_announcements for insert with check (true);
 create policy "public update homepage announcements" on homepage_announcements for update using (true) with check (true);
 create policy "public delete homepage announcements" on homepage_announcements for delete using (true);
+create policy "public read homepage announcement responses" on homepage_announcement_responses for select using (true);
+create policy "public insert homepage announcement responses" on homepage_announcement_responses for insert with check (true);
 
 insert into difficulty_taglines (level, text, position)
 values

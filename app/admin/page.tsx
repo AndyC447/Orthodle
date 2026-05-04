@@ -147,7 +147,13 @@ type HomepageAnnouncementRow = {
   message: string
   start_date: string
   end_date: string | null
+  survey_enabled: boolean | null
   created_at: string
+  survey_counts?: {
+    med_student: number
+    resident: number
+    attending: number
+  }
 }
 
 const today = todayISO()
@@ -219,6 +225,7 @@ export default function AdminPage() {
   const [announcementMessage, setAnnouncementMessage] = useState('')
   const [announcementStartDate, setAnnouncementStartDate] = useState(shiftISODate(today, 1))
   const [announcementEndDate, setAnnouncementEndDate] = useState(shiftISODate(today, 1))
+  const [announcementSurveyEnabled, setAnnouncementSurveyEnabled] = useState(false)
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
@@ -281,6 +288,10 @@ export default function AdminPage() {
     return baseDates
   }, [browseDate, groupedCases])
   const tomorrow = shiftISODate(today, 1)
+  const surveyAnnouncements = useMemo(
+    () => homepageAnnouncements.filter(item => item.survey_enabled),
+    [homepageAnnouncements]
+  )
 
   const todaysCases = useMemo(
     () => groupedCases.find(group => group.date === today)?.items || [],
@@ -916,10 +927,50 @@ export default function AdminPage() {
   async function loadHomepageAnnouncements() {
     const { data } = await supabase
       .from('homepage_announcements')
-      .select('id, message, start_date, end_date, created_at')
+      .select('id, message, start_date, end_date, survey_enabled, created_at')
       .order('start_date', { ascending: false })
+    const announcements = (data as HomepageAnnouncementRow[] | null) || []
 
-    setHomepageAnnouncements((data as HomepageAnnouncementRow[] | null) || [])
+    const surveyIds = announcements.filter(item => item.survey_enabled).map(item => item.id)
+    if (surveyIds.length === 0) {
+      setHomepageAnnouncements(announcements)
+      return
+    }
+
+    const { data: responseData } = await supabase
+      .from('homepage_announcement_responses')
+      .select('announcement_id, response')
+      .in('announcement_id', surveyIds)
+
+    const countsByAnnouncement = new Map<
+      string,
+      { med_student: number; resident: number; attending: number }
+    >()
+
+    for (const row of responseData || []) {
+      const existing = countsByAnnouncement.get(row.announcement_id) || {
+        med_student: 0,
+        resident: 0,
+        attending: 0,
+      }
+
+      if (row.response === 'med_student') existing.med_student += 1
+      if (row.response === 'resident') existing.resident += 1
+      if (row.response === 'attending') existing.attending += 1
+
+      countsByAnnouncement.set(row.announcement_id, existing)
+    }
+
+    setHomepageAnnouncements(
+      announcements.map(item => ({
+        ...item,
+        survey_counts: countsByAnnouncement.get(item.id) || {
+          med_student: 0,
+          resident: 0,
+          attending: 0,
+        },
+      }))
+    )
   }
 
   function resetAnnouncementForm() {
@@ -927,6 +978,7 @@ export default function AdminPage() {
     setAnnouncementMessage('')
     setAnnouncementStartDate(tomorrow)
     setAnnouncementEndDate(tomorrow)
+    setAnnouncementSurveyEnabled(false)
   }
 
   async function saveHomepageAnnouncement() {
@@ -941,6 +993,7 @@ export default function AdminPage() {
       message: trimmedMessage,
       start_date: announcementStartDate,
       end_date: announcementEndDate || null,
+      survey_enabled: announcementSurveyEnabled,
     }
 
     const result = editingAnnouncementId
@@ -962,6 +1015,7 @@ export default function AdminPage() {
     setAnnouncementMessage(item.message)
     setAnnouncementStartDate(item.start_date)
     setAnnouncementEndDate(item.end_date || item.start_date)
+    setAnnouncementSurveyEnabled(Boolean(item.survey_enabled))
     setStatus('')
   }
 
@@ -2055,6 +2109,16 @@ Pearl: Knee pain in teens -> always check the hip`}
                   </label>
                 </div>
 
+                <label className="flex items-center gap-2 rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018]">
+                  <input
+                    type="checkbox"
+                    checked={announcementSurveyEnabled}
+                    onChange={e => setAnnouncementSurveyEnabled(e.target.checked)}
+                    className="h-4 w-4 rounded border-[#ded7ca] text-[#1f6448] focus:ring-[#1f6448]/20"
+                  />
+                  <span>Add the training survey</span>
+                </label>
+
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -2081,6 +2145,23 @@ Pearl: Knee pain in teens -> always check the hip`}
                   <p className="mt-2 text-[13px] leading-5 text-[#102018]">
                     {announcementMessage.trim() || 'Your scheduled homepage note will preview here.'}
                   </p>
+                  {announcementSurveyEnabled && (
+                    <div className="mt-3 rounded-xl border border-[#ded7ca] bg-white px-3 py-3">
+                      <div className="text-center text-[12px] font-medium leading-5 text-[#102018]">
+                        To tailor my questions most effectively, what level of training are you?
+                      </div>
+                      <div className="mt-3 flex flex-wrap justify-center gap-2">
+                        {['Med Student', 'Resident', 'Attending'].map(option => (
+                          <div
+                            key={option}
+                            className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold text-[#102018]"
+                          >
+                            {option}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -2090,6 +2171,11 @@ Pearl: Knee pain in teens -> always check the hip`}
                       className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
                     >
                       <p className="text-sm leading-5 text-[#102018]">{item.message}</p>
+                      {item.survey_enabled && (
+                        <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                          Includes training survey
+                        </p>
+                      )}
                       <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
                         {item.start_date}
                         {item.end_date && item.end_date !== item.start_date
@@ -2115,6 +2201,58 @@ Pearl: Knee pain in teens -> always check the hip`}
                     </div>
                   ))}
                 </div>
+
+                {surveyAnnouncements.length > 0 && (
+                  <div className="rounded-2xl border border-[#e7e1d6] bg-white p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                      Surveys
+                    </div>
+                    <div className="mt-3 space-y-3">
+                      {surveyAnnouncements.map(item => (
+                        <div
+                          key={`survey-${item.id}`}
+                          className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
+                        >
+                          <div className="text-[12px] font-semibold leading-5 text-[#102018]">
+                            To tailor my questions most effectively, what level of training are you?
+                          </div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                            {item.start_date}
+                            {item.end_date && item.end_date !== item.start_date
+                              ? ` to ${item.end_date}`
+                              : ''}
+                          </div>
+                          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                            <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
+                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                                Med student
+                              </div>
+                              <div className="mt-1 text-sm font-semibold text-[#102018]">
+                                {item.survey_counts?.med_student ?? 0}
+                              </div>
+                            </div>
+                            <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
+                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                                Resident
+                              </div>
+                              <div className="mt-1 text-sm font-semibold text-[#102018]">
+                                {item.survey_counts?.resident ?? 0}
+                              </div>
+                            </div>
+                            <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
+                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                                Attending
+                              </div>
+                              <div className="mt-1 text-sm font-semibold text-[#102018]">
+                                {item.survey_counts?.attending ?? 0}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 

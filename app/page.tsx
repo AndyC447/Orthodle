@@ -55,15 +55,23 @@ type CommunityCaseStats = {
 }
 
 type HomepageAnnouncementRow = {
+  id: string
   message: string
   start_date: string
   end_date: string | null
+  survey_enabled?: boolean | null
 }
 
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
+const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
 const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
+const HOMEPAGE_SURVEY_OPTIONS = [
+  { value: 'med_student', label: 'Med Student' },
+  { value: 'resident', label: 'Resident' },
+  { value: 'attending', label: 'Attending' },
+] as const
 
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
@@ -224,8 +232,10 @@ function PlayPageContent() {
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
-  const [homepageAnnouncement, setHomepageAnnouncement] = useState<string | null>(null)
+  const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
+  const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
+  const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
   const [dailySummary, setDailySummary] = useState({
     date: today,
@@ -300,6 +310,18 @@ function PlayPageContent() {
     setFeedbackStatus('')
     setFeedbackText('')
   }, [dailyCase])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !homepageAnnouncement?.id) {
+      setSubmittedHomepageSurveyChoice(null)
+      return
+    }
+
+    const saved = window.localStorage.getItem(
+      `${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageAnnouncement.id}`
+    )
+    setSubmittedHomepageSurveyChoice(saved || null)
+  }, [homepageAnnouncement])
 
   useEffect(() => {
     let cancelled = false
@@ -400,7 +422,7 @@ function PlayPageContent() {
 
       const { data } = await supabase
         .from('homepage_announcements')
-        .select('message, start_date, end_date')
+        .select('id, message, start_date, end_date, survey_enabled')
         .lte('start_date', today)
         .or(`end_date.is.null,end_date.gte.${today}`)
         .order('start_date', { ascending: false })
@@ -411,7 +433,10 @@ function PlayPageContent() {
       const activeAnnouncement = (data as HomepageAnnouncementRow[] | null)?.[0] || null
 
       if (activeAnnouncement?.message?.trim()) {
-        setHomepageAnnouncement(activeAnnouncement.message.trim())
+        setHomepageAnnouncement({
+          ...activeAnnouncement,
+          message: activeAnnouncement.message.trim(),
+        })
         return
       }
 
@@ -422,7 +447,7 @@ function PlayPageContent() {
 
       const { data: upcomingData } = await supabase
         .from('homepage_announcements')
-        .select('message, start_date, end_date')
+        .select('id, message, start_date, end_date, survey_enabled')
         .gte('start_date', today)
         .order('start_date', { ascending: true })
         .limit(1)
@@ -430,7 +455,14 @@ function PlayPageContent() {
       if (cancelled) return
 
       const upcomingAnnouncement = (upcomingData as HomepageAnnouncementRow[] | null)?.[0] || null
-      setHomepageAnnouncement(upcomingAnnouncement?.message?.trim() || null)
+      setHomepageAnnouncement(
+        upcomingAnnouncement?.message?.trim()
+          ? {
+              ...upcomingAnnouncement,
+              message: upcomingAnnouncement.message.trim(),
+            }
+          : null
+      )
     }
 
     void loadHomepageAnnouncement()
@@ -439,6 +471,29 @@ function PlayPageContent() {
       cancelled = true
     }
   }, [today])
+
+  async function submitHomepageSurvey(choice: string) {
+    if (!homepageAnnouncement?.id || submittedHomepageSurveyChoice || isSubmittingHomepageSurvey) return
+
+    setIsSubmittingHomepageSurvey(true)
+
+    try {
+      if (!isLocalhostBrowser()) {
+        await supabase.from('homepage_announcement_responses').insert({
+          announcement_id: homepageAnnouncement.id,
+          response: choice,
+          session_id: getSessionId() || null,
+        })
+      }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(`${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageAnnouncement.id}`, choice)
+      }
+      setSubmittedHomepageSurveyChoice(choice)
+    } finally {
+      setIsSubmittingHomepageSurvey(false)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -1151,7 +1206,7 @@ function PlayPageContent() {
   const latestFindingIndex =
     !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
   const homepageAnnouncementKey = homepageAnnouncement
-    ? `${today}:${homepageAnnouncement}`
+    ? `${homepageAnnouncement.id}:${homepageAnnouncement.message}`
     : null
   const showHomepageAnnouncement =
     onTodayCard &&
@@ -1381,7 +1436,7 @@ function PlayPageContent() {
           <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-start justify-between gap-3">
               <p className="flex-1 text-[13px] leading-5 text-[#102018] sm:text-[14px]">
-                {homepageAnnouncement}
+                {homepageAnnouncement.message}
               </p>
               <button
                 type="button"
@@ -1392,6 +1447,33 @@ function PlayPageContent() {
                 <span className="-mt-px">×</span>
               </button>
             </div>
+            {homepageAnnouncement.survey_enabled && (
+              <div className="mt-3 rounded-xl border border-[#ead9b7] bg-white px-3 py-3">
+                <div className="text-center text-[12px] font-medium leading-5 text-[#102018]">
+                  To tailor my questions most effectively, what level of training are you?
+                </div>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  {HOMEPAGE_SURVEY_OPTIONS.map(option => {
+                    const isSelected = submittedHomepageSurveyChoice === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => void submitHomepageSurvey(option.value)}
+                        disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
+                        className={`rounded-lg border px-3 py-2 text-[11px] font-semibold transition ${
+                          isSelected
+                            ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                            : 'border-[#ded7ca] bg-[#fbfaf7] text-[#102018] hover:bg-white'
+                        } disabled:cursor-not-allowed disabled:opacity-80`}
+                      >
+                        {isSelected ? 'Selected' : option.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
