@@ -505,7 +505,7 @@ function PlayPageContent() {
       setHomepageSurveyStatus('Thanks for responding!')
       window.setTimeout(() => {
         dismissHomepageSurvey()
-      }, 900)
+      }, 1900)
     } finally {
       setIsSubmittingHomepageSurvey(false)
     }
@@ -1529,45 +1529,35 @@ function PlayPageContent() {
 
         {showHomepageSurvey && homepageSurvey && (
           <div className="mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex-1">
-                <div className="text-center text-[10px] font-medium leading-[1.35] text-[#102018] sm:text-[13px]">
-                  {homepageSurvey.question}
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-1.5">
-                  {[homepageSurvey.option_1, homepageSurvey.option_2, homepageSurvey.option_3].map(option => {
-                    const isSelected = submittedHomepageSurveyChoice === option
-                    return (
-                      <button
-                        key={option}
-                        type="button"
-                        onClick={() => void submitHomepageSurvey(option)}
-                        disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
-                        className={`min-w-0 rounded-lg border px-1.5 py-1 text-[7px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
-                          isSelected
-                            ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                            : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-                        } disabled:cursor-not-allowed disabled:opacity-80`}
-                      >
-                        {option}
-                      </button>
-                    )
-                  })}
-                </div>
-                {homepageSurveyStatus && (
-                  <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
-                    {homepageSurveyStatus}
-                  </p>
-                )}
+            <div className="mx-auto max-w-[430px]">
+              <div className="text-center text-[10px] font-medium leading-[1.35] text-[#102018] sm:text-[13px]">
+                {homepageSurvey.question}
               </div>
-              <button
-                type="button"
-                onClick={dismissHomepageSurvey}
-                aria-label="Dismiss survey"
-                className="shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ead9b7] bg-white text-[11px] font-medium leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018] sm:h-6 sm:w-6 sm:text-[13px]"
-              >
-                <span className="-mt-px">×</span>
-              </button>
+              <div className="mt-2 grid grid-cols-3 gap-1.5">
+                {[homepageSurvey.option_1, homepageSurvey.option_2, homepageSurvey.option_3].map(option => {
+                  const isSelected = submittedHomepageSurveyChoice === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => void submitHomepageSurvey(option)}
+                      disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
+                      className={`min-w-0 rounded-lg border px-1.5 py-1 text-[7px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
+                        isSelected
+                          ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                          : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                      } disabled:cursor-not-allowed disabled:opacity-80`}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+              {homepageSurveyStatus && (
+                <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
+                  {homepageSurveyStatus}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1855,7 +1845,7 @@ function PlayPageContent() {
                   <div className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                     How was the case?
                   </div>
-                  <div className="flex flex-wrap justify-center gap-2">
+                  <div className="mx-auto grid max-w-[320px] grid-cols-2 gap-2 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
                     {FEEDBACK_TAG_OPTIONS.map(tag => {
                       const alreadySent = submittedReactionTags.includes(tag)
                       const isPositiveReaction = tag === 'Great case'
@@ -1870,7 +1860,7 @@ function PlayPageContent() {
                             (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
                             (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
                           }
-                          className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition ${
+                          className={`w-full rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition sm:w-auto ${
                             submittingReaction === tag
                               ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
                               : alreadySent
@@ -1894,7 +1884,7 @@ function PlayPageContent() {
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
                       placeholder="Share any feedback on the site here"
-                      className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
+                      className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[11px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
                     />
                     <button
                       type="button"
