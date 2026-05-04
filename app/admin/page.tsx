@@ -147,13 +147,19 @@ type HomepageAnnouncementRow = {
   message: string
   start_date: string
   end_date: string | null
-  survey_enabled: boolean | null
   created_at: string
-  survey_counts?: {
-    med_student: number
-    resident: number
-    attending: number
-  }
+}
+
+type HomepageSurveyRow = {
+  id: string
+  question: string
+  option_1: string
+  option_2: string
+  option_3: string
+  start_date: string
+  end_date: string | null
+  created_at: string
+  response_counts?: Record<string, number>
 }
 
 const today = todayISO()
@@ -225,8 +231,15 @@ export default function AdminPage() {
   const [announcementMessage, setAnnouncementMessage] = useState('')
   const [announcementStartDate, setAnnouncementStartDate] = useState(shiftISODate(today, 1))
   const [announcementEndDate, setAnnouncementEndDate] = useState(shiftISODate(today, 1))
-  const [announcementSurveyEnabled, setAnnouncementSurveyEnabled] = useState(false)
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
+  const [homepageSurveys, setHomepageSurveys] = useState<HomepageSurveyRow[]>([])
+  const [surveyQuestion, setSurveyQuestion] = useState('To tailor my questions most effectively, what level of training are you?')
+  const [surveyOption1, setSurveyOption1] = useState('Med Student')
+  const [surveyOption2, setSurveyOption2] = useState('Resident')
+  const [surveyOption3, setSurveyOption3] = useState('Attending')
+  const [surveyStartDate, setSurveyStartDate] = useState(shiftISODate(today, 1))
+  const [surveyEndDate, setSurveyEndDate] = useState(shiftISODate(today, 1))
+  const [editingSurveyId, setEditingSurveyId] = useState<string | null>(null)
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
@@ -248,6 +261,7 @@ export default function AdminPage() {
     loadSubmissionSummary()
     loadFeedbackSummary()
     loadHomepageAnnouncements()
+    loadHomepageSurveys()
   }, [isUnlocked])
 
   useEffect(() => {
@@ -288,10 +302,6 @@ export default function AdminPage() {
     return baseDates
   }, [browseDate, groupedCases])
   const tomorrow = shiftISODate(today, 1)
-  const surveyAnnouncements = useMemo(
-    () => homepageAnnouncements.filter(item => item.survey_enabled),
-    [homepageAnnouncements]
-  )
 
   const todaysCases = useMemo(
     () => groupedCases.find(group => group.date === today)?.items || [],
@@ -927,48 +937,49 @@ export default function AdminPage() {
   async function loadHomepageAnnouncements() {
     const { data } = await supabase
       .from('homepage_announcements')
-      .select('id, message, start_date, end_date, survey_enabled, created_at')
+      .select('id, message, start_date, end_date, created_at')
       .order('start_date', { ascending: false })
-    const announcements = (data as HomepageAnnouncementRow[] | null) || []
+    setHomepageAnnouncements((data as HomepageAnnouncementRow[] | null) || [])
+  }
 
-    const surveyIds = announcements.filter(item => item.survey_enabled).map(item => item.id)
-    if (surveyIds.length === 0) {
-      setHomepageAnnouncements(announcements)
+  async function loadHomepageSurveys() {
+    const { data } = await supabase
+      .from('homepage_surveys')
+      .select('id, question, option_1, option_2, option_3, start_date, end_date, created_at')
+      .order('start_date', { ascending: false })
+
+    const surveys = (data as HomepageSurveyRow[] | null) || []
+    if (surveys.length === 0) {
+      setHomepageSurveys([])
       return
     }
 
+    const surveyIds = surveys.map(item => item.id)
     const { data: responseData } = await supabase
-      .from('homepage_announcement_responses')
-      .select('announcement_id, response')
-      .in('announcement_id', surveyIds)
+      .from('homepage_survey_responses')
+      .select('survey_id, response')
+      .in('survey_id', surveyIds)
 
-    const countsByAnnouncement = new Map<
-      string,
-      { med_student: number; resident: number; attending: number }
-    >()
+    const countsBySurvey = new Map<string, Record<string, number>>()
 
-    for (const row of responseData || []) {
-      const existing = countsByAnnouncement.get(row.announcement_id) || {
-        med_student: 0,
-        resident: 0,
-        attending: 0,
-      }
-
-      if (row.response === 'med_student') existing.med_student += 1
-      if (row.response === 'resident') existing.resident += 1
-      if (row.response === 'attending') existing.attending += 1
-
-      countsByAnnouncement.set(row.announcement_id, existing)
+    for (const survey of surveys) {
+      countsBySurvey.set(survey.id, {
+        [survey.option_1]: 0,
+        [survey.option_2]: 0,
+        [survey.option_3]: 0,
+      })
     }
 
-    setHomepageAnnouncements(
-      announcements.map(item => ({
+    for (const row of responseData || []) {
+      const existing = countsBySurvey.get(row.survey_id)
+      if (!existing) continue
+      existing[row.response] = (existing[row.response] || 0) + 1
+    }
+
+    setHomepageSurveys(
+      surveys.map(item => ({
         ...item,
-        survey_counts: countsByAnnouncement.get(item.id) || {
-          med_student: 0,
-          resident: 0,
-          attending: 0,
-        },
+        response_counts: countsBySurvey.get(item.id) || {},
       }))
     )
   }
@@ -978,7 +989,6 @@ export default function AdminPage() {
     setAnnouncementMessage('')
     setAnnouncementStartDate(tomorrow)
     setAnnouncementEndDate(tomorrow)
-    setAnnouncementSurveyEnabled(false)
   }
 
   async function saveHomepageAnnouncement() {
@@ -993,7 +1003,6 @@ export default function AdminPage() {
       message: trimmedMessage,
       start_date: announcementStartDate,
       end_date: announcementEndDate || null,
-      survey_enabled: announcementSurveyEnabled,
     }
 
     const result = editingAnnouncementId
@@ -1015,7 +1024,6 @@ export default function AdminPage() {
     setAnnouncementMessage(item.message)
     setAnnouncementStartDate(item.start_date)
     setAnnouncementEndDate(item.end_date || item.start_date)
-    setAnnouncementSurveyEnabled(Boolean(item.survey_enabled))
     setStatus('')
   }
 
@@ -1033,6 +1041,77 @@ export default function AdminPage() {
 
     setStatus('Homepage note deleted.')
     setHomepageAnnouncements(prev => prev.filter(item => item.id !== id))
+  }
+
+  function resetSurveyForm() {
+    setEditingSurveyId(null)
+    setSurveyQuestion('To tailor my questions most effectively, what level of training are you?')
+    setSurveyOption1('Med Student')
+    setSurveyOption2('Resident')
+    setSurveyOption3('Attending')
+    setSurveyStartDate(tomorrow)
+    setSurveyEndDate(tomorrow)
+  }
+
+  async function saveHomepageSurvey() {
+    const question = surveyQuestion.trim()
+    const option1 = surveyOption1.trim()
+    const option2 = surveyOption2.trim()
+    const option3 = surveyOption3.trim()
+
+    if (!question || !option1 || !option2 || !option3) {
+      setStatus('Add a survey question and all three answer choices before saving.')
+      return
+    }
+
+    const payload = {
+      question,
+      option_1: option1,
+      option_2: option2,
+      option_3: option3,
+      start_date: surveyStartDate,
+      end_date: surveyEndDate || null,
+    }
+
+    const result = editingSurveyId
+      ? await supabase.from('homepage_surveys').update(payload).eq('id', editingSurveyId)
+      : await supabase.from('homepage_surveys').insert(payload)
+
+    if (result.error) {
+      setStatus('Could not save the homepage survey.')
+      return
+    }
+
+    setStatus(editingSurveyId ? 'Homepage survey updated.' : 'Homepage survey scheduled.')
+    resetSurveyForm()
+    await loadHomepageSurveys()
+  }
+
+  function editHomepageSurvey(item: HomepageSurveyRow) {
+    setEditingSurveyId(item.id)
+    setSurveyQuestion(item.question)
+    setSurveyOption1(item.option_1)
+    setSurveyOption2(item.option_2)
+    setSurveyOption3(item.option_3)
+    setSurveyStartDate(item.start_date)
+    setSurveyEndDate(item.end_date || item.start_date)
+    setStatus('')
+  }
+
+  async function deleteHomepageSurvey(id: string) {
+    const { error } = await supabase.from('homepage_surveys').delete().eq('id', id)
+
+    if (error) {
+      setStatus('Could not delete the homepage survey.')
+      return
+    }
+
+    if (editingSurveyId === id) {
+      resetSurveyForm()
+    }
+
+    setStatus('Homepage survey deleted.')
+    setHomepageSurveys(prev => prev.filter(item => item.id !== id))
   }
 
   async function loadCaseCommunityStats() {
@@ -2109,16 +2188,6 @@ Pearl: Knee pain in teens -> always check the hip`}
                   </label>
                 </div>
 
-                <label className="flex items-center gap-2 rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018]">
-                  <input
-                    type="checkbox"
-                    checked={announcementSurveyEnabled}
-                    onChange={e => setAnnouncementSurveyEnabled(e.target.checked)}
-                    className="h-4 w-4 rounded border-[#ded7ca] text-[#1f6448] focus:ring-[#1f6448]/20"
-                  />
-                  <span>Add the training survey</span>
-                </label>
-
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -2145,23 +2214,6 @@ Pearl: Knee pain in teens -> always check the hip`}
                   <p className="mt-2 text-[13px] leading-5 text-[#102018]">
                     {announcementMessage.trim() || 'Your scheduled homepage note will preview here.'}
                   </p>
-                  {announcementSurveyEnabled && (
-                    <div className="mt-3 rounded-xl border border-[#ded7ca] bg-white px-3 py-3">
-                      <div className="text-center text-[12px] font-medium leading-5 text-[#102018]">
-                        To tailor my questions most effectively, what level of training are you?
-                      </div>
-                      <div className="mt-3 flex flex-wrap justify-center gap-2">
-                        {['Med Student', 'Resident', 'Attending'].map(option => (
-                          <div
-                            key={option}
-                            className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold text-[#102018]"
-                          >
-                            {option}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -2171,11 +2223,6 @@ Pearl: Knee pain in teens -> always check the hip`}
                       className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
                     >
                       <p className="text-sm leading-5 text-[#102018]">{item.message}</p>
-                      {item.survey_enabled && (
-                        <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
-                          Includes training survey
-                        </p>
-                      )}
                       <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
                         {item.start_date}
                         {item.end_date && item.end_date !== item.start_date
@@ -2201,58 +2248,154 @@ Pearl: Knee pain in teens -> always check the hip`}
                     </div>
                   ))}
                 </div>
+              </div>
+            </section>
 
-                {surveyAnnouncements.length > 0 && (
-                  <div className="rounded-2xl border border-[#e7e1d6] bg-white p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                      Surveys
-                    </div>
-                    <div className="mt-3 space-y-3">
-                      {surveyAnnouncements.map(item => (
-                        <div
-                          key={`survey-${item.id}`}
-                          className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
-                        >
-                          <div className="text-[12px] font-semibold leading-5 text-[#102018]">
-                            To tailor my questions most effectively, what level of training are you?
-                          </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
-                            {item.start_date}
-                            {item.end_date && item.end_date !== item.start_date
-                              ? ` to ${item.end_date}`
-                              : ''}
-                          </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                            <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                                Med student
-                              </div>
-                              <div className="mt-1 text-sm font-semibold text-[#102018]">
-                                {item.survey_counts?.med_student ?? 0}
-                              </div>
-                            </div>
-                            <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                                Resident
-                              </div>
-                              <div className="mt-1 text-sm font-semibold text-[#102018]">
-                                {item.survey_counts?.resident ?? 0}
-                              </div>
-                            </div>
-                            <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                                Attending
-                              </div>
-                              <div className="mt-1 text-sm font-semibold text-[#102018]">
-                                {item.survey_counts?.attending ?? 0}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="font-serif text-xl font-bold">Surveys</h2>
+                <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                  {homepageSurveys.length} scheduled
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-2.5">
+                <textarea
+                  value={surveyQuestion}
+                  onChange={e => setSurveyQuestion(e.target.value)}
+                  rows={2}
+                  placeholder="Add your survey question"
+                  className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <input
+                    type="text"
+                    value={surveyOption1}
+                    onChange={e => setSurveyOption1(e.target.value)}
+                    placeholder="Option 1"
+                    className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                  <input
+                    type="text"
+                    value={surveyOption2}
+                    onChange={e => setSurveyOption2(e.target.value)}
+                    placeholder="Option 2"
+                    className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                  <input
+                    type="text"
+                    value={surveyOption3}
+                    onChange={e => setSurveyOption3(e.target.value)}
+                    placeholder="Option 3"
+                    className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                    Start
+                    <input
+                      type="date"
+                      value={surveyStartDate}
+                      onChange={e => setSurveyStartDate(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                    />
+                  </label>
+
+                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                    End
+                    <input
+                      type="date"
+                      value={surveyEndDate}
+                      onChange={e => setSurveyEndDate(e.target.value)}
+                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void saveHomepageSurvey()}
+                    className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
+                  >
+                    {editingSurveyId ? 'Update survey' : 'Schedule survey'}
+                  </button>
+                  {editingSurveyId && (
+                    <button
+                      type="button"
+                      onClick={resetSurveyForm}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Survey preview
                   </div>
-                )}
+                  <div className="mt-2 text-[13px] leading-5 text-[#102018]">
+                    {surveyQuestion.trim() || 'Your scheduled survey will preview here.'}
+                  </div>
+                  <div className="mt-3 flex flex-wrap justify-center gap-2">
+                    {[surveyOption1, surveyOption2, surveyOption3].map((option, index) => (
+                      <div
+                        key={`${option}-${index}`}
+                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[11px] font-semibold text-[#102018]"
+                      >
+                        {option.trim() || `Option ${index + 1}`}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  {homepageSurveys.map(item => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
+                    >
+                      <p className="text-sm leading-5 font-semibold text-[#102018]">{item.question}</p>
+                      <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                        {item.start_date}
+                        {item.end_date && item.end_date !== item.start_date
+                          ? ` to ${item.end_date}`
+                          : ''}
+                      </p>
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                        {[item.option_1, item.option_2, item.option_3].map(option => (
+                          <div key={option} className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                              {option}
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-[#102018]">
+                              {item.response_counts?.[option] ?? 0}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editHomepageSurvey(item)}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteHomepageSurvey(item.id)}
+                          className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
 

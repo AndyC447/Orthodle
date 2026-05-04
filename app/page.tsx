@@ -59,19 +59,24 @@ type HomepageAnnouncementRow = {
   message: string
   start_date: string
   end_date: string | null
-  survey_enabled?: boolean | null
+}
+
+type HomepageSurveyRow = {
+  id: string
+  question: string
+  option_1: string
+  option_2: string
+  option_3: string
+  start_date: string
+  end_date: string | null
 }
 
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
+const HOMEPAGE_SURVEY_DISMISS_KEY = 'orthodle_dismissed_homepage_survey'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
 const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
-const HOMEPAGE_SURVEY_OPTIONS = [
-  { value: 'med_student', label: 'Med Student' },
-  { value: 'resident', label: 'Resident' },
-  { value: 'attending', label: 'Attending' },
-] as const
 
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
@@ -234,6 +239,8 @@ function PlayPageContent() {
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
+  const [homepageSurvey, setHomepageSurvey] = useState<HomepageSurveyRow | null>(null)
+  const [dismissedHomepageSurveyKey, setDismissedHomepageSurveyKey] = useState<string | null>(null)
   const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
   const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -279,6 +286,9 @@ function PlayPageContent() {
     setDismissedHomepageAnnouncementKey(
       window.localStorage.getItem(HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY)
     )
+    setDismissedHomepageSurveyKey(
+      window.localStorage.getItem(HOMEPAGE_SURVEY_DISMISS_KEY)
+    )
     setShowTutorial(!window.localStorage.getItem(TUTORIAL_DISMISS_KEY))
   }, [])
 
@@ -312,16 +322,16 @@ function PlayPageContent() {
   }, [dailyCase])
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !homepageAnnouncement?.id) {
+    if (typeof window === 'undefined' || !homepageSurvey?.id) {
       setSubmittedHomepageSurveyChoice(null)
       return
     }
 
     const saved = window.localStorage.getItem(
-      `${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageAnnouncement.id}`
+      `${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageSurvey.id}`
     )
     setSubmittedHomepageSurveyChoice(saved || null)
-  }, [homepageAnnouncement])
+  }, [homepageSurvey])
 
   useEffect(() => {
     let cancelled = false
@@ -422,7 +432,7 @@ function PlayPageContent() {
 
       const { data } = await supabase
         .from('homepage_announcements')
-        .select('id, message, start_date, end_date, survey_enabled')
+        .select('id, message, start_date, end_date')
         .lte('start_date', today)
         .or(`end_date.is.null,end_date.gte.${today}`)
         .order('start_date', { ascending: false })
@@ -447,7 +457,7 @@ function PlayPageContent() {
 
       const { data: upcomingData } = await supabase
         .from('homepage_announcements')
-        .select('id, message, start_date, end_date, survey_enabled')
+        .select('id, message, start_date, end_date')
         .gte('start_date', today)
         .order('start_date', { ascending: true })
         .limit(1)
@@ -473,27 +483,75 @@ function PlayPageContent() {
   }, [today])
 
   async function submitHomepageSurvey(choice: string) {
-    if (!homepageAnnouncement?.id || submittedHomepageSurveyChoice || isSubmittingHomepageSurvey) return
+    if (!homepageSurvey?.id || submittedHomepageSurveyChoice || isSubmittingHomepageSurvey) return
 
     setIsSubmittingHomepageSurvey(true)
 
     try {
       if (!isLocalhostBrowser()) {
-        await supabase.from('homepage_announcement_responses').insert({
-          announcement_id: homepageAnnouncement.id,
+        await supabase.from('homepage_survey_responses').insert({
+          survey_id: homepageSurvey.id,
           response: choice,
           session_id: getSessionId() || null,
         })
       }
 
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(`${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageAnnouncement.id}`, choice)
+        window.localStorage.setItem(`${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageSurvey.id}`, choice)
       }
       setSubmittedHomepageSurveyChoice(choice)
     } finally {
       setIsSubmittingHomepageSurvey(false)
     }
   }
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadHomepageSurvey() {
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+      const { data } = await supabase
+        .from('homepage_surveys')
+        .select('id, question, option_1, option_2, option_3, start_date, end_date')
+        .lte('start_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order('start_date', { ascending: false })
+        .limit(1)
+
+      if (cancelled) return
+
+      const activeSurvey = (data as HomepageSurveyRow[] | null)?.[0] || null
+      if (activeSurvey?.question?.trim()) {
+        setHomepageSurvey(activeSurvey)
+        return
+      }
+
+      if (!isLocalhost) {
+        setHomepageSurvey(null)
+        return
+      }
+
+      const { data: upcomingData } = await supabase
+        .from('homepage_surveys')
+        .select('id, question, option_1, option_2, option_3, start_date, end_date')
+        .gte('start_date', today)
+        .order('start_date', { ascending: true })
+        .limit(1)
+
+      if (cancelled) return
+
+      setHomepageSurvey((upcomingData as HomepageSurveyRow[] | null)?.[0] || null)
+    }
+
+    void loadHomepageSurvey()
+
+    return () => {
+      cancelled = true
+    }
+  }, [today])
 
   useEffect(() => {
     let cancelled = false
@@ -1208,15 +1266,28 @@ function PlayPageContent() {
   const homepageAnnouncementKey = homepageAnnouncement
     ? `${homepageAnnouncement.id}:${homepageAnnouncement.message}`
     : null
+  const homepageSurveyKey = homepageSurvey
+    ? `${homepageSurvey.id}:${homepageSurvey.question}`
+    : null
   const showHomepageAnnouncement =
     onTodayCard &&
     Boolean(homepageAnnouncement) &&
     homepageAnnouncementKey !== dismissedHomepageAnnouncementKey
+  const showHomepageSurvey =
+    onTodayCard &&
+    Boolean(homepageSurvey) &&
+    homepageSurveyKey !== dismissedHomepageSurveyKey
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
     window.localStorage.setItem(HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY, homepageAnnouncementKey)
     setDismissedHomepageAnnouncementKey(homepageAnnouncementKey)
+  }
+
+  function dismissHomepageSurvey() {
+    if (!homepageSurveyKey || typeof window === 'undefined') return
+    window.localStorage.setItem(HOMEPAGE_SURVEY_DISMISS_KEY, homepageSurveyKey)
+    setDismissedHomepageSurveyKey(homepageSurveyKey)
   }
 
   function dismissTutorial() {
@@ -1447,33 +1518,46 @@ function PlayPageContent() {
                 <span className="-mt-px">×</span>
               </button>
             </div>
-            {homepageAnnouncement.survey_enabled && (
-              <div className="mt-3 rounded-xl border border-[#ead9b7] bg-white px-3 py-3">
-                <div className="text-center text-[12px] font-medium leading-5 text-[#102018]">
-                  To tailor my questions most effectively, what level of training are you?
+          </div>
+        )}
+
+        {showHomepageSurvey && homepageSurvey && (
+          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1">
+                <div className="text-center text-[12px] font-medium leading-5 text-[#102018] sm:text-[14px]">
+                  {homepageSurvey.question}
                 </div>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
-                  {HOMEPAGE_SURVEY_OPTIONS.map(option => {
-                    const isSelected = submittedHomepageSurveyChoice === option.value
+                  {[homepageSurvey.option_1, homepageSurvey.option_2, homepageSurvey.option_3].map(option => {
+                    const isSelected = submittedHomepageSurveyChoice === option
                     return (
                       <button
-                        key={option.value}
+                        key={option}
                         type="button"
-                        onClick={() => void submitHomepageSurvey(option.value)}
+                        onClick={() => void submitHomepageSurvey(option)}
                         disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
-                        className={`rounded-lg border px-3 py-2 text-[11px] font-semibold transition ${
+                        className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition ${
                           isSelected
                             ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                            : 'border-[#ded7ca] bg-[#fbfaf7] text-[#102018] hover:bg-white'
+                            : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
                         } disabled:cursor-not-allowed disabled:opacity-80`}
                       >
-                        {isSelected ? 'Selected' : option.label}
+                        {option}
                       </button>
                     )
                   })}
                 </div>
               </div>
-            )}
+              <button
+                type="button"
+                onClick={dismissHomepageSurvey}
+                aria-label="Dismiss survey"
+                className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#ead9b7] bg-white text-[13px] font-medium leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018]"
+              >
+                <span className="-mt-px">×</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -1775,7 +1859,7 @@ function PlayPageContent() {
                             (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
                             (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
                           }
-                          className={`rounded-lg border px-3 py-2 text-[11px] font-semibold transition ${
+                          className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition ${
                             submittingReaction === tag
                               ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
                               : alreadySent
