@@ -1395,6 +1395,26 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-fade-up {
+          0% {
+            opacity: 0;
+            transform: translateY(8px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes orthodle-soft-shimmer {
+          0% {
+            background-position: 200% 0;
+          }
+          100% {
+            background-position: -200% 0;
+          }
+        }
+
         .orthodle-shake {
           animation: orthodle-shake 0.42s ease-in-out;
         }
@@ -1427,6 +1447,21 @@ function PlayPageContent() {
 
         .orthodle-answer-pop {
           animation: orthodle-answer-pop 0.5s ease-out both;
+        }
+
+        .orthodle-fade-up {
+          animation: orthodle-fade-up 0.32s ease-out both;
+        }
+
+        .orthodle-skeleton {
+          background: linear-gradient(
+            90deg,
+            rgba(222, 215, 202, 0.45) 0%,
+            rgba(247, 244, 238, 0.9) 50%,
+            rgba(222, 215, 202, 0.45) 100%
+          );
+          background-size: 200% 100%;
+          animation: orthodle-soft-shimmer 1.6s linear infinite;
         }
 
       `}</style>
@@ -1556,7 +1591,7 @@ function PlayPageContent() {
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (
-          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="orthodle-fade-up mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-start justify-between gap-3">
               <p className="flex-1 text-[13px] leading-5 text-[#102018] sm:text-[14px]">
                 {homepageAnnouncement.message}
@@ -1574,7 +1609,7 @@ function PlayPageContent() {
         )}
 
         {showHomepageSurvey && homepageSurvey && (
-          <div className="mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="mx-auto max-w-[430px]">
               <div className="text-center text-[10px] font-medium leading-[1.35] text-[#102018] sm:text-[13px]">
                 {homepageSurvey.question}
@@ -1656,11 +1691,14 @@ function PlayPageContent() {
 
               <div className="mt-1 sm:mt-2.5">
                 {loading ? (
-                  <p className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
-                    Loading...
-                  </p>
+                  <div className="space-y-3 py-1">
+                    <div className="orthodle-skeleton h-4 w-16 rounded-full" />
+                    <div className="orthodle-skeleton h-8 w-full rounded-lg" />
+                    <div className="orthodle-skeleton h-8 w-[92%] rounded-lg" />
+                    <div className="orthodle-skeleton h-8 w-[88%] rounded-lg" />
+                  </div>
                 ) : dailyCase ? (
-                  <div className="space-y-0">
+                  <div key={dailyCase.id} className="orthodle-fade-up space-y-0">
                     {renderCasePrompt(dailyCase.prompt)}
                   </div>
                 ) : (
@@ -1684,7 +1722,7 @@ function PlayPageContent() {
                     </button>
                   </div>
                 ) : (
-                  <div className="night-soft-surface mt-3.5 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
+                  <div className="orthodle-fade-up night-soft-surface mt-3.5 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
