@@ -1562,44 +1562,45 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto grid max-w-lg grid-cols-3 rounded-[22px] border border-[#e6dfd3] bg-white p-1 shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${hasMobileInteraction ? 'mt-2' : 'mt-2.5'}`}>
-          {levels.map(level => {
-            const active = selectedLevel === level.key
+        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${hasMobileInteraction ? 'mt-2' : 'mt-2.5'}`}>
+          <div className="grid grid-cols-3 gap-1.5 rounded-[24px] bg-white p-2">
+            {levels.map(level => {
+              const active = selectedLevel === level.key
 
-            return (
-              <button
-                key={level.key}
-                onClick={() => setSelectedLevel(level.key)}
-                className={
-                  active
-                    ? `rounded-[18px] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
-                    : `rounded-[18px] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
-                }
-              >
-                <div className="font-serif text-[12px] font-bold leading-none sm:text-[13px]">
-                  {level.label}
-                </div>
-
-                <div
+              return (
+                <button
+                  key={level.key}
+                  onClick={() => setSelectedLevel(level.key)}
                   className={
                     active
-                      ? 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
-                      : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
+                      ? `rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
+                      : `rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
                   }
                 >
-                  {selectedTaglines[level.key]}
-                </div>
-              </button>
-            )
-          })}
+                  <div className="font-serif text-[12px] font-bold leading-none sm:text-[13px]">
+                    {level.label}
+                  </div>
+
+                  <div
+                    className={
+                      active
+                        ? 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
+                        : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
+                    }
+                  >
+                    {selectedTaglines[level.key]}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
       </section>
 
       <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-4 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
         <section className="space-y-4">
-          <div className="rounded-2xl bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1px] shadow-[0_8px_18px_rgba(16,32,24,0.04)]">
-            <div className="rounded-[15px] bg-white p-3 sm:px-3.5 sm:py-4">
+          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:px-3.5 sm:py-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
@@ -1753,7 +1754,6 @@ function PlayPageContent() {
                   </p>
                 )}
               </div>
-            </div>
           </div>
 
           {roundComplete && dailyCase && (
