@@ -1638,14 +1638,14 @@ function PlayPageContent() {
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-3.5 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
+                  <div className="night-soft-surface mt-3.5 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                         Imaging
                       </div>
 
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="hidden items-center justify-end gap-1.5 sm:flex">
                         <button
                           onClick={() => setImageHidden(true)}
                           className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
@@ -1660,7 +1660,7 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`}>
                           <button
                             onClick={openExpandedImage}
-                            className="flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
+                            className="night-surface flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
                           >
                             <img
                               src={image.url}
@@ -2010,7 +2010,7 @@ function PlayPageContent() {
 
               <button
                 onClick={closeExpandedImage}
-                className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#102018] transition hover:bg-white"
+                className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px] sm:tracking-[0.18em]"
               >
                 Minimize
               </button>
