@@ -207,6 +207,7 @@ function PlayPageContent() {
   const caseParam = searchParams.get('case')
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
+  const inputSectionRef = useRef<HTMLDivElement | null>(null)
   const imageTouchStartY = useRef<number | null>(null)
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
   const imagePinchStart = useRef<number | null>(null)
@@ -1201,6 +1202,19 @@ function PlayPageContent() {
   }, [unlockedFindings, roundComplete])
 
   useEffect(() => {
+    if (!isMobileInputFocused) return
+
+    const timeoutId = window.setTimeout(() => {
+      inputSectionRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+      })
+    }, 120)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [isMobileInputFocused])
+
+  useEffect(() => {
     if (!dailyCase || !roundComplete || guesses.length === 0) return
 
     recordGameResult({
@@ -1535,7 +1549,7 @@ function PlayPageContent() {
         </div>
       )}
 
-      <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-2 pb-0.5 sm:pb-1' : 'pt-3 pb-1'}`}>
+      <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {onTodayCard && todayComplete && (
           <div className="mx-auto mt-3 max-w-xl rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-4 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)]">
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f6448]">
@@ -1591,9 +1605,9 @@ function PlayPageContent() {
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (
-          <div className="orthodle-fade-up mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-3">
             <div className="flex items-start justify-between gap-3">
-              <p className="flex-1 text-[13px] leading-5 text-[#102018] sm:text-[14px]">
+              <p className="flex-1 text-[12px] leading-4.5 text-[#102018] sm:text-[14px] sm:leading-5">
                 {homepageAnnouncement.message}
               </p>
               <button
@@ -1611,10 +1625,10 @@ function PlayPageContent() {
         {showHomepageSurvey && homepageSurvey && (
           <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="mx-auto max-w-[430px]">
-              <div className="text-center text-[10px] font-medium leading-[1.35] text-[#102018] sm:text-[13px]">
+              <div className="text-center text-[9px] font-medium leading-[1.25] text-[#102018] sm:text-[13px]">
                 {homepageSurvey.question}
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-1.5">
+              <div className="mt-1.5 grid grid-cols-3 gap-1">
                 {[homepageSurvey.option_1, homepageSurvey.option_2, homepageSurvey.option_3].map(option => {
                   const isSelected = submittedHomepageSurveyChoice === option
                   return (
@@ -1623,7 +1637,7 @@ function PlayPageContent() {
                       type="button"
                       onClick={() => void submitHomepageSurvey(option)}
                       disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
-                      className={`min-w-0 rounded-lg border px-1.5 py-1 text-[7px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
+                      className={`min-w-0 rounded-lg border px-1 py-1 text-[6.5px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
                         isSelected
                           ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
                           : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
@@ -1643,8 +1657,8 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${hasMobileInteraction ? 'mt-2' : 'mt-2.5'}`}>
-          <div className="grid grid-cols-3 gap-1.5 rounded-[24px] bg-white p-2">
+        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${hasMobileInteraction ? 'mt-1.5' : 'mt-2'}`}>
+          <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-2">
             {levels.map(level => {
               const active = selectedLevel === level.key
 
@@ -1654,8 +1668,8 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(level.key)}
                   className={
                     active
-                      ? `rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
-                      : `rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
+                      ? `min-h-[64px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
+                      : `min-h-[64px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
                   }
                 >
                   <div className="font-serif text-[12px] font-bold leading-none sm:text-[13px]">
@@ -1679,9 +1693,9 @@ function PlayPageContent() {
 
       </section>
 
-      <div className={`mx-auto max-w-[700px] px-4 py-1.5 pb-4 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1' : ''}`}>
+      <div className={`mx-auto max-w-[700px] px-4 py-1 pb-3 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-0.5' : ''}`}>
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:px-3.5 sm:py-4">
+          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:px-3.5 sm:py-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
@@ -1722,7 +1736,7 @@ function PlayPageContent() {
                     </button>
                   </div>
                 ) : (
-                  <div className="orthodle-fade-up night-soft-surface mt-3.5 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
+                  <div className="orthodle-fade-up night-soft-surface mt-3 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -1764,7 +1778,7 @@ function PlayPageContent() {
                 )
               )}
 
-              <div ref={findingsRef} className="mt-3.5 border-t border-dashed border-[#ded7ca] pt-3">
+              <div ref={findingsRef} className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
                   <div />
                   <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
@@ -1773,7 +1787,7 @@ function PlayPageContent() {
                 </div>
 
                 {visibleFindings.length > 0 ? (
-                  <div className="mt-2.5 space-y-2">
+                  <div className="mt-2 space-y-2">
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
@@ -1795,7 +1809,7 @@ function PlayPageContent() {
                 )}
               </div>
 
-              <div className="mt-3.5 border-t border-[#ded7ca] pt-3">
+              <div ref={inputSectionRef} className="mt-3 border-t border-[#ded7ca] pt-2.5">
                 <div className="relative">
                   <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
                     <input
@@ -1804,7 +1818,11 @@ function PlayPageContent() {
                         setGuess(e.target.value)
                         setShowSuggestions(true)
                       }}
-                      onFocus={() => setShowSuggestions(true)}
+                      onFocus={() => {
+                        setShowSuggestions(true)
+                        setIsMobileInputFocused(true)
+                      }}
+                      onBlurCapture={() => setIsMobileInputFocused(false)}
                       onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
                       onKeyDown={e => e.key === 'Enter' && submitGuess()}
                       placeholder={
@@ -1815,13 +1833,13 @@ function PlayPageContent() {
                             : 'Type to narrow the diagnosis'
                       }
                       disabled={!dailyCase || gameWon || gameOver}
-                      className="flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                      className="min-h-[42px] flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
                     />
 
                     <button
                       onClick={submitGuess}
                       disabled={!dailyCase || gameWon || gameOver}
-                      className="rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                      className="min-h-[42px] rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                     >
                       Guess
                     </button>
@@ -1855,13 +1873,13 @@ function PlayPageContent() {
               ref={solvedCardRef}
               className={
                 pulseSuccess
-                  ? 'orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
-                  : 'night-surface rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
+                  ? 'orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  : 'night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
               }
             >
               <div className="mt-1">
                 <div className="text-center">
-                  <h3 className="orthodle-answer-pop font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448]">
+                  <h3 className="orthodle-answer-pop font-serif text-[23px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448] sm:text-[26px]">
                     {dailyCase.answer}
                   </h3>
                   {!gameWon && (
@@ -1872,7 +1890,7 @@ function PlayPageContent() {
                 </div>
               </div>
 
-              <div className="mt-3 space-y-3 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4">
+              <div className="mt-3 space-y-2.5 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-3">
                 {dailyCase.contributor_name && (
                   <div className="hidden rounded-full border border-[#dfe7e1] bg-[#fbfdfb] px-3 py-1 text-[11px] font-semibold text-[#315f4d] sm:inline-flex">
                     Contributed by {dailyCase.contributor_name}
@@ -1931,7 +1949,7 @@ function PlayPageContent() {
                   </div>
                 )}
 
-                <div className="night-soft-surface rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
+                <div className="night-soft-surface rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-2.5 sm:p-3">
                   <div className="night-label mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                     How was the case?
                   </div>
@@ -1968,19 +1986,19 @@ function PlayPageContent() {
                   {reactionStatus && (
                     <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
                   )}
-                  <div className="mt-3 flex gap-2">
+                  <div className="mt-2.5 flex gap-2">
                     <input
                       type="text"
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
                       placeholder="Share any feedback on the site here"
-                      className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[11px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
+                      className="min-h-[40px] min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[11px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
                     />
                     <button
                       type="button"
                       onClick={() => void submitTypedFeedback()}
                       disabled={isSavingFeedback}
-                      className="shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70"
+                      className="min-h-[40px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       {isSavingFeedback ? 'Sending...' : 'Send'}
                     </button>
@@ -2046,7 +2064,7 @@ function PlayPageContent() {
         <aside className="space-y-3">
           {!roundComplete && (
           <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
-            <div className="mb-2 flex justify-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
+            <div className="mb-1.5 flex justify-center text-[10px] font-bold uppercase tracking-[0.22em] text-[#102018]">
               <span>Your guesses</span>
             </div>
 
@@ -2060,15 +2078,15 @@ function PlayPageContent() {
                     className={
                       item
                         ? item.correct
-                          ? 'flex min-h-[48px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
-                          : 'flex min-h-[48px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
-                        : 'flex min-h-[46px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
+                          ? 'flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
+                          : 'flex min-h-[40px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
+                        : 'flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
                     }
                   >
-                    <span className="text-[9px] font-mono text-[#637268]">
+                    <span className="text-[8px] font-mono text-[#637268]">
                       {String(i + 1).padStart(2, '0')}
                     </span>
-                    <span className="mt-1 text-[10px] font-semibold">
+                    <span className="mt-0.5 text-[10px] font-semibold">
                       {item ? (item.correct ? '✓' : '×') : '•'}
                     </span>
                   </div>
