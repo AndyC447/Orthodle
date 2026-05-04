@@ -1522,13 +1522,13 @@ function PlayPageContent() {
         )}
 
         {showHomepageSurvey && homepageSurvey && (
-          <div className="mx-auto mt-3 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="flex items-start justify-between gap-3">
+          <div className="mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex-1">
-                <div className="text-center text-[12px] font-medium leading-5 text-[#102018] sm:text-[14px]">
+                <div className="text-center text-[11px] font-medium leading-[1.45] text-[#102018] sm:text-[13px]">
                   {homepageSurvey.question}
                 </div>
-                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <div className="mt-2 flex flex-wrap justify-center gap-1.5">
                   {[homepageSurvey.option_1, homepageSurvey.option_2, homepageSurvey.option_3].map(option => {
                     const isSelected = submittedHomepageSurveyChoice === option
                     return (
@@ -1537,7 +1537,7 @@ function PlayPageContent() {
                         type="button"
                         onClick={() => void submitHomepageSurvey(option)}
                         disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
-                        className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition ${
+                        className={`rounded-lg border px-2 py-1 text-[9px] font-semibold transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
                           isSelected
                             ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
                             : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
@@ -1553,7 +1553,7 @@ function PlayPageContent() {
                 type="button"
                 onClick={dismissHomepageSurvey}
                 aria-label="Dismiss survey"
-                className="shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border border-[#ead9b7] bg-white text-[13px] font-medium leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018]"
+                className="shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ead9b7] bg-white text-[12px] font-medium leading-none text-[#637268] transition hover:bg-[#fff8ef] hover:text-[#102018] sm:h-6 sm:w-6 sm:text-[13px]"
               >
                 <span className="-mt-px">×</span>
               </button>
