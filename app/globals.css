@@ -20,9 +20,12 @@ body {
 @media (max-width: 640px) {
   input,
   textarea,
-  select,
-  button {
+  select {
     font-size: 16px;
+  }
+
+  button {
+    font-size: 13px;
   }
 }
 

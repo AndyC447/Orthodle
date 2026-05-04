@@ -1543,7 +1543,7 @@ function PlayPageContent() {
                         type="button"
                         onClick={() => void submitHomepageSurvey(option)}
                         disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
-                        className={`min-w-0 rounded-lg border px-1.5 py-1 text-[8px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
+                        className={`min-w-0 rounded-lg border px-1.5 py-1 text-[7px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
                           isSelected
                             ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
                             : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
