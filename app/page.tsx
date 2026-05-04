@@ -1576,15 +1576,15 @@ function PlayPageContent() {
                     : `rounded-[18px] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
                 }
               >
-                <div className="font-serif text-[11px] font-bold leading-none sm:text-[13px]">
+                <div className="font-serif text-[12px] font-bold leading-none sm:text-[13px]">
                   {level.label}
                 </div>
 
                 <div
                   className={
                     active
-                      ? 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.16em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
-                      : 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.16em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
+                      ? 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
+                      : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
                   }
                 >
                   {selectedTaglines[level.key]}
