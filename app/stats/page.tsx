@@ -97,11 +97,11 @@ export default function StatsPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fbfaf7]">
+    <main className="app-surface min-h-screen">
       <Header />
 
       <section className="mx-auto max-w-5xl px-6 pt-6 pb-1">
-        <div className="overflow-hidden rounded-[28px] border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="night-surface overflow-hidden rounded-[28px] border border-[#e7e1d6] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="h-1.5 bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
 
           <div className="p-4 md:p-5">

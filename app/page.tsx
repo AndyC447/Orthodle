@@ -1303,7 +1303,7 @@ function PlayPageContent() {
   }
 
   return (
-    <main className="min-h-screen bg-[#fbfaf7]">
+    <main className="app-surface min-h-screen">
       <Header />
 
       <style jsx global>{`
@@ -1765,8 +1765,8 @@ function PlayPageContent() {
               ref={solvedCardRef}
               className={
                 pulseSuccess
-                  ? 'orthodle-success-pulse orthodle-win-glow rounded-2xl border border-[#d8e5dd] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
-                  : 'rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
+                  ? 'orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
+                  : 'night-surface rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]'
               }
             >
               <div className="mt-1">
@@ -1841,8 +1841,8 @@ function PlayPageContent() {
                   </div>
                 )}
 
-                <div className="rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
-                  <div className="mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                <div className="night-soft-surface rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-3">
+                  <div className="night-label mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                     How was the case?
                   </div>
                   <div className="mx-auto grid max-w-[320px] grid-cols-2 gap-2 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">

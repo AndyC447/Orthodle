@@ -1,12 +1,14 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const closeTimerRef = useRef<number | null>(null)
   const today = new Date()
+  const THEME_STORAGE_KEY = 'orthodle_theme'
 
   const dateStr = today.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -14,6 +16,20 @@ export function Header() {
     day: 'numeric',
     year: 'numeric',
   }).toUpperCase()
+
+  useEffect(() => {
+    const savedTheme =
+      (window.localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null) || 'light'
+    setTheme(savedTheme)
+    document.documentElement.dataset.theme = savedTheme
+  }, [])
+
+  function toggleTheme() {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    document.documentElement.dataset.theme = nextTheme
+    window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
+  }
 
   function openMenu() {
     if (closeTimerRef.current) {
@@ -49,11 +65,40 @@ export function Header() {
           {dateStr}
         </div>
 
-        <div
-          className="relative -m-2 p-2"
-          onMouseEnter={openMenu}
-          onMouseLeave={scheduleCloseMenu}
-        >
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'}
+            onClick={toggleTheme}
+            className="group flex h-10 w-10 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+          >
+            <span className="relative flex h-5 w-5 items-center justify-center overflow-hidden">
+              <span
+                className={`absolute text-[15px] leading-none transition-all duration-300 ${
+                  theme === 'dark'
+                    ? 'translate-y-0 scale-100 opacity-100'
+                    : '-translate-y-5 scale-75 opacity-0'
+                }`}
+              >
+                ☀
+              </span>
+              <span
+                className={`absolute text-[15px] leading-none transition-all duration-300 ${
+                  theme === 'dark'
+                    ? 'translate-y-5 scale-75 opacity-0'
+                    : 'translate-y-0 scale-100 opacity-100'
+                }`}
+              >
+                ☾
+              </span>
+            </span>
+          </button>
+
+          <div
+            className="relative -m-2 p-2"
+            onMouseEnter={openMenu}
+            onMouseLeave={scheduleCloseMenu}
+          >
           <button
             type="button"
             aria-expanded={menuOpen}
@@ -106,6 +151,7 @@ export function Header() {
               </div>
             </div>
           )}
+        </div>
         </div>
       </div>
     </header>

@@ -1334,11 +1334,11 @@ export default function AdminPage() {
 
   if (!isUnlocked) {
     return (
-      <main className="min-h-screen bg-[#fbfaf7]">
+      <main className="app-surface min-h-screen">
         <Header />
 
         <div className="mx-auto max-w-md px-6 py-12">
-          <section className="rounded-2xl border border-[#ded7ca] bg-white p-6 shadow-sm">
+          <section className="night-surface rounded-2xl border border-[#ded7ca] bg-white p-6 shadow-sm">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
               Admin Access
             </div>
@@ -1406,7 +1406,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        <section className="mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <section className="night-surface mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
@@ -1470,7 +1470,7 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <section className="night-surface mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
