@@ -422,6 +422,12 @@ export default function AdminPage() {
     }))
   }
 
+  function autoGrowTextarea(event: React.FormEvent<HTMLTextAreaElement>) {
+    const element = event.currentTarget
+    element.style.height = '0px'
+    element.style.height = `${element.scrollHeight}px`
+  }
+
   useEffect(() => {
     if (!isUnlocked) return
     void loadCaseCommunityStats()
@@ -2751,57 +2757,69 @@ export default function AdminPage() {
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Clue 1
-                    <input
+                    <textarea
                       value={clue1}
                       onChange={e => setClue1(e.target.value)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      onInput={autoGrowTextarea}
+                      rows={1}
+                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Clue 2
-                    <input
+                    <textarea
                       value={clue2}
                       onChange={e => setClue2(e.target.value)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      onInput={autoGrowTextarea}
+                      rows={1}
+                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Clue 3
-                    <input
+                    <textarea
                       value={clue3}
                       onChange={e => setClue3(e.target.value)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      onInput={autoGrowTextarea}
+                      rows={1}
+                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Clue 4
-                    <input
+                    <textarea
                       value={clue4}
                       onChange={e => setClue4(e.target.value)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      onInput={autoGrowTextarea}
+                      rows={1}
+                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Clue 5
-                    <input
+                    <textarea
                       value={clue5}
                       onChange={e => setClue5(e.target.value)}
                       placeholder="Optional"
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      onInput={autoGrowTextarea}
+                      rows={1}
+                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Clue 6
-                    <input
+                    <textarea
                       value={clue6}
                       onChange={e => setClue6(e.target.value)}
                       placeholder="Optional"
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      onInput={autoGrowTextarea}
+                      rows={1}
+                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
                 </div>
