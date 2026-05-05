@@ -7,6 +7,9 @@ export const metadata: Metadata = {
   title: 'Orthodle – Daily Orthopaedic Diagnosis Game',
   description:
     'Guess the orthopaedic diagnosis from clinical clues. A daily orthopaedic case game for medical students, residents, and attendings.',
+  alternates: {
+    canonical: '/',
+  },
   keywords: [
     'orthodle',
     'orthopedic cases',

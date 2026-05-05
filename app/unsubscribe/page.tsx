@@ -1,4 +1,17 @@
+import type { Metadata } from 'next'
 import { PublicFooter } from '@/components/PublicFooter'
+
+export const metadata: Metadata = {
+  title: 'Unsubscribe – Orthodle',
+  description: 'Manage Orthodle reminder email preferences.',
+  alternates: {
+    canonical: '/unsubscribe',
+  },
+  robots: {
+    index: false,
+    follow: false,
+  },
+}
 
 type UnsubscribePageProps = {
   searchParams: Promise<{
