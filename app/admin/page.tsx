@@ -70,6 +70,8 @@ type AnalyticsRow = {
   guesses: number
   correct_guesses: number
   unique_sessions: number
+  new_sessions: number
+  returning_sessions: number
 }
 
 type VisitAnalyticsRow = {
@@ -106,6 +108,8 @@ type AnalyticsSummary = {
   guessAccuracy: number
   averageGuessesPerUser: number
   todayUsers: number
+  todayNewUsers: number
+  todayReturningUsers: number
   todayGuesses: number
   todayCorrectGuesses: number
 }
@@ -916,6 +920,8 @@ export default function AdminPage() {
           guesses: 0,
           correct_guesses: 0,
           unique_sessions: 0,
+          new_sessions: 0,
+          returning_sessions: 0,
         }
       }
 
@@ -935,6 +941,8 @@ export default function AdminPage() {
           guesses: 0,
           correct_guesses: 0,
           unique_sessions: 0,
+          new_sessions: 0,
+          returning_sessions: 0,
         }
       }
 
@@ -947,6 +955,35 @@ export default function AdminPage() {
 
     for (const date of Object.keys(byDate)) {
       byDate[date].unique_sessions = sessionsByDate[date]?.size || 0
+    }
+
+    const firstSeenBySession = new Map<string, string>()
+    for (const [date, sessions] of Object.entries(sessionsByDate).sort((a, b) =>
+      a[0].localeCompare(b[0])
+    )) {
+      for (const sessionId of sessions) {
+        if (!firstSeenBySession.has(sessionId)) {
+          firstSeenBySession.set(sessionId, date)
+        }
+      }
+    }
+
+    for (const [date, sessions] of Object.entries(sessionsByDate)) {
+      let newSessions = 0
+      let returningSessions = 0
+
+      for (const sessionId of sessions) {
+        if (firstSeenBySession.get(sessionId) === date) {
+          newSessions += 1
+        } else {
+          returningSessions += 1
+        }
+      }
+
+      if (byDate[date]) {
+        byDate[date].new_sessions = newSessions
+        byDate[date].returning_sessions = returningSessions
+      }
     }
 
     const allSessions = new Set<string>()
@@ -1046,6 +1083,8 @@ export default function AdminPage() {
       guesses: 0,
       correct_guesses: 0,
       unique_sessions: 0,
+      new_sessions: 0,
+      returning_sessions: 0,
     }
 
     setAnalytics(
@@ -1064,6 +1103,8 @@ export default function AdminPage() {
       guessAccuracy: totalGuesses > 0 ? (totalCorrectGuesses / totalGuesses) * 100 : 0,
       averageGuessesPerUser: totalUniqueUsers > 0 ? totalGuesses / totalUniqueUsers : 0,
       todayUsers: todayRow.unique_sessions,
+      todayNewUsers: todayRow.new_sessions,
+      todayReturningUsers: todayRow.returning_sessions,
       todayGuesses: todayRow.guesses,
       todayCorrectGuesses: todayRow.correct_guesses,
     })
@@ -2055,29 +2096,50 @@ export default function AdminPage() {
                     </div>
                   </button>
                   {!collapsedSections.analytics_today && (
-                    <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-                      <div>
-                        <div className="font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.todayUsers}
+                    <div className="mt-3 space-y-3">
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div>
+                          <div className="font-serif text-xl font-bold text-[#102018]">
+                            {analyticsSummary.todayUsers}
+                          </div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                            Users
+                          </div>
                         </div>
-                        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                          Users
+                        <div>
+                          <div className="font-serif text-xl font-bold text-[#102018]">
+                            {analyticsSummary.todayGuesses}
+                          </div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                            Guesses
+                          </div>
+                        </div>
+                        <div>
+                          <div className="font-serif text-xl font-bold text-[#102018]">
+                            {analyticsSummary.todayCorrectGuesses}
+                          </div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                            Correct
+                          </div>
                         </div>
                       </div>
-                      <div>
-                        <div className="font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.todayGuesses}
+
+                      <div className="grid grid-cols-2 gap-3 text-center">
+                        <div>
+                          <div className="font-serif text-xl font-bold text-[#102018]">
+                            {analyticsSummary.todayNewUsers}
+                          </div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                            New
+                          </div>
                         </div>
-                        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                          Guesses
-                        </div>
-                      </div>
-                      <div>
-                        <div className="font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.todayCorrectGuesses}
-                        </div>
-                        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                          Correct
+                        <div>
+                          <div className="font-serif text-xl font-bold text-[#102018]">
+                            {analyticsSummary.todayReturningUsers}
+                          </div>
+                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                            Returning
+                          </div>
                         </div>
                       </div>
                     </div>
