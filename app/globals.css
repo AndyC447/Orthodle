@@ -324,12 +324,12 @@ button {
 }
 
 :root[data-theme="dark"] .orthodle-stats-shell {
-  background: color-mix(in srgb, var(--card-strong) 88%, var(--bg) 12%) !important;
+  background: rgba(27, 38, 33, 0.92) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
 :root[data-theme="dark"] .orthodle-stat-tile {
-  background: color-mix(in srgb, var(--card-strong) 94%, var(--bg) 6%) !important;
+  background: rgba(27, 38, 33, 0.97) !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 

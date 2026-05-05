@@ -227,6 +227,14 @@ function isLocalhostBrowser() {
   return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
 }
 
+function getBrowserTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null
+  } catch {
+    return null
+  }
+}
+
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
@@ -665,7 +673,7 @@ function PlayPageContent() {
             body: JSON.stringify({
               sessionId,
               path: `/${data.level}/${data.case_date}`,
-              browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+              browserTimezone: getBrowserTimezone(),
               browserLocale:
                 (typeof navigator !== 'undefined' && (navigator.language || navigator.languages?.[0])) || null,
               doNotTrack: isTrackingDisabledForThisBrowser(),
@@ -958,7 +966,7 @@ function PlayPageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          timezone: getBrowserTimezone(),
           sourcePath: window.location.pathname,
         }),
       })

@@ -149,7 +149,13 @@ export function getSessionId() {
   const key = 'orthodle_session_id'
   let id = localStorage.getItem(key)
   if (!id) {
-    id = crypto.randomUUID()
+    const cryptoObject =
+      typeof window !== 'undefined' && 'crypto' in window ? window.crypto : undefined
+    if (cryptoObject && typeof cryptoObject.randomUUID === 'function') {
+      id = cryptoObject.randomUUID()
+    } else {
+      id = `orthodle_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
+    }
     localStorage.setItem(key, id)
   }
   return id
