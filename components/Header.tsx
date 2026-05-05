@@ -70,7 +70,11 @@ export function Header() {
             type="button"
             aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'}
             onClick={toggleTheme}
-            className="group flex h-10 w-10 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+            className={`group flex h-10 w-10 items-center justify-center rounded-full border transition ${
+              theme === 'dark'
+                ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
+                : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+            }`}
           >
             <span className="relative flex h-5 w-5 items-center justify-center overflow-hidden">
               <span
@@ -104,7 +108,11 @@ export function Header() {
             aria-expanded={menuOpen}
             aria-label="Open navigation menu"
             onClick={() => setMenuOpen(prev => !prev)}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+            className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
+              theme === 'dark'
+                ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
+                : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+            }`}
           >
             <span className="flex flex-col gap-1">
               <span className="block h-0.5 w-4 rounded-full bg-current" />
@@ -114,8 +122,20 @@ export function Header() {
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-[calc(100%+10px)] z-50 min-w-[170px] overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_18px_40px_rgba(16,32,24,0.06)]">
-              <div className="border-b border-[#f3eee5] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7a857c]">
+            <div
+              className={`absolute right-0 top-[calc(100%+10px)] z-50 min-w-[170px] overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.06)] ${
+                theme === 'dark'
+                  ? 'border-[#33453c] bg-[#18241f]'
+                  : 'border-[#e7e1d6] bg-white'
+              }`}
+            >
+              <div
+                className={`border-b px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${
+                  theme === 'dark'
+                    ? 'border-[#24342d] text-[#9fb4a7]'
+                    : 'border-[#f3eee5] text-[#7a857c]'
+                }`}
+              >
                 Navigation
               </div>
 
@@ -123,28 +143,44 @@ export function Header() {
                 <Link
                   href="/"
                   onClick={() => setMenuOpen(false)}
-                  className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
+                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
                 >
                   Play
                 </Link>
                 <Link
                   href="/stats"
                   onClick={() => setMenuOpen(false)}
-                  className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
+                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
                 >
                   Stats
                 </Link>
                 <Link
                   href="/submit"
                   onClick={() => setMenuOpen(false)}
-                  className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
+                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
                 >
                   Submit Case
                 </Link>
                 <Link
                   href="/archive"
                   onClick={() => setMenuOpen(false)}
-                  className="block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#102018] transition hover:bg-[#fbfaf7]"
+                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
                 >
                   Archive
                 </Link>

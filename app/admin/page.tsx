@@ -2031,6 +2031,15 @@ export default function AdminPage() {
           </button>
         </div>
 
+        <div className="mt-3">
+          <Link
+            href="/admin/impact"
+            className="inline-flex items-center rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white hover:text-[#1f6448]"
+          >
+            Open impact snapshot
+          </Link>
+        </div>
+
         {showAnalytics && (
           <div className="mt-4 space-y-4">
             {analyticsSummary ? (
