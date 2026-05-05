@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #eef3ed;
+  --bg: #f7f5f0;
   --ink: #102018;
   --green: #123426;
   --green-2: #24664b;
@@ -89,7 +89,7 @@ body {
 }
 
 .night-soft-surface {
-  background: color-mix(in srgb, var(--card-strong) 86%, var(--bg) 14%);
+  background: var(--card-strong);
   border-color: var(--line);
   transition:
     background-color 300ms ease,
@@ -98,8 +98,8 @@ body {
 }
 
 .night-warm-surface {
-  background: color-mix(in srgb, var(--orange) 10%, var(--card-strong) 90%);
-  border-color: color-mix(in srgb, var(--orange) 28%, var(--line) 72%);
+  background: var(--card-strong);
+  border-color: var(--line);
   transition:
     background-color 300ms ease,
     border-color 300ms ease,
@@ -270,7 +270,12 @@ body {
 
 :root[data-theme="dark"] .orthodle-teaching-card {
   border-color: rgba(250, 245, 236, 0.12) !important;
-  background: color-mix(in srgb, var(--card-strong) 92%, var(--bg) 8%) !important;
+  background: var(--card-strong) !important;
+}
+
+.orthodle-teaching-card {
+  border-color: var(--line) !important;
+  background: var(--card-strong) !important;
 }
 
 .orthodle-panel-shell {
@@ -289,8 +294,8 @@ body {
 }
 
 .orthodle-finding-card {
-  background: color-mix(in srgb, var(--orange) 8%, var(--card-strong) 92%) !important;
-  border-color: color-mix(in srgb, var(--orange) 26%, var(--line) 74%) !important;
+  background: var(--card-strong) !important;
+  border-color: var(--line) !important;
   transition:
     background-color 300ms ease,
     border-color 300ms ease,
@@ -299,7 +304,7 @@ body {
 }
 
 :root[data-theme="dark"] .orthodle-finding-card {
-  background: rgba(117, 74, 44, 0.22) !important;
+  background: var(--card-strong) !important;
   border-color: rgba(250, 245, 236, 0.16) !important;
 }
 

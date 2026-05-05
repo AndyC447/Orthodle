@@ -54,12 +54,30 @@ type CommunityCaseStats = {
   averageGuessesPerPlayer: number | null
   averageGuessesToSolve: number | null
   firstTrySolveRate: number | null
+  mostCommonIncorrectGuess: string | null
 }
 
 type TeachingPointSection = {
   label: string
   body: string[]
 }
+
+const TEACHING_POINT_LABELS = new Map<string, string>([
+  ['clinical context', 'Clinical Context'],
+  ['who', 'Who'],
+  ['pathophys', 'Pathophys'],
+  ['key clues', 'Key Clues'],
+  ['presentation', 'Presentation'],
+  ['exam', 'Exam'],
+  ['imaging', 'Imaging'],
+  ['tx', 'Tx'],
+  ['dont miss', "Don't Miss"],
+  ['don’t miss', "Don't Miss"],
+  ['classic pitfall', 'Classic Pitfall'],
+  ['board pearl', 'Board Pearl'],
+  ['orthodle insight', 'Orthodle Insight'],
+  ['ddx', 'DDx'],
+])
 
 type HomepageAnnouncementRow = {
   id: string
@@ -671,7 +689,7 @@ function PlayPageContent() {
           supabase.from('visits').select('session_id').eq('path', `/${data.level}/${data.case_date}`),
           supabase
             .from('guesses')
-            .select('session_id, is_correct, created_at')
+            .select('session_id, is_correct, created_at, guess_text')
             .eq('case_id', data.id)
             .order('created_at', { ascending: true }),
         ])
@@ -705,6 +723,7 @@ function PlayPageContent() {
         let solvedPlayers = 0
         let firstTrySolves = 0
         let totalGuessesBeforeSolve = 0
+        const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
 
         for (const sessionGuesses of guessesBySession.values()) {
           const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
@@ -718,6 +737,30 @@ function PlayPageContent() {
           }
         }
 
+        for (const guessRow of guessRows || []) {
+          if (guessRow.is_correct) continue
+
+          const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
+          const rawGuess = guessRow.guess_text?.trim()
+
+          if (!normalizedGuess || !rawGuess) continue
+
+          const existing = incorrectGuessCounts.get(normalizedGuess)
+          if (existing) {
+            existing.count += 1
+          } else {
+            incorrectGuessCounts.set(normalizedGuess, { label: rawGuess, count: 1 })
+          }
+        }
+
+        const mostCommonIncorrectGuess =
+          incorrectGuessCounts.size > 0
+            ? [...incorrectGuessCounts.values()].sort((a, b) => {
+                if (b.count !== a.count) return b.count - a.count
+                return a.label.localeCompare(b.label)
+              })[0].label
+            : null
+
         setCommunityStats({
           solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
           averageGuessesPerPlayer:
@@ -726,6 +769,7 @@ function PlayPageContent() {
             solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
           firstTrySolveRate:
             solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
+          mostCommonIncorrectGuess,
         })
       } catch {
         if (cancelled) return
@@ -1089,11 +1133,17 @@ function PlayPageContent() {
         continue
       }
 
-      const headingMatch = line.match(/^\*?\*?([A-Za-z][A-Za-z /\-]+):\*?\*?\s*(.*)$/)
+      const headingMatch = line.match(/^\*?\*?([A-Za-z][A-Za-z'’ /\-]+):\*?\*?\s*(.*)$/)
       if (headingMatch) {
         const [, label, rest] = headingMatch
+        const normalizedLabel = label
+          .trim()
+          .toLowerCase()
+          .replace(/[’']/g, "'")
+          .replace(/[^a-z' ]/g, '')
+          .replace(/\s+/g, ' ')
         currentSection = {
-          label: label.trim(),
+          label: TEACHING_POINT_LABELS.get(normalizedLabel) || label.trim(),
           body: rest ? [rest.trim()] : [],
         }
         sections.push(currentSection)
@@ -1115,10 +1165,50 @@ function PlayPageContent() {
     return sections.filter(section => section.body.some(line => line.trim()))
   }
 
+  function getOrthodleInsightLines() {
+    if (!communityStats) return []
+
+    const solveRate =
+      communityStats.solveRate !== null ? `${Math.round(communityStats.solveRate)}%` : '—'
+    const avgToSolve =
+      communityStats.averageGuessesToSolve !== null
+        ? communityStats.averageGuessesToSolve.toFixed(1)
+        : '—'
+    const firstTry =
+      communityStats.firstTrySolveRate !== null
+        ? `${Math.round(communityStats.firstTrySolveRate)}%`
+        : '—'
+
+    let difficultyRead = 'Mixed signal case'
+    if (communityStats.solveRate !== null) {
+      if (communityStats.solveRate >= 75) difficultyRead = 'Pattern-recognition heavy case'
+      else if (communityStats.solveRate >= 50) difficultyRead = 'Moderate difficulty case'
+      else difficultyRead = 'Tougher-than-usual case'
+    }
+
+    return [
+      `Solve rate: **${solveRate}**`,
+      `Avg to solve: **${avgToSolve}**`,
+      `First-try solves: **${firstTry}**`,
+      ...(communityStats.mostCommonIncorrectGuess
+        ? [`Most common wrong guess: **${communityStats.mostCommonIncorrectGuess}**`]
+        : []),
+      `Orthodle read: **${difficultyRead}**`,
+    ]
+  }
+
   function renderTeachingPoint(text: string) {
     const sections = parseTeachingPointSections(text)
+    const insightLines = getOrthodleInsightLines()
+    const hasInsightSection = sections.some(
+      section => section.label.toLowerCase() === 'orthodle insight'
+    )
+    const allSections =
+      !hasInsightSection && insightLines.length > 0
+        ? [...sections, { label: 'Orthodle Insight', body: insightLines }]
+        : sections
 
-    if (sections.length === 0) {
+    if (allSections.length === 0) {
       return (
         <p className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
           {renderFormattedLine(text)}
@@ -1129,7 +1219,7 @@ function PlayPageContent() {
     return (
       <div className="orthodle-teaching-card rounded-xl bg-[#fcfbf8] px-3 py-2.5">
         <div className="space-y-3">
-          {sections.map((section, sectionIndex) => (
+          {allSections.map((section, sectionIndex) => (
             <div
               key={section.label}
               className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-3' : ''}
@@ -1374,6 +1464,7 @@ function PlayPageContent() {
       }) as Record<Level, string>,
     [levelTaglines]
   )
+  const levelStreak = statsSummary.levelStreaks[selectedLevel]?.current || 0
   const streakBadge =
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
@@ -1419,7 +1510,8 @@ function PlayPageContent() {
   const showHomepageSurvey =
     onTodayCard &&
     Boolean(homepageSurvey) &&
-    homepageSurveyKey !== dismissedHomepageSurveyKey
+    homepageSurveyKey !== dismissedHomepageSurveyKey &&
+    !submittedHomepageSurveyChoice
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
@@ -1657,52 +1749,49 @@ function PlayPageContent() {
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {onTodayCard && todayComplete && (
-          <div className="mx-auto mt-3 max-w-xl rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-4 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)]">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1f6448]">
+          <div className="orthodle-panel-shell mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)] sm:max-w-[560px] sm:px-5 sm:py-3.5">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
               Daily card complete
             </div>
-            <p className="mt-1.5 text-[14px] leading-5 text-[#102018]">
-              All three cases are locked in for today.
+            <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268] sm:text-[12px]">
+              Fresh cases drop tomorrow. Keep the streak alive.
             </p>
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl border border-[#cfded4] bg-white px-3 py-2">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+            <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1.5">
+                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Solved
                 </div>
-                <div className="mt-1 font-serif text-[18px] font-bold text-[#1f6448]">
+                <div className="mt-0.5 font-serif text-[15px] font-bold text-[#1f6448]">
                   {dailySummary.wins}/3
                 </div>
               </div>
-              <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1.5">
+                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Avg guesses
                 </div>
-                <div className="mt-1 font-serif text-[18px] font-bold text-[#102018]">
+                <div className="mt-0.5 font-serif text-[15px] font-bold text-[#102018]">
                   {dailySummary.averageGuesses !== null ? dailySummary.averageGuesses.toFixed(1) : '—'}
                 </div>
               </div>
-              <div className="rounded-xl border border-[#ead9b7] bg-white px-3 py-2">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1.5">
+                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Streak
                 </div>
-                <div className="mt-1 font-serif text-[18px] font-bold text-[#a24d24]">
+                <div className="mt-0.5 font-serif text-[15px] font-bold text-[#1f6448]">
                   {statsSummary.currentStreak}
                 </div>
               </div>
             </div>
-            <p className="mt-3 text-[12px] leading-5 text-[#637268]">
-              Fresh cases drop tomorrow. Keep the streak alive.
-            </p>
-            <div className="mt-3 flex flex-wrap justify-center gap-2">
+            <div className="mt-2.5 flex flex-wrap justify-center gap-2">
               <Link
                 href="/stats"
-                className="rounded-full border border-[#cfded4] bg-white px-3.5 py-1.5 text-[11px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8]"
+                className="rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[10px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
               >
                 View stats
               </Link>
               <Link
                 href="/archive"
-                className="rounded-full border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-1.5 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
+                className="rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[10px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
               >
                 Browse archive
               </Link>
@@ -1916,57 +2005,55 @@ function PlayPageContent() {
               </div>
 
               <div ref={inputSectionRef} className="mt-3 border-t border-[#ded7ca] pt-2.5">
-                <div className="relative">
-                  <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
-                    <input
-                      value={guess}
-                      onChange={e => {
-                        setGuess(e.target.value)
-                        setShowSuggestions(true)
-                      }}
-                      onFocus={() => {
-                        setShowSuggestions(true)
-                        setIsMobileInputFocused(true)
-                      }}
-                      onBlurCapture={() => setIsMobileInputFocused(false)}
-                      onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
-                      onKeyDown={e => e.key === 'Enter' && submitGuess()}
-                      placeholder={
-                        !dailyCase
-                          ? 'No case available'
-                          : gameWon || gameOver
-                            ? 'Round complete'
-                            : 'Type to narrow the diagnosis'
-                      }
-                      disabled={!dailyCase || gameWon || gameOver}
-                      className="min-h-[42px] flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
-                    />
+                {!roundComplete && (
+                  <>
+                    <div className="relative">
+                      <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
+                        <input
+                          value={guess}
+                          onChange={e => {
+                            setGuess(e.target.value)
+                            setShowSuggestions(true)
+                          }}
+                          onFocus={() => {
+                            setShowSuggestions(true)
+                            setIsMobileInputFocused(true)
+                          }}
+                          onBlurCapture={() => setIsMobileInputFocused(false)}
+                          onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
+                          onKeyDown={e => e.key === 'Enter' && submitGuess()}
+                          placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
+                          disabled={!dailyCase}
+                          className="min-h-[42px] flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                        />
 
-                    <button
-                      onClick={submitGuess}
-                      disabled={!dailyCase || gameWon || gameOver}
-                      className="min-h-[42px] rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
-                    >
-                      Guess
-                    </button>
-                  </div>
+                        <button
+                          onClick={submitGuess}
+                          disabled={!dailyCase}
+                          className="min-h-[42px] rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                        >
+                          Guess
+                        </button>
+                      </div>
 
-                  {renderSuggestionList(
-                    'absolute inset-x-0 top-[calc(100%+8px)] z-30 max-h-64 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
-                  )}
-                </div>
+                      {renderSuggestionList(
+                        'absolute inset-x-0 top-[calc(100%+8px)] z-30 max-h-64 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
+                      )}
+                    </div>
 
-                {message && !roundComplete && (
-                  <p className="mt-2 text-[12px] leading-5 text-[#637268]">
-                    {message}
-                  </p>
+                    {message && (
+                      <p className="mt-2 text-[12px] leading-5 text-[#637268]">
+                        {message}
+                      </p>
+                    )}
+                  </>
                 )}
 
                 {canAdvanceToNextLevel && nextLevel && (
                   <button
                     type="button"
                     onClick={moveToNextLevel}
-                    className="mt-3 w-full rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[12px] font-semibold text-[#1f6448] transition hover:bg-white"
+                    className={`${roundComplete ? '' : 'mt-3 '}w-full rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]`}
                   >
                     Try the {formatLevel(nextLevel)} case
                   </button>
@@ -1988,6 +2075,14 @@ function PlayPageContent() {
                   <h3 className="orthodle-answer-pop font-serif text-[23px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448] sm:text-[26px]">
                     {dailyCase.answer}
                   </h3>
+                  {onTodayCard && levelStreak >= 1 && (
+                    <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold text-[#a24d24]">
+                      <span aria-hidden="true">🔥</span>
+                      <span>
+                        {levelStreak}-day {formatLevel(selectedLevel)} streak
+                      </span>
+                    </div>
+                  )}
                   {!gameWon && (
                     <p className="mt-1 text-[12px] leading-5 text-[#637268]">
                       Missed this one, but the takeaway below is worth the round.
@@ -1998,10 +2093,7 @@ function PlayPageContent() {
 
               <div className="mt-3 space-y-2.5 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-3">
                 <div>
-                  <div className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
-                    Quick takeaway
-                  </div>
-                  <div className="mt-2 space-y-1">
+                  <div className="space-y-1">
                     {renderTeachingPoint(teachingPoint)}
                   </div>
                   {dailyCase.contributor_name && (
@@ -2011,46 +2103,17 @@ function PlayPageContent() {
                   )}
                 </div>
 
-                {(communityStats || roundComplete) && (
-                  <div className="mx-auto flex w-full max-w-[420px] flex-col items-center">
-                    {communityStats && (
-                      <div className="grid w-full grid-cols-3 gap-2 border-t border-[#ebe5db] pt-3 text-center text-[10px] leading-tight text-[#637268] sm:gap-3 sm:text-[12px]">
-                        <div className="whitespace-nowrap">
-                          Solve rate{' '}
-                          <span className="font-semibold text-[#102018]">
-                            {communityStats.solveRate !== null
-                              ? `${Math.round(communityStats.solveRate)}%`
-                              : '—'}
-                          </span>
-                        </div>
-                        <div className="whitespace-nowrap">
-                          Avg to solve{' '}
-                          <span className="font-semibold text-[#102018]">
-                            {communityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
-                          </span>
-                        </div>
-                        <div className="whitespace-nowrap">
-                          First-try solves{' '}
-                          <span className="font-semibold text-[#102018]">
-                            {communityStats.firstTrySolveRate !== null
-                              ? `${Math.round(communityStats.firstTrySolveRate)}%`
-                              : '—'}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {roundComplete && (
-                      <div className="mt-3 w-full">
-                        <button
-                          type="button"
-                          onClick={shareResult}
-                          className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#174c37]"
-                        >
-                          Share the case
-                        </button>
-                      </div>
-                    )}
+                {roundComplete && (
+                  <div className="mx-auto mt-3 flex w-full max-w-[420px] flex-col items-center">
+                    <div className="w-full">
+                      <button
+                        type="button"
+                        onClick={shareResult}
+                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#174c37]"
+                      >
+                        Share the case
+                      </button>
+                    </div>
                   </div>
                 )}
 

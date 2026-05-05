@@ -2814,18 +2814,42 @@ export default function AdminPage() {
                   value={teachingPoint}
                   onChange={e => setTeachingPoint(e.target.value)}
                   onKeyDown={handleTeachingPointKeyDown}
-                  placeholder={`Who: Obese adolescents (10-16), often bilateral
-Presentation: Limp + hip/groin/knee pain
-Exam: ↓ internal rotation, obligate external rotation
-Imaging: AP + frog-leg lateral; Klein's line abnormal
-Stable vs Unstable: weight-bearing vs not -> unstable = high AVN risk
-Tx: Non-weight bearing + in situ screw fixation (no reduction)
-Pearl: Knee pain in teens -> always check the hip`}
-                  rows={4}
+                  placeholder={`Clinical Context: **Most common cause of anterior knee pain** in adolescent athletes
+
+Who:
+- Adolescents (10-15)
+- During growth spurts
+
+Pathophys:
+- Repetitive traction on an open tibial tubercle apophysis
+
+Key Clues:
+- Anterior knee pain in a young athlete
+- Gradual onset, not acute
+
+Imaging:
+- Lateral X-ray with tibial tubercle fragmentation
+
+Tx:
+- Relative rest, NSAIDs, stretching
+
+Don't Miss:
+- Tibial tubercle avulsion fracture
+
+Classic Pitfall:
+- Calling this a fracture instead of traction apophysitis
+
+Board Pearl:
+- Self-limited and improves with skeletal maturity
+
+DDx:
+- Patellar tendinopathy
+- Tibial tubercle avulsion fracture`}
+                  rows={7}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
                 <span className="text-xs font-normal text-[#8a948d]">
-                  Line breaks are preserved. Use Ctrl/Cmd + B for bold and Ctrl/Cmd + I for italics.
+                  Line breaks are preserved. Use Ctrl/Cmd + B for bold and Ctrl/Cmd + I for italics. Orthodle Insight is added automatically when case stats exist.
                 </span>
               </label>
 

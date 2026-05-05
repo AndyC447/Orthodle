@@ -584,12 +584,42 @@ export default function SubmitCasePage() {
               <textarea
                 value={teachingPoint}
                 onChange={e => setTeachingPoint(e.target.value)}
-                rows={4}
-                placeholder="Add the teaching takeaway shown after the round is complete..."
+                rows={7}
+                placeholder={`Clinical Context: **Most common cause of anterior knee pain** in adolescent athletes
+
+Who:
+- Adolescents (10-15)
+- During growth spurts
+
+Pathophys:
+- Repetitive traction on an open tibial tubercle apophysis
+
+Key Clues:
+- Anterior knee pain in a young athlete
+- Gradual onset, not acute
+
+Imaging:
+- Lateral X-ray with tibial tubercle fragmentation
+
+Tx:
+- Relative rest, NSAIDs, stretching
+
+Don't Miss:
+- Tibial tubercle avulsion fracture
+
+Classic Pitfall:
+- Calling this a fracture instead of traction apophysitis
+
+Board Pearl:
+- Self-limited and improves with skeletal maturity
+
+DDx:
+- Patellar tendinopathy
+- Tibial tubercle avulsion fracture`}
                 className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
               />
               <span className="text-xs font-normal text-[#8a948d]">
-                Line breaks are preserved. Use `**bold**` and `*italics*` for emphasis.
+                Line breaks are preserved. Use `**bold**` and `*italics*` for emphasis. Orthodle Insight is added automatically when case stats exist.
               </span>
             </label>
 

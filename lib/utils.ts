@@ -209,6 +209,13 @@ export type StatsSummary = {
   winRate: number
   currentStreak: number
   longestStreak: number
+  levelStreaks: Record<
+    StatsLevel,
+    {
+      current: number
+      longest: number
+    }
+  >
   averageGuessesInWins: number | null
   guessDistribution: Record<number, number>
   today: {
@@ -589,6 +596,69 @@ export function getStatsSummary(): StatsSummary {
     }
   }
 
+  const levelStreaks = {
+    med_student: { current: 0, longest: 0 },
+    resident: { current: 0, longest: 0 },
+    attending: { current: 0, longest: 0 },
+  } satisfies Record<
+    StatsLevel,
+    {
+      current: number
+      longest: number
+    }
+  >
+
+  for (const level of ['med_student', 'resident', 'attending'] as const) {
+    const levelWinningDays = Array.from(
+      new Set(wins.filter(result => result.level === level).map(result => result.caseDate))
+    ).sort((a, b) => b.localeCompare(a))
+
+    let levelLongest = 0
+    let runningLevelStreak = 0
+
+    for (let i = 0; i < levelWinningDays.length; i += 1) {
+      if (i === 0) {
+        runningLevelStreak = 1
+        levelLongest = 1
+        continue
+      }
+
+      const newer = new Date(`${levelWinningDays[i - 1]}T00:00:00`)
+      const older = new Date(`${levelWinningDays[i]}T00:00:00`)
+      const diffDays = Math.round((newer.getTime() - older.getTime()) / (1000 * 60 * 60 * 24))
+
+      if (diffDays === 1) {
+        runningLevelStreak += 1
+        levelLongest = Math.max(levelLongest, runningLevelStreak)
+      } else {
+        runningLevelStreak = 1
+      }
+    }
+
+    let levelCurrent = 0
+
+    if (levelWinningDays[0] === todayISO()) {
+      levelCurrent = 1
+
+      for (let i = 1; i < levelWinningDays.length; i += 1) {
+        const newer = new Date(`${levelWinningDays[i - 1]}T00:00:00`)
+        const older = new Date(`${levelWinningDays[i]}T00:00:00`)
+        const diffDays = Math.round((newer.getTime() - older.getTime()) / (1000 * 60 * 60 * 24))
+
+        if (diffDays === 1) {
+          levelCurrent += 1
+        } else {
+          break
+        }
+      }
+    }
+
+    levelStreaks[level] = {
+      current: levelCurrent,
+      longest: levelLongest,
+    }
+  }
+
   const today =
     recentDays.find(day => day.date === todayISO()) || {
       date: todayISO(),
@@ -609,6 +679,7 @@ export function getStatsSummary(): StatsSummary {
     winRate: dailyResults.length > 0 ? (wins.length / dailyResults.length) * 100 : 0,
     currentStreak,
     longestStreak,
+    levelStreaks,
     averageGuessesInWins:
       wins.length > 0
         ? wins.reduce((sum, result) => sum + result.guessesUsed, 0) / wins.length
