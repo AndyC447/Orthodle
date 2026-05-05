@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
-import { normalizeAnswer, ORTHO_DIAGNOSIS_BANK, todayISO } from '@/lib/utils'
+import {
+  normalizeAnswer,
+  ORTHO_DIAGNOSIS_BANK,
+  setTrackingDisabledForThisBrowser,
+  todayISO,
+} from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -141,6 +146,7 @@ type CaseCommunityStats = {
   averageGuessesToSolve: number | null
   firstTrySolveRate: number | null
   mostCommonSolveClue: number | null
+  mostCommonIncorrectGuesses: Array<{ label: string; count: number }>
 }
 
 type HomepageAnnouncementRow = {
@@ -177,6 +183,7 @@ type AdminCollapsedSectionId =
   | 'analytics_today'
   | 'analytics_top_regions'
   | 'analytics_top_timezones'
+  | 'case_stats_incorrect_guesses'
   | 'cases_jump_to_date'
   | 'homepage_notes'
   | 'surveys'
@@ -287,6 +294,7 @@ export default function AdminPage() {
     analytics_today: false,
     analytics_top_regions: false,
     analytics_top_timezones: false,
+    case_stats_incorrect_guesses: true,
     cases_jump_to_date: false,
     homepage_notes: false,
     surveys: false,
@@ -346,6 +354,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isUnlocked) return
 
+    setTrackingDisabledForThisBrowser(true)
     loadCases()
     loadAnalytics()
     loadDiagnosisChoices()
@@ -1328,7 +1337,7 @@ export default function AdminPage() {
       supabase.from('visits').select('session_id').eq('path', casePath),
       supabase
         .from('guesses')
-        .select('session_id, is_correct, created_at')
+        .select('session_id, is_correct, created_at, guess_text')
         .eq('case_id', matchingCase.id)
         .order('created_at', { ascending: true }),
     ])
@@ -1367,6 +1376,7 @@ export default function AdminPage() {
     let firstTrySolves = 0
     let totalGuessesBeforeSolve = 0
     const solveClueCounts = new Map<number, number>()
+    const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
 
     for (const sessionGuesses of guessesBySession.values()) {
       const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
@@ -1382,6 +1392,22 @@ export default function AdminPage() {
       }
     }
 
+    for (const guessRow of guessRows || []) {
+      if (guessRow.is_correct) continue
+
+      const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
+      const rawGuess = guessRow.guess_text?.trim()
+
+      if (!normalizedGuess || !rawGuess) continue
+
+      const existing = incorrectGuessCounts.get(normalizedGuess)
+      if (existing) {
+        existing.count += 1
+      } else {
+        incorrectGuessCounts.set(normalizedGuess, { label: rawGuess, count: 1 })
+      }
+    }
+
     const mostCommonSolveClue =
       solveClueCounts.size > 0
         ? [...solveClueCounts.entries()].sort((a, b) => {
@@ -1389,6 +1415,16 @@ export default function AdminPage() {
             return a[0] - b[0]
           })[0][0]
         : null
+
+    const mostCommonIncorrectGuesses =
+      incorrectGuessCounts.size > 0
+        ? [...incorrectGuessCounts.values()]
+            .sort((a, b) => {
+              if (b.count !== a.count) return b.count - a.count
+              return a.label.localeCompare(b.label)
+            })
+            .slice(0, 3)
+        : []
 
     setCaseCommunityStats({
       players: players.size,
@@ -1402,6 +1438,7 @@ export default function AdminPage() {
       firstTrySolveRate:
         solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
       mostCommonSolveClue,
+      mostCommonIncorrectGuesses,
     })
   }
 
@@ -2512,10 +2549,7 @@ export default function AdminPage() {
               </label>
 
               <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                  Images
-                </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2.5">
                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                       Image 1
@@ -2652,10 +2686,7 @@ export default function AdminPage() {
               )}
 
               <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                  Clues
-                </div>
-                <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Clue 1
                     <input
@@ -2859,6 +2890,41 @@ Pearl: Knee pain in teens -> always check the hip`}
                           : '—'}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleCollapsedSection('case_stats_incorrect_guesses')}
+                      className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-left transition hover:bg-[#fcfbf8]"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                            Top incorrect guesses
+                          </div>
+                          <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                            {caseCommunityStats.mostCommonIncorrectGuesses[0]?.label || '—'}
+                          </div>
+                        </div>
+                        <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                          {collapsedSections.case_stats_incorrect_guesses ? 'Show' : 'Hide'}
+                        </span>
+                      </div>
+
+                      {!collapsedSections.case_stats_incorrect_guesses &&
+                        caseCommunityStats.mostCommonIncorrectGuesses.length > 0 && (
+                          <div className="mt-2 space-y-1.5 border-t border-[#ebe5db] pt-2 text-sm text-[#102018]">
+                            {caseCommunityStats.mostCommonIncorrectGuesses.map((guess, index) => (
+                              <div key={`${guess.label}-${index}`} className="flex items-center justify-between gap-3">
+                                <span className="min-w-0 truncate">
+                                  {index + 1}. {guess.label}
+                                </span>
+                                <span className="shrink-0 text-[11px] font-semibold text-[#637268]">
+                                  {guess.count}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                    </button>
                   </div>
                 ) : (
                   <p className="mt-3 text-sm text-[#637268]">
@@ -2972,7 +3038,7 @@ Pearl: Knee pain in teens -> always check the hip`}
                           </div>
                         )}
 
-                        <div className="rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
+                        <div className="night-soft-surface rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
                           <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
                             Clinical findings
                           </div>
@@ -2981,7 +3047,7 @@ Pearl: Knee pain in teens -> always check the hip`}
                               {previewClues.map((clue, index) => (
                                 <li
                                   key={`${clue}-${index}`}
-                                  className="text-sm leading-6 text-[#102018]"
+                                  className="orthodle-finding-card rounded-lg border border-[#ead9b7] px-3 py-2.5 text-sm leading-6 text-[#102018]"
                                 >
                                   <span className="mr-2 text-[#637268]">{index + 1}.</span>
                                   {clue}

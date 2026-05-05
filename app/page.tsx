@@ -12,6 +12,7 @@ import {
   ORTHO_DIAGNOSIS_BANK,
   getRoundProgress,
   getSessionId,
+  isTrackingDisabledForThisBrowser,
   recordGameResult,
   saveRoundProgress,
   todayISO,
@@ -500,9 +501,10 @@ function PlayPageContent() {
 
     setIsSubmittingHomepageSurvey(true)
     setHomepageSurveyStatus('')
+    const trackingDisabled = isTrackingDisabledForThisBrowser()
 
     try {
-      if (!isLocalhostBrowser()) {
+      if (!isLocalhostBrowser() && !trackingDisabled) {
         await supabase.from('homepage_survey_responses').insert({
           survey_id: homepageSurvey.id,
           response: choice,
@@ -638,7 +640,7 @@ function PlayPageContent() {
           setSelectedLevel(data.level)
         }
 
-        if (!isLocalhostBrowser()) {
+        if (!isLocalhostBrowser() && !isTrackingDisabledForThisBrowser()) {
           void fetch('/api/visit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -648,6 +650,7 @@ function PlayPageContent() {
               browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
               browserLocale:
                 (typeof navigator !== 'undefined' && (navigator.language || navigator.languages?.[0])) || null,
+              doNotTrack: isTrackingDisabledForThisBrowser(),
             }),
           })
         }
@@ -964,6 +967,20 @@ function PlayPageContent() {
       return
     }
 
+    if (isTrackingDisabledForThisBrowser()) {
+      const nextTags = [...submittedReactionTags, tag]
+      setSubmittedReactionTags(nextTags)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          `${REACTION_STORAGE_PREFIX}:${dailyCase.id}`,
+          JSON.stringify(nextTags)
+        )
+      }
+      setReactionStatus('Saved locally on this device only.')
+      setSubmittingReaction(null)
+      return
+    }
+
     const { error } = await supabase.from('case_feedback').insert({
       case_id: dailyCase.id,
       case_date: dailyCase.case_date,
@@ -1007,6 +1024,13 @@ function PlayPageContent() {
 
     if (isLocalhostBrowser()) {
       setFeedbackStatus('Saved locally for testing only.')
+      setFeedbackText('')
+      setIsSavingFeedback(false)
+      return
+    }
+
+    if (isTrackingDisabledForThisBrowser()) {
+      setFeedbackStatus('Saved locally on this device only.')
       setFeedbackText('')
       setIsSavingFeedback(false)
       return
@@ -1199,7 +1223,12 @@ function PlayPageContent() {
     const res = await fetch('/api/guess', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ caseId: dailyCase.id, guess: currentGuess, sessionId }),
+      body: JSON.stringify({
+        caseId: dailyCase.id,
+        guess: currentGuess,
+        sessionId,
+        doNotTrack: isTrackingDisabledForThisBrowser(),
+      }),
     })
 
     const data = await res.json()
@@ -1734,7 +1763,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] sm:max-w-[560px] ${hasMobileInteraction ? 'mt-1.5' : 'mt-2'}`}>
+        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] sm:max-w-[560px] ${hasMobileInteraction ? 'mt-1.5 mb-3' : 'mt-2 mb-3'}`}>
           <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
             {levels.map(level => {
               const active = selectedLevel === level.key
@@ -1985,8 +2014,8 @@ function PlayPageContent() {
                 {(communityStats || roundComplete) && (
                   <div className="mx-auto flex w-full max-w-[420px] flex-col items-center">
                     {communityStats && (
-                      <div className="grid w-full grid-cols-3 gap-3 border-t border-[#ebe5db] pt-3 text-center text-[11.5px] text-[#637268] sm:text-[12px]">
-                        <div>
+                      <div className="grid w-full grid-cols-3 gap-2 border-t border-[#ebe5db] pt-3 text-center text-[10px] leading-tight text-[#637268] sm:gap-3 sm:text-[12px]">
+                        <div className="whitespace-nowrap">
                           Solve rate{' '}
                           <span className="font-semibold text-[#102018]">
                             {communityStats.solveRate !== null
@@ -1994,13 +2023,13 @@ function PlayPageContent() {
                               : '—'}
                           </span>
                         </div>
-                        <div>
+                        <div className="whitespace-nowrap">
                           Avg to solve{' '}
                           <span className="font-semibold text-[#102018]">
                             {communityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
                           </span>
                         </div>
-                        <div>
+                        <div className="whitespace-nowrap">
                           First-try solves{' '}
                           <span className="font-semibold text-[#102018]">
                             {communityStats.firstTrySolveRate !== null

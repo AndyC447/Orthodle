@@ -3,11 +3,11 @@ import { supabase } from '@/lib/supabase'
 import { isAcceptedGuess } from '@/lib/utils'
 
 export async function POST(req: Request) {
-  const { caseId, guess, sessionId } = await req.json()
+  const { caseId, guess, sessionId, doNotTrack } = await req.json()
   const requestUrl = new URL(req.url)
   const host = req.headers.get('host') || requestUrl.host || ''
   const isLocalRequest =
-    host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0')
+    host.includes('localhost') || host.includes('127.0.0.1') || host.includes('0.0.0.0') || doNotTrack === true
 
   const { data: caseRow, error } = await supabase
     .from('cases')

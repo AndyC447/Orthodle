@@ -155,6 +155,22 @@ export function getSessionId() {
   return id
 }
 
+const TRACKING_DISABLED_KEY = 'orthodle_tracking_disabled'
+
+export function isTrackingDisabledForThisBrowser() {
+  if (typeof window === 'undefined') return false
+  return window.localStorage.getItem(TRACKING_DISABLED_KEY) === 'true'
+}
+
+export function setTrackingDisabledForThisBrowser(disabled = true) {
+  if (typeof window === 'undefined') return
+  if (disabled) {
+    window.localStorage.setItem(TRACKING_DISABLED_KEY, 'true')
+  } else {
+    window.localStorage.removeItem(TRACKING_DISABLED_KEY)
+  }
+}
+
 export type StatsLevel = 'med_student' | 'resident' | 'attending'
 
 export type StoredGameResult = {

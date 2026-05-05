@@ -9,6 +9,7 @@ export async function POST(req: Request) {
     typeof body.browserTimezone === 'string' ? body.browserTimezone : null
   const browserLocale =
     typeof body.browserLocale === 'string' ? body.browserLocale : null
+  const doNotTrack = body.doNotTrack === true
 
   if (!sessionId) {
     return NextResponse.json({ error: 'Missing session id' }, { status: 400 })
@@ -18,7 +19,8 @@ export async function POST(req: Request) {
   if (
     host.includes('localhost') ||
     host.includes('127.0.0.1') ||
-    host.includes('0.0.0.0')
+    host.includes('0.0.0.0') ||
+    doNotTrack
   ) {
     return NextResponse.json({ ok: true, local: true })
   }
