@@ -1,6 +1,7 @@
 'use client'
 
 import { Header } from '@/components/Header'
+import { PublicFooter } from '@/components/PublicFooter'
 
 const profileCards = [
   {
@@ -82,6 +83,7 @@ export default function AboutPage() {
           )
         })}
       </section>
+      <PublicFooter />
     </main>
   )
 }

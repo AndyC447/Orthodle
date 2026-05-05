@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 import {
   getStatsSummary,
@@ -1733,8 +1734,8 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${hasMobileInteraction ? 'mt-1.5' : 'mt-2'}`}>
-          <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-2">
+        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] sm:max-w-[560px] ${hasMobileInteraction ? 'mt-1.5' : 'mt-2'}`}>
+          <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
             {levels.map(level => {
               const active = selectedLevel === level.key
 
@@ -1744,11 +1745,11 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(level.key)}
                   className={
                     active
-                      ? `min-h-[64px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
-                      : `min-h-[64px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-3 sm:py-2.5 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
+                      ? `min-h-[64px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
+                      : `min-h-[64px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
                   }
                 >
-                  <div className="font-serif text-[12px] font-bold leading-none sm:text-[13px]">
+                  <div className="font-serif text-[12px] font-bold leading-none sm:text-[12px]">
                     {level.label}
                   </div>
 
@@ -1771,7 +1772,7 @@ function PlayPageContent() {
 
       <div className={`mx-auto max-w-[700px] px-4 py-1 pb-3 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-0.5' : ''}`}>
         <section className="space-y-4">
-          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:px-3.5 sm:py-4">
+          <div className="orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:px-3.5 sm:py-4">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
@@ -1867,7 +1868,7 @@ function PlayPageContent() {
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7] shadow-[0_8px_18px_rgba(199,107,58,0.08)]' : ''} orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-[#102018] sm:px-3.5`}
+                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7] shadow-[0_8px_18px_rgba(199,107,58,0.08)]' : ''} orthodle-finding-card orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-[#102018] sm:px-3.5`}
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
@@ -1949,8 +1950,8 @@ function PlayPageContent() {
               ref={solvedCardRef}
               className={
                 pulseSuccess
-                  ? 'orthodle-answer-shell orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
-                  : 'orthodle-answer-shell night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  ? 'orthodle-panel-shell orthodle-answer-shell orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  : 'orthodle-panel-shell orthodle-answer-shell night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
               }
             >
               <div className="mt-1">
@@ -2087,7 +2088,7 @@ function PlayPageContent() {
             </div>
           )}
 
-          <div className="hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
+          <div className="orthodle-panel-shell hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
             <div className="mb-3 flex justify-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
             </div>
@@ -2138,7 +2139,7 @@ function PlayPageContent() {
 
         <aside className="space-y-3">
           {!roundComplete && (
-          <div className="rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
+          <div className="orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
             <div className="mb-1.5 flex justify-center text-[10px] font-bold uppercase tracking-[0.22em] text-[#102018]">
               <span>Your guesses</span>
             </div>
@@ -2174,13 +2175,7 @@ function PlayPageContent() {
         </aside>
       </div>
 
-      <footer className="mx-auto mt-3 max-w-4xl border-t border-[#e7e1d6] px-4 py-5 text-center text-[10px] uppercase tracking-[0.28em] text-[#637268] sm:mt-10 sm:px-6 sm:py-7 sm:tracking-[0.3em]">
-        Orthodle — for education &amp; entertainment. Not medical{' '}
-        <a href="/admin" className="transition hover:text-[#102018]">
-          advice
-        </a>
-        .
-      </footer>
+      <PublicFooter />
 
       {visibleImages.length > 0 && imageRevealed && imageExpanded && (
         <div

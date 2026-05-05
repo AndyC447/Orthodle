@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
+import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 
 type Level = 'med_student' | 'resident' | 'attending'
@@ -607,6 +608,7 @@ export default function SubmitCasePage() {
         </section>
 
       </div>
+      <PublicFooter />
     </main>
   )
 }

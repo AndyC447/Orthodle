@@ -1,3 +1,5 @@
+import { PublicFooter } from '@/components/PublicFooter'
+
 type UnsubscribePageProps = {
   searchParams: Promise<{
     status?: string
@@ -35,6 +37,7 @@ export default async function UnsubscribePage({ searchParams }: UnsubscribePageP
         </h1>
         <p className="mt-3 text-[15px] leading-7 text-[#637268]">{content.body}</p>
       </div>
+      <PublicFooter />
     </main>
   )
 }

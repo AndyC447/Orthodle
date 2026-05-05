@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 import { clearStatsSummary, getCompletedCaseKeys, todayISO } from '@/lib/utils'
 
@@ -371,6 +372,7 @@ export default function ArchivePage() {
           )}
         </div>
       </section>
+      <PublicFooter />
     </main>
   )
 }

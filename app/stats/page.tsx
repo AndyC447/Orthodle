@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
+import { PublicFooter } from '@/components/PublicFooter'
 import {
   clearStatsSummary,
   getStatsLevelLabel,
@@ -314,6 +315,7 @@ export default function StatsPage() {
           </div>
         </div>
       </section>
+      <PublicFooter />
     </main>
   )
 }
