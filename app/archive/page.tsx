@@ -16,6 +16,16 @@ type ArchiveCase = {
   image_url: string | null
 }
 
+type GuessLite = {
+  case_id: string | null
+  session_id: string
+}
+
+type FeedbackLite = {
+  case_id: string | null
+  feedback_tags: string[] | null
+}
+
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const LAUNCH_DATE = '2026-04-27'
 
@@ -24,10 +34,13 @@ export default function ArchivePage() {
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  const [showCaseList, setShowCaseList] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<'all' | Level>('all')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [imagingOnly, setImagingOnly] = useState(false)
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
+  const [guessRows, setGuessRows] = useState<GuessLite[]>([])
+  const [feedbackRows, setFeedbackRows] = useState<FeedbackLite[]>([])
 
   useEffect(() => {
     setCompletedArchiveKeys(getCompletedCaseKeys(true))
@@ -35,15 +48,27 @@ export default function ArchivePage() {
 
   useEffect(() => {
     async function loadArchive() {
-      const { data } = await supabase
-        .from('cases')
-        .select('id, case_date, level, category, image_url')
-        .gte('case_date', LAUNCH_DATE)
-        .lte('case_date', today)
-        .order('case_date', { ascending: false })
-        .limit(240)
+      const [{ data }, { data: guessData }, { data: feedbackData }] = await Promise.all([
+        supabase
+          .from('cases')
+          .select('id, case_date, level, category, image_url')
+          .gte('case_date', LAUNCH_DATE)
+          .lte('case_date', today)
+          .order('case_date', { ascending: false })
+          .limit(240),
+        supabase
+          .from('guesses')
+          .select('case_id, session_id')
+          .limit(5000),
+        supabase
+          .from('case_feedback')
+          .select('case_id, feedback_tags')
+          .limit(5000),
+      ])
 
       setCases((data || []) as ArchiveCase[])
+      setGuessRows((guessData || []) as GuessLite[])
+      setFeedbackRows((feedbackData || []) as FeedbackLite[])
       setLoading(false)
     }
 
@@ -118,18 +143,35 @@ export default function ArchivePage() {
     surprisePool.length > 0
       ? surprisePool[Math.floor(Math.random() * surprisePool.length)]
       : null
-  const imagingPick = useMemo(() => {
-    const pool = filteredCases.filter(item => item.image_url)
-    return pool.length > 0 ? pool[0] : null
-  }, [filteredCases])
+  const caseDifficultyMap = useMemo(() => {
+    const byCase = new Map<string, { guesses: number; players: Set<string> }>()
+
+    for (const row of guessRows) {
+      if (!row.case_id) continue
+      if (!byCase.has(row.case_id)) {
+        byCase.set(row.case_id, { guesses: 0, players: new Set() })
+      }
+      const current = byCase.get(row.case_id)!
+      current.guesses += 1
+      current.players.add(row.session_id)
+    }
+
+    return new Map(
+      [...byCase.entries()].map(([caseId, value]) => [
+        caseId,
+        value.players.size > 0 ? value.guesses / value.players.size : 0,
+      ])
+    )
+  }, [guessRows])
   const attendingPick = useMemo(() => {
     const pool = filteredCases.filter(item => item.level === 'attending')
     return pool.length > 0 ? pool[0] : null
   }, [filteredCases])
-  const medStudentPick = useMemo(() => {
-    const pool = filteredCases.filter(item => item.level === 'med_student')
-    return pool.length > 0 ? pool[0] : null
-  }, [filteredCases])
+  const hardestPick = useMemo(() => {
+    return [...filteredCases]
+      .filter(item => caseDifficultyMap.has(item.id))
+      .sort((a, b) => (caseDifficultyMap.get(b.id) || 0) - (caseDifficultyMap.get(a.id) || 0))[0] || null
+  }, [caseDifficultyMap, filteredCases])
 
   return (
     <main className="app-surface min-h-screen">
@@ -151,10 +193,18 @@ export default function ArchivePage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
-                className="inline-flex rounded-full border border-[#ead9b7] bg-[#fff8ef] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a24d24] transition hover:bg-[#fff2e2]"
+                className="inline-flex min-w-[132px] items-center justify-center rounded-full border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1f6448] transition hover:bg-white"
               >
                 Surprise me
               </Link>
+              {hardestPick && (
+                <Link
+                  href={`/?case=${hardestPick.id}&date=${hardestPick.case_date}&level=${hardestPick.level}`}
+                  className="inline-flex min-w-[132px] items-center justify-center rounded-full border border-[#ead9b7] bg-[#fff8ef] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a24d24] transition hover:bg-[#fff2e2]"
+                >
+                  Hardest pick
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -167,45 +217,6 @@ export default function ArchivePage() {
               </button>
             </div>
           )}
-
-          <div className="-mx-1 mt-4 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0">
-            {[
-              {
-                label: 'Unplayed pick',
-                helper: 'Jump into something you likely have not seen yet.',
-                target: surpriseTarget,
-              },
-              {
-                label: 'Imaging pick',
-                helper: 'Browse a case with imaging built in.',
-                target: imagingPick,
-              },
-              {
-                label: 'Attending challenge',
-                helper: 'Take a tougher archive swing.',
-                target: attendingPick || medStudentPick,
-              },
-            ].map(item => (
-              <div key={item.label} className="min-w-[220px] snap-start rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] p-3 sm:min-w-0">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                  {item.label}
-                </div>
-                <p className="mt-1.5 text-[12px] leading-5 text-[#637268]">
-                  {item.helper}
-                </p>
-                {item.target ? (
-                  <Link
-                    href={`/?case=${item.target.id}&date=${item.target.case_date}&level=${item.target.level}`}
-                    className="mt-3 inline-flex rounded-full border border-[#ded7ca] bg-white px-3.5 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                  >
-                    Open {formatLevel(item.target.level)}
-                  </Link>
-                ) : (
-                  <div className="mt-3 text-[11px] text-[#8a948d]">No match yet.</div>
-                )}
-              </div>
-            ))}
-          </div>
 
           <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
             <div className="mb-3 flex items-center justify-between sm:hidden">
@@ -286,22 +297,39 @@ export default function ArchivePage() {
             )}
           </div>
 
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+              Previous cases
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCaseList(current => !current)}
+              className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-[#fbfaf7]"
+            >
+              {showCaseList ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+
           {loading ? (
             <p className="mt-5 text-sm text-[#637268]">Loading archive...</p>
           ) : groupedDates.length === 0 ? (
             <p className="mt-5 text-sm text-[#637268]">No archive cases are available yet.</p>
+          ) : !showCaseList ? (
+            <p className="mt-4 text-sm text-[#637268]">
+              {groupedDates.length} dates ready. Expand to browse the full archive.
+            </p>
           ) : (
-            <div className="mt-5 space-y-3">
+            <div className="mt-4 space-y-2.5">
               {groupedDates.map(group => (
                 <div
                   key={group.date}
-                  className="rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] p-3.5"
+                  className="rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] p-3"
                 >
                   <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                     {formatDate(group.date)}
                   </div>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
                     {levelOrder.map(level => {
                       const item = group.items.find(entry => entry.level === level)
                       const isCompleted = item
@@ -312,27 +340,27 @@ export default function ArchivePage() {
                         <Link
                           key={`${group.date}-${level}`}
                           href={`/?case=${item.id}&date=${group.date}&level=${level}`}
-                          className="rounded-xl border border-[#ded7ca] bg-white px-3 py-3 transition hover:bg-[#f8fbf9]"
+                          className="rounded-xl border border-[#ded7ca] bg-white px-2.5 py-2.5 transition hover:bg-[#f8fbf9]"
                         >
                           <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                             {formatLevel(level)}
                           </div>
-                          <div className="mt-1.5 font-serif text-[16px] font-bold text-[#102018]">
+                          <div className="mt-1 font-serif text-[15px] font-bold leading-tight text-[#102018]">
                             {item.category || 'Case'}
                           </div>
-                          <div className={`mt-2 text-[12px] ${isCompleted ? 'text-[#a24d24]' : 'text-[#1f6448]'}`}>
+                          <div className={`mt-1.5 text-[11px] ${isCompleted ? 'text-[#a24d24]' : 'text-[#1f6448]'}`}>
                             {isCompleted ? 'Completed case' : 'Open case'}
                           </div>
                         </Link>
                       ) : (
                         <div
                           key={`${group.date}-${level}`}
-                          className="rounded-xl border border-dashed border-[#ded7ca] bg-white px-3 py-3 text-[#9aa39c]"
+                          className="rounded-xl border border-dashed border-[#ded7ca] bg-white px-2.5 py-2.5 text-[#9aa39c]"
                         >
                           <div className="text-[11px] font-bold uppercase tracking-[0.18em]">
                             {formatLevel(level)}
                           </div>
-                          <div className="mt-1.5 text-[13px]">No case saved</div>
+                          <div className="mt-1 text-[12px]">No case saved</div>
                         </div>
                       )
                     })}

@@ -606,67 +606,6 @@ export default function SubmitCasePage() {
           )}
         </section>
 
-        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:p-5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-            Submission status
-          </div>
-          <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
-            Check your case
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[#637268]">
-            After you submit, keep your code handy so you can check whether your case is still pending, accepted, needs edits, or scheduled.
-          </p>
-
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-            <input
-              value={lookupCode}
-              onChange={e => setLookupCode(e.target.value)}
-              placeholder="Paste your submission code"
-              className="flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-            />
-            <button
-              type="button"
-              onClick={() => checkSubmissionStatus()}
-              className="rounded-lg bg-[#1f6448] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37]"
-            >
-              Check status
-            </button>
-          </div>
-
-          {lookupStatus && <p className="mt-3 text-sm text-[#637268]">{lookupStatus}</p>}
-
-          {lookupResult && (
-            <div className="mt-4 rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-                    {lookupResult.contributor_name || 'Anonymous contributor'}
-                  </div>
-                  <div className="mt-1 font-serif text-[22px] font-bold text-[#102018]">
-                    {formatStatusLabel(lookupResult.status)}
-                  </div>
-                </div>
-
-                <div className="max-w-full rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[11px] font-semibold text-[#315f4d]">
-                  {(lookupResult.category || 'Case submission').trim()} ·{' '}
-                  {lookupResult.level === 'med_student'
-                    ? 'Med Student'
-                    : lookupResult.level === 'resident'
-                      ? 'Resident'
-                      : 'Attending'}
-                </div>
-              </div>
-
-              <p className="mt-3 text-sm leading-6 text-[#637268]">
-                {formatStatusDetail(lookupResult)}
-              </p>
-
-              <p className="mt-2 break-all text-[11px] uppercase tracking-[0.2em] text-[#8a948d]">
-                Code: {lookupResult.id}
-              </p>
-            </div>
-          )}
-        </section>
       </div>
     </main>
   )

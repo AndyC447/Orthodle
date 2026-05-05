@@ -225,3 +225,44 @@ body {
   --tw-gradient-to: rgb(216 139 87 / 0) var(--tw-gradient-to-position) !important;
   --tw-gradient-stops: var(--tw-gradient-from), #dd9560 var(--tw-gradient-via-position), var(--tw-gradient-to) !important;
 }
+
+:root[data-theme="dark"] .orthodle-guess-correct {
+  background: rgba(38, 96, 68, 0.58) !important;
+  border-color: rgba(160, 214, 184, 0.28) !important;
+  color: #f3f7f4 !important;
+}
+
+:root[data-theme="dark"] .orthodle-guess-wrong {
+  background: rgba(117, 74, 44, 0.26) !important;
+  border-color: rgba(227, 151, 100, 0.24) !important;
+  color: #f3f0ec !important;
+}
+
+:root[data-theme="dark"] .orthodle-guess-empty {
+  background: var(--card-strong) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: var(--muted) !important;
+}
+
+:root[data-theme="dark"] .orthodle-answer-shell {
+  border-color: rgba(250, 245, 236, 0.82) !important;
+}
+
+:root[data-theme="dark"] .orthodle-teaching-card {
+  border-color: rgba(250, 245, 236, 0.12) !important;
+  background: color-mix(in srgb, var(--card-strong) 92%, var(--bg) 8%) !important;
+}
+
+:root[data-theme="dark"] .orthodle-stats-shell {
+  background: color-mix(in srgb, var(--card-strong) 88%, var(--bg) 12%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+:root[data-theme="dark"] .orthodle-stat-tile {
+  background: color-mix(in srgb, var(--card-strong) 94%, var(--bg) 6%) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+:root[data-theme="dark"] .orthodle-stat-track {
+  background: rgba(255, 250, 241, 0.9) !important;
+}

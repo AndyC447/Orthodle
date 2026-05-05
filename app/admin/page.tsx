@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
@@ -140,6 +140,7 @@ type CaseCommunityStats = {
   averageGuessesPerPlayer: number | null
   averageGuessesToSolve: number | null
   firstTrySolveRate: number | null
+  mostCommonSolveClue: number | null
 }
 
 type HomepageAnnouncementRow = {
@@ -162,8 +163,39 @@ type HomepageSurveyRow = {
   response_counts?: Record<string, number>
 }
 
+type AdminSidebarSectionId =
+  | 'button_subtitles'
+  | 'analytics'
+  | 'homepage_notes'
+  | 'surveys'
+  | 'submissions'
+  | 'answer_choices'
+  | 'feedback'
+  | 'cases_by_date'
+
+type AdminCollapsedSectionId =
+  | 'analytics_today'
+  | 'analytics_top_regions'
+  | 'analytics_top_timezones'
+  | 'cases_jump_to_date'
+  | 'homepage_notes'
+  | 'surveys'
+  | 'cases_by_date'
+
 const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
+const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
+const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
+const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
+  'button_subtitles',
+  'analytics',
+  'homepage_notes',
+  'surveys',
+  'submissions',
+  'answer_choices',
+  'feedback',
+  'cases_by_date',
+]
 
 function shiftISODate(dateText: string, days: number) {
   const baseDate = new Date(`${dateText}T12:00:00`)
@@ -180,6 +212,7 @@ function timestampToLocalISO(timestamp: string) {
 const ANALYTICS_PAGE_SIZE = 1000
 
 export default function AdminPage() {
+  const teachingPointRef = useRef<HTMLTextAreaElement | null>(null)
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
@@ -245,12 +278,70 @@ export default function AdminPage() {
   const [showAnalytics, setShowAnalytics] = useState(true)
   const [showCasesByDate, setShowCasesByDate] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
+  const [sidebarSectionOrder, setSidebarSectionOrder] = useState<AdminSidebarSectionId[]>(
+    DEFAULT_ADMIN_SIDEBAR_ORDER
+  )
+  const [draggedSidebarSection, setDraggedSidebarSection] = useState<AdminSidebarSectionId | null>(null)
+  const [sidebarDropTarget, setSidebarDropTarget] = useState<AdminSidebarSectionId | null>(null)
+  const [collapsedSections, setCollapsedSections] = useState<Record<AdminCollapsedSectionId, boolean>>({
+    analytics_today: false,
+    analytics_top_regions: false,
+    analytics_top_timezones: false,
+    cases_jump_to_date: false,
+    homepage_notes: false,
+    surveys: false,
+    cases_by_date: false,
+  })
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
     setIsUnlocked(savedUnlock === 'true')
     setAuthReady(true)
   }, [])
+
+  useEffect(() => {
+    const savedOrder = window.localStorage.getItem(ADMIN_SIDEBAR_ORDER_STORAGE_KEY)
+    if (!savedOrder) return
+
+    try {
+      const parsed = JSON.parse(savedOrder) as AdminSidebarSectionId[]
+      const filtered = parsed.filter(sectionId =>
+        DEFAULT_ADMIN_SIDEBAR_ORDER.includes(sectionId)
+      )
+
+      if (filtered.length === DEFAULT_ADMIN_SIDEBAR_ORDER.length) {
+        setSidebarSectionOrder(filtered)
+      }
+    } catch {
+      // Ignore malformed saved orders and fall back to the default layout.
+    }
+  }, [])
+
+  useEffect(() => {
+    const savedCollapsed = window.localStorage.getItem(ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY)
+    if (!savedCollapsed) return
+
+    try {
+      const parsed = JSON.parse(savedCollapsed) as Partial<Record<AdminCollapsedSectionId, boolean>>
+      setCollapsedSections(prev => ({ ...prev, ...parsed }))
+    } catch {
+      // Ignore malformed saved collapse data and keep defaults.
+    }
+  }, [])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      ADMIN_SIDEBAR_ORDER_STORAGE_KEY,
+      JSON.stringify(sidebarSectionOrder)
+    )
+  }, [sidebarSectionOrder])
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY,
+      JSON.stringify(collapsedSections)
+    )
+  }, [collapsedSections])
 
   useEffect(() => {
     if (!isUnlocked) return
@@ -263,6 +354,60 @@ export default function AdminPage() {
     loadHomepageAnnouncements()
     loadHomepageSurveys()
   }, [isUnlocked])
+
+  function moveSidebarSection(
+    order: AdminSidebarSectionId[],
+    draggedId: AdminSidebarSectionId,
+    targetId: AdminSidebarSectionId
+  ) {
+    if (draggedId === targetId) return order
+
+    const nextOrder = [...order]
+    const draggedIndex = nextOrder.indexOf(draggedId)
+    const targetIndex = nextOrder.indexOf(targetId)
+
+    if (draggedIndex === -1 || targetIndex === -1) return order
+
+    nextOrder.splice(draggedIndex, 1)
+    nextOrder.splice(targetIndex, 0, draggedId)
+    return nextOrder
+  }
+
+  function handleSidebarDragStart(sectionId: AdminSidebarSectionId) {
+    setDraggedSidebarSection(sectionId)
+    setSidebarDropTarget(sectionId)
+  }
+
+  function handleSidebarDragOver(
+    event: DragEvent<HTMLDivElement>,
+    sectionId: AdminSidebarSectionId
+  ) {
+    event.preventDefault()
+    if (!draggedSidebarSection || draggedSidebarSection === sectionId) return
+    setSidebarDropTarget(sectionId)
+  }
+
+  function handleSidebarDrop(sectionId: AdminSidebarSectionId) {
+    if (!draggedSidebarSection) return
+
+    setSidebarSectionOrder(prev =>
+      moveSidebarSection(prev, draggedSidebarSection, sectionId)
+    )
+    setDraggedSidebarSection(null)
+    setSidebarDropTarget(null)
+  }
+
+  function handleSidebarDragEnd() {
+    setDraggedSidebarSection(null)
+    setSidebarDropTarget(null)
+  }
+
+  function toggleCollapsedSection(sectionId: AdminCollapsedSectionId) {
+    setCollapsedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId],
+    }))
+  }
 
   useEffect(() => {
     if (!isUnlocked) return
@@ -428,11 +573,67 @@ export default function AdminPage() {
     })
   }
 
+  function renderFormattedPreviewLine(line: string) {
+    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
+
+    return parts.map((part, index) => {
+      if (!part) return null
+
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={index}>{part.slice(2, -2)}</strong>
+      }
+
+      if (part.startsWith('*') && part.endsWith('*')) {
+        return <em key={index}>{part.slice(1, -1)}</em>
+      }
+
+      return <span key={index}>{part}</span>
+    })
+  }
+
   function formatPreviewTeachingPoint(text: string) {
     return text
       .split(/\n+/)
       .map(line => line.trim())
       .filter(Boolean)
+  }
+
+  function wrapTeachingPointSelection(marker: '**' | '*') {
+    const textarea = teachingPointRef.current
+    if (!textarea) return
+
+    const selectionStart = textarea.selectionStart
+    const selectionEnd = textarea.selectionEnd
+    const selectedText = teachingPoint.slice(selectionStart, selectionEnd)
+    const wrapped = `${marker}${selectedText || 'text'}${marker}`
+    const nextValue =
+      teachingPoint.slice(0, selectionStart) +
+      wrapped +
+      teachingPoint.slice(selectionEnd)
+
+    setTeachingPoint(nextValue)
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const start = selectionStart + marker.length
+      const end = start + (selectedText || 'text').length
+      textarea.setSelectionRange(start, end)
+    })
+  }
+
+  function handleTeachingPointKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (!(event.metaKey || event.ctrlKey)) return
+
+    const key = event.key.toLowerCase()
+    if (key === 'b') {
+      event.preventDefault()
+      wrapTeachingPointSelection('**')
+    }
+
+    if (key === 'i') {
+      event.preventDefault()
+      wrapTeachingPointSelection('*')
+    }
   }
 
   function nextMissingLevelForDate(dateText: string): Level | null {
@@ -1165,6 +1366,7 @@ export default function AdminPage() {
     let solvedPlayers = 0
     let firstTrySolves = 0
     let totalGuessesBeforeSolve = 0
+    const solveClueCounts = new Map<number, number>()
 
     for (const sessionGuesses of guessesBySession.values()) {
       const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
@@ -1172,11 +1374,21 @@ export default function AdminPage() {
 
       solvedPlayers += 1
       totalGuessesBeforeSolve += solvedIndex + 1
+      const solveClue = solvedIndex + 1
+      solveClueCounts.set(solveClue, (solveClueCounts.get(solveClue) || 0) + 1)
 
       if (solvedIndex === 0) {
         firstTrySolves += 1
       }
     }
+
+    const mostCommonSolveClue =
+      solveClueCounts.size > 0
+        ? [...solveClueCounts.entries()].sort((a, b) => {
+            if (b[1] !== a[1]) return b[1] - a[1]
+            return a[0] - b[0]
+          })[0][0]
+        : null
 
     setCaseCommunityStats({
       players: players.size,
@@ -1189,6 +1401,7 @@ export default function AdminPage() {
         solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
       firstTrySolveRate:
         solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
+      mostCommonSolveClue,
     })
   }
 
@@ -1377,6 +1590,667 @@ export default function AdminPage() {
         </div>
       </main>
     )
+  }
+
+  const sidebarSections: Record<AdminSidebarSectionId, ReactNode> = {
+    button_subtitles: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <Link href="/admin/taglines" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
+          Button Subtitles
+        </Link>
+      </section>
+    ),
+    homepage_notes: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <button
+          type="button"
+          onClick={() => toggleCollapsedSection('homepage_notes')}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <h2 className="font-serif text-xl font-bold">Homepage Notes</h2>
+          <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+            {homepageAnnouncements.length} scheduled
+          </div>
+        </button>
+
+        {!collapsedSections.homepage_notes && (
+        <div className="mt-3 space-y-2.5">
+          <textarea
+            value={announcementMessage}
+            onChange={e => setAnnouncementMessage(e.target.value)}
+            rows={3}
+            placeholder="Add a short homepage note"
+            className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+          />
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              Start
+              <input
+                type="date"
+                value={announcementStartDate}
+                onChange={e => setAnnouncementStartDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+            </label>
+
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              End
+              <input
+                type="date"
+                value={announcementEndDate}
+                onChange={e => setAnnouncementEndDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+            </label>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void saveHomepageAnnouncement()}
+              className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
+            >
+              {editingAnnouncementId ? 'Update note' : 'Schedule note'}
+            </button>
+            {editingAnnouncementId && (
+              <button
+                type="button"
+                onClick={resetAnnouncementForm}
+                className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              Home page preview
+            </div>
+            <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+              {announcementMessage.trim() || 'Your scheduled homepage note will preview here.'}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {homepageAnnouncements.map(item => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
+              >
+                <p className="text-sm leading-5 text-[#102018]">{item.message}</p>
+                <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                  {item.start_date}
+                  {item.end_date && item.end_date !== item.start_date
+                    ? ` to ${item.end_date}`
+                    : ''}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => editHomepageAnnouncement(item)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteHomepageAnnouncement(item.id)}
+                    className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        )}
+      </section>
+    ),
+    surveys: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <button
+          type="button"
+          onClick={() => toggleCollapsedSection('surveys')}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <h2 className="font-serif text-xl font-bold">Surveys</h2>
+          <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+            {homepageSurveys.length} scheduled
+          </div>
+        </button>
+
+        {!collapsedSections.surveys && (
+        <div className="mt-3 space-y-2.5">
+          <textarea
+            value={surveyQuestion}
+            onChange={e => setSurveyQuestion(e.target.value)}
+            rows={2}
+            placeholder="Add your survey question"
+            className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+          />
+
+          <div className="grid gap-2 sm:grid-cols-3">
+            <input
+              type="text"
+              value={surveyOption1}
+              onChange={e => setSurveyOption1(e.target.value)}
+              placeholder="Option 1"
+              className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+            />
+            <input
+              type="text"
+              value={surveyOption2}
+              onChange={e => setSurveyOption2(e.target.value)}
+              placeholder="Option 2"
+              className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+            />
+            <input
+              type="text"
+              value={surveyOption3}
+              onChange={e => setSurveyOption3(e.target.value)}
+              placeholder="Option 3"
+              className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              Start
+              <input
+                type="date"
+                value={surveyStartDate}
+                onChange={e => setSurveyStartDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+            </label>
+
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              End
+              <input
+                type="date"
+                value={surveyEndDate}
+                onChange={e => setSurveyEndDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+            </label>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void saveHomepageSurvey()}
+              className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
+            >
+              {editingSurveyId ? 'Update survey' : 'Schedule survey'}
+            </button>
+            {editingSurveyId && (
+              <button
+                type="button"
+                onClick={resetSurveyForm}
+                className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              Survey preview
+            </div>
+            <div className="mt-2 text-[13px] leading-5 text-[#102018]">
+              {surveyQuestion.trim() || 'Your scheduled survey will preview here.'}
+            </div>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {[surveyOption1, surveyOption2, surveyOption3].map((option, index) => (
+                <div
+                  key={`${option}-${index}`}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[11px] font-semibold text-[#102018]"
+                >
+                  {option.trim() || `Option ${index + 1}`}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {homepageSurveys.map(item => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
+              >
+                <p className="text-sm leading-5 font-semibold text-[#102018]">{item.question}</p>
+                <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                  {item.start_date}
+                  {item.end_date && item.end_date !== item.start_date
+                    ? ` to ${item.end_date}`
+                    : ''}
+                </p>
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                  {[item.option_1, item.option_2, item.option_3].map(option => (
+                    <div key={option} className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                        {option}
+                      </div>
+                      <div className="mt-1 text-sm font-semibold text-[#102018]">
+                        {item.response_counts?.[option] ?? 0}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => editHomepageSurvey(item)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteHomepageSurvey(item.id)}
+                    className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        )}
+      </section>
+    ),
+    submissions: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/submissions"
+              onClick={() => {
+                if (submissionSummary.latestCreatedAt) {
+                  window.localStorage.setItem(
+                    'orthodle_seen_submissions_at',
+                    submissionSummary.latestCreatedAt
+                  )
+                }
+                setSubmissionSummary(prev => ({ ...prev, hasNew: false }))
+              }}
+              className="font-serif text-xl font-bold transition hover:text-[#1f6448]"
+            >
+              Submissions
+            </Link>
+            {submissionSummary.hasNew && (
+              <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
+                New
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-[#8a948d]">{submissionSummary.total} total</p>
+      </section>
+    ),
+    answer_choices: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link
+            href="/admin/answer-choices"
+            className="font-serif text-xl font-bold transition hover:text-[#1f6448]"
+          >
+            Answer Choices
+          </Link>
+        </div>
+      </section>
+    ),
+    feedback: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/admin/feedback"
+              onClick={() => {
+                if (feedbackSummary.latestCreatedAt) {
+                  window.localStorage.setItem(
+                    'orthodle_seen_feedback_at',
+                    feedbackSummary.latestCreatedAt
+                  )
+                }
+                setFeedbackSummary(prev => ({ ...prev, hasNew: false }))
+              }}
+              className="font-serif text-xl font-bold transition hover:text-[#1f6448]"
+            >
+              Feedback
+            </Link>
+            {feedbackSummary.hasNew && (
+              <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
+                New
+              </div>
+            )}
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-[#8a948d]">{feedbackSummary.total} total</p>
+      </section>
+    ),
+    analytics: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-serif text-xl font-bold">Analytics</h2>
+          <button
+            type="button"
+            onClick={() => setShowAnalytics(prev => !prev)}
+            className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
+          >
+            {showAnalytics ? 'Hide' : 'Show'}
+          </button>
+        </div>
+
+        {showAnalytics && (
+          <div className="mt-4 space-y-4">
+            {analyticsSummary ? (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Total users
+                    </div>
+                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                      {analyticsSummary.totalUniqueUsers}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Combined daily users
+                    </div>
+                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                      {analyticsSummary.cumulativeDailyUsers}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Total guesses
+                    </div>
+                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                      {analyticsSummary.totalGuesses}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Guess accuracy
+                    </div>
+                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                      {formatPercent(analyticsSummary.guessAccuracy)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Avg guesses / user
+                    </div>
+                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                      {analyticsSummary.averageGuessesPerUser.toFixed(1)}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Archive plays
+                    </div>
+                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                      {analyticsSummary.archivePlays}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
+                  <button
+                    type="button"
+                    onClick={() => toggleCollapsedSection('analytics_today')}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Today
+                    </div>
+                  </button>
+                  {!collapsedSections.analytics_today && (
+                    <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                      <div>
+                        <div className="font-serif text-xl font-bold text-[#102018]">
+                          {analyticsSummary.todayUsers}
+                        </div>
+                        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                          Users
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-serif text-xl font-bold text-[#102018]">
+                          {analyticsSummary.todayGuesses}
+                        </div>
+                        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                          Guesses
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-serif text-xl font-bold text-[#102018]">
+                          {analyticsSummary.todayCorrectGuesses}
+                        </div>
+                        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
+                          Correct
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleCollapsedSection('analytics_top_regions')}
+                      className="flex w-full items-center justify-between gap-3 text-left"
+                    >
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                        Top regions
+                      </div>
+                    </button>
+                    {!collapsedSections.analytics_top_regions && (
+                      <div className="mt-3 space-y-2">
+                        {audienceSummary.topRegions.length > 0 ? (
+                          audienceSummary.topRegions.map(item => (
+                            <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
+                              <span className="min-w-0 break-all">{item.label}</span>
+                              <span className="font-semibold text-[#637268]">{item.count}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-[#637268]">No region data yet.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
+                    <button
+                      type="button"
+                      onClick={() => toggleCollapsedSection('analytics_top_timezones')}
+                      className="flex w-full items-center justify-between gap-3 text-left"
+                    >
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                        Top timezones
+                      </div>
+                    </button>
+                    {!collapsedSections.analytics_top_timezones && (
+                      <div className="mt-3 space-y-2">
+                        {audienceSummary.topTimezones.length > 0 ? (
+                          audienceSummary.topTimezones.map(item => (
+                            <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
+                              <span className="min-w-0 break-all">{item.label}</span>
+                              <span className="font-semibold text-[#637268]">{item.count}</span>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-sm text-[#637268]">No timezone data yet.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-[#637268]">No analytics yet.</p>
+            )}
+          </div>
+        )}
+      </section>
+    ),
+    cases_by_date: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <button
+          type="button"
+          onClick={() => toggleCollapsedSection('cases_by_date')}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <h2 className="font-serif text-xl font-bold">Cases by Date</h2>
+          {browseDate ? (
+            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              {formatShortDate(browseDate)}
+            </div>
+          ) : null}
+        </button>
+
+        {!collapsedSections.cases_by_date && showCasesByDate && (
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+              <button
+                type="button"
+                onClick={() => toggleCollapsedSection('cases_jump_to_date')}
+                className="flex w-full items-center justify-between gap-3 text-left"
+              >
+                <div className="text-sm font-semibold text-[#637268]">Jump to date</div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                  {collapsedSections.cases_jump_to_date ? 'Show' : 'Hide'}
+                </div>
+              </button>
+
+              {!collapsedSections.cases_jump_to_date && (
+                <>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      <span className="sr-only">Jump to date</span>
+                      <input
+                        type="date"
+                        value={browseDate}
+                        onChange={e => setBrowseDate(e.target.value)}
+                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCaseDate(browseDate || today)
+                        setShowComposer(true)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    >
+                      Open in editor
+                    </button>
+                  </div>
+
+                  {quickBrowseDates.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {quickBrowseDates.map(date => (
+                        <button
+                          key={date}
+                          type="button"
+                          onClick={() => setBrowseDate(date)}
+                          className={
+                            browseDate === date
+                              ? 'rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]'
+                              : 'rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]'
+                          }
+                        >
+                          {formatShortDate(date)}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {browseDate && (
+                <div className="mt-4 rounded-xl border border-[#e7e1d6] bg-white p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                      {browseDate} overview
+                    </div>
+                    <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                      {browsedCases.length}/3 ready
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2">
+                    {levelOrder.map(levelValue => {
+                      const item = browsedCases.find(entry => entry.level === levelValue)
+                      const nextMissing = nextMissingLevelForDate(browseDate)
+
+                      return (
+                        <div
+                          key={`browse-${browseDate}-${levelValue}`}
+                          className={
+                            item
+                              ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
+                              : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
+                          }
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                                {formatLevel(levelValue)}
+                              </div>
+                              <div className="mt-1.5 font-semibold text-[#102018]">
+                                {item ? item.answer : 'Not scheduled'}
+                              </div>
+                              <div className="mt-1 text-sm text-[#637268]">
+                                {item ? item.category : 'Open slot'}
+                              </div>
+                            </div>
+
+                            {item ? (
+                              <button
+                                type="button"
+                                onClick={() => editCase(item)}
+                                className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                              >
+                                Edit
+                              </button>
+                            ) : nextMissing === levelValue ? (
+                              <button
+                                type="button"
+                                onClick={() => startCaseFor(browseDate, levelValue)}
+                                className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                              >
+                                Add
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+    ),
   }
 
   return (
@@ -1641,53 +2515,52 @@ export default function AdminPage() {
                 <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                   Images
                 </div>
-                <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Image 1 URL
-                    <input
-                      value={imageUrl}
-                      onChange={e => setImageUrl(e.target.value)}
-                      placeholder="Paste a hosted x-ray or image URL"
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                    />
-                  </label>
-
-                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Image 1 Reveal
-                    <select
-                      value={imageRevealClue}
-                      onChange={e => setImageRevealClue(e.target.value)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                    >
-                      <option value="none">Show immediately</option>
-                      <option value="1">Reveal with Clue 1</option>
-                      <option value="2">Reveal with Clue 2</option>
-                      <option value="3">Reveal with Clue 3</option>
-                      <option value="4">Reveal with Clue 4</option>
-                      <option value="5">Reveal with Clue 5</option>
-                      <option value="6">Reveal with Clue 6</option>
-                    </select>
-                  </label>
-
-                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Image 1 Credit
-                    <input
-                      value={imageCredit}
-                      onChange={e => setImageCredit(e.target.value)}
-                      placeholder="Optional small credit"
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                    />
-                  </label>
-
-                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Image 2 URL
-                    <div className="flex gap-2">
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-2.5">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                      Image 1
+                    </div>
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      Image 1 URL
                       <input
-                        value={imageUrl2}
-                        onChange={e => setImageUrl2(e.target.value)}
-                        placeholder="Optional second hosted image URL"
-                        className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        value={imageUrl}
+                        onChange={e => setImageUrl(e.target.value)}
+                        placeholder="Paste a hosted x-ray or image URL"
+                        className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      Image 1 Reveal
+                      <select
+                        value={imageRevealClue}
+                        onChange={e => setImageRevealClue(e.target.value)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      >
+                        <option value="none">Show immediately</option>
+                        <option value="1">Reveal with Clue 1</option>
+                        <option value="2">Reveal with Clue 2</option>
+                        <option value="3">Reveal with Clue 3</option>
+                        <option value="4">Reveal with Clue 4</option>
+                        <option value="5">Reveal with Clue 5</option>
+                        <option value="6">Reveal with Clue 6</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      Image 1 Credit
+                      <input
+                        value={imageCredit}
+                        onChange={e => setImageCredit(e.target.value)}
+                        placeholder="Optional small credit"
+                        className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="grid gap-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        Image 2
+                      </div>
                       {imageUrl2 && (
                         <button
                           type="button"
@@ -1696,40 +2569,47 @@ export default function AdminPage() {
                             setImageCredit2('')
                             setImageRevealClue2('none')
                           }}
-                          className="rounded-lg border border-[#ead9b7] px-3 py-2 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                          className="rounded-lg border border-[#ead9b7] px-2.5 py-1 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
                         >
                           Remove
                         </button>
                       )}
                     </div>
-                  </label>
-
-                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Image 2 Reveal
-                    <select
-                      value={imageRevealClue2}
-                      onChange={e => setImageRevealClue2(e.target.value)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                    >
-                      <option value="none">Show immediately</option>
-                      <option value="1">Reveal with Clue 1</option>
-                      <option value="2">Reveal with Clue 2</option>
-                      <option value="3">Reveal with Clue 3</option>
-                      <option value="4">Reveal with Clue 4</option>
-                      <option value="5">Reveal with Clue 5</option>
-                      <option value="6">Reveal with Clue 6</option>
-                    </select>
-                  </label>
-
-                  <label className="grid gap-2 text-sm font-semibold text-[#637268] sm:col-span-2">
-                    Image 2 Credit
-                    <input
-                      value={imageCredit2}
-                      onChange={e => setImageCredit2(e.target.value)}
-                      placeholder="Optional second image credit"
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                    />
-                  </label>
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      Image 2 URL
+                      <input
+                        value={imageUrl2}
+                        onChange={e => setImageUrl2(e.target.value)}
+                        placeholder="Optional second hosted image URL"
+                        className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      Image 2 Reveal
+                      <select
+                        value={imageRevealClue2}
+                        onChange={e => setImageRevealClue2(e.target.value)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      >
+                        <option value="none">Show immediately</option>
+                        <option value="1">Reveal with Clue 1</option>
+                        <option value="2">Reveal with Clue 2</option>
+                        <option value="3">Reveal with Clue 3</option>
+                        <option value="4">Reveal with Clue 4</option>
+                        <option value="5">Reveal with Clue 5</option>
+                        <option value="6">Reveal with Clue 6</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                      Image 2 Credit
+                      <input
+                        value={imageCredit2}
+                        onChange={e => setImageCredit2(e.target.value)}
+                        placeholder="Optional second image credit"
+                        className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -1837,8 +2717,10 @@ export default function AdminPage() {
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Teaching Point
                 <textarea
+                  ref={teachingPointRef}
                   value={teachingPoint}
                   onChange={e => setTeachingPoint(e.target.value)}
+                  onKeyDown={handleTeachingPointKeyDown}
                   placeholder={`Who: Obese adolescents (10-16), often bilateral
 Presentation: Limp + hip/groin/knee pain
 Exam: ↓ internal rotation, obligate external rotation
@@ -1850,7 +2732,7 @@ Pearl: Knee pain in teens -> always check the hip`}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
                 <span className="text-xs font-normal text-[#8a948d]">
-                  Line breaks are preserved. Use `**bold**` and `*italics*` for emphasis.
+                  Line breaks are preserved. Use Ctrl/Cmd + B for bold and Ctrl/Cmd + I for italics.
                 </span>
               </label>
 
@@ -1964,6 +2846,16 @@ Pearl: Knee pain in teens -> always check the hip`}
                       <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
                         {caseCommunityStats.firstTrySolveRate !== null
                           ? formatPercent(caseCommunityStats.firstTrySolveRate)
+                          : '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                        Most common solve clue
+                      </div>
+                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                        {caseCommunityStats.mostCommonSolveClue !== null
+                          ? `Clue ${caseCommunityStats.mostCommonSolveClue}`
                           : '—'}
                       </div>
                     </div>
@@ -2111,7 +3003,7 @@ Pearl: Knee pain in teens -> always check the hip`}
                             <div className="mt-2 space-y-2">
                               {formatPreviewTeachingPoint(teachingPoint).map((line, index) => (
                                 <p key={`${line}-${index}`} className="text-sm leading-6 text-[#102018]">
-                                  {line}
+                                  {renderFormattedPreviewLine(line)}
                                 </p>
                               ))}
                             </div>
@@ -2130,630 +3022,24 @@ Pearl: Knee pain in teens -> always check the hip`}
             )}
           </section>
 
-          <aside className="space-y-3">
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-serif text-xl font-bold">Button Subtitles</h2>
-                  <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    Today&apos;s captions
-                  </div>
-                </div>
-                <Link
-                  href="/admin/taglines"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                >
-                  Open sheet
-                </Link>
+          <aside className="flex flex-col gap-3">
+            {sidebarSectionOrder.map(sectionId => (
+              <div
+                key={sectionId}
+                draggable
+                onDragStart={() => handleSidebarDragStart(sectionId)}
+                onDragOver={event => handleSidebarDragOver(event, sectionId)}
+                onDrop={() => handleSidebarDrop(sectionId)}
+                onDragEnd={handleSidebarDragEnd}
+                className={
+                  sidebarDropTarget === sectionId && draggedSidebarSection !== sectionId
+                    ? 'rounded-[22px] border-2 border-dashed border-[#cfded4] bg-[#f7fbf8] p-1 transition'
+                    : '[&>section>div:first-child]:active:cursor-grabbing [&>section>div:first-child]:cursor-grab transition'
+                }
+              >
+                {sidebarSections[sectionId]}
               </div>
-            </section>
-
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="font-serif text-xl font-bold">Homepage Notes</h2>
-                <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                  {homepageAnnouncements.length} scheduled
-                </div>
-              </div>
-
-              <div className="mt-3 space-y-2.5">
-                <textarea
-                  value={announcementMessage}
-                  onChange={e => setAnnouncementMessage(e.target.value)}
-                  rows={3}
-                  placeholder="Add a short homepage note"
-                  className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                />
-
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                    Start
-                    <input
-                      type="date"
-                      value={announcementStartDate}
-                      onChange={e => setAnnouncementStartDate(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                    />
-                  </label>
-
-                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                    End
-                    <input
-                      type="date"
-                      value={announcementEndDate}
-                      onChange={e => setAnnouncementEndDate(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                    />
-                  </label>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void saveHomepageAnnouncement()}
-                    className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
-                  >
-                    {editingAnnouncementId ? 'Update note' : 'Schedule note'}
-                  </button>
-                  {editingAnnouncementId && (
-                    <button
-                      type="button"
-                      onClick={resetAnnouncementForm}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                    Home page preview
-                  </div>
-                  <p className="mt-2 text-[13px] leading-5 text-[#102018]">
-                    {announcementMessage.trim() || 'Your scheduled homepage note will preview here.'}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  {homepageAnnouncements.map(item => (
-                    <div
-                      key={item.id}
-                      className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
-                    >
-                      <p className="text-sm leading-5 text-[#102018]">{item.message}</p>
-                      <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
-                        {item.start_date}
-                        {item.end_date && item.end_date !== item.start_date
-                          ? ` to ${item.end_date}`
-                          : ''}
-                      </p>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => editHomepageAnnouncement(item)}
-                          className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void deleteHomepageAnnouncement(item.id)}
-                          className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="font-serif text-xl font-bold">Surveys</h2>
-                <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                  {homepageSurveys.length} scheduled
-                </div>
-              </div>
-
-              <div className="mt-3 space-y-2.5">
-                <textarea
-                  value={surveyQuestion}
-                  onChange={e => setSurveyQuestion(e.target.value)}
-                  rows={2}
-                  placeholder="Add your survey question"
-                  className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                />
-
-                <div className="grid gap-2 sm:grid-cols-3">
-                  <input
-                    type="text"
-                    value={surveyOption1}
-                    onChange={e => setSurveyOption1(e.target.value)}
-                    placeholder="Option 1"
-                    className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                  />
-                  <input
-                    type="text"
-                    value={surveyOption2}
-                    onChange={e => setSurveyOption2(e.target.value)}
-                    placeholder="Option 2"
-                    className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                  />
-                  <input
-                    type="text"
-                    value={surveyOption3}
-                    onChange={e => setSurveyOption3(e.target.value)}
-                    placeholder="Option 3"
-                    className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                    Start
-                    <input
-                      type="date"
-                      value={surveyStartDate}
-                      onChange={e => setSurveyStartDate(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                    />
-                  </label>
-
-                  <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                    End
-                    <input
-                      type="date"
-                      value={surveyEndDate}
-                      onChange={e => setSurveyEndDate(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                    />
-                  </label>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void saveHomepageSurvey()}
-                    className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
-                  >
-                    {editingSurveyId ? 'Update survey' : 'Schedule survey'}
-                  </button>
-                  {editingSurveyId && (
-                    <button
-                      type="button"
-                      onClick={resetSurveyForm}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                    Survey preview
-                  </div>
-                  <div className="mt-2 text-[13px] leading-5 text-[#102018]">
-                    {surveyQuestion.trim() || 'Your scheduled survey will preview here.'}
-                  </div>
-                  <div className="mt-3 flex flex-wrap justify-center gap-2">
-                    {[surveyOption1, surveyOption2, surveyOption3].map((option, index) => (
-                      <div
-                        key={`${option}-${index}`}
-                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[11px] font-semibold text-[#102018]"
-                      >
-                        {option.trim() || `Option ${index + 1}`}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  {homepageSurveys.map(item => (
-                    <div
-                      key={item.id}
-                      className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
-                    >
-                      <p className="text-sm leading-5 font-semibold text-[#102018]">{item.question}</p>
-                      <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
-                        {item.start_date}
-                        {item.end_date && item.end_date !== item.start_date
-                          ? ` to ${item.end_date}`
-                          : ''}
-                      </p>
-                      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                        {[item.option_1, item.option_2, item.option_3].map(option => (
-                          <div key={option} className="rounded-lg border border-[#ded7ca] bg-white px-2 py-2">
-                            <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                              {option}
-                            </div>
-                            <div className="mt-1 text-sm font-semibold text-[#102018]">
-                              {item.response_counts?.[option] ?? 0}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-2 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => editHomepageSurvey(item)}
-                          className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => void deleteHomepageSurvey(item.id)}
-                          className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-serif text-xl font-bold">Submissions</h2>
-                  {submissionSummary.hasNew && (
-                    <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
-                      New
-                    </div>
-                  )}
-                </div>
-                <Link
-                  href="/admin/submissions"
-                  onClick={() => {
-                    if (submissionSummary.latestCreatedAt) {
-                      window.localStorage.setItem(
-                        'orthodle_seen_submissions_at',
-                        submissionSummary.latestCreatedAt
-                      )
-                    }
-                    setSubmissionSummary(prev => ({ ...prev, hasNew: false }))
-                  }}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                >
-                  Open sheet
-                </Link>
-              </div>
-              <p className="mt-2 text-sm text-[#8a948d]">{submissionSummary.total} total</p>
-            </section>
-
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="font-serif text-xl font-bold">Answer Choices</h2>
-                <Link
-                  href="/admin/answer-choices"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                >
-                  Open sheet
-                </Link>
-              </div>
-            </section>
-
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h2 className="font-serif text-xl font-bold">Feedback</h2>
-                  {feedbackSummary.hasNew && (
-                    <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
-                      New
-                    </div>
-                  )}
-                </div>
-                <Link
-                  href="/admin/feedback"
-                  onClick={() => {
-                    if (feedbackSummary.latestCreatedAt) {
-                      window.localStorage.setItem(
-                        'orthodle_seen_feedback_at',
-                        feedbackSummary.latestCreatedAt
-                      )
-                    }
-                    setFeedbackSummary(prev => ({ ...prev, hasNew: false }))
-                  }}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                >
-                  Open sheet
-                </Link>
-              </div>
-              <p className="mt-2 text-sm text-[#8a948d]">{feedbackSummary.total} total</p>
-            </section>
-
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-serif text-xl font-bold">Analytics</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowAnalytics(prev => !prev)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                >
-                  {showAnalytics ? 'Hide' : 'Show'}
-                </button>
-              </div>
-
-              {showAnalytics && (
-              <div className="mt-4 space-y-4">
-                {analyticsSummary ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Total users
-                        </div>
-                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.totalUniqueUsers}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Combined daily users
-                        </div>
-                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.cumulativeDailyUsers}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Total guesses
-                        </div>
-                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.totalGuesses}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Guess accuracy
-                        </div>
-                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {formatPercent(analyticsSummary.guessAccuracy)}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Avg guesses / user
-                        </div>
-                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.averageGuessesPerUser.toFixed(1)}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Archive plays
-                        </div>
-                        <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                          {analyticsSummary.archivePlays}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                        Today
-                      </div>
-                      <div className="mt-3 grid grid-cols-3 gap-3 text-center">
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayUsers}
-                          </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            Users
-                          </div>
-                        </div>
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayGuesses}
-                          </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            Guesses
-                          </div>
-                        </div>
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayCorrectGuesses}
-                          </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            Correct
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Top regions
-                        </div>
-                        <div className="mt-3 space-y-2">
-                          {audienceSummary.topRegions.length > 0 ? (
-                            audienceSummary.topRegions.map(item => (
-                              <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
-                                <span className="min-w-0 break-all">{item.label}</span>
-                                <span className="font-semibold text-[#637268]">{item.count}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-[#637268]">No region data yet.</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                          Top timezones
-                        </div>
-                        <div className="mt-3 space-y-2">
-                          {audienceSummary.topTimezones.length > 0 ? (
-                            audienceSummary.topTimezones.map(item => (
-                              <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
-                                <span className="min-w-0 break-all">{item.label}</span>
-                                <span className="font-semibold text-[#637268]">{item.count}</span>
-                              </div>
-                            ))
-                          ) : (
-                            <p className="text-sm text-[#637268]">No timezone data yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                  </>
-                ) : (
-                  <p className="text-sm text-[#637268]">No analytics yet.</p>
-                )}
-              </div>
-              )}
-            </section>
-
-            <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="font-serif text-xl font-bold">Cases by Date</h2>
-                <div className="flex items-center gap-2">
-                  {browseDate && (
-                    <button
-                      type="button"
-                      onClick={() => setBrowseDate('')}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                    >
-                      Clear filter
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowCasesByDate(prev => !prev)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
-                  >
-                    {showCasesByDate ? 'Hide' : 'Show'}
-                  </button>
-                </div>
-              </div>
-
-              {showCasesByDate && (
-              <div className="mt-4 space-y-3">
-                <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      Jump to date
-                      <input
-                        type="date"
-                        value={browseDate}
-                        onChange={e => setBrowseDate(e.target.value)}
-                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCaseDate(browseDate || today)
-                        setShowComposer(true)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                    >
-                      Open in editor
-                    </button>
-                  </div>
-
-                  {quickBrowseDates.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {quickBrowseDates.map(date => (
-                        <button
-                          key={date}
-                          type="button"
-                          onClick={() => setBrowseDate(date)}
-                          className={
-                            browseDate === date
-                              ? 'rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]'
-                              : 'rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]'
-                          }
-                        >
-                          {formatShortDate(date)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {browseDate && (
-                    <div className="mt-4 rounded-xl border border-[#e7e1d6] bg-white p-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                          {browseDate} overview
-                        </div>
-                        <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                          {browsedCases.length}/3 ready
-                        </div>
-                      </div>
-
-                      <div className="mt-3 grid gap-2">
-                        {levelOrder.map(levelValue => {
-                          const item = browsedCases.find(entry => entry.level === levelValue)
-                          const nextMissing = nextMissingLevelForDate(browseDate)
-
-                          return (
-                            <div
-                              key={`browse-${browseDate}-${levelValue}`}
-                              className={
-                                item
-                                  ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
-                                  : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
-                              }
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div>
-                                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                                    {formatLevel(levelValue)}
-                                  </div>
-                                  <div className="mt-1.5 font-semibold text-[#102018]">
-                                    {item ? item.answer : 'Not scheduled'}
-                                  </div>
-                                  <div className="mt-1 text-sm text-[#637268]">
-                                    {item ? item.category : 'Open slot'}
-                                  </div>
-                                </div>
-
-                                {item ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => editCase(item)}
-                                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                                  >
-                                    Edit
-                                  </button>
-                                ) : nextMissing === levelValue ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => startCaseFor(browseDate, levelValue)}
-                                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                                  >
-                                    Add
-                                  </button>
-                                ) : null}
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-              )}
-            </section>
+            ))}
           </aside>
         </div>
       </div>

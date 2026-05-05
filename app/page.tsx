@@ -54,6 +54,11 @@ type CommunityCaseStats = {
   firstTrySolveRate: number | null
 }
 
+type TeachingPointSection = {
+  label: string
+  body: string[]
+}
+
 type HomepageAnnouncementRow = {
   id: string
   message: string
@@ -1045,15 +1050,86 @@ function PlayPageContent() {
     })
   }
 
+  function parseTeachingPointSections(text: string): TeachingPointSection[] {
+    const lines = text.split('\n')
+    const sections: TeachingPointSection[] = []
+    let currentSection: TeachingPointSection | null = null
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim()
+      if (!line) {
+        if (currentSection && currentSection.body[currentSection.body.length - 1] !== '') {
+          currentSection.body.push('')
+        }
+        continue
+      }
+
+      const headingMatch = line.match(/^\*?\*?([A-Za-z][A-Za-z /\-]+):\*?\*?\s*(.*)$/)
+      if (headingMatch) {
+        const [, label, rest] = headingMatch
+        currentSection = {
+          label: label.trim(),
+          body: rest ? [rest.trim()] : [],
+        }
+        sections.push(currentSection)
+        continue
+      }
+
+      if (!currentSection) {
+        currentSection = {
+          label: 'Quick takeaway',
+          body: [line],
+        }
+        sections.push(currentSection)
+        continue
+      }
+
+      currentSection.body.push(line)
+    }
+
+    return sections.filter(section => section.body.some(line => line.trim()))
+  }
+
   function renderTeachingPoint(text: string) {
-    return text.split('\n').map((line, index) =>
-      line.trim() ? (
-        <p key={index} className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
-          {renderFormattedLine(line)}
+    const sections = parseTeachingPointSections(text)
+
+    if (sections.length === 0) {
+      return (
+        <p className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
+          {renderFormattedLine(text)}
         </p>
-      ) : (
-        <div key={index} className="h-2.5" />
       )
+    }
+
+    return (
+      <div className="orthodle-teaching-card rounded-xl bg-[#fcfbf8] px-3 py-2.5">
+        <div className="space-y-3">
+          {sections.map((section, sectionIndex) => (
+            <div
+              key={section.label}
+              className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-3' : ''}
+            >
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                {section.label}
+              </div>
+              <div className="mt-1.5 space-y-1.5">
+                {section.body.map((line, index) =>
+                  line ? (
+                    <p
+                      key={`${section.label}-${index}`}
+                      className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+                    >
+                      {renderFormattedLine(line)}
+                    </p>
+                  ) : (
+                    <div key={`${section.label}-${index}`} className="h-1" />
+                  )
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     )
   }
 
@@ -1873,8 +1949,8 @@ function PlayPageContent() {
               ref={solvedCardRef}
               className={
                 pulseSuccess
-                  ? 'orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
-                  : 'night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  ? 'orthodle-answer-shell orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  : 'orthodle-answer-shell night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
               }
             >
               <div className="mt-1">
@@ -1891,12 +1967,6 @@ function PlayPageContent() {
               </div>
 
               <div className="mt-3 space-y-2.5 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-3">
-                {dailyCase.contributor_name && (
-                  <div className="hidden rounded-full border border-[#dfe7e1] bg-[#fbfdfb] px-3 py-1 text-[11px] font-semibold text-[#315f4d] sm:inline-flex">
-                    Contributed by {dailyCase.contributor_name}
-                  </div>
-                )}
-
                 <div>
                   <div className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                     Quick takeaway
@@ -1904,6 +1974,11 @@ function PlayPageContent() {
                   <div className="mt-2 space-y-1">
                     {renderTeachingPoint(teachingPoint)}
                   </div>
+                  {dailyCase.contributor_name && (
+                    <div className="mt-3 text-center text-[11px] font-semibold text-[#315f4d]">
+                      Contributed by {dailyCase.contributor_name}
+                    </div>
+                  )}
                 </div>
 
                 {(communityStats || roundComplete) && (
@@ -2030,9 +2105,9 @@ function PlayPageContent() {
                         ? item.correct
                           ? `${
                               isLatestCorrect ? 'orthodle-success-pulse' : ''
-                            } flex min-h-[38px] items-center gap-2 rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm`
-                          : 'flex min-h-[38px] items-center gap-2 rounded-lg bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm'
-                        : 'flex min-h-[38px] items-center gap-2 rounded-lg border border-dashed border-[#ded7ca] bg-white px-3 py-1.5 text-[12px] text-[#9aa39c] transition duration-200 hover:bg-[#fbfaf7]'
+                            } orthodle-guess-correct flex min-h-[38px] items-center gap-2 rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm`
+                          : 'orthodle-guess-wrong flex min-h-[38px] items-center gap-2 rounded-lg bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm'
+                        : 'orthodle-guess-empty flex min-h-[38px] items-center gap-2 rounded-lg border border-dashed border-[#ded7ca] bg-white px-3 py-1.5 text-[12px] text-[#9aa39c] transition duration-200 hover:bg-[#fbfaf7]'
                     }
                   >
                     <span className="w-5 font-mono text-[11px] text-[#637268]">
@@ -2078,9 +2153,9 @@ function PlayPageContent() {
                     className={
                       item
                         ? item.correct
-                          ? 'flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
-                          : 'flex min-h-[40px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
-                        : 'flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
+                          ? 'orthodle-guess-correct flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
+                          : 'orthodle-guess-wrong flex min-h-[40px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
+                        : 'orthodle-guess-empty flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
                     }
                   >
                     <span className="text-[8px] font-mono text-[#637268]">

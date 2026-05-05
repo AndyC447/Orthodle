@@ -127,7 +127,7 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-2.5 xl:grid-cols-4">
-              <div className="rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5">
+              <div className="orthodle-stat-tile rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5">
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Games played
                 </div>
@@ -136,7 +136,7 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className={`rounded-2xl border p-3.5 ${getWinRateTheme(
+              <div className={`orthodle-stat-tile rounded-2xl border p-3.5 ${getWinRateTheme(
                 statsSnapshot && statsSnapshot.gamesPlayed > 0 ? statsSnapshot.winRate : null
               ).card}`}>
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
@@ -151,7 +151,7 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#cfded4] bg-[#f7fbf8] p-3.5">
+              <div className="orthodle-stat-tile rounded-2xl border border-[#cfded4] bg-[#f7fbf8] p-3.5">
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Current streak
                 </div>
@@ -160,7 +160,7 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-[#ded7ca] bg-white p-3.5">
+              <div className="orthodle-stat-tile rounded-2xl border border-[#ded7ca] bg-white p-3.5">
                 <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Longest streak
                 </div>
@@ -172,7 +172,7 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_250px]">
-              <div className="flex h-full min-h-[350px] flex-col rounded-2xl border border-[#e7e1d6] bg-[#fbfaf7] p-4">
+              <div className="orthodle-stats-shell flex h-full min-h-[350px] flex-col rounded-2xl border border-[#e7e1d6] bg-[#fbfaf7] p-4">
                 <button
                   type="button"
                   onClick={() => setShowDistribution(prev => !prev)}
@@ -202,7 +202,7 @@ export default function StatsPage() {
                         <div className="text-center font-serif text-[16px] font-bold text-[#102018]">
                           {guessNumber}
                         </div>
-                        <div className="h-6 overflow-hidden rounded-full bg-[#ece8df]">
+                        <div className="orthodle-stat-track h-6 overflow-hidden rounded-full bg-[#ece8df]">
                           <div
                             className={`flex h-full items-center justify-end rounded-full bg-gradient-to-r px-2.5 text-[11px] font-bold text-white transition-[width] duration-500 ${distributionColors[guessNumber as keyof typeof distributionColors]}`}
                             style={{ width }}
@@ -220,7 +220,7 @@ export default function StatsPage() {
                 )}
               </div>
 
-              <div className="rounded-2xl border border-[#e7e1d6] bg-white p-4">
+              <div className="orthodle-stats-shell rounded-2xl border border-[#e7e1d6] bg-white p-4">
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                   Today&apos;s card
                 </div>
@@ -256,7 +256,7 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-4">
+            <div className="orthodle-stats-shell mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-4">
               <button
                 type="button"
                 onClick={() => setShowDifficulty(prev => !prev)}
@@ -275,7 +275,7 @@ export default function StatsPage() {
                 {(statsSnapshot?.byLevel || []).map(level => (
                   <div
                     key={level.level}
-                    className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3"
+                    className="orthodle-stat-tile rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3"
                   >
                     <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                       {getStatsLevelLabel(level.level)}
