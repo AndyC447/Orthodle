@@ -184,6 +184,22 @@ create table if not exists homepage_survey_responses (
   created_at timestamptz default now()
 );
 
+create table if not exists groups (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  join_code text not null unique,
+  creator_session_id text not null,
+  created_at timestamptz default now()
+);
+
+create table if not exists group_members (
+  id uuid primary key default uuid_generate_v4(),
+  group_id uuid not null references groups(id) on delete cascade,
+  session_id text not null,
+  display_name text not null,
+  created_at timestamptz default now()
+);
+
 create or replace view daily_analytics as
 select
   c.case_date,
@@ -209,6 +225,8 @@ alter table homepage_announcements enable row level security;
 alter table homepage_announcement_responses enable row level security;
 alter table homepage_surveys enable row level security;
 alter table homepage_survey_responses enable row level security;
+alter table groups enable row level security;
+alter table group_members enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);
@@ -244,6 +262,11 @@ create policy "public update homepage surveys" on homepage_surveys for update us
 create policy "public delete homepage surveys" on homepage_surveys for delete using (true);
 create policy "public read homepage survey responses" on homepage_survey_responses for select using (true);
 create policy "public insert homepage survey responses" on homepage_survey_responses for insert with check (true);
+create policy "public read groups" on groups for select using (true);
+create policy "public insert groups" on groups for insert with check (true);
+create policy "public read group members" on group_members for select using (true);
+create policy "public insert group members" on group_members for insert with check (true);
+create policy "public update group members" on group_members for update using (true) with check (true);
 
 insert into difficulty_taglines (level, text, position)
 values
