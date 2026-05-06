@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Calendar, ChevronDown, Share2, UserPlus } from 'lucide-react'
+import { Info, Share2, UserPlus, X } from 'lucide-react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
@@ -11,6 +11,7 @@ import { getSessionId } from '@/lib/utils'
 type GroupRow = {
   id: string
   name: string
+  icon: string | null
   join_code: string
   creator_session_id: string
   created_at: string
@@ -62,6 +63,7 @@ type GroupAggregate = {
 type DisplayGroup = {
   id: string
   name: string
+  icon: string | null
   members: number
   score: number
   avgAccuracy: number | null
@@ -69,6 +71,17 @@ type DisplayGroup = {
 }
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
+const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
+const GROUP_ICONS = [
+  { value: '🦴', label: 'Bone' },
+  { value: '🔨', label: 'Hammer' },
+  { value: '🛠️', label: 'Tools' },
+  { value: '🩺', label: 'Doctor' },
+  { value: '🏥', label: 'Hospital' },
+  { value: '💪', label: 'Strength' },
+  { value: '🧠', label: 'Brain' },
+  { value: '⚕️', label: 'Medicine' },
+]
 
 function normalizeJoinCode(value: string) {
   return value
@@ -88,6 +101,18 @@ function membershipKey(groupId: string) {
 function buildInviteLink(joinCode: string) {
   if (typeof window === 'undefined') return `https://orthodle.com/groups?code=${joinCode}`
   return `${window.location.origin}/groups?code=${joinCode}`
+}
+
+function buildInviteMessage(group: GroupRow) {
+  const link = buildInviteLink(group.join_code)
+  return [
+    'Orthodle Group Invite',
+    '',
+    `Join "${group.name}"`,
+    'Compete on a private daily ortho case leaderboard.',
+    `Invite code: ${group.join_code}`,
+    link,
+  ].join('\n')
 }
 
 function computeLongestRun(sortedDates: string[]) {
@@ -119,6 +144,38 @@ function groupMonogram(name: string) {
     .slice(0, 3)
     .map(word => word[0]?.toUpperCase() || '')
     .join('')
+}
+
+function groupAvatarLabel(group: Pick<GroupRow, 'name' | 'icon'>) {
+  return group.icon || groupMonogram(group.name)
+}
+
+function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
+  const dimensions =
+    size === 'lg'
+      ? 'h-[70px] w-[70px] rounded-[24px] text-[28px]'
+      : size === 'sm'
+        ? 'h-12 w-12 rounded-[16px] text-[22px]'
+        : 'h-14 w-14 rounded-[18px] text-[24px]'
+
+  return (
+    <div
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
+      aria-hidden="true"
+    >
+      <div className="absolute inset-[6px] rounded-[inherit] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
+      <span className="relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)]">
+        {groupAvatarLabel(group)}
+      </span>
+    </div>
+  )
+}
+
+function rankCircleClass(rank: number) {
+  if (rank === 1) return 'bg-[#e7b83f] text-white'
+  if (rank === 2) return 'bg-[#c9ced2] text-white'
+  if (rank === 3) return 'bg-[#b8753d] text-white'
+  return 'bg-[#e6dfd3] text-[#637268]'
 }
 
 function formatScore(value: number) {
@@ -190,12 +247,14 @@ export default function GroupsPage() {
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [createName, setCreateName] = useState('')
   const [createCode, setCreateCode] = useState('')
+  const [createIcon, setCreateIcon] = useState(GROUP_ICONS[0].value)
   const [createDisplayName, setCreateDisplayName] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [joinDisplayName, setJoinDisplayName] = useState('')
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
   const [savingGroupName, setSavingGroupName] = useState(false)
+  const [savingGroupIcon, setSavingGroupIcon] = useState(false)
   const [savingDisplayName, setSavingDisplayName] = useState(false)
   const [copiedCode, setCopiedCode] = useState('')
   const [urlJoinCode, setUrlJoinCode] = useState('')
@@ -203,9 +262,9 @@ export default function GroupsPage() {
   const [groupActionMode, setGroupActionMode] = useState<'join' | 'create'>('join')
   const [showAllGroups, setShowAllGroups] = useState(false)
   const [yourGroupOpen, setYourGroupOpen] = useState(false)
+  const [showGroupsExplainer, setShowGroupsExplainer] = useState(false)
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
-  const [timeframe, setTimeframe] = useState<'week' | 'all'>('week')
   const sessionId = useMemo(() => getSessionId(), [])
   const router = useRouter()
 
@@ -322,6 +381,13 @@ export default function GroupsPage() {
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!window.localStorage.getItem(GROUPS_EXPLAINER_STORAGE_KEY)) {
+      setShowGroupsExplainer(true)
+    }
+  }, [])
+
+  useEffect(() => {
     const knownUserMemberships = members.filter(
       member =>
         member.session_id === sessionId && groups.some(group => group.id === member.group_id)
@@ -380,11 +446,8 @@ export default function GroupsPage() {
     return date.toISOString()
   }, [])
   const visibleGuessRows = useMemo(
-    () =>
-      timeframe === 'week'
-        ? guessRows.filter(row => row.created_at >= weekStartIso)
-        : guessRows,
-    [guessRows, timeframe, weekStartIso]
+    () => guessRows.filter(row => row.created_at >= weekStartIso),
+    [guessRows, weekStartIso]
   )
 
   const groupAggregates = useMemo<GroupAggregate[]>(() => {
@@ -410,18 +473,19 @@ export default function GroupsPage() {
           0
         )
         const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
-        const score = Math.round(
-          memberStats.reduce((sum, entry) => {
-            const efficiencyBonus = entry.avgGuesses ? Math.max(0, 7 - entry.avgGuesses) * 12 : 0
-            return (
-              sum +
-              entry.solves * 100 +
-              entry.firstTrySolves * 35 +
-              entry.longestStreak * 18 +
-              efficiencyBonus
-            )
-          }, 0)
-        )
+        const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
+        const totalMemberScore = activeMemberStats.reduce((sum, entry) => {
+          const efficiencyBonus = entry.avgGuesses ? Math.max(0, 7 - entry.avgGuesses) * 12 : 0
+          return (
+            sum +
+            entry.solves * 100 +
+            entry.firstTrySolves * 35 +
+            entry.longestStreak * 18 +
+            efficiencyBonus
+          )
+        }, 0)
+        const score =
+          activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
 
         return {
           group,
@@ -451,6 +515,7 @@ export default function GroupsPage() {
     : null
   const myMembership = selectedMembers.find(member => member.session_id === sessionId) || null
   const canEditSelectedGroup = selectedGroup?.creator_session_id === sessionId
+  const canChangeSelectedGroupIcon = Boolean(canEditSelectedGroup)
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
@@ -466,6 +531,7 @@ export default function GroupsPage() {
       ? groupAggregates.map(entry => ({
           id: entry.group.id,
           name: entry.group.name,
+          icon: entry.group.icon,
           members: entry.members.length,
           score: entry.score,
           avgAccuracy: entry.avgAccuracy,
@@ -476,16 +542,10 @@ export default function GroupsPage() {
   const visibleLeaderboardEntries = showAllGroups
     ? leaderboardEntries
     : leaderboardEntries.slice(0, 5)
-  const selectedGroupPointsContext =
-    selectedGroupAggregate && selectedGroupRank && selectedGroupRank > 1
-      ? `${Math.max(0, groupAggregates[selectedGroupRank - 2].score - selectedGroupAggregate.score)} pts behind #${selectedGroupRank - 1}`
-      : selectedGroupAggregate && groupAggregates.length > 1
-        ? `${Math.max(0, selectedGroupAggregate.score - groupAggregates[1].score)} pts ahead of #2`
-        : 'Leading the pack'
   const introLine = loading
     ? 'Loading the live group board...'
     : groupAggregates.length > 0
-      ? `${groupAggregates.length} group${groupAggregates.length === 1 ? '' : 's'} on the board, ${activeGroupCount} active ${timeframe === 'week' ? 'this week' : 'overall'}. Tap any group to inspect it.`
+      ? `${groupAggregates.length} group${groupAggregates.length === 1 ? '' : 's'} on the board, ${activeGroupCount} active this week. Tap any group to inspect it.`
       : 'Create or join a group to compete with classmates, residents, or friends.'
   async function createGroup() {
     const name = createName.trim()
@@ -513,19 +573,39 @@ export default function GroupsPage() {
       return
     }
 
-    const { data: groupData, error: groupError } = await supabase
+    let { data: groupData, error: groupError } = await supabase
       .from('groups')
       .insert({
         name,
+        icon: createIcon,
         join_code: finalCode,
         creator_session_id: sessionId,
       })
       .select()
       .single()
 
+    if (groupError?.message.includes('icon')) {
+      const fallbackResult = await supabase
+        .from('groups')
+        .insert({
+          name,
+          join_code: finalCode,
+          creator_session_id: sessionId,
+        })
+        .select()
+        .single()
+
+      groupData = fallbackResult.data
+      groupError = fallbackResult.error
+    }
+
     if (groupError || !groupData) {
       setCreating(false)
-      setMessage(groupError?.message || 'Could not create the group.')
+      setMessage(
+        groupError?.message.includes('icon')
+          ? 'Run the group icon migration once, then try again.'
+          : groupError?.message || 'Could not create the group.'
+      )
       return
     }
 
@@ -547,6 +627,7 @@ export default function GroupsPage() {
 
     setCreateName('')
     setCreateCode('')
+    setCreateIcon(GROUP_ICONS[0].value)
     setCreateDisplayName('')
     setJoinDisplayName('')
     setJoinCode('')
@@ -634,23 +715,65 @@ export default function GroupsPage() {
     setSavingGroupName(true)
     setMessage('')
 
-    const { error } = await supabase
+    const { data: updatedGroup, error } = await supabase
       .from('groups')
       .update({ name: nextName })
       .eq('id', selectedGroup.id)
-      .eq('creator_session_id', sessionId)
+      .select('id, name, icon, join_code, creator_session_id, created_at')
+      .maybeSingle()
 
     if (error) {
       setSavingGroupName(false)
-      setMessage(error.message)
+      setMessage(
+        error.message.includes('permission') || error.message.includes('policy')
+          ? 'Group updates need the Supabase migration to be run once.'
+          : error.message
+      )
+      return
+    }
+
+    if (!updatedGroup) {
+      setSavingGroupName(false)
+      setMessage('Group name did not save. Run the Supabase group migration once, then try again.')
       return
     }
 
     setGroups(prev =>
-      prev.map(group => (group.id === selectedGroup.id ? { ...group, name: nextName } : group))
+      prev.map(group => (group.id === selectedGroup.id ? (updatedGroup as GroupRow) : group))
     )
     setSavingGroupName(false)
     setMessage('Group name updated.')
+  }
+
+  async function updateSelectedGroupIcon(nextIcon: string) {
+    if (!selectedGroup || !canChangeSelectedGroupIcon) {
+      setMessage('Only the group creator can change this icon.')
+      return
+    }
+
+    setSavingGroupIcon(true)
+    setMessage('')
+
+    const { error } = await supabase
+      .from('groups')
+      .update({ icon: nextIcon })
+      .eq('id', selectedGroup.id)
+
+    if (error) {
+      setSavingGroupIcon(false)
+      setMessage(
+        error.message.includes('icon')
+          ? 'Icon updates need the group icon database migration to be run once.'
+          : error.message
+      )
+      return
+    }
+
+    setGroups(prev =>
+      prev.map(group => (group.id === selectedGroup.id ? { ...group, icon: nextIcon } : group))
+    )
+    setSavingGroupIcon(false)
+    setMessage('Group icon updated.')
   }
 
   async function updateMyDisplayName() {
@@ -701,12 +824,12 @@ export default function GroupsPage() {
 
   async function shareInviteLink(group: GroupRow) {
     const link = buildInviteLink(group.join_code)
-    const shareText = `Join my Orthodle group "${group.name}" and climb the leaderboard with us.`
+    const shareText = buildInviteMessage(group)
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${group.name} on Orthodle`,
+          title: `Orthodle group invite: ${group.name}`,
           text: shareText,
           url: link,
         })
@@ -721,9 +844,13 @@ export default function GroupsPage() {
     }
 
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(link)
-      setCopiedCode(group.id)
-      setMessage('Invite link copied.')
+      try {
+        await navigator.clipboard.writeText(shareText)
+        setCopiedCode(group.id)
+        setMessage('Official invite copied.')
+      } catch {
+        setMessage(`Invite code: ${group.join_code}`)
+      }
     } else {
       setMessage(`Invite code: ${group.join_code}`)
     }
@@ -734,10 +861,55 @@ export default function GroupsPage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-[700px] px-2 py-2 sm:px-2.5 sm:py-2.5">
-        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
-          <div className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      {showGroupsExplainer ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-[420px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                  Groups
+                </div>
+                <h2 className="mt-1 font-serif text-[25px] font-semibold tracking-[-0.04em] text-[#102018]">
+                  Compete with friends
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  window.localStorage.setItem(GROUPS_EXPLAINER_STORAGE_KEY, 'true')
+                  setShowGroupsExplainer(false)
+                }}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                aria-label="Close groups explanation"
+              >
+                <X size={15} strokeWidth={2} />
+              </button>
+            </div>
+            <div className="mt-4 space-y-2 text-[13px] leading-5 text-[#536158]">
+              <p>Create a group for your class, residency, rotation, or friends.</p>
+              <p>Correct solves add points, with bonuses for first-try solves, efficient guesses, and streaks.</p>
+              <p>Group score uses average active-member points, so bigger groups do not get an automatic advantage.</p>
+              <p>Share the invite link to add people to your group.</p>
+              <p>Leaderboards reset Sunday at 11:59pm PST.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                window.localStorage.setItem(GROUPS_EXPLAINER_STORAGE_KEY, 'true')
+                setShowGroupsExplainer(false)
+              }}
+              className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] text-[13px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#255e42]"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <section className="mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
+        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
+          <div className="space-y-3.5 sm:space-y-4">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h1 className="font-serif text-[29px] font-bold leading-none tracking-[-0.05em] text-[#102018] sm:text-[34px]">
                   Groups
@@ -746,16 +918,16 @@ export default function GroupsPage() {
                   {introLine}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setTimeframe(prev => (prev === 'week' ? 'all' : 'week'))}
-                className="inline-flex w-fit items-center gap-2 rounded-[14px] border border-[#e4ddd0] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#102018] shadow-[0_1px_0_rgba(255,255,255,0.6)] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] sm:px-4 sm:py-2 sm:text-[12px]"
-                aria-label="Toggle leaderboard timeframe"
-              >
-                <Calendar size={15} strokeWidth={2} />
-                {timeframe === 'week' ? 'This Week' : 'All Time'}
-                <ChevronDown size={13} strokeWidth={2} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGroupsExplainer(true)}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e4ddd0] bg-white text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                  aria-label="How groups work"
+                >
+                  <Info size={15} strokeWidth={2} />
+                </button>
+              </div>
             </div>
 
             {message ? (
@@ -764,7 +936,7 @@ export default function GroupsPage() {
               </div>
             ) : null}
 
-            <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4 sm:rounded-[22px] sm:px-5 sm:py-5">
+            <section className="rounded-[18px] bg-white px-2 py-2 sm:px-3 sm:py-3">
               <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                 Your group
               </div>
@@ -784,14 +956,12 @@ export default function GroupsPage() {
                   <button
                     type="button"
                     onClick={() => setYourGroupOpen(prev => !prev)}
-                    className="block w-full rounded-[18px] border border-[#e6dfd3] bg-[#fcfbf8] p-3 text-left transition hover:-translate-y-0.5 hover:bg-white"
+                    className="block w-full rounded-[18px] bg-[#fcfbf8] p-3 text-left transition hover:-translate-y-0.5 hover:bg-white"
                     aria-expanded={yourGroupOpen}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] text-[13px] font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
-                          {groupMonogram(selectedGroup.name)}
-                        </div>
+                        <GroupCrest group={selectedGroup} />
                         <div className="min-w-0">
                           <div className="truncate font-serif text-[18px] font-semibold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
                             {selectedGroup.name}
@@ -816,25 +986,50 @@ export default function GroupsPage() {
                   </button>
 
                   {yourGroupOpen ? (
-                    <div className="rounded-[16px] border border-[#e6dfd3] bg-white px-3 py-2">
+                    <div className="rounded-[16px] bg-[#fcfbf8] px-3 py-2">
                       <div className="space-y-2 border-b border-[#ece6db] pb-3">
                         {canEditSelectedGroup ? (
-                          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                            <input
-                              value={editGroupName}
-                              onChange={event => setEditGroupName(event.target.value)}
-                              placeholder="Group name"
-                              className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] font-semibold text-[#102018] outline-none transition focus:border-[#2d7651]"
-                            />
-                            <button
-                              type="button"
-                              disabled={savingGroupName || !editGroupName.trim()}
-                              onClick={() => void updateSelectedGroupName()}
-                              className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {savingGroupName ? 'Saving...' : 'Save group'}
-                            </button>
-                          </div>
+                          <>
+                            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                              <input
+                                value={editGroupName}
+                                onChange={event => setEditGroupName(event.target.value)}
+                                placeholder="Group name"
+                                className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] font-semibold text-[#102018] outline-none transition focus:border-[#2d7651]"
+                              />
+                              <button
+                                type="button"
+                                disabled={savingGroupName || !editGroupName.trim()}
+                                onClick={() => void updateSelectedGroupName()}
+                                className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {savingGroupName ? 'Saving...' : 'Save group'}
+                              </button>
+                            </div>
+                            <div>
+                              <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                                Group icon
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {GROUP_ICONS.map(icon => (
+                                  <button
+                                    key={icon.value}
+                                    type="button"
+                                    disabled={savingGroupIcon}
+                                    onClick={() => void updateSelectedGroupIcon(icon.value)}
+                                    className={`flex h-9 w-9 items-center justify-center rounded-[13px] border text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                                      selectedGroup.icon === icon.value
+                                        ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
+                                        : 'border-[#e6dfd3] bg-[#fcfbf8]'
+                                    }`}
+                                    aria-label={`Use ${icon.label} icon`}
+                                  >
+                                    {icon.value}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </>
                         ) : null}
 
                         {myMembership ? (
@@ -896,12 +1091,12 @@ export default function GroupsPage() {
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
-                        Score
+                        Avg score
                       </div>
                       <div className="mt-1 truncate font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                         {formatScore(selectedGroupAggregate.score)}
                       </div>
-                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">points</div>
+                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">avg pts</div>
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
@@ -925,13 +1120,9 @@ export default function GroupsPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 text-[12px] font-semibold text-[#102018]">
-                    {selectedGroupPointsContext}
-                  </div>
-
                 </div>
               ) : (
-                <div className="mt-3 rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c]">
+                <div className="mt-3 rounded-[18px] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c]">
                   Create or join a group to unlock the live leaderboard.
                 </div>
               )}
@@ -953,54 +1144,52 @@ export default function GroupsPage() {
                 ) : null}
               </div>
               {loading ? (
-                <div className="flex justify-start gap-3 overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] sm:justify-center [&::-webkit-scrollbar]:hidden">
-                  {Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                      key={index}
-                      className="h-[174px] w-[140px] shrink-0 rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] sm:w-[158px]"
-                    />
-                  ))}
+                <div className="overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="mx-auto flex w-max min-w-full justify-center gap-3">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <div
+                        key={index}
+                        className="h-[154px] w-[128px] shrink-0 rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] sm:w-[148px]"
+                      />
+                    ))}
+                  </div>
                 </div>
               ) : leaderboardEntries.length > 0 ? (
-                <div className="flex justify-start gap-3 overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] sm:justify-center [&::-webkit-scrollbar]:hidden">
-                  {leaderboardEntries.slice(0, 3).map(
-                  (group, index) => {
-                    const isTop = index === 0
-                    const rank = index + 1
-                    return (
-                      <button
-                        key={group.id}
-                        type="button"
-                        onClick={() => {
-                          router.push(`/groups/${group.id}`)
-                        }}
-                        className={`flex w-[140px] shrink-0 flex-col items-center rounded-[18px] border px-3 py-3 text-center transition hover:-translate-y-0.5 sm:w-[158px] sm:px-4 sm:py-4 ${
-                          selectedGroupId === group.id
-                            ? 'border-[#2d7651] bg-[#fcfbf8]'
-                            : isTop
-                              ? 'border-[#e7c16a] bg-[#fcfbf8]'
-                              : 'border-[#ece6db] bg-white'
-                        }`}
-                      >
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e7c16a] text-[11px] font-semibold text-white">
-                          {rank}
-                        </div>
-                        <div className="mt-3 flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#fcfbf8] text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] sm:mt-4 sm:h-12 sm:w-12 sm:text-[18px]">
-                          {groupMonogram(group.name)}
-                        </div>
-                        <div className="mt-3 line-clamp-2 font-serif text-[15px] font-semibold leading-tight text-[#102018] sm:mt-4 sm:text-[16px]">
-                          {group.name}
-                        </div>
-                        <div className="mt-1 text-[15px] font-semibold text-[#2d7651]">
-                          {formatScore(group.score)}
-                        </div>
-                        <div className="mt-0.5 text-[10px] text-[#637268]">
-                          {formatMemberCount(group.members)}
-                        </div>
-                      </button>
-                    )
-                  }
-                )}
+                <div className="overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <div className="mx-auto flex w-max min-w-full justify-center gap-3">
+                    {leaderboardEntries.slice(0, 3).map((group, index) => {
+                      const rank = index + 1
+                      return (
+                        <button
+                          key={group.id}
+                          type="button"
+                          onClick={() => {
+                            router.push(`/groups/${group.id}`)
+                          }}
+                          className="relative flex min-h-[154px] w-[128px] shrink-0 flex-col items-center overflow-hidden rounded-[18px] border border-[#e0d7c8] bg-[linear-gradient(180deg,#fffdf8,#fbf7ef)] px-2.5 py-3 text-center shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(16,32,24,0.1)] sm:w-[148px]"
+                        >
+                          <div className="absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,#d8a947,transparent)]" />
+                          <div
+                            className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold ${rankCircleClass(rank)}`}
+                          >
+                            {rank}
+                          </div>
+                          <div className="mt-2">
+                            <GroupCrest group={group} size="sm" />
+                          </div>
+                          <div className="mt-2 line-clamp-2 font-serif text-[14px] font-semibold leading-tight text-[#102018]">
+                            {group.name}
+                          </div>
+                          <div className="mt-1.5 text-[16px] font-semibold leading-none text-[#2d7651]">
+                            {formatScore(group.score)}
+                          </div>
+                          <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8a9389]">
+                            score
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-[16px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-[13px] text-[#637268]">
@@ -1009,7 +1198,7 @@ export default function GroupsPage() {
               )}
             </section>
 
-            <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4 sm:rounded-[22px] sm:px-5 sm:py-5">
+            <section className="px-1 py-1 sm:px-2">
               <div className="flex items-end justify-between gap-2">
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Leaderboard
@@ -1024,7 +1213,7 @@ export default function GroupsPage() {
                   </button>
                 ) : null}
               </div>
-              <div className="mt-3 space-y-2">
+              <div className="mt-2 space-y-2">
                 {loading ? (
                   Array.from({ length: 3 }).map((_, index) => (
                     <div
@@ -1063,9 +1252,11 @@ export default function GroupsPage() {
                             {formatMemberCount(group.members)}
                             {isTop ? (
                               <span className="ml-2 text-[#53715f]">Leading the pack</span>
+                            ) : scoreDelta === 0 ? (
+                              <span className="ml-2 text-[#53715f]">Tied with #{rank - 1}</span>
                             ) : (
                               <span className="ml-2 text-[#53715f]">
-                                {scoreDelta || group.score} behind #{rank - 1}
+                                {scoreDelta} avg pts behind #{rank - 1}
                               </span>
                             )}
                           </div>
@@ -1075,7 +1266,7 @@ export default function GroupsPage() {
                             {formatScore(group.score)}
                           </div>
                           <div className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-[#637268]">
-                            score
+                            avg score
                           </div>
                         </div>
                       </button>
@@ -1090,21 +1281,21 @@ export default function GroupsPage() {
               </div>
             </section>
 
-            <section className="grid gap-3 sm:grid-cols-2">
+            <section className="grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => {
                   setGroupActionMode('join')
                   setShowJoinPanel(prev => (groupActionMode === 'join' ? !prev : true))
                 }}
-                className="flex items-center gap-3 rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 sm:py-4"
+                className="flex items-center gap-2.5 rounded-[14px] border border-[#e6dfd3] bg-white px-3 py-2 text-left transition hover:-translate-y-0.5"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fcfbf8] text-[18px]">
-                  <UserPlus size={20} strokeWidth={2} />
+                <div className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[#fcfbf8] text-[16px]">
+                  <UserPlus size={17} strokeWidth={2} />
                 </div>
                 <div>
-                  <div className="text-[13px] font-semibold text-[#102018]">Join a Group</div>
-                  <div className="text-[12px] text-[#637268]">Enter code or create</div>
+                  <div className="text-[12px] font-semibold text-[#102018]">Join a group</div>
+                  <div className="text-[11px] text-[#637268]">Enter code or create</div>
                 </div>
               </button>
               <button
@@ -1117,38 +1308,38 @@ export default function GroupsPage() {
                   setGroupActionMode('join')
                   setShowJoinPanel(true)
                 }}
-                className="flex items-center gap-3 rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 sm:py-4"
+                className="flex items-center gap-2.5 rounded-[14px] border border-[#e6dfd3] bg-white px-3 py-2 text-left transition hover:-translate-y-0.5"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fcfbf8] text-[18px]">
-                  <Share2 size={20} strokeWidth={2} />
+                <div className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[#fcfbf8] text-[16px]">
+                  <Share2 size={17} strokeWidth={2} />
                 </div>
                 <div>
-                  <div className="text-[13px] font-semibold text-[#102018]">
-                    {selectedGroup && copiedCode === selectedGroup.id ? 'Link copied' : 'Invite Friends'}
+                  <div className="text-[12px] font-semibold text-[#102018]">
+                    {selectedGroup && copiedCode === selectedGroup.id ? 'Invite copied' : 'Official invite'}
                   </div>
-                  <div className="text-[12px] text-[#637268]">Grow your group</div>
+                  <div className="text-[11px] text-[#637268]">Share group link</div>
                 </div>
               </button>
             </section>
 
             {showJoinPanel ? (
-              <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4 sm:rounded-[22px] sm:px-5 sm:py-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <section className="rounded-[16px] border border-[#e6dfd3] bg-white px-3 py-3 sm:px-4">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                       {groupActionMode === 'join' ? 'Join a group' : 'Create a group'}
                     </div>
                     <div className="mt-1 text-[12px] text-[#637268]">
                       {groupActionMode === 'join'
-                        ? 'Use an invite code from a teammate.'
+                        ? 'Use the official Orthodle invite code from a teammate.'
                         : 'Start a private leaderboard for your team.'}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-1 text-[11px] font-semibold">
+                  <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
                     <button
                       type="button"
                       onClick={() => setGroupActionMode('join')}
-                      className={`rounded-full px-3 py-1.5 transition ${
+                      className={`rounded-full px-2.5 py-1 transition ${
                         groupActionMode === 'join'
                           ? 'bg-[#2d7651] text-white'
                           : 'text-[#637268] hover:text-[#102018]'
@@ -1159,7 +1350,7 @@ export default function GroupsPage() {
                     <button
                       type="button"
                       onClick={() => setGroupActionMode('create')}
-                      className={`rounded-full px-3 py-1.5 transition ${
+                      className={`rounded-full px-2.5 py-1 transition ${
                         groupActionMode === 'create'
                           ? 'bg-[#2d7651] text-white'
                           : 'text-[#637268] hover:text-[#102018]'
@@ -1177,13 +1368,13 @@ export default function GroupsPage() {
                         value={joinCode}
                         onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
                         placeholder="Invite code"
-                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <input
                         value={joinDisplayName}
                         onChange={event => setJoinDisplayName(event.target.value)}
                         placeholder="Your display name"
-                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <button
                         type="button"
@@ -1194,7 +1385,7 @@ export default function GroupsPage() {
                           Boolean(normalizedJoinCode && !joinTargetGroup)
                         }
                         onClick={() => void submitGroupForm()}
-                        className="inline-flex h-10 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-5 text-[12px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {joining ? 'Joining...' : alreadyInJoinTarget ? 'Update' : 'Join'}
                       </button>
@@ -1215,30 +1406,52 @@ export default function GroupsPage() {
                   </>
                 ) : (
                   <>
+                    <div className="mt-3">
+                      <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Group icon
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {GROUP_ICONS.map(icon => (
+                          <button
+                            key={icon.value}
+                            type="button"
+                            onClick={() => setCreateIcon(icon.value)}
+                            className={`flex h-9 w-9 items-center justify-center rounded-[13px] border text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 ${
+                              createIcon === icon.value
+                                ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
+                                : 'border-[#e6dfd3] bg-[#fcfbf8]'
+                            }`}
+                            aria-label={`Use ${icon.label} icon`}
+                          >
+                            {icon.value}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
                       <input
                         value={createName}
                         onChange={event => setCreateName(event.target.value)}
                         placeholder="Group name"
-                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <input
                         value={createDisplayName}
                         onChange={event => setCreateDisplayName(event.target.value)}
                         placeholder="Your display name"
-                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <input
                         value={createCode}
                         onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
                         placeholder="Custom code"
-                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <button
                         type="button"
                         disabled={creating || !createName.trim() || !createDisplayName.trim()}
                         onClick={() => void submitGroupForm()}
-                        className="inline-flex h-10 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-5 text-[12px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {creating ? 'Creating...' : 'Create'}
                       </button>

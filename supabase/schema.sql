@@ -187,10 +187,13 @@ create table if not exists homepage_survey_responses (
 create table if not exists groups (
   id uuid primary key default uuid_generate_v4(),
   name text not null,
+  icon text default '🦴',
   join_code text not null unique,
   creator_session_id text not null,
   created_at timestamptz default now()
 );
+
+alter table groups add column if not exists icon text default '🦴';
 
 create table if not exists group_members (
   id uuid primary key default uuid_generate_v4(),
@@ -264,6 +267,7 @@ create policy "public read homepage survey responses" on homepage_survey_respons
 create policy "public insert homepage survey responses" on homepage_survey_responses for insert with check (true);
 create policy "public read groups" on groups for select using (true);
 create policy "public insert groups" on groups for insert with check (true);
+create policy "public update groups" on groups for update using (true) with check (true);
 create policy "public read group members" on group_members for select using (true);
 create policy "public insert group members" on group_members for insert with check (true);
 create policy "public update group members" on group_members for update using (true) with check (true);

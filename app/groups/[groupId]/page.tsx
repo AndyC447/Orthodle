@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Share2, UserPlus } from 'lucide-react'
+import { Share2 } from 'lucide-react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
@@ -11,6 +11,7 @@ import { getSessionId } from '@/lib/utils'
 type GroupRow = {
   id: string
   name: string
+  icon: string | null
   join_code: string
   creator_session_id: string
   created_at: string
@@ -59,20 +60,32 @@ type GroupAggregate = {
   totalSolves: number
 }
 
-function normalizeJoinCode(value: string) {
-  return value
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
-    .slice(0, 12)
-}
-
-function membershipKey(groupId: string) {
-  return `orthodle_group_member:${groupId}`
-}
+const GROUP_ICONS = [
+  { value: '🦴', label: 'Bone' },
+  { value: '🔨', label: 'Hammer' },
+  { value: '🛠️', label: 'Tools' },
+  { value: '🩺', label: 'Doctor' },
+  { value: '🏥', label: 'Hospital' },
+  { value: '💪', label: 'Strength' },
+  { value: '🧠', label: 'Brain' },
+  { value: '⚕️', label: 'Medicine' },
+]
 
 function buildInviteLink(joinCode: string) {
   if (typeof window === 'undefined') return `https://orthodle.com/groups?code=${joinCode}`
   return `${window.location.origin}/groups?code=${joinCode}`
+}
+
+function buildInviteMessage(group: GroupRow) {
+  const link = buildInviteLink(group.join_code)
+  return [
+    'Orthodle Group Invite',
+    '',
+    `Join "${group.name}"`,
+    'Compete on a private daily ortho case leaderboard.',
+    `Invite code: ${group.join_code}`,
+    link,
+  ].join('\n')
 }
 
 function computeLongestRun(sortedDates: string[]) {
@@ -106,18 +119,37 @@ function groupMonogram(name: string) {
     .join('')
 }
 
+function groupAvatarLabel(group: Pick<GroupRow, 'name' | 'icon'>) {
+  return group.icon || groupMonogram(group.name)
+}
+
+function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
+  const dimensions =
+    size === 'lg'
+      ? 'h-[70px] w-[70px] rounded-[24px] text-[28px]'
+      : size === 'sm'
+        ? 'h-12 w-12 rounded-[16px] text-[22px]'
+        : 'h-14 w-14 rounded-[18px] text-[24px]'
+
+  return (
+    <div
+      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
+      aria-hidden="true"
+    >
+      <div className="absolute inset-[6px] rounded-[inherit] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
+      <span className="relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)]">
+        {groupAvatarLabel(group)}
+      </span>
+    </div>
+  )
+}
+
 function formatScore(value: number) {
   return value.toLocaleString('en-US')
 }
 
 function formatMemberCount(count: number) {
   return `${count} member${count === 1 ? '' : 's'}`
-}
-
-function formatLevel(level: CaseRow['level']) {
-  if (level === 'med_student') return 'Med Student'
-  if (level === 'resident') return 'Resident'
-  return 'Attending'
 }
 
 function buildMemberStats(
@@ -196,18 +228,19 @@ function buildGroupAggregates(
         0
       )
       const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
-      const score = Math.round(
-        memberStats.reduce((sum, entry) => {
-          const efficiencyBonus = entry.avgGuesses ? Math.max(0, 7 - entry.avgGuesses) * 12 : 0
-          return (
-            sum +
-            entry.solves * 100 +
-            entry.firstTrySolves * 35 +
-            entry.longestStreak * 18 +
-            efficiencyBonus
-          )
-        }, 0)
-      )
+      const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
+      const totalMemberScore = activeMemberStats.reduce((sum, entry) => {
+        const efficiencyBonus = entry.avgGuesses ? Math.max(0, 7 - entry.avgGuesses) * 12 : 0
+        return (
+          sum +
+          entry.solves * 100 +
+          entry.firstTrySolves * 35 +
+          entry.longestStreak * 18 +
+          efficiencyBonus
+        )
+      }, 0)
+      const score =
+        activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
 
       return {
         group,
@@ -241,8 +274,7 @@ export default function GroupDetailPage() {
   const [members, setMembers] = useState<GroupMemberRow[]>([])
   const [guesses, setGuesses] = useState<GuessRow[]>([])
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
-  const [displayName, setDisplayName] = useState('')
-  const [joining, setJoining] = useState(false)
+  const [savingGroupIcon, setSavingGroupIcon] = useState(false)
   const [copied, setCopied] = useState(false)
 
   async function loadGroupPageData() {
@@ -354,80 +386,54 @@ export default function GroupDetailPage() {
   const membership = members.find(
     member => member.group_id === groupId && member.session_id === sessionId
   )
-  const memberBySession = new Map(
-    members.filter(member => member.group_id === groupId).map(member => [member.session_id, member])
-  )
+  const canEditGroup = Boolean(group && group.creator_session_id === sessionId)
   const pointsContext =
     aggregate && rank && rank > 1
-      ? `${Math.max(0, groupAggregates[rank - 2].score - aggregate.score)} points behind #${rank - 1}`
+      ? `${Math.max(0, groupAggregates[rank - 2].score - aggregate.score)} avg pts behind #${rank - 1}`
       : aggregate && groupAggregates.length > 1
-        ? `${Math.max(0, aggregate.score - groupAggregates[1].score)} points ahead of #2`
+        ? `${Math.max(0, aggregate.score - groupAggregates[1].score)} avg pts ahead of #2`
         : 'Leading the pack'
-  const recentSolves = guesses
-    .filter(row => row.is_correct && row.case_id && memberBySession.has(row.session_id))
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .slice(0, 8)
-    .map(row => ({
-      guess: row,
-      member: memberBySession.get(row.session_id)!,
-      caseInfo: row.case_id ? caseLookup[row.case_id] : null,
-    }))
-
-  useEffect(() => {
-    setDisplayName(membership?.display_name || '')
-  }, [membership?.id, membership?.display_name])
-
-  async function joinThisGroup() {
-    if (!group || !displayName.trim()) {
-      setMessage('Add your display name first.')
+  async function updateGroupIcon(nextIcon: string) {
+    if (!group || !canEditGroup) {
+      setMessage('Only the group creator can change this icon.')
       return
     }
 
-    setJoining(true)
+    setSavingGroupIcon(true)
     setMessage('')
 
-    if (membership) {
-      const { error } = await supabase
-        .from('group_members')
-        .update({ display_name: displayName.trim() })
-        .eq('id', membership.id)
-        .eq('session_id', sessionId)
+    const { error } = await supabase
+      .from('groups')
+      .update({ icon: nextIcon })
+      .eq('id', group.id)
 
-      if (error) {
-        setJoining(false)
-        setMessage(error.message)
-        return
-      }
-    } else {
-      const { error } = await supabase.from('group_members').insert({
-        group_id: group.id,
-        session_id: sessionId,
-        display_name: displayName.trim(),
-      })
-
-      if (error) {
-        setJoining(false)
-        setMessage(error.message)
-        return
-      }
+    if (error) {
+      setSavingGroupIcon(false)
+      setMessage(
+        error.message.includes('icon')
+          ? 'Icon updates need the group icon database migration to be run once.'
+          : error.message
+      )
+      return
     }
 
-    window.localStorage.setItem(membershipKey(group.id), displayName.trim())
-    setJoining(false)
-    setMessage(membership ? 'Display name updated.' : `Joined ${group.name}.`)
-    await loadGroupPageData()
+    setGroups(prev =>
+      prev.map(entry => (entry.id === group.id ? { ...entry, icon: nextIcon } : entry))
+    )
+    setSavingGroupIcon(false)
+    setMessage('Group icon updated.')
   }
 
   async function shareInvite() {
     if (!group) return
 
     const link = buildInviteLink(group.join_code)
-    const shareText = `Join my Orthodle group "${group.name}" and climb the leaderboard with us.`
+    const shareText = buildInviteMessage(group)
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${group.name} on Orthodle`,
+          title: `Orthodle group invite: ${group.name}`,
           text: shareText,
           url: link,
         })
@@ -438,10 +444,16 @@ export default function GroupDetailPage() {
     }
 
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(link)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 1800)
-      return
+      try {
+        await navigator.clipboard.writeText(shareText)
+        setCopied(true)
+        setMessage('Official invite copied.')
+        window.setTimeout(() => setCopied(false), 1800)
+        return
+      } catch {
+        setMessage(`Invite code: ${group.join_code}`)
+        return
+      }
     }
 
     setMessage(`Invite code: ${group.join_code}`)
@@ -451,9 +463,9 @@ export default function GroupDetailPage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-[700px] px-2 py-2 sm:px-2.5 sm:py-2.5">
-        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
-          <div className="space-y-4">
+      <section className="mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
+        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
+          <div className="space-y-3.5 sm:space-y-4">
             <button
               type="button"
               onClick={() => router.push('/groups')}
@@ -475,18 +487,17 @@ export default function GroupDetailPage() {
               </div>
             ) : group && aggregate ? (
               <>
-                <section className="rounded-[20px] border border-[#e6dfd3] bg-white p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <section className="rounded-[20px] border border-[#e6dfd3] bg-white p-3.5 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] text-[14px] font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
-                        {groupMonogram(group.name)}
-                      </div>
+                      <GroupCrest group={group} size="lg" />
                       <div className="min-w-0">
-                        <div className="truncate font-serif text-[24px] font-semibold tracking-[-0.04em] text-[#102018]">
+                        <div className="truncate font-serif text-[21px] font-semibold tracking-[-0.04em] text-[#102018] sm:text-[24px]">
                           {group.name}
                         </div>
                         <div className="mt-1 text-[12px] text-[#637268]">
-                          {formatMemberCount(aggregate.members.length)} · Code {group.join_code}
+                          {formatMemberCount(aggregate.members.length)}
+                          {membership || canEditGroup ? ` · Code ${group.join_code}` : ' · Public preview'}
                         </div>
                         <div className="mt-2 rounded-full bg-[#fcfbf8] px-3 py-1 text-[11px] font-semibold text-[#102018]">
                           {pointsContext}
@@ -494,14 +505,16 @@ export default function GroupDetailPage() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => void shareInvite()}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.14)] transition hover:-translate-y-0.5 hover:bg-[#255e42]"
-                    >
-                      <Share2 size={15} strokeWidth={2} />
-                      {copied ? 'Link copied' : 'Invite'}
-                    </button>
+                    {membership || canEditGroup ? (
+                      <button
+                        type="button"
+                        onClick={() => void shareInvite()}
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.14)] transition hover:-translate-y-0.5 hover:bg-[#255e42]"
+                      >
+                        <Share2 size={15} strokeWidth={2} />
+                        {copied ? 'Invite copied' : 'Official invite'}
+                      </button>
+                    ) : null}
                   </div>
 
                   <div className="mt-4 grid grid-cols-4 gap-0 border-t border-[#ece6db] pt-4">
@@ -515,7 +528,7 @@ export default function GroupDetailPage() {
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px]">
-                        Score
+                        Avg score
                       </div>
                       <div className="mt-1 truncate font-serif text-[20px] font-semibold text-[#102018]">
                         {formatScore(aggregate.score)}
@@ -538,41 +551,41 @@ export default function GroupDetailPage() {
                       </div>
                     </div>
                   </div>
-                </section>
-
-                <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                        {membership ? 'Your profile' : 'Join this group'}
+                  {canEditGroup ? (
+                    <div className="mt-3 border-t border-[#ece6db] pt-3">
+                      <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Group icon
                       </div>
-                      <div className="mt-1 text-[12px] text-[#637268]">
-                        Display names make the leaderboard feel personal.
+                      <div className="flex flex-wrap gap-1.5">
+                        {GROUP_ICONS.map(icon => (
+                          <button
+                            key={icon.value}
+                            type="button"
+                            disabled={savingGroupIcon}
+                            onClick={() => void updateGroupIcon(icon.value)}
+                            className={`flex h-9 w-9 items-center justify-center rounded-[13px] border text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                              group.icon === icon.value
+                                ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
+                                : 'border-[#e6dfd3] bg-[#fcfbf8]'
+                            }`}
+                            aria-label={`Use ${icon.label} icon`}
+                          >
+                            {icon.value}
+                          </button>
+                        ))}
                       </div>
                     </div>
-                    <UserPlus size={19} strokeWidth={2} />
-                  </div>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <input
-                      value={displayName}
-                      onChange={event => setDisplayName(event.target.value)}
-                      placeholder="Your display name"
-                      className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
-                    />
-                    <button
-                      type="button"
-                      disabled={joining || !displayName.trim()}
-                      onClick={() => void joinThisGroup()}
-                      className="inline-flex h-10 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-5 text-[12px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {joining ? 'Saving...' : membership ? 'Update name' : 'Join group'}
-                    </button>
-                  </div>
+                  ) : null}
                 </section>
 
-                <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                    Member rankings
+                <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-3 py-3 sm:px-4 sm:py-4">
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                      Members
+                    </div>
+                    <div className="text-[11px] text-[#637268]">
+                      {formatMemberCount(aggregate.members.length)}
+                    </div>
                   </div>
                   <div className="mt-3 space-y-2">
                     {aggregate.memberStats.length > 0 ? (
@@ -582,12 +595,17 @@ export default function GroupDetailPage() {
                           className="grid grid-cols-[24px_1fr_auto] items-center gap-2 rounded-[14px] border border-[#ece6db] bg-white px-3 py-2.5 transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
                         >
                           <div className="text-[14px] font-semibold text-[#102018]">{index + 1}</div>
-                          <div className="min-w-0">
-                            <div className="truncate text-[13px] font-semibold text-[#102018]">
-                              {entry.member.display_name}
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#eff5ef] text-[11px] font-bold text-[#2d7651]">
+                              {entry.member.display_name.slice(0, 1).toUpperCase()}
                             </div>
-                            <div className="mt-0.5 text-[10px] text-[#637268]">
-                              {entry.solves} solves · {entry.longestStreak} day streak
+                            <div className="min-w-0">
+                              <div className="truncate text-[13px] font-semibold text-[#102018]">
+                                {entry.member.display_name}
+                              </div>
+                              <div className="mt-0.5 text-[10px] text-[#637268]">
+                                {entry.solves} solves · {entry.longestStreak} day streak
+                              </div>
                             </div>
                           </div>
                           <div className="text-right">
@@ -603,45 +621,6 @@ export default function GroupDetailPage() {
                     ) : (
                       <div className="rounded-[14px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3 py-4 text-[13px] text-[#637268]">
                         No members yet.
-                      </div>
-                    )}
-                  </div>
-                </section>
-
-                <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                    Recent solves
-                  </div>
-                  <div className="mt-3 space-y-2">
-                    {recentSolves.length > 0 ? (
-                      recentSolves.map((entry, index) => (
-                        <div
-                          key={`${entry.guess.session_id}-${entry.guess.case_id}-${entry.guess.created_at}-${index}`}
-                          className="rounded-[14px] bg-[#fcfbf8] px-3 py-2.5"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="truncate text-[13px] font-semibold text-[#102018]">
-                              {entry.member.display_name}
-                            </div>
-                            <div className="text-[10px] text-[#637268]">
-                              {new Date(entry.guess.created_at).toLocaleDateString(undefined, {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </div>
-                          </div>
-                          <div className="mt-1 text-[11px] text-[#637268]">
-                            solved{' '}
-                            <span className="font-semibold text-[#102018]">
-                              {entry.caseInfo?.answer || 'a case'}
-                            </span>
-                            {entry.caseInfo ? ` · ${formatLevel(entry.caseInfo.level)}` : ''}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="rounded-[14px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3 py-4 text-[13px] text-[#637268]">
-                        No recent solves yet.
                       </div>
                     )}
                   </div>
