@@ -51,6 +51,7 @@ create table if not exists visits (
   path text,
   browser_timezone text,
   browser_locale text,
+  browser_theme text,
   geo_country text,
   geo_region text,
   geo_city text,
@@ -60,6 +61,7 @@ create table if not exists visits (
 
 alter table visits add column if not exists browser_timezone text;
 alter table visits add column if not exists browser_locale text;
+alter table visits add column if not exists browser_theme text;
 alter table visits add column if not exists geo_country text;
 alter table visits add column if not exists geo_region text;
 alter table visits add column if not exists geo_city text;

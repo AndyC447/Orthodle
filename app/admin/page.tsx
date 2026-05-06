@@ -79,6 +79,7 @@ type VisitAnalyticsRow = {
   created_at: string
   browser_timezone: string | null
   browser_locale: string | null
+  browser_theme: 'light' | 'dark' | null
   geo_country: string | null
   geo_region: string | null
   geo_city: string | null
@@ -107,6 +108,8 @@ type AnalyticsSummary = {
   totalCorrectGuesses: number
   guessAccuracy: number
   averageGuessesPerUser: number
+  darkModeUsers: number
+  darkModeRate: number
   todayUsers: number
   todayNewUsers: number
   todayReturningUsers: number
@@ -872,7 +875,7 @@ export default function AdminPage() {
     while (true) {
       const { data, error } = await supabase
         .from('visits')
-        .select('session_id, created_at, browser_timezone, browser_locale, geo_country, geo_region, geo_city, geo_timezone')
+        .select('session_id, created_at, browser_timezone, browser_locale, browser_theme, geo_country, geo_region, geo_city, geo_timezone')
         .range(visitOffset, visitOffset + ANALYTICS_PAGE_SIZE - 1)
 
       if (error) {
@@ -1007,6 +1010,7 @@ export default function AdminPage() {
     const regionCounts = new Map<string, number>()
     const timezoneCounts = new Map<string, number>()
     const sessionGeoSeen = new Set<string>()
+    const latestThemeBySession = new Map<string, { theme: 'light' | 'dark'; createdAt: string }>()
 
     for (const visit of visits) {
       allSessions.add(visit.session_id)
@@ -1024,6 +1028,16 @@ export default function AdminPage() {
 
         if (timezoneLabel) {
           timezoneCounts.set(timezoneLabel, (timezoneCounts.get(timezoneLabel) || 0) + 1)
+        }
+      }
+
+      if (visit.browser_theme === 'light' || visit.browser_theme === 'dark') {
+        const existingTheme = latestThemeBySession.get(visit.session_id)
+        if (!existingTheme || existingTheme.createdAt < visit.created_at) {
+          latestThemeBySession.set(visit.session_id, {
+            theme: visit.browser_theme,
+            createdAt: visit.created_at,
+          })
         }
       }
     }
@@ -1064,6 +1078,9 @@ export default function AdminPage() {
 
     const totalVisits = visits.length
     const totalUniqueUsers = allSessions.size
+    const darkModeUsers = [...latestThemeBySession.values()].filter(item => item.theme === 'dark').length
+    const darkModeRate =
+      latestThemeBySession.size > 0 ? (darkModeUsers / latestThemeBySession.size) * 100 : 0
     const totalGuesses = guesses.length
     const totalCorrectGuesses = guesses.filter(guess => guess.is_correct).length
     const cumulativeDailyUsers = Object.values(byDate).reduce(
@@ -1108,6 +1125,8 @@ export default function AdminPage() {
       totalCorrectGuesses,
       guessAccuracy: totalGuesses > 0 ? (totalCorrectGuesses / totalGuesses) * 100 : 0,
       averageGuessesPerUser: totalUniqueUsers > 0 ? totalGuesses / totalUniqueUsers : 0,
+      darkModeUsers,
+      darkModeRate,
       todayUsers: todayRow.unique_sessions,
       todayNewUsers: todayRow.new_sessions,
       todayReturningUsers: todayRow.returning_sessions,
@@ -2096,6 +2115,18 @@ export default function AdminPage() {
                     </div>
                     <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
                       {analyticsSummary.archivePlays}
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+                      Night mode users
+                    </div>
+                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                      {formatPercent(analyticsSummary.darkModeRate)}
+                    </div>
+                    <div className="mt-1 text-[11px] text-[#637268]">
+                      {analyticsSummary.darkModeUsers} of {analyticsSummary.totalUniqueUsers}
                     </div>
                   </div>
                 </div>

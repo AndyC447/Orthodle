@@ -9,6 +9,10 @@ export async function POST(req: Request) {
     typeof body.browserTimezone === 'string' ? body.browserTimezone : null
   const browserLocale =
     typeof body.browserLocale === 'string' ? body.browserLocale : null
+  const browserTheme =
+    body.browserTheme === 'dark' || body.browserTheme === 'light'
+      ? body.browserTheme
+      : null
   const doNotTrack = body.doNotTrack === true
 
   if (!sessionId) {
@@ -35,6 +39,7 @@ export async function POST(req: Request) {
     path,
     browser_timezone: browserTimezone,
     browser_locale: browserLocale,
+    browser_theme: browserTheme,
     geo_country: geoCountry,
     geo_region: geoRegion,
     geo_city: geoCity,

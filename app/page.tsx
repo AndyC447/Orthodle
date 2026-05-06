@@ -235,6 +235,21 @@ function getBrowserTimezone() {
   }
 }
 
+function getBrowserTheme() {
+  if (typeof document !== 'undefined') {
+    const theme = document.documentElement.dataset.theme
+    if (theme === 'light' || theme === 'dark') return theme
+  }
+
+  if (typeof window !== 'undefined') {
+    const savedTheme = window.localStorage.getItem('orthodle_theme')
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme
+    if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark'
+  }
+
+  return 'light'
+}
+
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
@@ -678,6 +693,7 @@ function PlayPageContent() {
               browserTimezone: getBrowserTimezone(),
               browserLocale:
                 (typeof navigator !== 'undefined' && (navigator.language || navigator.languages?.[0])) || null,
+              browserTheme: getBrowserTheme(),
               doNotTrack: isTrackingDisabledForThisBrowser(),
             }),
           })
