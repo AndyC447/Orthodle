@@ -185,8 +185,8 @@ function calculateMemberScore(
   longestStreak: number,
   avgGuesses: number | null
 ) {
-  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) * 12 : 0
-  return Math.round(solves * 100 + firstTrySolves * 35 + longestStreak * 18 + efficiencyBonus)
+  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) : 0
+  return Math.round(solves * 10 + firstTrySolves * 3 + longestStreak * 2 + efficiencyBonus)
 }
 
 function buildMemberStats(
@@ -423,9 +423,9 @@ export default function GroupDetailPage() {
   const canEditGroup = Boolean(group && group.creator_session_id === sessionId)
   const pointsContext =
     aggregate && rank && rank > 1
-      ? `${Math.max(0, groupAggregates[rank - 2].score - aggregate.score)} avg pts behind #${rank - 1}`
+      ? `${Math.max(0, groupAggregates[rank - 2].score - aggregate.score)} pts behind #${rank - 1}`
       : aggregate && groupAggregates.length > 1
-        ? `${Math.max(0, aggregate.score - groupAggregates[1].score)} avg pts ahead of #2`
+        ? `${Math.max(0, aggregate.score - groupAggregates[1].score)} pts ahead of #2`
         : 'Leading the pack'
   async function updateGroupIcon(nextIcon: string) {
     if (!group || !canEditGroup) {
@@ -455,7 +455,6 @@ export default function GroupDetailPage() {
       prev.map(entry => (entry.id === group.id ? { ...entry, icon: nextIcon } : entry))
     )
     setSavingGroupIcon(false)
-    setMessage('Group icon updated.')
   }
 
   async function shareInvite() {
@@ -531,7 +530,7 @@ export default function GroupDetailPage() {
                         </div>
                         <div className="mt-1 text-[12px] text-[#637268]">
                           {formatMemberCount(aggregate.members.length)}
-                          {membership || canEditGroup ? ` · Code ${group.join_code}` : ' · Public preview'}
+                          {!membership && !canEditGroup ? ' · Public preview' : ''}
                         </div>
                         <div className="mt-2 rounded-full bg-[#fcfbf8] px-3 py-1 text-[11px] font-semibold text-[#102018]">
                           {pointsContext}
@@ -562,7 +561,7 @@ export default function GroupDetailPage() {
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px]">
-                        Avg score
+                        Score
                       </div>
                       <div className="mt-1 truncate font-serif text-[20px] font-semibold text-[#102018]">
                         {formatScore(aggregate.score)}
@@ -590,14 +589,14 @@ export default function GroupDetailPage() {
                       <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                         Group icon
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {GROUP_ICONS.map(icon => (
                           <button
                             key={icon.value}
                             type="button"
                             disabled={savingGroupIcon}
                             onClick={() => void updateGroupIcon(icon.value)}
-                            className={`flex h-9 w-9 items-center justify-center rounded-[13px] border text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
                               group.icon === icon.value
                                 ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
                                 : 'border-[#e6dfd3] bg-[#fcfbf8]'

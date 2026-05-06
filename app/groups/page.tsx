@@ -219,8 +219,8 @@ function calculateMemberScore(
   longestStreak: number,
   avgGuesses: number | null
 ) {
-  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) * 12 : 0
-  return Math.round(solves * 100 + firstTrySolves * 35 + longestStreak * 18 + efficiencyBonus)
+  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) : 0
+  return Math.round(solves * 10 + firstTrySolves * 3 + longestStreak * 2 + efficiencyBonus)
 }
 
 function buildMemberStats(
@@ -304,9 +304,12 @@ export default function GroupsPage() {
   const [groupActionMode, setGroupActionMode] = useState<'join' | 'create'>('join')
   const [showAllGroups, setShowAllGroups] = useState(false)
   const [yourGroupOpen, setYourGroupOpen] = useState(false)
+  const [memberPreviewOpen, setMemberPreviewOpen] = useState(false)
   const [showGroupsExplainer, setShowGroupsExplainer] = useState(false)
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
+  const [adminUnlocked, setAdminUnlocked] = useState(false)
+  const [deletingGroupId, setDeletingGroupId] = useState('')
   const sessionId = useMemo(() => getSessionId(), [])
   const router = useRouter()
 
@@ -427,6 +430,7 @@ export default function GroupsPage() {
     if (!window.localStorage.getItem(GROUPS_EXPLAINER_STORAGE_KEY)) {
       setShowGroupsExplainer(true)
     }
+    setAdminUnlocked(window.sessionStorage.getItem('orthodle_admin_unlocked') === 'true')
   }, [])
 
   useEffect(() => {
@@ -467,6 +471,7 @@ export default function GroupsPage() {
     if (!selectedGroupId) {
       setYourGroupOpen(false)
     }
+    setMemberPreviewOpen(false)
   }, [selectedGroupId])
 
   const selectedGroup = groups.find(group => group.id === selectedGroupId) || null
@@ -544,6 +549,10 @@ export default function GroupsPage() {
 
   const selectedGroupAggregate =
     groupAggregates.find(entry => entry.group.id === selectedGroupId) || null
+  const selectedMemberPreviewRows =
+    selectedGroupAggregate && (memberPreviewOpen || selectedGroupAggregate.memberStats.length <= 3)
+      ? selectedGroupAggregate.memberStats
+      : selectedGroupAggregate?.memberStats.slice(0, 3) || []
   const selectedGroupRank = selectedGroupAggregate
     ? groupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
     : null
@@ -575,11 +584,6 @@ export default function GroupsPage() {
   const visibleLeaderboardEntries = showAllGroups
     ? leaderboardEntries
     : leaderboardEntries.slice(0, 5)
-  const introLine = loading
-    ? 'Loading the live group board...'
-    : groupAggregates.length > 0
-      ? `${groupAggregates.length} group${groupAggregates.length === 1 ? '' : 's'} on the board. Tap any group to inspect it.`
-      : 'Create or join a group to compete with classmates, residents, or friends.'
   async function createGroup() {
     const name = createName.trim()
     const displayName = (createDisplayName || joinDisplayName).trim()
@@ -806,7 +810,45 @@ export default function GroupsPage() {
       prev.map(group => (group.id === selectedGroup.id ? { ...group, icon: nextIcon } : group))
     )
     setSavingGroupIcon(false)
-    setMessage('Group icon updated.')
+  }
+
+  async function deleteGroupAsAdmin(group: Pick<GroupRow, 'id' | 'name'>) {
+    if (!adminUnlocked || typeof window === 'undefined') return
+
+    const adminPassword = window.sessionStorage.getItem('orthodle_admin_password') || ''
+    if (!adminPassword) {
+      setMessage('Unlock admin first, then come back to remove groups.')
+      return
+    }
+
+    const confirmed = window.confirm(`Remove "${group.name}" and its members?`)
+    if (!confirmed) return
+
+    setDeletingGroupId(group.id)
+    setMessage('')
+
+    const response = await fetch('/api/admin-delete-group', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: adminPassword, groupId: group.id }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      setDeletingGroupId('')
+      setMessage(payload.error || 'Could not remove that group.')
+      return
+    }
+
+    setGroups(prev => prev.filter(entry => entry.id !== group.id))
+    setMembers(prev => prev.filter(member => member.group_id !== group.id))
+    if (selectedGroupId === group.id) {
+      setSelectedGroupId('')
+      setYourGroupOpen(false)
+    }
+    window.localStorage.removeItem(membershipKey(group.id))
+    setDeletingGroupId('')
   }
 
   async function updateMyDisplayName() {
@@ -920,8 +962,8 @@ export default function GroupsPage() {
             </div>
             <div className="mt-4 space-y-2 text-[13px] leading-5 text-[#536158]">
               <p>Create a group for your class, residency, rotation, or friends.</p>
-              <p>Correct solves add points, with bonuses for first-try solves, efficient guesses, and streaks.</p>
-              <p>Group score uses average active-member points, so bigger groups do not get an automatic advantage.</p>
+              <p>Simple scoring: 10 points per solve, plus small bonuses for first try, streaks, and efficient guesses.</p>
+              <p>Group score is the average active member score, so bigger groups do not get an automatic advantage.</p>
               <p>Share the invite link to add people to your group.</p>
               <p>Leaderboards reset Sunday at 11:59pm PST.</p>
             </div>
@@ -957,9 +999,6 @@ export default function GroupsPage() {
                     <Info size={14} strokeWidth={2} />
                   </button>
                 </div>
-                <p className="mt-1.5 max-w-[470px] text-[12px] leading-5 text-[#637268] sm:text-[13px]">
-                  {introLine}
-                </p>
               </div>
             </div>
 
@@ -1002,10 +1041,6 @@ export default function GroupsPage() {
                           <div className="mt-0.5 text-[12px] text-[#637268]">
                             {formatMemberCount(selectedGroupAggregate.members.length)}
                           </div>
-                          <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                            Code {selectedGroup.join_code}
-                            {myMembership ? ` · ${myMembership.display_name}` : ''}
-                          </div>
                         </div>
                       </div>
                       <div
@@ -1043,14 +1078,14 @@ export default function GroupsPage() {
                               <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                                 Group icon
                               </div>
-                              <div className="flex flex-wrap gap-1.5">
+                              <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                                 {GROUP_ICONS.map(icon => (
                                   <button
                                     key={icon.value}
                                     type="button"
                                     disabled={savingGroupIcon}
                                     onClick={() => void updateSelectedGroupIcon(icon.value)}
-                                    className={`flex h-9 w-9 items-center justify-center rounded-[13px] border text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
                                       selectedGroup.icon === icon.value
                                         ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
                                         : 'border-[#e6dfd3] bg-[#fcfbf8]'
@@ -1133,12 +1168,12 @@ export default function GroupsPage() {
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
-                        Avg score
+                        Score
                       </div>
                       <div className="mt-1 truncate font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                         {formatScore(selectedGroupAggregate.score)}
                       </div>
-                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">avg pts</div>
+                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">team avg</div>
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
@@ -1163,28 +1198,40 @@ export default function GroupsPage() {
                   </div>
 
                   {selectedGroupAggregate.memberStats.length > 0 ? (
-                    <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-2.5">
-                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                    <div className="rounded-[14px] border border-[#ece6db] bg-[#fcfbf8] px-2.5 py-2">
+                      <div className="mb-1 flex items-center justify-between gap-2">
                         <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                          Member race
+                          Members
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => router.push(`/groups/${selectedGroup.id}`)}
-                          className="text-[10px] font-semibold text-[#2d7651] transition hover:text-[#255e42]"
-                        >
-                          Full board ›
-                        </button>
+                        {selectedGroupAggregate.memberStats.length > 3 ? (
+                          <button
+                            type="button"
+                            onClick={() => setMemberPreviewOpen(prev => !prev)}
+                            className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold text-[#637268] transition hover:bg-white hover:text-[#2d7651]"
+                            aria-expanded={memberPreviewOpen}
+                          >
+                            {memberPreviewOpen
+                              ? 'Less'
+                              : `+${selectedGroupAggregate.memberStats.length - 3}`}
+                            <span
+                              className={`text-[10px] leading-none transition-transform ${
+                                memberPreviewOpen ? 'rotate-180' : ''
+                              }`}
+                            >
+                              ⌄
+                            </span>
+                          </button>
+                        ) : null}
                       </div>
-                      <div className="space-y-1">
-                        {selectedGroupAggregate.memberStats.slice(0, 3).map((entry, index) => (
+                      <div className="divide-y divide-[#ece6db]">
+                        {selectedMemberPreviewRows.map((entry, index) => (
                           <div
                             key={entry.member.id}
-                            className="grid grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[12px] px-2 py-1.5"
+                            className="grid grid-cols-[20px_1fr_auto] items-center gap-2 py-1.5"
                           >
-                            <div className="text-[12px] font-semibold text-[#102018]">{index + 1}</div>
+                            <div className="text-[11px] font-semibold text-[#102018]">{index + 1}</div>
                             <div className="min-w-0">
-                              <div className="truncate text-[12px] font-semibold text-[#102018]">
+                              <div className="truncate text-[11px] font-semibold text-[#102018]">
                                 {entry.member.display_name}
                               </div>
                               <div className="text-[10px] text-[#637268]">
@@ -1192,7 +1239,7 @@ export default function GroupsPage() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-serif text-[15px] font-semibold leading-none text-[#102018]">
+                              <div className="font-serif text-[14px] font-semibold leading-none text-[#102018]">
                                 {formatScore(entry.score)}
                               </div>
                               <div className="text-[8px] uppercase tracking-[0.12em] text-[#637268]">
@@ -1341,7 +1388,7 @@ export default function GroupsPage() {
                               <span className="ml-2 text-[#53715f]">Tied with #{rank - 1}</span>
                             ) : (
                               <span className="ml-2 text-[#53715f]">
-                                {scoreDelta} avg pts behind #{rank - 1}
+                                {scoreDelta} pts back
                               </span>
                             )}
                           </div>
@@ -1351,7 +1398,7 @@ export default function GroupsPage() {
                             {formatScore(group.score)}
                           </div>
                           <div className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-[#637268]">
-                            avg score
+                            score
                           </div>
                         </div>
                       </button>
@@ -1364,6 +1411,26 @@ export default function GroupsPage() {
                   </div>
                 )}
               </div>
+              {adminUnlocked && leaderboardEntries.length > 0 ? (
+                <div className="mt-3 rounded-[14px] border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-2">
+                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                    Admin controls
+                  </div>
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {leaderboardEntries.map(group => (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => void deleteGroupAsAdmin(group)}
+                        disabled={deletingGroupId === group.id}
+                        className="inline-flex h-7 items-center justify-center rounded-full border border-[#e0d8ca] bg-white px-2.5 text-[10px] font-semibold text-[#a24d24] transition hover:-translate-y-0.5 hover:bg-[#fff8ef] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {deletingGroupId === group.id ? 'Removing...' : `Remove ${group.name}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </section>
 
             <section className={`grid gap-1.5 ${selectedGroup ? 'sm:grid-cols-2' : ''}`}>
@@ -1492,13 +1559,13 @@ export default function GroupsPage() {
                       <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                         Group icon
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         {GROUP_ICONS.map(icon => (
                           <button
                             key={icon.value}
                             type="button"
                             onClick={() => setCreateIcon(icon.value)}
-                            className={`flex h-9 w-9 items-center justify-center rounded-[13px] border text-[15px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 ${
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 ${
                               createIcon === icon.value
                                 ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
                                 : 'border-[#e6dfd3] bg-[#fcfbf8]'
