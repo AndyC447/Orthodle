@@ -1723,10 +1723,10 @@ function PlayPageContent() {
 
       {showTutorial && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#102018]/60 px-4">
-          <div className="w-full max-w-sm rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_18px_40px_rgba(16,32,24,0.18)]">
+          <div className="w-full max-w-sm rounded-[24px] border border-[#e7e1d6] bg-white p-4 shadow-[0_18px_40px_rgba(16,32,24,0.18)]">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <h2 className="mt-2 font-serif text-[28px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
+                <h2 className="mt-1.5 font-serif text-[25px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
                   How to play
                 </h2>
               </div>
@@ -1740,7 +1740,7 @@ function PlayPageContent() {
               </button>
             </div>
 
-            <div className="mt-4 space-y-3 text-[14px] leading-6 text-[#102018]">
+            <div className="mt-3 space-y-2.5 text-[13px] leading-5.5 text-[#102018]">
               <p><strong>1.</strong> Read the case and narrow the diagnosis.</p>
               <p><strong>2.</strong> There are 3 new cases every day, each with increasing difficulty.</p>
               <p><strong>3.</strong> Wrong guesses unlock more clinical findings.</p>
@@ -1751,7 +1751,7 @@ function PlayPageContent() {
             <button
               type="button"
               onClick={dismissTutorial}
-              className="mt-5 w-full rounded-xl bg-[#1f6448] px-4 py-3 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+              className="mt-4 w-full rounded-xl bg-[#1f6448] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37]"
             >
               Start playing
             </button>
@@ -1761,15 +1761,15 @@ function PlayPageContent() {
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {onTodayCard && todayComplete && (
-          <div className="orthodle-panel-shell mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-4 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)] sm:max-w-[560px] sm:px-5 sm:py-3.5">
+          <div className="orthodle-panel-shell mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)] sm:max-w-[560px] sm:px-5 sm:py-3.5">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
               Daily card complete
             </div>
             <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268] sm:text-[12px]">
               Fresh cases drop tomorrow. Keep the streak alive.
             </p>
-            <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1.5">
+            <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
+              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Solved
                 </div>
@@ -1777,7 +1777,7 @@ function PlayPageContent() {
                   {dailySummary.wins}/3
                 </div>
               </div>
-              <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1.5">
+              <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Avg guesses
                 </div>
@@ -1785,7 +1785,7 @@ function PlayPageContent() {
                   {dailySummary.averageGuesses !== null ? dailySummary.averageGuesses.toFixed(1) : '—'}
                 </div>
               </div>
-              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1.5">
+              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Streak
                 </div>
@@ -1794,16 +1794,16 @@ function PlayPageContent() {
                 </div>
               </div>
             </div>
-            <div className="mt-2.5 flex flex-wrap justify-center gap-2">
+            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
               <Link
                 href="/stats"
-                className="rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[10px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
+                className="rounded-full border border-[#cfded4] bg-white px-2.5 py-1 text-[9.5px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
               >
                 View stats
               </Link>
               <Link
                 href="/archive"
-                className="rounded-full border border-[#cfded4] bg-white px-3 py-1 text-[10px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
+                className="rounded-full border border-[#cfded4] bg-white px-2.5 py-1 text-[9.5px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
               >
                 Browse archive
               </Link>
@@ -1875,19 +1875,19 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(level.key)}
                   className={
                     active
-                      ? `min-h-[64px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
-                      : `min-h-[64px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-2' : 'py-2'}`
+                      ? `min-h-[58px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
+                      : `min-h-[58px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
                   }
                 >
-                  <div className="font-serif text-[12px] font-bold leading-none sm:text-[12px]">
+                  <div className="font-serif text-[11px] font-bold leading-none sm:text-[12px]">
                     {level.label}
                   </div>
 
                   <div
                     className={
                       active
-                        ? 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
-                        : 'mt-1 text-[7px] font-semibold uppercase tracking-[0.16em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
+                        ? 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.15em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
+                        : 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.15em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
                     }
                   >
                     {selectedTaglines[level.key]}
@@ -1970,12 +1970,12 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`}>
                           <button
                             onClick={openExpandedImage}
-                            className="night-surface orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
+                            className="night-surface orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-1.5"
                           >
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="block max-h-[260px] max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
+                              className="block max-h-[220px] max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
                             />
                           </button>
                           {image.credit && (
@@ -2003,11 +2003,11 @@ function PlayPageContent() {
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7] shadow-[0_8px_18px_rgba(199,107,58,0.08)]' : ''} orthodle-finding-card orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-[#102018] sm:px-3.5`}
+                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7] shadow-[0_8px_18px_rgba(199,107,58,0.08)]' : ''} orthodle-finding-card orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[#102018] sm:px-3.5`}
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
-                          <p className="font-serif text-[14px] leading-5.5 tracking-[-0.01em] sm:text-[15px]">
+                          <p className="font-serif text-[13.5px] leading-5 tracking-[-0.01em] sm:text-[15px]">
                             {finding}
                           </p>
                         </div>
@@ -2043,13 +2043,13 @@ function PlayPageContent() {
                           onKeyDown={e => e.key === 'Enter' && submitGuess()}
                           placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                           disabled={!dailyCase}
-                          className="min-h-[42px] flex-1 rounded-lg border border-[#ded7ca] bg-white px-3.5 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                          className="min-h-[40px] flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12.5px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
                         />
 
                         <button
                           onClick={submitGuess}
                           disabled={!dailyCase}
-                          className="min-h-[42px] rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          className="min-h-[40px] rounded-lg bg-[#1f6448] px-3 py-2 text-[11px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                         >
                           Guess
                         </button>
@@ -2072,7 +2072,7 @@ function PlayPageContent() {
                   <button
                     type="button"
                     onClick={moveToNextLevel}
-                    className={`${roundComplete ? '' : 'mt-3 '}w-full rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2.5 text-[12px] font-semibold text-[#1f6448] transition hover:bg-white`}
+                    className={`${roundComplete ? '' : 'mt-3 '}w-full rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white`}
                   >
                     Continue to the {formatLevel(nextLevel)} case
                   </button>
@@ -2085,17 +2085,17 @@ function PlayPageContent() {
               ref={solvedCardRef}
               className={
                 pulseSuccess
-                  ? 'orthodle-panel-shell orthodle-answer-shell orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
-                  : 'orthodle-panel-shell orthodle-answer-shell night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  ? 'orthodle-panel-shell orthodle-answer-shell orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  : 'orthodle-panel-shell orthodle-answer-shell night-surface rounded-2xl border border-[#e7e1d6] bg-white p-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
               }
             >
               <div className="mt-1">
                 <div className="text-center">
-                  <h3 className="orthodle-answer-pop font-serif text-[23px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448] sm:text-[26px]">
+                  <h3 className="orthodle-answer-pop font-serif text-[21px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448] sm:text-[26px]">
                     {dailyCase.answer}
                   </h3>
                   {onTodayCard && levelStreak >= 1 && (
-                    <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold text-[#a24d24]">
+                    <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold text-[#a24d24]">
                       <span aria-hidden="true">🔥</span>
                       <span>
                         {levelStreak}-day {formatLevel(selectedLevel)} streak
@@ -2128,7 +2128,7 @@ function PlayPageContent() {
                       <button
                         type="button"
                         onClick={shareResult}
-                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[12px] font-semibold text-white transition hover:bg-[#174c37]"
+                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#174c37]"
                       >
                         Share the case
                       </button>
@@ -2140,7 +2140,7 @@ function PlayPageContent() {
                   <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                     How was the case?
                   </div>
-                  <div className="mx-auto grid max-w-[280px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
+                  <div className="mx-auto grid max-w-[260px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
                     {FEEDBACK_TAG_OPTIONS.map(tag => {
                       const alreadySent = submittedReactionTags.includes(tag)
                       const isPositiveReaction = tag === 'Great case'
@@ -2155,7 +2155,7 @@ function PlayPageContent() {
                             (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
                             (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
                           }
-                          className={`w-full rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition sm:w-auto ${
+                          className={`w-full rounded-lg border px-2 py-1.5 text-[9.5px] font-semibold transition sm:w-auto ${
                             submittingReaction === tag
                               ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
                               : alreadySent
@@ -2265,9 +2265,9 @@ function PlayPageContent() {
                     className={
                       item
                         ? item.correct
-                          ? 'orthodle-guess-correct flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
-                          : 'orthodle-guess-wrong flex min-h-[40px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
-                        : 'orthodle-guess-empty flex min-h-[40px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
+                          ? 'orthodle-guess-correct flex min-h-[34px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
+                          : 'orthodle-guess-wrong flex min-h-[34px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
+                        : 'orthodle-guess-empty flex min-h-[34px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
                     }
                   >
                     <span className="text-[8px] font-mono text-[#637268]">

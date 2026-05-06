@@ -177,15 +177,15 @@ export default function ArchivePage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
-        <div className="night-surface rounded-[28px] border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-5">
+      <section className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
+        <div className="night-surface rounded-[28px] border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-5">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
             Archive
           </div>
-          <h1 className="mt-2 font-serif text-[30px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
+          <h1 className="mt-2 font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:text-[30px]">
             Browse older cases
           </h1>
-          <p className="mt-2 max-w-2xl text-[13px] leading-5.5 text-[#637268]">
+          <p className="mt-2 max-w-2xl text-[12px] leading-5 text-[#637268] sm:text-[13px] sm:leading-5.5">
             Jump straight into earlier Orthodle cases by date and difficulty.
           </p>
 
@@ -218,18 +218,18 @@ export default function ArchivePage() {
             </div>
           )}
 
-          <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+          <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
             <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268] sm:hidden">
               Filters
             </div>
 
             <div className="grid gap-2.5 sm:grid-cols-3">
-              <label className="grid gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                 Difficulty
                 <select
                   value={selectedLevel}
                   onChange={e => setSelectedLevel(e.target.value as 'all' | Level)}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]"
+                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018]"
                 >
                   <option value="all">All levels</option>
                   <option value="med_student">Med Student</option>
@@ -238,12 +238,12 @@ export default function ArchivePage() {
                 </select>
               </label>
 
-              <label className="grid gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              <label className="grid gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                 Category
                 <select
                   value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]"
+                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018]"
                 >
                   <option value="all">All categories</option>
                   {categoryOptions.map(option => (
@@ -255,7 +255,7 @@ export default function ArchivePage() {
               </label>
 
               <label className="flex items-end">
-                <span className="flex w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]">
+                <span className="flex w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018]">
                   <span>Has imaging</span>
                   <input
                     type="checkbox"
@@ -310,7 +310,7 @@ export default function ArchivePage() {
               {groupedDates.length} dates ready. Expand to browse the full archive.
             </div>
           ) : (
-            <div className="mt-4 space-y-2.5">
+            <div className="mt-4 space-y-2">
               {groupedDates.map(group => (
                 <div
                   key={group.date}
