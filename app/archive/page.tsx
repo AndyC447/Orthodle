@@ -34,8 +34,7 @@ export default function ArchivePage() {
   const today = todayISO()
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
-  const [showFilters, setShowFilters] = useState(false)
-  const [showCaseList, setShowCaseList] = useState(false)
+  const [showCaseList, setShowCaseList] = useState(true)
   const [selectedLevel, setSelectedLevel] = useState<'all' | Level>('all')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [imagingOnly, setImagingOnly] = useState(false)
@@ -212,7 +211,7 @@ export default function ArchivePage() {
                   clearStatsSummary()
                   setCompletedArchiveKeys(new Set())
                 }}
-                className="inline-flex rounded-full border border-[#ded7ca] bg-white px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-[#fbfaf7]"
+                className="inline-flex rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#637268] transition hover:bg-[#fbfaf7]"
               >
                 Reset cases
               </button>
@@ -220,20 +219,11 @@ export default function ArchivePage() {
           )}
 
           <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-            <div className="mb-3 flex items-center justify-between sm:hidden">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                Filters
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowFilters(current => !current)}
-                className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-[#fbfaf7]"
-              >
-                {showFilters ? 'Hide' : 'Show'}
-              </button>
+            <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268] sm:hidden">
+              Filters
             </div>
 
-            <div className={`${showFilters ? 'grid' : 'hidden'} gap-2.5 sm:grid sm:grid-cols-3`}>
+            <div className="grid gap-2.5 sm:grid-cols-3">
               <label className="grid gap-1.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                 Difficulty
                 <select
@@ -305,7 +295,7 @@ export default function ArchivePage() {
             <button
               type="button"
               onClick={() => setShowCaseList(current => !current)}
-              className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-[#fbfaf7]"
+              className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#637268] transition hover:bg-[#fbfaf7]"
             >
               {showCaseList ? 'Collapse' : 'Expand'}
             </button>
