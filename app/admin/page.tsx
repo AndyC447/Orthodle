@@ -109,6 +109,7 @@ type AnalyticsSummary = {
   guessAccuracy: number
   averageGuessesPerUser: number
   darkModeUsers: number
+  themeTrackedUsers: number
   darkModeRate: number
   todayUsers: number
   todayNewUsers: number
@@ -1078,9 +1079,10 @@ export default function AdminPage() {
 
     const totalVisits = visits.length
     const totalUniqueUsers = allSessions.size
+    const themeTrackedUsers = latestThemeBySession.size
     const darkModeUsers = [...latestThemeBySession.values()].filter(item => item.theme === 'dark').length
     const darkModeRate =
-      latestThemeBySession.size > 0 ? (darkModeUsers / latestThemeBySession.size) * 100 : 0
+      themeTrackedUsers > 0 ? (darkModeUsers / themeTrackedUsers) * 100 : 0
     const totalGuesses = guesses.length
     const totalCorrectGuesses = guesses.filter(guess => guess.is_correct).length
     const cumulativeDailyUsers = Object.values(byDate).reduce(
@@ -1126,6 +1128,7 @@ export default function AdminPage() {
       guessAccuracy: totalGuesses > 0 ? (totalCorrectGuesses / totalGuesses) * 100 : 0,
       averageGuessesPerUser: totalUniqueUsers > 0 ? totalGuesses / totalUniqueUsers : 0,
       darkModeUsers,
+      themeTrackedUsers,
       darkModeRate,
       todayUsers: todayRow.unique_sessions,
       todayNewUsers: todayRow.new_sessions,
@@ -2126,7 +2129,7 @@ export default function AdminPage() {
                       {formatPercent(analyticsSummary.darkModeRate)}
                     </div>
                     <div className="mt-1 text-[11px] text-[#637268]">
-                      {analyticsSummary.darkModeUsers} of {analyticsSummary.totalUniqueUsers}
+                      {analyticsSummary.darkModeUsers} of {analyticsSummary.themeTrackedUsers} tracked users
                     </div>
                   </div>
                 </div>
