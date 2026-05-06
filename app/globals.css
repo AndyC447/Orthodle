@@ -122,11 +122,22 @@ body {
 }
 
 .orthodle-group-crest {
-  background: linear-gradient(145deg, #0f2c22, #1d6b4a 58%, #103427);
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.9), transparent 32%),
+    #fbf7ef;
 }
 
-.orthodle-group-crest-shield {
-  clip-path: polygon(50% 0%, 91% 16%, 86% 70%, 50% 100%, 14% 70%, 9% 16%);
+.orthodle-group-crest-mark {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55));
+}
+
+.orthodle-group-feature-card {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease,
+    color 300ms ease,
+    transform 160ms ease;
 }
 
 :root[data-theme="dark"] body {
@@ -239,7 +250,14 @@ body {
 
 :root[data-theme="dark"] .orthodle-group-crest {
   border-color: rgba(250, 245, 236, 0.46) !important;
-  background: linear-gradient(145deg, #0e271f, #2c835b 58%, #142e25) !important;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.12), transparent 32%),
+    #202a25 !important;
+}
+
+:root[data-theme="dark"] .orthodle-group-feature-card {
+  background: linear-gradient(135deg, #18231f, #121b17) !important;
+  border-color: rgba(250, 245, 236, 0.44) !important;
 }
 
 :root[data-theme="dark"] .shadow-\[0_10px_30px_rgba\(16\,32\,24\,0\.06\)\],

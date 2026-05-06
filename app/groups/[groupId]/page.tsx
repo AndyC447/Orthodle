@@ -41,6 +41,7 @@ type CaseRow = {
 
 type MemberStats = {
   member: GroupMemberRow
+  score: number
   solves: number
   avgGuesses: number | null
   longestStreak: number
@@ -62,13 +63,39 @@ type GroupAggregate = {
 
 const GROUP_ICONS = [
   { value: '🦴', label: 'Bone' },
+  { value: '🦵', label: 'Leg' },
+  { value: '🦶', label: 'Foot' },
+  { value: '💀', label: 'Skull' },
   { value: '🔨', label: 'Hammer' },
   { value: '🛠️', label: 'Tools' },
+  { value: '🪛', label: 'Screwdriver' },
+  { value: '🧰', label: 'Toolbox' },
+  { value: '🩻', label: 'X-ray' },
   { value: '🩺', label: 'Doctor' },
+  { value: '🥼', label: 'White coat' },
   { value: '🏥', label: 'Hospital' },
+  { value: '💊', label: 'Pill' },
+  { value: '💉', label: 'Syringe' },
+  { value: '🩹', label: 'Bandage' },
+  { value: '🧬', label: 'DNA' },
   { value: '💪', label: 'Strength' },
   { value: '🧠', label: 'Brain' },
+  { value: '❤️', label: 'Heart' },
   { value: '⚕️', label: 'Medicine' },
+  { value: '🐶', label: 'Dog' },
+  { value: '🐱', label: 'Cat' },
+  { value: '🦁', label: 'Lion' },
+  { value: '🐯', label: 'Tiger' },
+  { value: '🐻', label: 'Bear' },
+  { value: '🐺', label: 'Wolf' },
+  { value: '🦊', label: 'Fox' },
+  { value: '🐵', label: 'Monkey' },
+  { value: '🦍', label: 'Gorilla' },
+  { value: '🦅', label: 'Eagle' },
+  { value: '🦉', label: 'Owl' },
+  { value: '🐢', label: 'Turtle' },
+  { value: '🦈', label: 'Shark' },
+  { value: '🐍', label: 'Snake' },
 ]
 
 function buildInviteLink(joinCode: string) {
@@ -127,18 +154,17 @@ function groupAvatarLabel(group: Pick<GroupRow, 'name' | 'icon'>) {
 function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
   const dimensions =
     size === 'lg'
-      ? 'h-[70px] w-[70px] rounded-[24px] text-[28px]'
+      ? 'h-[74px] w-[74px] text-[36px]'
       : size === 'sm'
-        ? 'h-[42px] w-[42px] rounded-[15px] text-[20px]'
-        : 'h-14 w-14 rounded-[18px] text-[24px]'
+        ? 'h-12 w-12 text-[25px]'
+        : 'h-14 w-14 text-[28px]'
 
   return (
     <div
-      className={`orthodle-group-crest relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
+      className={`orthodle-group-crest relative flex shrink-0 items-center justify-center rounded-full border border-[#d8cfbf] bg-[#fbf7ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_8px_18px_rgba(16,32,24,0.1)] ${dimensions}`}
       aria-hidden="true"
     >
-      <div className="orthodle-group-crest-shield absolute inset-[5px] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
-      <span className="relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)]">
+      <span className="orthodle-group-crest-mark leading-none">
         {groupAvatarLabel(group)}
       </span>
     </div>
@@ -151,6 +177,16 @@ function formatScore(value: number) {
 
 function formatMemberCount(count: number) {
   return `${count} member${count === 1 ? '' : 's'}`
+}
+
+function calculateMemberScore(
+  solves: number,
+  firstTrySolves: number,
+  longestStreak: number,
+  avgGuesses: number | null
+) {
+  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) * 12 : 0
+  return Math.round(solves * 100 + firstTrySolves * 35 + longestStreak * 18 + efficiencyBonus)
 }
 
 function buildMemberStats(
@@ -193,11 +229,16 @@ function buildMemberStats(
 
   const uniqueSortedDates = Array.from(new Set(solvedDates)).sort()
 
+  const avgGuesses = solves > 0 ? totalGuessesToSolve / solves : null
+  const longestStreak = computeLongestRun(uniqueSortedDates)
+  const score = calculateMemberScore(solves, firstTrySolves, longestStreak, avgGuesses)
+
   return {
     member,
+    score,
     solves,
-    avgGuesses: solves > 0 ? totalGuessesToSolve / solves : null,
-    longestStreak: computeLongestRun(uniqueSortedDates),
+    avgGuesses,
+    longestStreak,
     firstTrySolves,
     totalGuesses,
     correctGuesses,
@@ -230,16 +271,7 @@ function buildGroupAggregates(
       )
       const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
       const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
-      const totalMemberScore = activeMemberStats.reduce((sum, entry) => {
-        const efficiencyBonus = entry.avgGuesses ? Math.max(0, 7 - entry.avgGuesses) * 12 : 0
-        return (
-          sum +
-          entry.solves * 100 +
-          entry.firstTrySolves * 35 +
-          entry.longestStreak * 18 +
-          efficiencyBonus
-        )
-      }, 0)
+      const totalMemberScore = activeMemberStats.reduce((sum, entry) => sum + entry.score, 0)
       const score =
         activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
 
@@ -247,6 +279,7 @@ function buildGroupAggregates(
         group,
         members: groupMembers,
         memberStats: memberStats.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score
           if (b.longestStreak !== a.longestStreak) return b.longestStreak - a.longestStreak
           if (b.solves !== a.solves) return b.solves - a.solves
           if ((a.avgGuesses ?? Infinity) !== (b.avgGuesses ?? Infinity)) {
@@ -452,12 +485,12 @@ export default function GroupDetailPage() {
         window.setTimeout(() => setCopied(false), 1800)
         return
       } catch {
-        setMessage(`Invite code: ${group.join_code}`)
+        setMessage(`Group code: ${group.join_code}`)
         return
       }
     }
 
-    setMessage(`Invite code: ${group.join_code}`)
+    setMessage(`Group code: ${group.join_code}`)
   }
 
   return (
@@ -582,7 +615,7 @@ export default function GroupDetailPage() {
                 <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-3 py-3 sm:px-4 sm:py-4">
                   <div className="flex items-end justify-between gap-3">
                     <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                      Members
+                      Member leaderboard
                     </div>
                     <div className="text-[11px] text-[#637268]">
                       {formatMemberCount(aggregate.members.length)}
@@ -611,10 +644,10 @@ export default function GroupDetailPage() {
                           </div>
                           <div className="text-right">
                             <div className="font-serif text-[16px] font-semibold leading-none text-[#102018]">
-                              {entry.avgGuesses !== null ? entry.avgGuesses.toFixed(1) : '—'}
+                              {formatScore(entry.score)}
                             </div>
                             <div className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-[#637268]">
-                              avg guesses
+                              pts
                             </div>
                           </div>
                         </div>

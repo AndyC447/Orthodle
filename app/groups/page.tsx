@@ -41,6 +41,7 @@ type CaseRow = {
 
 type MemberStats = {
   member: GroupMemberRow
+  score: number
   solves: number
   avgGuesses: number | null
   longestStreak: number
@@ -74,13 +75,39 @@ const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
 const GROUP_ICONS = [
   { value: '🦴', label: 'Bone' },
+  { value: '🦵', label: 'Leg' },
+  { value: '🦶', label: 'Foot' },
+  { value: '💀', label: 'Skull' },
   { value: '🔨', label: 'Hammer' },
   { value: '🛠️', label: 'Tools' },
+  { value: '🪛', label: 'Screwdriver' },
+  { value: '🧰', label: 'Toolbox' },
+  { value: '🩻', label: 'X-ray' },
   { value: '🩺', label: 'Doctor' },
+  { value: '🥼', label: 'White coat' },
   { value: '🏥', label: 'Hospital' },
+  { value: '💊', label: 'Pill' },
+  { value: '💉', label: 'Syringe' },
+  { value: '🩹', label: 'Bandage' },
+  { value: '🧬', label: 'DNA' },
   { value: '💪', label: 'Strength' },
   { value: '🧠', label: 'Brain' },
+  { value: '❤️', label: 'Heart' },
   { value: '⚕️', label: 'Medicine' },
+  { value: '🐶', label: 'Dog' },
+  { value: '🐱', label: 'Cat' },
+  { value: '🦁', label: 'Lion' },
+  { value: '🐯', label: 'Tiger' },
+  { value: '🐻', label: 'Bear' },
+  { value: '🐺', label: 'Wolf' },
+  { value: '🦊', label: 'Fox' },
+  { value: '🐵', label: 'Monkey' },
+  { value: '🦍', label: 'Gorilla' },
+  { value: '🦅', label: 'Eagle' },
+  { value: '🦉', label: 'Owl' },
+  { value: '🐢', label: 'Turtle' },
+  { value: '🦈', label: 'Shark' },
+  { value: '🐍', label: 'Snake' },
 ]
 
 function normalizeJoinCode(value: string) {
@@ -154,18 +181,17 @@ function groupAvatarLabel(group: Pick<GroupRow, 'name' | 'icon'>) {
 function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
   const dimensions =
     size === 'lg'
-      ? 'h-[70px] w-[70px] rounded-[24px] text-[28px]'
+      ? 'h-[74px] w-[74px] text-[36px]'
       : size === 'sm'
-        ? 'h-[42px] w-[42px] rounded-[15px] text-[20px]'
-        : 'h-14 w-14 rounded-[18px] text-[24px]'
+        ? 'h-12 w-12 text-[25px]'
+        : 'h-14 w-14 text-[28px]'
 
   return (
     <div
-      className={`orthodle-group-crest relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
+      className={`orthodle-group-crest relative flex shrink-0 items-center justify-center rounded-full border border-[#d8cfbf] bg-[#fbf7ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_8px_18px_rgba(16,32,24,0.1)] ${dimensions}`}
       aria-hidden="true"
     >
-      <div className="orthodle-group-crest-shield absolute inset-[5px] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
-      <span className="relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)]">
+      <span className="orthodle-group-crest-mark leading-none">
         {groupAvatarLabel(group)}
       </span>
     </div>
@@ -185,6 +211,16 @@ function formatScore(value: number) {
 
 function formatMemberCount(count: number) {
   return `${count} member${count === 1 ? '' : 's'}`
+}
+
+function calculateMemberScore(
+  solves: number,
+  firstTrySolves: number,
+  longestStreak: number,
+  avgGuesses: number | null
+) {
+  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) * 12 : 0
+  return Math.round(solves * 100 + firstTrySolves * 35 + longestStreak * 18 + efficiencyBonus)
 }
 
 function buildMemberStats(
@@ -227,11 +263,16 @@ function buildMemberStats(
 
   const uniqueSortedDates = Array.from(new Set(solvedDates)).sort()
 
+  const avgGuesses = solves > 0 ? totalGuessesToSolve / solves : null
+  const longestStreak = computeLongestRun(uniqueSortedDates)
+  const score = calculateMemberScore(solves, firstTrySolves, longestStreak, avgGuesses)
+
   return {
     member,
+    score,
     solves,
-    avgGuesses: solves > 0 ? totalGuessesToSolve / solves : null,
-    longestStreak: computeLongestRun(uniqueSortedDates),
+    avgGuesses,
+    longestStreak,
     firstTrySolves,
     totalGuesses,
     correctGuesses,
@@ -475,16 +516,7 @@ export default function GroupsPage() {
         )
         const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
         const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
-        const totalMemberScore = activeMemberStats.reduce((sum, entry) => {
-          const efficiencyBonus = entry.avgGuesses ? Math.max(0, 7 - entry.avgGuesses) * 12 : 0
-          return (
-            sum +
-            entry.solves * 100 +
-            entry.firstTrySolves * 35 +
-            entry.longestStreak * 18 +
-            efficiencyBonus
-          )
-        }, 0)
+        const totalMemberScore = activeMemberStats.reduce((sum, entry) => sum + entry.score, 0)
         const score =
           activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
 
@@ -492,6 +524,7 @@ export default function GroupsPage() {
           group,
           members: groupMembers,
           memberStats: memberStats.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score
             if (b.longestStreak !== a.longestStreak) return b.longestStreak - a.longestStreak
             if (b.solves !== a.solves) return b.solves - a.solves
             if ((a.avgGuesses ?? Infinity) !== (b.avgGuesses ?? Infinity)) {
@@ -526,7 +559,6 @@ export default function GroupsPage() {
     setEditDisplayName(myMembership?.display_name || '')
   }, [myMembership?.id, myMembership?.display_name])
 
-  const activeGroupCount = groupAggregates.filter(entry => entry.totalSolves > 0).length
   const displayLeaderboard: DisplayGroup[] =
     groupAggregates.length > 0
       ? groupAggregates.map(entry => ({
@@ -910,24 +942,24 @@ export default function GroupsPage() {
       <section className="mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
         <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
           <div className="space-y-3.5 sm:space-y-4">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
               <div>
-                <h1 className="font-serif text-[29px] font-bold leading-none tracking-[-0.05em] text-[#102018] sm:text-[34px]">
-                  Groups
-                </h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="font-serif text-[29px] font-bold leading-none tracking-[-0.05em] text-[#102018] sm:text-[34px]">
+                    Groups
+                  </h1>
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupsExplainer(true)}
+                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#e4ddd0] bg-white text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                    aria-label="How groups work"
+                  >
+                    <Info size={14} strokeWidth={2} />
+                  </button>
+                </div>
                 <p className="mt-1.5 max-w-[470px] text-[12px] leading-5 text-[#637268] sm:text-[13px]">
                   {introLine}
                 </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowGroupsExplainer(true)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e4ddd0] bg-white text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
-                  aria-label="How groups work"
-                >
-                  <Info size={15} strokeWidth={2} />
-                </button>
               </div>
             </div>
 
@@ -957,12 +989,12 @@ export default function GroupsPage() {
                   <button
                     type="button"
                     onClick={() => setYourGroupOpen(prev => !prev)}
-                    className="block w-full rounded-[18px] bg-[#fcfbf8] p-3 text-left transition hover:-translate-y-0.5 hover:bg-white"
+                    className="orthodle-group-feature-card block w-full rounded-[22px] border border-[#e6dfd3] bg-[linear-gradient(135deg,#fffdf8,#f8f5ee)] p-3 text-left shadow-[0_12px_26px_rgba(16,32,24,0.05)] transition hover:-translate-y-0.5 hover:bg-white sm:p-3.5"
                     aria-expanded={yourGroupOpen}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <GroupCrest group={selectedGroup} />
+                        <GroupCrest group={selectedGroup} size="lg" />
                         <div className="min-w-0">
                           <div className="truncate font-serif text-[18px] font-semibold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
                             {selectedGroup.name}
@@ -1054,23 +1086,32 @@ export default function GroupsPage() {
                       </div>
 
                       <div className="mb-1 mt-3 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Members
+                        Member leaderboard
                       </div>
                       <div className="divide-y divide-[#ece6db]">
-                        {selectedMembers.length > 0 ? (
-                          selectedMembers.map(member => (
+                        {selectedGroupAggregate.memberStats.length > 0 ? (
+                          selectedGroupAggregate.memberStats.map((entry, index) => (
                             <div
-                              key={member.id}
-                              className="flex items-center justify-between gap-3 py-2 text-[12px]"
+                              key={entry.member.id}
+                              className="grid grid-cols-[22px_1fr_auto] items-center gap-2 py-2 text-[12px]"
                             >
-                              <span className="truncate font-semibold text-[#102018]">
-                                {member.display_name}
-                              </span>
-                              {member.session_id === sessionId ? (
-                                <span className="rounded-full bg-[#eef7f1] px-2 py-0.5 text-[10px] font-semibold text-[#2d7651]">
-                                  You
-                                </span>
-                              ) : null}
+                              <span className="font-semibold text-[#102018]">{index + 1}</span>
+                              <div className="min-w-0">
+                                <div className="truncate font-semibold text-[#102018]">
+                                  {entry.member.display_name}
+                                  {entry.member.session_id === sessionId ? (
+                                    <span className="ml-1 rounded-full bg-[#eef7f1] px-1.5 py-0.5 text-[9px] font-semibold text-[#2d7651]">
+                                      You
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <div className="mt-0.5 text-[10px] text-[#637268]">
+                                  {entry.solves} solves · {entry.longestStreak} day streak
+                                </div>
+                              </div>
+                              <div className="text-right font-serif text-[15px] font-semibold text-[#102018]">
+                                {formatScore(entry.score)}
+                              </div>
                             </div>
                           ))
                         ) : (
@@ -1121,6 +1162,49 @@ export default function GroupsPage() {
                     </div>
                   </div>
 
+                  {selectedGroupAggregate.memberStats.length > 0 ? (
+                    <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-2.5">
+                      <div className="mb-1.5 flex items-center justify-between gap-2">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Member race
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/groups/${selectedGroup.id}`)}
+                          className="text-[10px] font-semibold text-[#2d7651] transition hover:text-[#255e42]"
+                        >
+                          Full board ›
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {selectedGroupAggregate.memberStats.slice(0, 3).map((entry, index) => (
+                          <div
+                            key={entry.member.id}
+                            className="grid grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[12px] px-2 py-1.5"
+                          >
+                            <div className="text-[12px] font-semibold text-[#102018]">{index + 1}</div>
+                            <div className="min-w-0">
+                              <div className="truncate text-[12px] font-semibold text-[#102018]">
+                                {entry.member.display_name}
+                              </div>
+                              <div className="text-[10px] text-[#637268]">
+                                {entry.solves} solves · {entry.firstTrySolves} first try
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-serif text-[15px] font-semibold leading-none text-[#102018]">
+                                {formatScore(entry.score)}
+                              </div>
+                              <div className="text-[8px] uppercase tracking-[0.12em] text-[#637268]">
+                                pts
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
                 </div>
               ) : (
                 <div className="mt-3 rounded-[18px] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c]">
@@ -1169,7 +1253,7 @@ export default function GroupsPage() {
                           }}
                           className="orthodle-podium-card relative flex min-h-[136px] w-full flex-col items-center overflow-hidden rounded-[16px] border border-[#e0d7c8] bg-[linear-gradient(180deg,#fffdf8,#fbf7ef)] px-1.5 py-2.5 text-center shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(16,32,24,0.1)] sm:min-h-[154px] sm:rounded-[18px] sm:px-2.5 sm:py-3"
                         >
-                          <div className="absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,#d8a947,transparent)]" />
+                          <div className="absolute inset-x-6 bottom-0 h-px bg-[linear-gradient(90deg,transparent,#d8a947,transparent)]" />
                           <div
                             className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold sm:h-7 sm:w-7 sm:text-[10px] ${rankCircleClass(rank)}`}
                           >
