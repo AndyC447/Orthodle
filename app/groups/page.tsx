@@ -451,6 +451,33 @@ export default function GroupsPage() {
           longestStreak: entry.longestStreak,
         }))
       : PLACEHOLDER_GROUPS
+  const todayDate = new Date().toISOString().slice(0, 10)
+  const selectedGroupTodayActiveCount = selectedGroup
+    ? new Set(
+        guessRows
+          .filter(
+            row =>
+              row.created_at.slice(0, 10) === todayDate &&
+              selectedMembers.some(member => member.session_id === row.session_id)
+          )
+          .map(row => row.session_id)
+      ).size
+    : 0
+  const nextRankGroup =
+    selectedGroupRank && selectedGroupRank > 1 ? groupAggregates[selectedGroupRank - 2] : null
+  const pointsBehindNextGroup =
+    selectedGroupAggregate && nextRankGroup
+      ? Math.max(0, nextRankGroup.score - selectedGroupAggregate.score)
+      : null
+  const progressToNextRank =
+    selectedGroupAggregate && nextRankGroup && nextRankGroup.score > 0
+      ? Math.min(100, (selectedGroupAggregate.score / nextRankGroup.score) * 100)
+      : selectedGroupAggregate
+        ? 100
+        : 0
+  const selectedWeeklyMomentum = selectedGroupAggregate
+    ? Math.round(selectedGroupAggregate.totalSolves * 18 + selectedGroupAggregate.longestStreak * 9)
+    : 0
 
   async function createGroup() {
     const name = createName.trim()
@@ -590,35 +617,35 @@ export default function GroupsPage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
-        <div className="night-surface rounded-[32px] border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <section className="mx-auto max-w-[940px] px-2.5 py-2.5 sm:px-3 sm:py-3">
+        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-3">
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="flex items-center gap-3">
-                <div className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] text-[24px] text-[#1f6448]">
+              <div className="flex items-center gap-2 sm:gap-2.5">
+                <div className="inline-flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] text-[17px] text-[#1f6448] sm:h-9 sm:w-9 sm:text-[18px]">
                   👥
                 </div>
                 <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                     Groups
                   </div>
-                  <h1 className="mt-1 font-serif text-[30px] font-bold leading-none tracking-[-0.04em] text-[#102018] sm:text-[44px]">
+                  <h1 className="mt-0.5 font-serif text-[23px] font-bold leading-none tracking-[-0.04em] text-[#102018] sm:text-[27px]">
                     Groups
                   </h1>
                 </div>
               </div>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-[#637268] sm:text-[15px]">
+              <p className="mt-1.5 max-w-xl pr-1 text-[12px] leading-5 text-[#637268] sm:mt-2 sm:text-[13px]">
                 Compete, collaborate, and climb the ranks with your residency, class, or friend
                 group.
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-3 rounded-[22px] border border-[#e7e1d6] bg-[#fcfbf8] px-4 py-3">
-              <span className="text-lg text-[#637268]">🗓</span>
+            <div className="inline-flex w-full items-center gap-2 rounded-[16px] border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-2 sm:w-auto sm:rounded-[18px]">
+              <span className="text-base text-[#637268]">🗓</span>
               <select
                 value={timeframe}
                 onChange={event => setTimeframe(event.target.value as 'week' | 'all')}
-                className="bg-transparent text-sm font-semibold text-[#102018] outline-none"
+                className="w-full bg-transparent text-[13px] font-semibold text-[#102018] outline-none sm:w-auto"
               >
                 <option value="week">This Week</option>
                 <option value="all">All Time</option>
@@ -627,14 +654,14 @@ export default function GroupsPage() {
           </div>
 
           {message ? (
-            <div className="mt-4 rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] px-4 py-3 text-sm text-[#355542]">
+            <div className="mt-3 rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] px-3.5 py-2.5 text-[13px] text-[#355542]">
               {message}
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <div className="rounded-[28px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
+          <div className="mt-2.5 grid items-start gap-2.5 xl:grid-cols-[1.12fr_0.88fr] xl:gap-2.5">
+            <div className="h-fit rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                 Your group
               </div>
 
@@ -643,93 +670,128 @@ export default function GroupsPage() {
                   <button
                     type="button"
                     onClick={() => setActionMode('join')}
-                    className="mt-4 block w-full rounded-[24px] border border-[#ebe5db] bg-[#fcfbf8] p-4 text-left transition hover:bg-white"
+                    className="mt-2.5 block w-full rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] p-2.5 text-left transition hover:bg-white sm:rounded-[18px] sm:p-3"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-4">
-                        <div className="flex h-18 w-18 items-center justify-center rounded-[26px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-3 text-center text-lg font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
+                      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-3 text-center text-[13px] font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] sm:h-13 sm:w-13 sm:rounded-[18px] sm:text-sm">
                           {groupMonogram(selectedGroup.name)}
                         </div>
-                        <div>
-                          <div className="font-serif text-[26px] font-semibold tracking-[-0.03em] text-[#102018]">
+                        <div className="min-w-0">
+                          <div className="truncate font-serif text-[18px] font-semibold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
                             {selectedGroup.name}
                           </div>
-                          <div className="mt-1 text-base text-[#637268]">
+                          <div className="mt-0.5 text-[12px] text-[#637268] sm:text-[13px]">
                             {selectedGroupAggregate.members.length} members
                           </div>
-                          <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                          <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                             Code {selectedGroup.join_code}
                             {myMembership ? ` · ${myMembership.display_name}` : ''}
                           </div>
                         </div>
                       </div>
-                      <div className="text-2xl text-[#637268]">›</div>
+                      <div className="text-xl text-[#637268]">›</div>
                     </div>
                   </button>
 
-                  <div className="mt-4 grid gap-3 border-t border-[#ece6db] pt-4 sm:grid-cols-4">
-                    <div className="px-2">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                  <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-[#ece6db] pt-2.5 sm:grid-cols-4 sm:gap-2">
+                    <div className="px-1 sm:px-2">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Rank
                       </div>
-                      <div className="mt-2 font-serif text-[40px] font-semibold leading-none text-[#102018]">
+                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
                         #{selectedGroupRank}
                       </div>
-                      <div className="mt-1 text-sm text-[#637268]">
+                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">
                         of {groupAggregates.length || 1}
                       </div>
                     </div>
-                    <div className="border-l border-[#ece6db] px-4">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                    <div className="border-l border-[#ece6db] px-3 sm:px-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Score
                       </div>
-                      <div className="mt-2 font-serif text-[40px] font-semibold leading-none text-[#102018]">
+                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
                         {formatScore(selectedGroupAggregate.score)}
                       </div>
-                      <div className="mt-1 text-sm text-[#637268]">Group points</div>
+                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">Group points</div>
                     </div>
-                    <div className="border-l border-[#ece6db] px-4">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                    <div className="border-l border-[#ece6db] px-3 sm:px-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Avg accuracy
                       </div>
-                      <div className="mt-2 font-serif text-[40px] font-semibold leading-none text-[#102018]">
+                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
                         {selectedGroupAggregate.avgAccuracy !== null
                           ? `${Math.round(selectedGroupAggregate.avgAccuracy)}%`
                           : '—'}
                       </div>
-                      <div className="mt-1 text-sm text-[#2d7651]">
+                      <div className="mt-1 text-[11px] text-[#2d7651] sm:text-[12px]">
                         {timeframe === 'week' ? 'This week' : 'All time'}
                       </div>
                     </div>
-                    <div className="border-l border-[#ece6db] px-4">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                    <div className="border-l border-[#ece6db] px-3 sm:px-4">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Streak
                       </div>
-                      <div className="mt-2 font-serif text-[40px] font-semibold leading-none text-[#102018]">
+                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
                         {selectedGroupAggregate.longestStreak}
                       </div>
-                      <div className="mt-1 text-sm text-[#637268]">days 🔥</div>
+                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">days 🔥</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
+                    <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Recent activity
+                      </div>
+                      <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
+                        {selectedGroupTodayActiveCount} members active today
+                      </div>
+                    </div>
+                    <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Weekly momentum
+                      </div>
+                      <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
+                        +{selectedWeeklyMomentum} pts this week
+                      </div>
+                    </div>
+                    <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Next rank
+                      </div>
+                      <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
+                        {pointsBehindNextGroup !== null
+                          ? `${pointsBehindNextGroup} behind ${nextRankGroup?.group.name}`
+                          : 'You’re in first'}
+                      </div>
+                      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#ebe5db]">
+                        <div
+                          className="h-full rounded-full bg-[#2d7651] transition-all duration-500"
+                          style={{ width: `${progressToNextRank}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="mt-4 rounded-[24px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-6 text-sm text-[#7a857c]">
+                <div className="mt-2.5 rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c] sm:mt-3 sm:rounded-[20px]">
                   Create or join a group to unlock the live leaderboard.
                 </div>
               )}
             </div>
 
-            <div className="space-y-4">
-              <div className="rounded-[28px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="space-y-2.5">
+              <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                     Top 3 groups
                   </div>
-                  <div className="text-sm text-[#637268]">
+                  <div className="text-[12px] text-[#637268]">
                     {timeframe === 'week' ? 'This week' : 'All time'}
                   </div>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="-mx-1 mt-3 flex gap-2.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
                   {displayTopGroups.map((entry, index) => {
                     const highlight = index === 0
                     return (
@@ -739,14 +801,14 @@ export default function GroupsPage() {
                         onClick={() => {
                           if (!entry.isPlaceholder) setSelectedGroupId(entry.id)
                         }}
-                        className={`rounded-[24px] border px-4 py-5 text-center transition ${
+                      className={`min-w-[138px] rounded-[16px] border px-2.5 py-3 text-center transition duration-200 active:scale-[0.98] sm:min-w-[150px] sm:rounded-[18px] sm:px-3 sm:py-3.5 ${
                           highlight
-                            ? 'border-[#e6b54b] bg-[#fffaf0] shadow-[0_10px_24px_rgba(201,107,55,0.08)]'
-                            : 'border-[#e7e1d6] bg-[#fcfbf8] hover:bg-white'
+                            ? 'border-[#e6b54b] bg-[#fffaf0] shadow-[0_10px_24px_rgba(201,107,55,0.08)] hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(201,107,55,0.12)]'
+                            : 'border-[#e7e1d6] bg-[#fcfbf8] hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_24px_rgba(16,32,24,0.06)]'
                         }`}
                       >
                         <div
-                          className={`mx-auto flex h-11 w-11 items-center justify-center rounded-full text-lg font-semibold ${
+                          className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${
                             index === 0
                               ? 'bg-[#ecb632] text-white'
                               : index === 1
@@ -756,35 +818,35 @@ export default function GroupsPage() {
                         >
                           {index + 1}
                         </div>
-                        <div className="mx-auto mt-4 flex h-16 w-16 items-center justify-center rounded-[20px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] text-base font-bold text-[#f8e1a0]">
+                        <div className="mx-auto mt-2.5 flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] text-[11px] font-bold text-[#f8e1a0] sm:h-11 sm:w-11 sm:rounded-[15px] sm:text-xs">
                           {groupMonogram(entry.name)}
                         </div>
-                        <div className="mt-4 text-lg font-semibold text-[#102018]">
+                        <div className="mt-2 text-[13px] font-semibold text-[#102018] sm:text-[14px]">
                           {entry.name}
                         </div>
                         <div
-                          className={`mt-2 font-serif text-[38px] font-semibold leading-none ${
+                          className={`mt-1.5 font-serif text-[20px] font-semibold leading-none sm:text-[22px] ${
                             highlight ? 'text-[#df9c25]' : 'text-[#123426]'
                           }`}
                         >
                           {formatScore(entry.score)}
                         </div>
-                        <div className="mt-2 text-sm text-[#637268]">{entry.members} members</div>
+                        <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">{entry.members} members</div>
                       </button>
                     )
                   })}
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
+              <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   {actionMode === 'create' ? 'Create your group' : 'Join a group'}
                 </div>
-                <div className="mt-3 flex gap-2">
+                <div className="mt-2.5 flex gap-2">
                   <button
                     type="button"
                     onClick={() => setActionMode('create')}
-                    className={`inline-flex min-h-[38px] items-center justify-center rounded-full px-4 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
+                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
                       actionMode === 'create'
                         ? 'border border-[#2d7651] bg-[#2d7651] text-white'
                         : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
@@ -795,7 +857,7 @@ export default function GroupsPage() {
                   <button
                     type="button"
                     onClick={() => setActionMode('join')}
-                    className={`inline-flex min-h-[38px] items-center justify-center rounded-full px-4 text-[11px] font-semibold uppercase tracking-[0.14em] transition ${
+                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
                       actionMode === 'join'
                         ? 'border border-[#2d7651] bg-[#2d7651] text-white'
                         : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
@@ -805,8 +867,8 @@ export default function GroupsPage() {
                   </button>
                 </div>
 
-                <div className="mt-4 space-y-3">
-                  <p className="text-sm leading-6 text-[#637268]">
+                <div className="mt-3 space-y-2.5 sm:mt-3.5">
+                  <p className="text-[12px] leading-5 text-[#637268] sm:text-[13px]">
                     Compete with classmates, residents, or friends.{` `}
                     {activeGroupsThisWeek > 0
                       ? `${activeGroupsThisWeek} groups active this week.`
@@ -818,25 +880,25 @@ export default function GroupsPage() {
                         value={createName}
                         onChange={event => setCreateName(event.target.value)}
                         placeholder="UCLA Ortho & MSK"
-                        className="w-full rounded-2xl border border-[#dfd8cb] bg-white px-4 py-3 text-sm text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
                       />
                       <input
                         value={createDisplayName}
                         onChange={event => setCreateDisplayName(event.target.value)}
                         placeholder="Your display name"
-                        className="w-full rounded-2xl border border-[#dfd8cb] bg-white px-4 py-3 text-sm text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
                       />
                       <input
                         value={createCode}
                         onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
                         placeholder="Optional invite code"
-                        className="w-full rounded-2xl border border-[#dfd8cb] bg-white px-4 py-3 text-sm uppercase text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
                       />
                       <button
                         type="button"
                         disabled={creating}
                         onClick={() => void createGroup()}
-                        className="inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-5 text-sm font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
+                        className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
                       >
                         {creating ? 'Creating...' : 'Create group'}
                       </button>
@@ -847,19 +909,19 @@ export default function GroupsPage() {
                         value={joinCode}
                         onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
                         placeholder="Invite code"
-                        className="w-full rounded-2xl border border-[#dfd8cb] bg-white px-4 py-3 text-sm uppercase text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
                       />
                       <input
                         value={joinDisplayName}
                         onChange={event => setJoinDisplayName(event.target.value)}
                         placeholder="Your display name"
-                        className="w-full rounded-2xl border border-[#dfd8cb] bg-white px-4 py-3 text-sm text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
                       />
                       <button
                         type="button"
                         disabled={joining}
                         onClick={() => void joinGroup()}
-                        className="inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-5 text-sm font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
+                        className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
                       >
                         {joining ? 'Joining...' : 'Join group'}
                       </button>
@@ -871,7 +933,7 @@ export default function GroupsPage() {
                   <button
                     type="button"
                     onClick={() => void copyInviteCode(selectedGroup)}
-                    className="mt-4 inline-flex min-h-[42px] items-center justify-center rounded-full border border-[#ded7ca] bg-[#fcfbf8] px-5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    className="mt-2.5 inline-flex w-full min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#255e42] hover:shadow-[0_12px_22px_rgba(45,118,81,0.2)] active:scale-[0.98] sm:w-auto"
                   >
                     {copiedCode === selectedGroup.id ? 'Invite link copied' : 'Invite friends'}
                   </button>
@@ -880,15 +942,15 @@ export default function GroupsPage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
-            <div className="rounded-[28px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="mt-2.5 grid items-start gap-2.5 xl:grid-cols-[1.08fr_0.92fr] xl:gap-2.5">
+            <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Leaderboard
                 </div>
-                <div className="text-sm text-[#637268]">All groups</div>
+                <div className="text-[12px] text-[#637268]">All groups</div>
               </div>
-              <div className="mt-4 space-y-3">
+              <div className="mt-2.5 space-y-2">
                 {displayLeaderboard.map((entry, index) => {
                   const previousScore = displayLeaderboard[index - 1]?.score ?? null
                   const scoreGap = previousScore !== null ? previousScore - entry.score : null
@@ -899,55 +961,55 @@ export default function GroupsPage() {
                       onClick={() => {
                         if (!entry.isPlaceholder) setSelectedGroupId(entry.id)
                       }}
-                      className={`flex w-full items-center gap-4 rounded-[22px] border px-4 py-4 text-left transition ${
+                    className={`flex w-full items-center gap-2.5 rounded-[15px] border px-3 py-2.5 text-left transition duration-200 active:scale-[0.995] sm:gap-3 sm:rounded-[16px] sm:px-3 ${
                         entry.id === selectedGroupId
-                          ? 'border-[#d9d2c2] bg-[#fcfbf8]'
-                          : 'border-[#eee7dd] bg-white hover:bg-[#fcfbf8]'
+                          ? 'border-[#d9d2c2] bg-[#fcfbf8] shadow-[0_10px_20px_rgba(16,32,24,0.04)]'
+                          : 'border-[#eee7dd] bg-white hover:-translate-y-0.5 hover:bg-[#fcfbf8] hover:shadow-[0_10px_20px_rgba(16,32,24,0.04)]'
                       }`}
                     >
-                      <div className="w-6 text-center text-2xl font-semibold text-[#102018]">
+                      <div className="w-5 text-center text-lg font-semibold text-[#102018]">
                         {index + 1}
                       </div>
-                      <div className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-2 text-center text-sm font-bold text-[#f8e1a0]">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-2 text-center text-[11px] font-bold text-[#f8e1a0] sm:h-11 sm:w-11 sm:rounded-[15px] sm:text-xs">
                         {groupMonogram(entry.name)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[28px] font-semibold leading-none tracking-[-0.03em] text-[#102018]">
+                        <div className="truncate text-[16px] font-semibold leading-none tracking-[-0.03em] text-[#102018] sm:text-[18px]">
                           {entry.name}
                         </div>
-                        <div className="mt-1 text-base text-[#637268]">
+                        <div className="mt-0.5 text-[11px] text-[#637268] sm:text-[12px]">
                           {entry.members} members
                         </div>
                         {index === 0 ? (
-                          <div className="mt-1 text-sm text-[#2d7651]">Leading the pack</div>
+                          <div className="mt-1 text-[11px] text-[#2d7651] sm:text-[12px]">Leading the pack</div>
                         ) : scoreGap !== null ? (
-                          <div className="mt-1 text-sm text-[#2d7651]">{scoreGap} behind #{index}</div>
+                          <div className="mt-1 text-[11px] text-[#2d7651] sm:text-[12px]">{scoreGap} behind #{index}</div>
                         ) : null}
                       </div>
                       <div className="text-right">
-                        <div className="font-serif text-[42px] font-semibold leading-none text-[#123426]">
+                        <div className="font-serif text-[20px] font-semibold leading-none text-[#123426] sm:text-[22px]">
                           {formatScore(entry.score)}
                         </div>
-                        <div className="mt-1 text-sm text-[#637268]">score</div>
+                        <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">score</div>
                       </div>
-                      <div className="text-2xl text-[#637268]">›</div>
+                      <div className="text-base text-[#637268]">›</div>
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
               <div className="flex items-center justify-between gap-3">
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   In-group leaderboard
                 </div>
-                <div className="text-sm text-[#637268]">
+                <div className="text-[12px] text-[#637268]">
                   {selectedGroup?.name || 'Choose a group'}
                 </div>
               </div>
 
-              <div className="mt-4 space-y-3">
+              <div className="mt-2.5 max-h-[380px] space-y-2 overflow-y-auto pr-0.5 sm:max-h-[420px]">
                 {loading ? (
                   <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-5 text-sm text-[#7a857c]">
                     Loading leaderboard...
@@ -958,56 +1020,53 @@ export default function GroupsPage() {
                     up here.
                   </div>
                 ) : (
-                  selectedGroupAggregate.memberStats.map((entry, index) => (
-                    <div
-                      key={entry.member.id}
-                      className="rounded-[22px] border border-[#eee7dd] bg-[#fcfbf8] px-4 py-4"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-sm font-semibold text-[#637268]">
-                          {index + 1}
+                  selectedGroupAggregate.memberStats.slice(0, 5).map((entry, index) => (
+                    <div key={entry.member.id} className="rounded-[15px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2.5 sm:rounded-[16px]">
+                      <div className="flex items-start gap-2.5 sm:gap-3">
+                        <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[11px] font-semibold text-[#637268] sm:h-9 sm:w-9 sm:text-xs">
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <div className="text-2xl font-semibold tracking-[-0.03em] text-[#102018]">
+                              <div className="text-[15px] font-semibold tracking-[-0.03em] text-[#102018] sm:text-[17px]">
                                 {entry.member.display_name}
                               </div>
-                              <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                              <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                                 {entry.solves} solves
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="font-serif text-[34px] font-semibold leading-none text-[#123426]">
+                              <div className="font-serif text-[18px] font-semibold leading-none text-[#123426] sm:text-[20px]">
                                 {entry.avgGuesses !== null ? entry.avgGuesses.toFixed(1) : '—'}
                               </div>
-                              <div className="mt-1 text-sm text-[#637268]">avg guesses</div>
+                              <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">avg guesses</div>
                             </div>
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-3 border-t border-[#ece6db] pt-3 text-center">
+                          <div className="mt-2 grid grid-cols-3 gap-2 border-t border-[#ece6db] pt-2 text-center">
                             <div>
-                              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                              <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[9px] sm:tracking-[0.16em]">
                                 Accuracy
                               </div>
-                              <div className="mt-1 text-lg font-semibold text-[#102018]">
+                              <div className="mt-1 text-[15px] font-semibold text-[#102018] sm:text-base">
                                 {entry.totalGuesses > 0
                                   ? `${Math.round((entry.correctGuesses / entry.totalGuesses) * 100)}%`
                                   : '—'}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                              <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[9px] sm:tracking-[0.16em]">
                                 Longest streak
                               </div>
-                              <div className="mt-1 text-lg font-semibold text-[#102018]">
+                              <div className="mt-1 text-[15px] font-semibold text-[#102018] sm:text-base">
                                 {entry.longestStreak}
                               </div>
                             </div>
                             <div>
-                              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                              <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[9px] sm:tracking-[0.16em]">
                                 First-try
                               </div>
-                              <div className="mt-1 text-lg font-semibold text-[#102018]">
+                              <div className="mt-1 text-[15px] font-semibold text-[#102018] sm:text-base">
                                 {entry.firstTrySolves}
                               </div>
                             </div>
