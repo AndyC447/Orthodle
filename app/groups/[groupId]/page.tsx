@@ -79,12 +79,13 @@ function buildInviteLink(joinCode: string) {
 function buildInviteMessage(group: GroupRow) {
   const link = buildInviteLink(group.join_code)
   return [
-    'Orthodle Group Invite',
+    'Orthodle group invite',
     '',
-    `Join "${group.name}"`,
-    'Compete on a private daily ortho case leaderboard.',
-    `Invite code: ${group.join_code}`,
-    link,
+    `Join ${group.name}.`,
+    'Solve the daily ortho cases with us and climb our private leaderboard.',
+    '',
+    `Join link: ${link}`,
+    `Group code: ${group.join_code}`,
   ].join('\n')
 }
 
@@ -128,15 +129,15 @@ function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'ic
     size === 'lg'
       ? 'h-[70px] w-[70px] rounded-[24px] text-[28px]'
       : size === 'sm'
-        ? 'h-12 w-12 rounded-[16px] text-[22px]'
+        ? 'h-[42px] w-[42px] rounded-[15px] text-[20px]'
         : 'h-14 w-14 rounded-[18px] text-[24px]'
 
   return (
     <div
-      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
+      className={`orthodle-group-crest relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
       aria-hidden="true"
     >
-      <div className="absolute inset-[6px] rounded-[inherit] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
+      <div className="orthodle-group-crest-shield absolute inset-[5px] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
       <span className="relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)]">
         {groupAvatarLabel(group)}
       </span>
@@ -447,7 +448,7 @@ export default function GroupDetailPage() {
       try {
         await navigator.clipboard.writeText(shareText)
         setCopied(true)
-        setMessage('Official invite copied.')
+        setMessage('Text invite copied.')
         window.setTimeout(() => setCopied(false), 1800)
         return
       } catch {
@@ -512,7 +513,7 @@ export default function GroupDetailPage() {
                         className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.14)] transition hover:-translate-y-0.5 hover:bg-[#255e42]"
                       >
                         <Share2 size={15} strokeWidth={2} />
-                        {copied ? 'Invite copied' : 'Official invite'}
+                        {copied ? 'Invite copied' : 'Text invite'}
                       </button>
                     ) : null}
                   </div>

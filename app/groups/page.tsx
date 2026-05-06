@@ -106,12 +106,13 @@ function buildInviteLink(joinCode: string) {
 function buildInviteMessage(group: GroupRow) {
   const link = buildInviteLink(group.join_code)
   return [
-    'Orthodle Group Invite',
+    'Orthodle group invite',
     '',
-    `Join "${group.name}"`,
-    'Compete on a private daily ortho case leaderboard.',
-    `Invite code: ${group.join_code}`,
-    link,
+    `Join ${group.name}.`,
+    'Solve the daily ortho cases with us and climb our private leaderboard.',
+    '',
+    `Join link: ${link}`,
+    `Group code: ${group.join_code}`,
   ].join('\n')
 }
 
@@ -155,15 +156,15 @@ function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'ic
     size === 'lg'
       ? 'h-[70px] w-[70px] rounded-[24px] text-[28px]'
       : size === 'sm'
-        ? 'h-12 w-12 rounded-[16px] text-[22px]'
+        ? 'h-[42px] w-[42px] rounded-[15px] text-[20px]'
         : 'h-14 w-14 rounded-[18px] text-[24px]'
 
   return (
     <div
-      className={`relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
+      className={`orthodle-group-crest relative flex shrink-0 items-center justify-center overflow-hidden border border-[#d8cfbf] bg-[linear-gradient(145deg,#0f2c22,#1d6b4a_58%,#103427)] text-[#102018] shadow-[inset_0_1px_0_rgba(255,255,255,0.32),0_8px_18px_rgba(16,32,24,0.12)] ${dimensions}`}
       aria-hidden="true"
     >
-      <div className="absolute inset-[6px] rounded-[inherit] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
+      <div className="orthodle-group-crest-shield absolute inset-[5px] border border-white/50 bg-[radial-gradient(circle_at_28%_22%,#fff6d8,#f8efe1_58%,#e8dcc8)]" />
       <span className="relative z-10 drop-shadow-[0_1px_0_rgba(255,255,255,0.65)]">
         {groupAvatarLabel(group)}
       </span>
@@ -545,7 +546,7 @@ export default function GroupsPage() {
   const introLine = loading
     ? 'Loading the live group board...'
     : groupAggregates.length > 0
-      ? `${groupAggregates.length} group${groupAggregates.length === 1 ? '' : 's'} on the board, ${activeGroupCount} active this week. Tap any group to inspect it.`
+      ? `${groupAggregates.length} group${groupAggregates.length === 1 ? '' : 's'} on the board. Tap any group to inspect it.`
       : 'Create or join a group to compete with classmates, residents, or friends.'
   async function createGroup() {
     const name = createName.trim()
@@ -633,7 +634,7 @@ export default function GroupsPage() {
     setJoinCode('')
     setShowJoinPanel(false)
     setCreating(false)
-    setMessage(`Created ${groupData.name}. Invite code: ${groupData.join_code}`)
+    setMessage(`Created ${groupData.name}. Group code: ${groupData.join_code}`)
     await loadGroupsData()
     setSelectedGroupId(groupData.id)
     setYourGroupOpen(true)
@@ -847,12 +848,12 @@ export default function GroupsPage() {
       try {
         await navigator.clipboard.writeText(shareText)
         setCopiedCode(group.id)
-        setMessage('Official invite copied.')
+        setMessage('Text invite copied.')
       } catch {
-        setMessage(`Invite code: ${group.join_code}`)
+        setMessage(`Group code: ${group.join_code}`)
       }
     } else {
-      setMessage(`Invite code: ${group.join_code}`)
+      setMessage(`Group code: ${group.join_code}`)
     }
     window.setTimeout(() => setCopiedCode(''), 1800)
   }
@@ -1107,7 +1108,7 @@ export default function GroupsPage() {
                           ? `${Math.round(selectedGroupAggregate.avgAccuracy)}%`
                           : '—'}
                       </div>
-                      <div className="mt-1 text-[10px] text-[#2d7651] sm:text-[11px]">this week</div>
+                      <div className="mt-1 text-[10px] text-[#2d7651] sm:text-[11px]">correct</div>
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
@@ -1144,19 +1145,19 @@ export default function GroupsPage() {
                 ) : null}
               </div>
               {loading ? (
-                <div className="overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <div className="mx-auto flex w-max min-w-full justify-center gap-3">
+                <div className="pb-1.5 pt-1.5">
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
                     {Array.from({ length: 3 }).map((_, index) => (
                       <div
                         key={index}
-                        className="h-[154px] w-[128px] shrink-0 rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] sm:w-[148px]"
+                        className="h-[136px] rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] sm:h-[154px]"
                       />
                     ))}
                   </div>
                 </div>
               ) : leaderboardEntries.length > 0 ? (
-                <div className="overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  <div className="mx-auto flex w-max min-w-full justify-center gap-3">
+                <div className="pb-1.5 pt-1.5">
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
                     {leaderboardEntries.slice(0, 3).map((group, index) => {
                       const rank = index + 1
                       return (
@@ -1166,21 +1167,21 @@ export default function GroupsPage() {
                           onClick={() => {
                             router.push(`/groups/${group.id}`)
                           }}
-                          className="relative flex min-h-[154px] w-[128px] shrink-0 flex-col items-center overflow-hidden rounded-[18px] border border-[#e0d7c8] bg-[linear-gradient(180deg,#fffdf8,#fbf7ef)] px-2.5 py-3 text-center shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(16,32,24,0.1)] sm:w-[148px]"
+                          className="orthodle-podium-card relative flex min-h-[136px] w-full flex-col items-center overflow-hidden rounded-[16px] border border-[#e0d7c8] bg-[linear-gradient(180deg,#fffdf8,#fbf7ef)] px-1.5 py-2.5 text-center shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(16,32,24,0.1)] sm:min-h-[154px] sm:rounded-[18px] sm:px-2.5 sm:py-3"
                         >
                           <div className="absolute inset-x-6 top-0 h-px bg-[linear-gradient(90deg,transparent,#d8a947,transparent)]" />
                           <div
-                            className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-semibold ${rankCircleClass(rank)}`}
+                            className={`flex h-6 w-6 items-center justify-center rounded-full text-[9px] font-semibold sm:h-7 sm:w-7 sm:text-[10px] ${rankCircleClass(rank)}`}
                           >
                             {rank}
                           </div>
-                          <div className="mt-2">
+                          <div className="mt-1.5 sm:mt-2">
                             <GroupCrest group={group} size="sm" />
                           </div>
-                          <div className="mt-2 line-clamp-2 font-serif text-[14px] font-semibold leading-tight text-[#102018]">
+                          <div className="mt-1.5 line-clamp-2 min-h-[30px] font-serif text-[12px] font-semibold leading-tight text-[#102018] sm:mt-2 sm:text-[14px]">
                             {group.name}
                           </div>
-                          <div className="mt-1.5 text-[16px] font-semibold leading-none text-[#2d7651]">
+                          <div className="mt-1 text-[14px] font-semibold leading-none text-[#2d7651] sm:mt-1.5 sm:text-[16px]">
                             {formatScore(group.score)}
                           </div>
                           <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8a9389]">
@@ -1281,45 +1282,42 @@ export default function GroupsPage() {
               </div>
             </section>
 
-            <section className="grid gap-2 sm:grid-cols-2">
+            <section className={`grid gap-1.5 ${selectedGroup ? 'sm:grid-cols-2' : ''}`}>
               <button
                 type="button"
                 onClick={() => {
                   setGroupActionMode('join')
                   setShowJoinPanel(prev => (groupActionMode === 'join' ? !prev : true))
                 }}
-                className="flex items-center gap-2.5 rounded-[14px] border border-[#e6dfd3] bg-white px-3 py-2 text-left transition hover:-translate-y-0.5"
+                className="flex items-center gap-2 rounded-[13px] border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[#fcfbf8] text-[16px]">
-                  <UserPlus size={17} strokeWidth={2} />
+                <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-[#fcfbf8] text-[15px]">
+                  <UserPlus size={15} strokeWidth={2} />
                 </div>
                 <div>
-                  <div className="text-[12px] font-semibold text-[#102018]">Join a group</div>
-                  <div className="text-[11px] text-[#637268]">Enter code or create</div>
+                  <div className="text-[11px] font-semibold text-[#102018]">Join or create</div>
+                  <div className="text-[10px] text-[#637268]">Use a group code</div>
                 </div>
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (selectedGroup) {
+              {selectedGroup ? (
+                <button
+                  type="button"
+                  onClick={() => {
                     void shareInviteLink(selectedGroup)
-                    return
-                  }
-                  setGroupActionMode('join')
-                  setShowJoinPanel(true)
-                }}
-                className="flex items-center gap-2.5 rounded-[14px] border border-[#e6dfd3] bg-white px-3 py-2 text-left transition hover:-translate-y-0.5"
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[#fcfbf8] text-[16px]">
-                  <Share2 size={17} strokeWidth={2} />
-                </div>
-                <div>
-                  <div className="text-[12px] font-semibold text-[#102018]">
-                    {selectedGroup && copiedCode === selectedGroup.id ? 'Invite copied' : 'Official invite'}
+                  }}
+                  className="flex items-center gap-2 rounded-[13px] border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-[#fcfbf8] text-[15px]">
+                    <Share2 size={15} strokeWidth={2} />
                   </div>
-                  <div className="text-[11px] text-[#637268]">Share group link</div>
-                </div>
-              </button>
+                  <div>
+                    <div className="text-[11px] font-semibold text-[#102018]">
+                      {copiedCode === selectedGroup.id ? 'Invite copied' : 'Text invite'}
+                    </div>
+                    <div className="text-[10px] text-[#637268]">Send a join link</div>
+                  </div>
+                </button>
+              ) : null}
             </section>
 
             {showJoinPanel ? (
@@ -1331,7 +1329,7 @@ export default function GroupsPage() {
                     </div>
                     <div className="mt-1 text-[12px] text-[#637268]">
                       {groupActionMode === 'join'
-                        ? 'Use the official Orthodle invite code from a teammate.'
+                        ? 'Use a group code from a teammate.'
                         : 'Start a private leaderboard for your team.'}
                     </div>
                   </div>
@@ -1367,7 +1365,7 @@ export default function GroupsPage() {
                       <input
                         value={joinCode}
                         onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
-                        placeholder="Invite code"
+                        placeholder="Group code"
                         className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <input
