@@ -645,8 +645,8 @@ export default function GroupsPage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-[940px] px-2.5 py-2.5 sm:px-3 sm:py-3">
-        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-3">
+      <section className="mx-auto max-w-[700px] px-2 py-2 sm:px-2.5 sm:py-2.5">
+        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-3.5">
           <div>
             <div>
               <h1 className="font-serif text-[23px] font-bold leading-none tracking-[-0.04em] text-[#102018] sm:text-[27px]">
@@ -665,22 +665,22 @@ export default function GroupsPage() {
             </div>
           ) : null}
 
-          <div className="mt-2.5 grid items-start gap-2.5 xl:grid-cols-[1.12fr_0.88fr] xl:gap-2.5">
-            <div className="h-fit rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                Your group
-              </div>
+          <div className="mt-4">
+            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+              Your group
+            </div>
+            <div className="mt-3 border-t border-dashed border-[#e6dfd3] pt-3">
 
               {selectedGroup && selectedGroupAggregate ? (
                 <>
                   <button
                     type="button"
                     onClick={() => setActionMode('join')}
-                    className="mt-2.5 block w-full rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] p-2.5 text-left transition hover:bg-white sm:rounded-[18px] sm:p-3"
+                    className="block w-full rounded-[14px] bg-[#fcfbf8] p-3 text-left transition hover:bg-white sm:rounded-[16px]"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-3 text-center text-[13px] font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] sm:h-13 sm:w-13 sm:rounded-[18px] sm:text-sm">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-3 text-center text-[13px] font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] sm:h-13 sm:w-13 sm:rounded-[18px] sm:text-sm">
                           {groupMonogram(selectedGroup.name)}
                         </div>
                         <div className="min-w-0">
@@ -700,7 +700,7 @@ export default function GroupsPage() {
                     </div>
                   </button>
 
-                  <div className="mt-2.5 grid grid-cols-2 gap-2 border-t border-[#ece6db] pt-2.5 sm:grid-cols-4 sm:gap-2">
+                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#ece6db] pt-3 sm:grid-cols-4 sm:gap-2">
                     <div className="px-1 sm:px-2">
                       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Rank
@@ -743,30 +743,24 @@ export default function GroupsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
-                    <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
+                  <div className="mt-3 grid gap-1.5 sm:grid-cols-3">
+                    <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
                       <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                         Recent group activity
                       </div>
                       <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
                         {recentActivityHeadline}
                       </div>
-                      <div className="mt-1 text-[11px] text-[#637268]">
-                        {recentActivitySubline}
-                      </div>
                     </div>
-                    <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
+                    <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
                       <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                         Weekly momentum
                       </div>
                       <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
                         +{selectedWeeklyMomentum} pts this week
                       </div>
-                      <div className="mt-1 text-[11px] text-[#637268]">
-                        Current rank: #{selectedGroupRank || 1}
-                      </div>
                     </div>
-                    <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
+                    <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
                       <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                         Next rank
                       </div>
@@ -783,77 +777,22 @@ export default function GroupsPage() {
                   </div>
                 </>
               ) : (
-                <div className="mt-2.5 rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c] sm:mt-3 sm:rounded-[20px]">
+                <div className="rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c] sm:rounded-[20px]">
                   Create or join a group to unlock the live leaderboard.
                 </div>
               )}
             </div>
-
-            <div className="space-y-2.5">
-              <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                    Top 3 groups
-                  </div>
-                </div>
-                <div className="-mx-1 mt-3 flex gap-2.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
-                  {displayTopGroups.map((entry, index) => {
-                    const highlight = index === 0
-                    return (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        onClick={() => {
-                          if (!entry.isPlaceholder) setSelectedGroupId(entry.id)
-                        }}
-                      className={`min-w-[138px] rounded-[16px] border px-2.5 py-3 text-center transition duration-200 active:scale-[0.98] sm:min-w-[150px] sm:rounded-[18px] sm:px-3 sm:py-3.5 ${
-                          highlight
-                            ? 'border-[#e6b54b] bg-[#fffaf0] shadow-[0_10px_24px_rgba(201,107,55,0.08)] hover:-translate-y-0.5 hover:shadow-[0_14px_28px_rgba(201,107,55,0.12)]'
-                            : 'border-[#e7e1d6] bg-[#fcfbf8] hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_12px_24px_rgba(16,32,24,0.06)]'
-                        }`}
-                      >
-                        <div
-                          className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold ${
-                            index === 0
-                              ? 'bg-[#ecb632] text-white'
-                              : index === 1
-                                ? 'bg-[#d8dbe0] text-white'
-                                : 'bg-[#c9874d] text-white'
-                          }`}
-                        >
-                          {index + 1}
-                        </div>
-                        <div className="mx-auto mt-2.5 flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] text-[11px] font-bold text-[#f8e1a0] sm:h-11 sm:w-11 sm:rounded-[15px] sm:text-xs">
-                          {groupMonogram(entry.name)}
-                        </div>
-                        <div className="mt-2 text-[13px] font-semibold text-[#102018] sm:text-[14px]">
-                          {entry.name}
-                        </div>
-                        <div
-                          className={`mt-1.5 font-serif text-[20px] font-semibold leading-none sm:text-[22px] ${
-                            highlight ? 'text-[#df9c25]' : 'text-[#123426]'
-                          }`}
-                        >
-                          {formatScore(entry.score)}
-                        </div>
-                        <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">{formatMemberCount(entry.members)}</div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
           </div>
 
-          <div className="mt-2.5 grid items-start gap-2.5 xl:grid-cols-[1.08fr_0.92fr] xl:gap-2.5">
-            <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
+          <div className="mt-5 grid items-start gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+            <div>
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Leaderboard
                 </div>
                 <div className="text-[12px] text-[#637268]">All groups</div>
               </div>
-              <div className="mt-2.5 space-y-2">
+              <div className="mt-3 space-y-1.5 border-t border-dashed border-[#e6dfd3] pt-3">
                 {displayLeaderboard.map((entry, index) => {
                   const previousScore = displayLeaderboard[index - 1]?.score ?? null
                   const scoreGap = previousScore !== null ? previousScore - entry.score : null
@@ -864,20 +803,20 @@ export default function GroupsPage() {
                       onClick={() => {
                         if (!entry.isPlaceholder) setSelectedGroupId(entry.id)
                       }}
-                    className={`flex w-full items-center gap-2.5 rounded-[15px] border px-3 py-2.5 text-left transition duration-200 active:scale-[0.995] sm:gap-3 sm:rounded-[16px] sm:px-3 ${
+                    className={`flex w-full items-center gap-2.5 rounded-[15px] px-2 py-2.5 text-left transition duration-200 active:scale-[0.995] sm:gap-3 sm:rounded-[16px] sm:px-2.5 ${
                         entry.id === selectedGroupId
-                          ? 'border-[#d9d2c2] bg-[#fcfbf8] shadow-[0_10px_20px_rgba(16,32,24,0.04)]'
-                          : 'border-[#eee7dd] bg-white hover:-translate-y-0.5 hover:bg-[#fcfbf8] hover:shadow-[0_10px_20px_rgba(16,32,24,0.04)]'
+                          ? 'bg-[#fcfbf8] shadow-[0_6px_14px_rgba(16,32,24,0.035)]'
+                          : 'bg-white hover:-translate-y-0.5 hover:bg-[#fcfbf8] hover:shadow-[0_8px_16px_rgba(16,32,24,0.035)]'
                       }`}
                     >
                       <div className="w-5 text-center text-lg font-semibold text-[#102018]">
                         {index + 1}
                       </div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-[#e7d5b5] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-2 text-center text-[11px] font-bold text-[#f8e1a0] sm:h-11 sm:w-11 sm:rounded-[15px] sm:text-xs">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-2 text-center text-[11px] font-bold text-[#f8e1a0] sm:h-11 sm:w-11 sm:rounded-[15px] sm:text-xs">
                         {groupMonogram(entry.name)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[16px] font-semibold leading-none tracking-[-0.03em] text-[#102018] sm:text-[18px]">
+                        <div className="truncate text-[17px] font-semibold leading-none tracking-[-0.03em] text-[#102018] sm:text-[18px]">
                           {entry.name}
                         </div>
                         <div className="mt-0.5 text-[11px] text-[#637268] sm:text-[12px]">
@@ -902,7 +841,7 @@ export default function GroupsPage() {
               </div>
             </div>
 
-            <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
+            <div>
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   In-group leaderboard
@@ -912,7 +851,7 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              <div className="mt-2.5 max-h-[380px] space-y-2 overflow-y-auto pr-0.5 sm:max-h-[420px]">
+              <div className="mt-3 max-h-[380px] space-y-1.5 overflow-y-auto border-t border-dashed border-[#e6dfd3] pt-3 pr-0.5 sm:max-h-[420px]">
                 {loading ? (
                   <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-5 text-sm text-[#7a857c]">
                     Loading leaderboard...
@@ -924,9 +863,9 @@ export default function GroupsPage() {
                   </div>
                 ) : (
                   selectedGroupAggregate.memberStats.slice(0, 5).map((entry, index) => (
-                    <div key={entry.member.id} className="rounded-[15px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2.5 sm:rounded-[16px]">
+                    <div key={entry.member.id} className="rounded-[15px] bg-[#fcfbf8] px-3 py-2.5 sm:rounded-[16px]">
                       <div className="flex items-start gap-2.5 sm:gap-3">
-                        <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[11px] font-semibold text-[#637268] sm:h-9 sm:w-9 sm:text-xs">
+                        <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-[#637268] sm:h-9 sm:w-9 sm:text-xs">
                           {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
                         </div>
                         <div className="min-w-0 flex-1">
@@ -983,9 +922,8 @@ export default function GroupsPage() {
             </div>
           </div>
 
-          <div className="mt-2.5">
-            <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   {selectedGroup ? 'Group actions' : actionMode === 'create' ? 'Create your group' : 'Join a group'}
                 </div>
@@ -1015,7 +953,8 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              <div className="mt-3 grid gap-2.5 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+            <div className="mt-3 border-t border-dashed border-[#e6dfd3] pt-3">
+              <div className="grid gap-2.5 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
                 <div className="space-y-2.5">
                   <p className="text-[12px] leading-5 text-[#637268] sm:text-[13px]">
                     Compete with classmates, residents, or friends.{` `}
@@ -1081,7 +1020,7 @@ export default function GroupsPage() {
                       )}
                     </>
                   ) : (
-                    <div className="rounded-[16px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-3">
+                    <div className="rounded-[16px] bg-[#fcfbf8] px-3 py-3">
                       <div className="text-[12px] font-semibold text-[#102018]">Your group is live.</div>
                       <div className="mt-1 text-[12px] text-[#637268]">
                         Share your invite code, bring in teammates, and climb the weekly board.
@@ -1099,7 +1038,7 @@ export default function GroupsPage() {
                     >
                       {copiedCode === selectedGroup.id ? 'Invite link copied' : 'Invite teammates'}
                     </button>
-                    <div className="rounded-[16px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2.5 text-[12px] text-[#637268]">
+                    <div className="rounded-[16px] bg-[#fcfbf8] px-3 py-2.5 text-[12px] text-[#637268]">
                       Invite code: <span className="font-semibold text-[#102018]">{selectedGroup.join_code}</span>
                     </div>
                   </div>
