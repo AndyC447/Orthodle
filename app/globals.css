@@ -308,6 +308,24 @@ body {
   border-color: rgba(250, 245, 236, 0.16) !important;
 }
 
+.orthodle-imaging-shell,
+.orthodle-image-tile {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease,
+    color 300ms ease,
+    transform 300ms ease;
+}
+
+.orthodle-image-tile:hover {
+  box-shadow: 0 12px 26px rgba(16, 32, 24, 0.08);
+}
+
+:root[data-theme="dark"] .orthodle-image-tile:hover {
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.28);
+}
+
 header,
 footer,
 input,

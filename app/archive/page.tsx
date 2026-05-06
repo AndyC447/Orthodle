@@ -194,14 +194,14 @@ export default function ArchivePage() {
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
                 href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
-                className="inline-flex min-w-[132px] items-center justify-center rounded-full border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#1f6448] transition hover:bg-white"
+                className="inline-flex min-w-[124px] items-center justify-center rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#1f6448] transition hover:bg-white"
               >
                 Surprise me
               </Link>
               {hardestPick && (
                 <Link
                   href={`/?case=${hardestPick.id}&date=${hardestPick.case_date}&level=${hardestPick.level}`}
-                  className="inline-flex min-w-[132px] items-center justify-center rounded-full border border-[#ead9b7] bg-[#fff8ef] px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#a24d24] transition hover:bg-[#fff2e2]"
+                  className="inline-flex min-w-[124px] items-center justify-center rounded-full border border-[#ead9b7] bg-[#fff8ef] px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#a24d24] transition hover:bg-[#fff2e2]"
                 >
                   Hardest pick
                 </Link>
@@ -212,7 +212,7 @@ export default function ArchivePage() {
                   clearStatsSummary()
                   setCompletedArchiveKeys(new Set())
                 }}
-                className="inline-flex rounded-full border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-[#fbfaf7]"
+                className="inline-flex rounded-full border border-[#ded7ca] bg-white px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-[#fbfaf7]"
               >
                 Reset cases
               </button>
@@ -312,25 +312,25 @@ export default function ArchivePage() {
           </div>
 
           {loading ? (
-            <p className="mt-5 text-sm text-[#637268]">Loading archive...</p>
+            <div className="mt-5 rounded-xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-4 text-sm text-[#637268]">Loading archive...</div>
           ) : groupedDates.length === 0 ? (
-            <p className="mt-5 text-sm text-[#637268]">No archive cases are available yet.</p>
+            <div className="mt-5 rounded-xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-4 text-sm text-[#637268]">No archive cases are available yet.</div>
           ) : !showCaseList ? (
-            <p className="mt-4 text-sm text-[#637268]">
+            <div className="mt-4 rounded-xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-3 text-sm text-[#637268]">
               {groupedDates.length} dates ready. Expand to browse the full archive.
-            </p>
+            </div>
           ) : (
             <div className="mt-4 space-y-2.5">
               {groupedDates.map(group => (
                 <div
                   key={group.date}
-                  className="rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] p-3"
+                  className="rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] p-2.5 sm:p-3"
                 >
                   <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                     {formatDate(group.date)}
                   </div>
 
-                  <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-2 grid gap-1.5 sm:grid-cols-3 sm:gap-2">
                     {levelOrder.map(level => {
                       const item = group.items.find(entry => entry.level === level)
                       const isCompleted = item
@@ -341,22 +341,22 @@ export default function ArchivePage() {
                         <Link
                           key={`${group.date}-${level}`}
                           href={`/?case=${item.id}&date=${group.date}&level=${level}`}
-                          className="rounded-xl border border-[#ded7ca] bg-white px-2.5 py-2.5 transition hover:bg-[#f8fbf9]"
+                          className="rounded-xl border border-[#ded7ca] bg-white px-2.5 py-2 transition hover:bg-[#f8fbf9]"
                         >
                           <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                             {formatLevel(level)}
                           </div>
-                          <div className="mt-1 font-serif text-[15px] font-bold leading-tight text-[#102018]">
+                          <div className="mt-0.5 font-serif text-[14px] font-bold leading-tight text-[#102018]">
                             {item.category || 'Case'}
                           </div>
-                          <div className={`mt-1.5 text-[11px] ${isCompleted ? 'text-[#a24d24]' : 'text-[#1f6448]'}`}>
+                          <div className={`mt-1 text-[11px] ${isCompleted ? 'text-[#a24d24]' : 'text-[#1f6448]'}`}>
                             {isCompleted ? 'Completed case' : 'Open case'}
                           </div>
                         </Link>
                       ) : (
                         <div
                           key={`${group.date}-${level}`}
-                          className="rounded-xl border border-dashed border-[#ded7ca] bg-white px-2.5 py-2.5 text-[#9aa39c]"
+                          className="rounded-xl border border-dashed border-[#ded7ca] bg-white px-2.5 py-2 text-[#9aa39c]"
                         >
                           <div className="text-[11px] font-bold uppercase tracking-[0.18em]">
                             {formatLevel(level)}

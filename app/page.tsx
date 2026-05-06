@@ -275,6 +275,7 @@ function PlayPageContent() {
   const [feedbackStatus, setFeedbackStatus] = useState('')
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
+  const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
@@ -1496,11 +1497,13 @@ function PlayPageContent() {
 
   function moveToNextLevel() {
     if (!nextLevel) return
+    setIsTransitioningLevel(true)
     setSelectedLevel(nextLevel)
     setGuess('')
     setMessage('')
     setImageHidden(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.setTimeout(() => setIsTransitioningLevel(false), 550)
   }
 
   const latestFindingIndex =
@@ -1520,6 +1523,7 @@ function PlayPageContent() {
     Boolean(homepageSurvey) &&
     homepageSurveyKey !== dismissedHomepageSurveyKey &&
     !submittedHomepageSurveyChoice
+  const topBannerCount = Number(showHomepageAnnouncement) + Number(showHomepageSurvey)
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
@@ -1808,9 +1812,9 @@ function PlayPageContent() {
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (
-          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-3">
+          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-2.5">
             <div className="flex items-start justify-between gap-3">
-              <p className="flex-1 text-[12px] leading-4.5 text-[#102018] sm:text-[14px] sm:leading-5">
+              <p className="flex-1 text-[11.5px] leading-4.5 text-[#102018] sm:text-[13px] sm:leading-5">
                 {homepageAnnouncement.message}
               </p>
               <button
@@ -1826,9 +1830,9 @@ function PlayPageContent() {
         )}
 
         {showHomepageSurvey && homepageSurvey && (
-          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="mx-auto max-w-[430px]">
-              <div className="text-center text-[9px] font-medium leading-[1.25] text-[#102018] sm:text-[13px]">
+              <div className="text-center text-[8.5px] font-medium leading-[1.2] text-[#102018] sm:text-[12px]">
                 {homepageSurvey.question}
               </div>
               <div className="mt-1.5 grid grid-cols-3 gap-1">
@@ -1860,7 +1864,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] sm:max-w-[560px] ${hasMobileInteraction ? 'mt-1.5 mb-3' : 'mt-2 mb-3'}`}>
+        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] sm:max-w-[560px] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
             {levels.map(level => {
               const active = selectedLevel === level.key
@@ -1896,9 +1900,9 @@ function PlayPageContent() {
 
       </section>
 
-      <div className={`mx-auto max-w-[700px] px-4 py-1 pb-3 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-0.5' : ''}`}>
+      <div className={`mx-auto max-w-[700px] px-4 py-1 pb-3 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1.5' : 'pt-1'}`}>
         <section className="space-y-4">
-          <div className="orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:px-3.5 sm:py-4">
+          <div className={`orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-3.5 sm:py-4 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'}`}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
@@ -1919,9 +1923,14 @@ function PlayPageContent() {
                     {renderCasePrompt(dailyCase.prompt)}
                   </div>
                 ) : (
-                  <p className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
-                    No case available for this level today.
-                  </p>
+                  <div className="rounded-xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-4 text-center">
+                    <p className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
+                      No case available for this level today.
+                    </p>
+                    <p className="mt-1 text-[12px] text-[#637268]">
+                      Try another difficulty or check back tomorrow.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -1939,7 +1948,7 @@ function PlayPageContent() {
                     </button>
                   </div>
                 ) : (
-                  <div className="orthodle-fade-up night-soft-surface mt-3 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
+                  <div className="orthodle-fade-up orthodle-imaging-shell night-soft-surface mt-3 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -1961,12 +1970,12 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`}>
                           <button
                             onClick={openExpandedImage}
-                            className="night-surface flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
+                            className="night-surface orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-2"
                           >
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="block max-h-[260px] max-w-full bg-white object-contain sm:max-h-[320px]"
+                              className="block max-h-[260px] max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
                             />
                           </button>
                           {image.credit && (
@@ -2006,9 +2015,11 @@ function PlayPageContent() {
                     ))}
                   </div>
                 ) : (
-                  <p className="mt-2 text-center text-[12px] leading-5 text-[#8a948d]">
-                    Incorrect guesses will reveal additional clinical findings and any delayed imaging clues.
-                  </p>
+                  <div className="mt-2 rounded-lg border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-3 py-3 text-center">
+                    <p className="text-[12px] leading-5 text-[#8a948d]">
+                      Incorrect guesses will reveal additional clinical findings and any delayed imaging clues.
+                    </p>
+                  </div>
                 )}
               </div>
 
@@ -2050,7 +2061,7 @@ function PlayPageContent() {
                     </div>
 
                     {message && (
-                      <p className="mt-2 text-[12px] leading-5 text-[#637268]">
+                      <p className="mt-2 text-[11.5px] leading-5 text-[#637268]">
                         {message}
                       </p>
                     )}
@@ -2061,9 +2072,9 @@ function PlayPageContent() {
                   <button
                     type="button"
                     onClick={moveToNextLevel}
-                    className={`${roundComplete ? '' : 'mt-3 '}w-full rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]`}
+                    className={`${roundComplete ? '' : 'mt-3 '}w-full rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2.5 text-[12px] font-semibold text-[#1f6448] transition hover:bg-white`}
                   >
-                    Try the {formatLevel(nextLevel)} case
+                    Continue to the {formatLevel(nextLevel)} case
                   </button>
                 )}
               </div>
@@ -2099,7 +2110,7 @@ function PlayPageContent() {
                 </div>
               </div>
 
-              <div className="mt-3 space-y-2.5 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-3">
+              <div className="mt-3 space-y-2 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-2.5">
                 <div>
                   <div className="space-y-1">
                     {renderTeachingPoint(teachingPoint)}
@@ -2112,7 +2123,7 @@ function PlayPageContent() {
                 </div>
 
                 {roundComplete && (
-                  <div className="mx-auto mt-3 flex w-full max-w-[420px] flex-col items-center">
+                  <div className="mx-auto mt-2 flex w-full max-w-[420px] flex-col items-center">
                     <div className="w-full">
                       <button
                         type="button"
@@ -2126,10 +2137,10 @@ function PlayPageContent() {
                 )}
 
                 <div className="night-soft-surface rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-2.5 sm:p-3">
-                  <div className="night-label mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                  <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                     How was the case?
                   </div>
-                  <div className="mx-auto grid max-w-[320px] grid-cols-2 gap-2 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
+                  <div className="mx-auto grid max-w-[280px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
                     {FEEDBACK_TAG_OPTIONS.map(tag => {
                       const alreadySent = submittedReactionTags.includes(tag)
                       const isPositiveReaction = tag === 'Great case'
@@ -2162,19 +2173,19 @@ function PlayPageContent() {
                   {reactionStatus && (
                     <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
                   )}
-                  <div className="mt-2.5 flex gap-2">
+                  <div className="mt-2 flex gap-2">
                     <input
                       type="text"
                       value={feedbackText}
                       onChange={e => setFeedbackText(e.target.value)}
                       placeholder="Share any feedback on the site here"
-                      className="min-h-[40px] min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[11px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
+                      className="min-h-[38px] min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
                     />
                     <button
                       type="button"
                       onClick={() => void submitTypedFeedback()}
                       disabled={isSavingFeedback}
-                      className="min-h-[40px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[12px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70"
+                      className="min-h-[38px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       {isSavingFeedback ? 'Sending...' : 'Send'}
                     </button>
