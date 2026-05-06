@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Calendar, ChevronDown, Share2, UserPlus } from 'lucide-react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
@@ -64,39 +66,9 @@ type DisplayGroup = {
   score: number
   avgAccuracy: number | null
   longestStreak: number
-  isPlaceholder?: boolean
 }
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
-const PLACEHOLDER_GROUPS: DisplayGroup[] = [
-  {
-    id: 'placeholder-ucla',
-    name: 'UCLA Ortho & MSK',
-    members: 48,
-    score: 1952,
-    avgAccuracy: 31,
-    longestStreak: 7,
-    isPlaceholder: true,
-  },
-  {
-    id: 'placeholder-ucsf',
-    name: 'UCSF Ortho',
-    members: 42,
-    score: 1842,
-    avgAccuracy: 29,
-    longestStreak: 6,
-    isPlaceholder: true,
-  },
-  {
-    id: 'placeholder-bone-bros',
-    name: 'Bone Bros',
-    members: 12,
-    score: 1523,
-    avgAccuracy: 27,
-    longestStreak: 5,
-    isPlaceholder: true,
-  },
-]
 
 function normalizeJoinCode(value: string) {
   return value
@@ -223,11 +195,19 @@ export default function GroupsPage() {
   const [joinDisplayName, setJoinDisplayName] = useState('')
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
+  const [savingGroupName, setSavingGroupName] = useState(false)
+  const [savingDisplayName, setSavingDisplayName] = useState(false)
   const [copiedCode, setCopiedCode] = useState('')
   const [urlJoinCode, setUrlJoinCode] = useState('')
-  const [actionMode, setActionMode] = useState<'create' | 'join'>('join')
+  const [showJoinPanel, setShowJoinPanel] = useState(false)
+  const [groupActionMode, setGroupActionMode] = useState<'join' | 'create'>('join')
+  const [showAllGroups, setShowAllGroups] = useState(false)
+  const [yourGroupOpen, setYourGroupOpen] = useState(false)
+  const [editGroupName, setEditGroupName] = useState('')
+  const [editDisplayName, setEditDisplayName] = useState('')
+  const [timeframe, setTimeframe] = useState<'week' | 'all'>('week')
   const sessionId = useMemo(() => getSessionId(), [])
-  const timeframe: 'all' = 'all'
+  const router = useRouter()
 
   async function loadGroupsData() {
     const { data: groupData, error: groupError } = await supabase
@@ -317,36 +297,68 @@ export default function GroupsPage() {
   }, [])
 
   useEffect(() => {
+    const refresh = () => void loadGroupsData()
+    const channel = supabase
+      .channel('groups-live-updates')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guesses' }, refresh)
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
     const codeFromUrl = normalizeJoinCode(new URLSearchParams(window.location.search).get('code') || '')
     setUrlJoinCode(codeFromUrl)
     if (codeFromUrl) {
       setJoinCode(codeFromUrl)
+      setGroupActionMode('join')
+      setShowJoinPanel(true)
     }
   }, [])
 
   useEffect(() => {
-    if (groups.length === 0) return
+    const knownUserMemberships = members.filter(
+      member =>
+        member.session_id === sessionId && groups.some(group => group.id === member.group_id)
+    )
 
     const matchingGroup = urlJoinCode
       ? groups.find(group => group.join_code === urlJoinCode)
       : undefined
+    const userGroupIds = new Set(knownUserMemberships.map(member => member.group_id))
     const storedGroupId =
       typeof window !== 'undefined' ? window.localStorage.getItem(SELECTED_GROUP_STORAGE_KEY) : ''
 
     const nextSelected =
-      matchingGroup?.id ||
-      (storedGroupId && groups.some(group => group.id === storedGroupId) ? storedGroupId : '') ||
-      groups[0].id
+      (matchingGroup && userGroupIds.has(matchingGroup.id) ? matchingGroup.id : '') ||
+      (selectedGroupId && userGroupIds.has(selectedGroupId) ? selectedGroupId : '') ||
+      (storedGroupId && userGroupIds.has(storedGroupId) ? storedGroupId : '') ||
+      knownUserMemberships[0]?.group_id ||
+      ''
 
-    if (nextSelected) {
-      setSelectedGroupId(prev => prev || nextSelected)
+    if (nextSelected !== selectedGroupId) {
+      setSelectedGroupId(nextSelected)
     }
-  }, [groups, urlJoinCode])
+  }, [groups, members, selectedGroupId, sessionId, urlJoinCode])
 
   useEffect(() => {
-    if (!selectedGroupId || typeof window === 'undefined') return
-    window.localStorage.setItem(SELECTED_GROUP_STORAGE_KEY, selectedGroupId)
+    if (typeof window === 'undefined') return
+    if (selectedGroupId) {
+      window.localStorage.setItem(SELECTED_GROUP_STORAGE_KEY, selectedGroupId)
+    } else {
+      window.localStorage.removeItem(SELECTED_GROUP_STORAGE_KEY)
+    }
+  }, [selectedGroupId])
+
+  useEffect(() => {
+    if (!selectedGroupId) {
+      setYourGroupOpen(false)
+    }
   }, [selectedGroupId])
 
   const selectedGroup = groups.find(group => group.id === selectedGroupId) || null
@@ -354,27 +366,34 @@ export default function GroupsPage() {
     () => members.filter(member => member.group_id === selectedGroupId),
     [members, selectedGroupId]
   )
-
-  const timeframeCaseLookup = useMemo(() => {
-    if (timeframe === 'all') return caseLookup
-
-    const cutoff = new Date()
-    cutoff.setHours(0, 0, 0, 0)
-    cutoff.setDate(cutoff.getDate() - 6)
-
-    return Object.fromEntries(
-      Object.entries(caseLookup).filter(([, row]) => {
-        const date = new Date(`${row.case_date}T12:00:00`)
-        return date >= cutoff
-      })
-    )
-  }, [caseLookup, timeframe])
+  const normalizedJoinCode = normalizeJoinCode(joinCode)
+  const joinTargetGroup = normalizedJoinCode
+    ? groups.find(group => group.join_code === normalizedJoinCode) || null
+    : null
+  const alreadyInJoinTarget = joinTargetGroup
+    ? members.some(member => member.group_id === joinTargetGroup.id && member.session_id === sessionId)
+    : false
+  const weekStartIso = useMemo(() => {
+    const date = new Date()
+    date.setDate(date.getDate() - 6)
+    date.setHours(0, 0, 0, 0)
+    return date.toISOString()
+  }, [])
+  const visibleGuessRows = useMemo(
+    () =>
+      timeframe === 'week'
+        ? guessRows.filter(row => row.created_at >= weekStartIso)
+        : guessRows,
+    [guessRows, timeframe, weekStartIso]
+  )
 
   const groupAggregates = useMemo<GroupAggregate[]>(() => {
     return groups
       .map(group => {
         const groupMembers = members.filter(member => member.group_id === group.id)
-        const memberStats = groupMembers.map(member => buildMemberStats(member, guessRows, timeframeCaseLookup))
+        const memberStats = groupMembers.map(member =>
+          buildMemberStats(member, visibleGuessRows, caseLookup)
+        )
 
         const totalCorrectGuesses = memberStats.reduce((sum, entry) => sum + entry.correctGuesses, 0)
         const totalGuessCount = memberStats.reduce((sum, entry) => sum + entry.totalGuesses, 0)
@@ -423,27 +442,25 @@ export default function GroupsPage() {
         }
       })
       .sort((a, b) => b.score - a.score)
-  }, [groups, guessRows, members, timeframeCaseLookup])
+  }, [groups, visibleGuessRows, members, caseLookup])
 
   const selectedGroupAggregate =
     groupAggregates.find(entry => entry.group.id === selectedGroupId) || null
   const selectedGroupRank = selectedGroupAggregate
     ? groupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
     : null
-  const topGroups = groupAggregates.slice(0, 3)
   const myMembership = selectedMembers.find(member => member.session_id === sessionId) || null
-  const activeGroupsThisWeek = groupAggregates.filter(entry => entry.totalSolves > 0).length
-  const displayTopGroups: DisplayGroup[] =
-    topGroups.length > 0
-      ? topGroups.map(entry => ({
-          id: entry.group.id,
-          name: entry.group.name,
-          members: entry.members.length,
-          score: entry.score,
-          avgAccuracy: entry.avgAccuracy,
-          longestStreak: entry.longestStreak,
-        }))
-      : PLACEHOLDER_GROUPS
+  const canEditSelectedGroup = selectedGroup?.creator_session_id === sessionId
+
+  useEffect(() => {
+    setEditGroupName(selectedGroup?.name || '')
+  }, [selectedGroup?.id, selectedGroup?.name])
+
+  useEffect(() => {
+    setEditDisplayName(myMembership?.display_name || '')
+  }, [myMembership?.id, myMembership?.display_name])
+
+  const activeGroupCount = groupAggregates.filter(entry => entry.totalSolves > 0).length
   const displayLeaderboard: DisplayGroup[] =
     groupAggregates.length > 0
       ? groupAggregates.map(entry => ({
@@ -454,62 +471,25 @@ export default function GroupsPage() {
           avgAccuracy: entry.avgAccuracy,
           longestStreak: entry.longestStreak,
         }))
-      : PLACEHOLDER_GROUPS
-  const todayDate = new Date().toISOString().slice(0, 10)
-  const selectedGroupTodayActiveCount = selectedGroup
-    ? new Set(
-        guessRows
-          .filter(
-            row =>
-              row.created_at.slice(0, 10) === todayDate &&
-              selectedMembers.some(member => member.session_id === row.session_id)
-          )
-          .map(row => row.session_id)
-      ).size
-    : 0
-  const selectedGroupTodaySolveCount = selectedGroup
-    ? guessRows.filter(
-        row =>
-          row.created_at.slice(0, 10) === todayDate &&
-          row.is_correct &&
-          selectedMembers.some(member => member.session_id === row.session_id)
-      ).length
-    : 0
-  const nextRankGroup =
-    selectedGroupRank && selectedGroupRank > 1 ? groupAggregates[selectedGroupRank - 2] : null
-  const pointsBehindNextGroup =
-    selectedGroupAggregate && nextRankGroup
-      ? Math.max(0, nextRankGroup.score - selectedGroupAggregate.score)
-      : null
-  const progressToNextRank =
-    selectedGroupAggregate && nextRankGroup && nextRankGroup.score > 0
-      ? Math.min(100, (selectedGroupAggregate.score / nextRankGroup.score) * 100)
-      : selectedGroupAggregate
-        ? 100
-        : 0
-  const selectedWeeklyMomentum = selectedGroupAggregate
-    ? Math.round(selectedGroupAggregate.totalSolves * 18 + selectedGroupAggregate.longestStreak * 9)
-    : 0
-  const rankProgressLabel =
-    pointsBehindNextGroup !== null
-      ? `${pointsBehindNextGroup} pts behind next rank`
-      : groupAggregates.length > 1 && selectedGroupAggregate
-        ? `${selectedGroupAggregate.score - groupAggregates[1].score} pts ahead of 2nd`
-        : 'Holding 1st place'
-  const recentActivityHeadline =
-    selectedGroupTodaySolveCount > 0
-      ? `${selectedGroupTodaySolveCount} solve${selectedGroupTodaySolveCount === 1 ? '' : 's'} today`
-      : `${selectedGroupTodayActiveCount} member${selectedGroupTodayActiveCount === 1 ? '' : 's'} active today`
-  const recentActivitySubline =
-    myMembership && selectedGroupTodaySolveCount > 0
-      ? `${myMembership.display_name} solved today’s case`
-      : selectedGroupTodayActiveCount > 0
-        ? 'Group activity is rolling'
-        : 'No one has checked in yet'
-
+      : []
+  const leaderboardEntries = displayLeaderboard
+  const visibleLeaderboardEntries = showAllGroups
+    ? leaderboardEntries
+    : leaderboardEntries.slice(0, 5)
+  const selectedGroupPointsContext =
+    selectedGroupAggregate && selectedGroupRank && selectedGroupRank > 1
+      ? `${Math.max(0, groupAggregates[selectedGroupRank - 2].score - selectedGroupAggregate.score)} pts behind #${selectedGroupRank - 1}`
+      : selectedGroupAggregate && groupAggregates.length > 1
+        ? `${Math.max(0, selectedGroupAggregate.score - groupAggregates[1].score)} pts ahead of #2`
+        : 'Leading the pack'
+  const introLine = loading
+    ? 'Loading the live group board...'
+    : groupAggregates.length > 0
+      ? `${groupAggregates.length} group${groupAggregates.length === 1 ? '' : 's'} on the board, ${activeGroupCount} active ${timeframe === 'week' ? 'this week' : 'overall'}. Tap any group to inspect it.`
+      : 'Create or join a group to compete with classmates, residents, or friends.'
   async function createGroup() {
     const name = createName.trim()
-    const displayName = createDisplayName.trim()
+    const displayName = (createDisplayName || joinDisplayName).trim()
     const requestedCode = normalizeJoinCode(createCode.trim())
     const finalCode = requestedCode || makeRandomJoinCode()
 
@@ -568,10 +548,15 @@ export default function GroupsPage() {
     setCreateName('')
     setCreateCode('')
     setCreateDisplayName('')
-    setSelectedGroupId(groupData.id)
+    setJoinDisplayName('')
+    setJoinCode('')
+    setShowJoinPanel(false)
     setCreating(false)
     setMessage(`Created ${groupData.name}. Invite code: ${groupData.join_code}`)
     await loadGroupsData()
+    setSelectedGroupId(groupData.id)
+    setYourGroupOpen(true)
+    router.push(`/groups/${groupData.id}`)
   }
 
   async function joinGroup() {
@@ -628,16 +613,120 @@ export default function GroupsPage() {
     }
 
     setJoinDisplayName('')
-    setSelectedGroupId(targetGroup.id)
+    setJoinCode('')
+    setShowJoinPanel(false)
     setJoining(false)
-    setMessage(`Joined ${targetGroup.name}.`)
+    setMessage(existingMembership ? `Updated your name in ${targetGroup.name}.` : `Joined ${targetGroup.name}.`)
     await loadGroupsData()
+    setSelectedGroupId(targetGroup.id)
+    setYourGroupOpen(true)
+    router.push(`/groups/${targetGroup.id}`)
   }
 
-  async function copyInviteCode(group: GroupRow) {
+  async function updateSelectedGroupName() {
+    const nextName = editGroupName.trim()
+
+    if (!selectedGroup || !canEditSelectedGroup || !nextName) {
+      setMessage('Only the group leader can rename this group.')
+      return
+    }
+
+    setSavingGroupName(true)
+    setMessage('')
+
+    const { error } = await supabase
+      .from('groups')
+      .update({ name: nextName })
+      .eq('id', selectedGroup.id)
+      .eq('creator_session_id', sessionId)
+
+    if (error) {
+      setSavingGroupName(false)
+      setMessage(error.message)
+      return
+    }
+
+    setGroups(prev =>
+      prev.map(group => (group.id === selectedGroup.id ? { ...group, name: nextName } : group))
+    )
+    setSavingGroupName(false)
+    setMessage('Group name updated.')
+  }
+
+  async function updateMyDisplayName() {
+    const nextName = editDisplayName.trim()
+
+    if (!myMembership || !nextName) {
+      setMessage('Add a display name first.')
+      return
+    }
+
+    setSavingDisplayName(true)
+    setMessage('')
+
+    const { error } = await supabase
+      .from('group_members')
+      .update({ display_name: nextName })
+      .eq('id', myMembership.id)
+      .eq('session_id', sessionId)
+
+    if (error) {
+      setSavingDisplayName(false)
+      setMessage(error.message)
+      return
+    }
+
+    setMembers(prev =>
+      prev.map(member =>
+        member.id === myMembership.id ? { ...member, display_name: nextName } : member
+      )
+    )
+
+    if (selectedGroup) {
+      window.localStorage.setItem(membershipKey(selectedGroup.id), nextName)
+    }
+
+    setSavingDisplayName(false)
+    setMessage('Display name updated.')
+  }
+
+  async function submitGroupForm() {
+    if (groupActionMode === 'join') {
+      await joinGroup()
+      return
+    }
+
+    await createGroup()
+  }
+
+  async function shareInviteLink(group: GroupRow) {
     const link = buildInviteLink(group.join_code)
-    await navigator.clipboard.writeText(link)
-    setCopiedCode(group.id)
+    const shareText = `Join my Orthodle group "${group.name}" and climb the leaderboard with us.`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${group.name} on Orthodle`,
+          text: shareText,
+          url: link,
+        })
+        setCopiedCode(group.id)
+        window.setTimeout(() => setCopiedCode(''), 1800)
+        return
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          return
+        }
+      }
+    }
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(link)
+      setCopiedCode(group.id)
+      setMessage('Invite link copied.')
+    } else {
+      setMessage(`Invite code: ${group.join_code}`)
+    }
     window.setTimeout(() => setCopiedCode(''), 1800)
   }
 
@@ -646,405 +735,521 @@ export default function GroupsPage() {
       <Header />
 
       <section className="mx-auto max-w-[700px] px-2 py-2 sm:px-2.5 sm:py-2.5">
-        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-3.5">
-          <div>
-            <div>
-              <h1 className="font-serif text-[23px] font-bold leading-none tracking-[-0.04em] text-[#102018] sm:text-[27px]">
-                Groups
-              </h1>
-              <p className="mt-1.5 max-w-xl pr-1 text-[12px] leading-5 text-[#637268] sm:mt-2 sm:text-[13px]">
-                Compete, collaborate, and climb the ranks with your residency, class, or friend
-                group.
-              </p>
+        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h1 className="font-serif text-[29px] font-bold leading-none tracking-[-0.05em] text-[#102018] sm:text-[34px]">
+                  Groups
+                </h1>
+                <p className="mt-1.5 max-w-[470px] text-[12px] leading-5 text-[#637268] sm:text-[13px]">
+                  {introLine}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTimeframe(prev => (prev === 'week' ? 'all' : 'week'))}
+                className="inline-flex w-fit items-center gap-2 rounded-[14px] border border-[#e4ddd0] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#102018] shadow-[0_1px_0_rgba(255,255,255,0.6)] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] sm:px-4 sm:py-2 sm:text-[12px]"
+                aria-label="Toggle leaderboard timeframe"
+              >
+                <Calendar size={15} strokeWidth={2} />
+                {timeframe === 'week' ? 'This Week' : 'All Time'}
+                <ChevronDown size={13} strokeWidth={2} />
+              </button>
             </div>
-          </div>
 
-          {message ? (
-            <div className="mt-3 rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] px-3.5 py-2.5 text-[13px] text-[#355542]">
-              {message}
-            </div>
-          ) : null}
+            {message ? (
+              <div className="rounded-2xl border border-[#e7e1d6] bg-[#fcfbf8] px-3.5 py-2.5 text-[13px] text-[#355542]">
+                {message}
+              </div>
+            ) : null}
 
-          <div className="mt-4">
-            <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-              Your group
-            </div>
-            <div className="mt-3 border-t border-dashed border-[#e6dfd3] pt-3">
+            <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4 sm:rounded-[22px] sm:px-5 sm:py-5">
+              <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                Your group
+              </div>
 
-              {selectedGroup && selectedGroupAggregate ? (
-                <>
+              {loading ? (
+                <div className="mt-3 space-y-3">
+                  <div className="h-[82px] rounded-[18px] bg-[#fcfbf8]" />
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="h-[92px] rounded-[14px] bg-[#fcfbf8]" />
+                    <div className="h-[92px] rounded-[14px] bg-[#fcfbf8]" />
+                    <div className="h-[92px] rounded-[14px] bg-[#fcfbf8]" />
+                    <div className="h-[92px] rounded-[14px] bg-[#fcfbf8]" />
+                  </div>
+                </div>
+              ) : selectedGroup && selectedGroupAggregate ? (
+                <div className="mt-3 space-y-3">
                   <button
                     type="button"
-                    onClick={() => setActionMode('join')}
-                    className="block w-full rounded-[14px] bg-[#fcfbf8] p-3 text-left transition hover:bg-white sm:rounded-[16px]"
+                    onClick={() => setYourGroupOpen(prev => !prev)}
+                    className="block w-full rounded-[18px] border border-[#e6dfd3] bg-[#fcfbf8] p-3 text-left transition hover:-translate-y-0.5 hover:bg-white"
+                    aria-expanded={yourGroupOpen}
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
-                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-3 text-center text-[13px] font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)] sm:h-13 sm:w-13 sm:rounded-[18px] sm:text-sm">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] text-[13px] font-bold text-[#f8e1a0] shadow-[inset_0_1px_0_rgba(255,255,255,0.24)]">
                           {groupMonogram(selectedGroup.name)}
                         </div>
                         <div className="min-w-0">
                           <div className="truncate font-serif text-[18px] font-semibold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
                             {selectedGroup.name}
                           </div>
-                          <div className="mt-0.5 text-[12px] text-[#637268] sm:text-[13px]">
+                          <div className="mt-0.5 text-[12px] text-[#637268]">
                             {formatMemberCount(selectedGroupAggregate.members.length)}
                           </div>
-                          <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
+                          <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
                             Code {selectedGroup.join_code}
                             {myMembership ? ` · ${myMembership.display_name}` : ''}
                           </div>
                         </div>
                       </div>
-                      <div className="text-xl text-[#637268]">›</div>
+                      <div
+                        className={`text-[22px] leading-none text-[#637268] transition-transform ${
+                          yourGroupOpen ? 'rotate-90' : ''
+                        }`}
+                      >
+                        ›
+                      </div>
                     </div>
                   </button>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#ece6db] pt-3 sm:grid-cols-4 sm:gap-2">
-                    <div className="px-1 sm:px-2">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  {yourGroupOpen ? (
+                    <div className="rounded-[16px] border border-[#e6dfd3] bg-white px-3 py-2">
+                      <div className="space-y-2 border-b border-[#ece6db] pb-3">
+                        {canEditSelectedGroup ? (
+                          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                            <input
+                              value={editGroupName}
+                              onChange={event => setEditGroupName(event.target.value)}
+                              placeholder="Group name"
+                              className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] font-semibold text-[#102018] outline-none transition focus:border-[#2d7651]"
+                            />
+                            <button
+                              type="button"
+                              disabled={savingGroupName || !editGroupName.trim()}
+                              onClick={() => void updateSelectedGroupName()}
+                              className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {savingGroupName ? 'Saving...' : 'Save group'}
+                            </button>
+                          </div>
+                        ) : null}
+
+                        {myMembership ? (
+                          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                            <input
+                              value={editDisplayName}
+                              onChange={event => setEditDisplayName(event.target.value)}
+                              placeholder="Your display name"
+                              className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                            />
+                            <button
+                              type="button"
+                              disabled={savingDisplayName || !editDisplayName.trim()}
+                              onClick={() => void updateMyDisplayName()}
+                              className="inline-flex h-9 items-center justify-center rounded-full border border-[#e0d8ca] bg-[#fcfbf8] px-4 text-[11px] font-semibold text-[#102018] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {savingDisplayName ? 'Saving...' : 'Save name'}
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="mb-1 mt-3 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Members
+                      </div>
+                      <div className="divide-y divide-[#ece6db]">
+                        {selectedMembers.length > 0 ? (
+                          selectedMembers.map(member => (
+                            <div
+                              key={member.id}
+                              className="flex items-center justify-between gap-3 py-2 text-[12px]"
+                            >
+                              <span className="truncate font-semibold text-[#102018]">
+                                {member.display_name}
+                              </span>
+                              {member.session_id === sessionId ? (
+                                <span className="rounded-full bg-[#eef7f1] px-2 py-0.5 text-[10px] font-semibold text-[#2d7651]">
+                                  You
+                                </span>
+                              ) : null}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="py-2 text-[12px] text-[#637268]">No members yet.</div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="grid grid-cols-4 gap-0 border-t border-[#ece6db] pt-3 sm:pt-4">
+                    <div className="min-w-0 px-1.5 sm:px-3">
+                      <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
                         Rank
                       </div>
-                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
+                      <div className="mt-1 font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                         #{selectedGroupRank}
                       </div>
-                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">
-                        of {groupAggregates.length || 1}
-                      </div>
+                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">of {groupAggregates.length || 1}</div>
                     </div>
-                    <div className="border-l border-[#ece6db] px-3 sm:px-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
+                      <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
                         Score
                       </div>
-                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
+                      <div className="mt-1 truncate font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                         {formatScore(selectedGroupAggregate.score)}
                       </div>
-                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">Group points</div>
+                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">points</div>
                     </div>
-                    <div className="border-l border-[#ece6db] px-3 sm:px-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                        Avg accuracy
+                    <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
+                      <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
+                        Accuracy
                       </div>
-                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
+                      <div className="mt-1 font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                         {selectedGroupAggregate.avgAccuracy !== null
                           ? `${Math.round(selectedGroupAggregate.avgAccuracy)}%`
                           : '—'}
                       </div>
-                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">All time</div>
+                      <div className="mt-1 text-[10px] text-[#2d7651] sm:text-[11px]">this week</div>
                     </div>
-                    <div className="border-l border-[#ece6db] px-3 sm:px-4">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
+                      <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
                         Streak
                       </div>
-                      <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018] sm:text-[26px]">
+                      <div className="mt-1 font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                         {selectedGroupAggregate.longestStreak}
                       </div>
-                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">days 🔥</div>
+                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">days</div>
                     </div>
                   </div>
 
-                  <div className="mt-3 grid gap-1.5 sm:grid-cols-3">
-                    <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
-                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Recent group activity
-                      </div>
-                      <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
-                        {recentActivityHeadline}
-                      </div>
-                    </div>
-                    <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
-                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Weekly momentum
-                      </div>
-                      <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
-                        +{selectedWeeklyMomentum} pts this week
-                      </div>
-                    </div>
-                    <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
-                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Next rank
-                      </div>
-                      <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
-                        {rankProgressLabel}
-                      </div>
-                      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#ebe5db]">
-                        <div
-                          className="h-full rounded-full bg-[#2d7651] transition-all duration-500"
-                          style={{ width: `${progressToNextRank}%` }}
-                        />
-                      </div>
-                    </div>
+                  <div className="rounded-[14px] bg-[#fcfbf8] px-3 py-2 text-[12px] font-semibold text-[#102018]">
+                    {selectedGroupPointsContext}
                   </div>
-                </>
+
+                </div>
               ) : (
-                <div className="rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c] sm:rounded-[20px]">
+                <div className="mt-3 rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-sm text-[#7a857c]">
                   Create or join a group to unlock the live leaderboard.
                 </div>
               )}
-            </div>
-          </div>
+            </section>
 
-          <div className="mt-5 grid items-start gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <div className="flex items-center justify-between gap-3">
+            <section>
+              <div className="mb-3 flex items-end justify-between gap-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                  Top 3 groups
+                </div>
+                {leaderboardEntries.length > 3 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllGroups(prev => !prev)}
+                    className="text-[11px] text-[#637268] transition hover:text-[#2d7651]"
+                  >
+                    {showAllGroups ? 'Show less' : 'View all'} ›
+                  </button>
+                ) : null}
+              </div>
+              {loading ? (
+                <div className="flex justify-start gap-3 overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] sm:justify-center [&::-webkit-scrollbar]:hidden">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-[174px] w-[140px] shrink-0 rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] sm:w-[158px]"
+                    />
+                  ))}
+                </div>
+              ) : leaderboardEntries.length > 0 ? (
+                <div className="flex justify-start gap-3 overflow-x-auto pb-1.5 pt-1.5 [scrollbar-width:none] sm:justify-center [&::-webkit-scrollbar]:hidden">
+                  {leaderboardEntries.slice(0, 3).map(
+                  (group, index) => {
+                    const isTop = index === 0
+                    const rank = index + 1
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => {
+                          router.push(`/groups/${group.id}`)
+                        }}
+                        className={`flex w-[140px] shrink-0 flex-col items-center rounded-[18px] border px-3 py-3 text-center transition hover:-translate-y-0.5 sm:w-[158px] sm:px-4 sm:py-4 ${
+                          selectedGroupId === group.id
+                            ? 'border-[#2d7651] bg-[#fcfbf8]'
+                            : isTop
+                              ? 'border-[#e7c16a] bg-[#fcfbf8]'
+                              : 'border-[#ece6db] bg-white'
+                        }`}
+                      >
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#e7c16a] text-[11px] font-semibold text-white">
+                          {rank}
+                        </div>
+                        <div className="mt-3 flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#fcfbf8] text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] sm:mt-4 sm:h-12 sm:w-12 sm:text-[18px]">
+                          {groupMonogram(group.name)}
+                        </div>
+                        <div className="mt-3 line-clamp-2 font-serif text-[15px] font-semibold leading-tight text-[#102018] sm:mt-4 sm:text-[16px]">
+                          {group.name}
+                        </div>
+                        <div className="mt-1 text-[15px] font-semibold text-[#2d7651]">
+                          {formatScore(group.score)}
+                        </div>
+                        <div className="mt-0.5 text-[10px] text-[#637268]">
+                          {formatMemberCount(group.members)}
+                        </div>
+                      </button>
+                    )
+                  }
+                )}
+                </div>
+              ) : (
+                <div className="rounded-[16px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-[13px] text-[#637268]">
+                  No groups yet. Create one below and become the first team on the board.
+                </div>
+              )}
+            </section>
+
+            <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4 sm:rounded-[22px] sm:px-5 sm:py-5">
+              <div className="flex items-end justify-between gap-2">
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Leaderboard
                 </div>
-                <div className="text-[12px] text-[#637268]">All groups</div>
-              </div>
-              <div className="mt-3 space-y-1.5 border-t border-dashed border-[#e6dfd3] pt-3">
-                {displayLeaderboard.map((entry, index) => {
-                  const previousScore = displayLeaderboard[index - 1]?.score ?? null
-                  const scoreGap = previousScore !== null ? previousScore - entry.score : null
-                  return (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      onClick={() => {
-                        if (!entry.isPlaceholder) setSelectedGroupId(entry.id)
-                      }}
-                    className={`flex w-full items-center gap-2.5 rounded-[15px] px-2 py-2.5 text-left transition duration-200 active:scale-[0.995] sm:gap-3 sm:rounded-[16px] sm:px-2.5 ${
-                        entry.id === selectedGroupId
-                          ? 'bg-[#fcfbf8] shadow-[0_6px_14px_rgba(16,32,24,0.035)]'
-                          : 'bg-white hover:-translate-y-0.5 hover:bg-[#fcfbf8] hover:shadow-[0_8px_16px_rgba(16,32,24,0.035)]'
-                      }`}
-                    >
-                      <div className="w-5 text-center text-lg font-semibold text-[#102018]">
-                        {index + 1}
-                      </div>
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[radial-gradient(circle_at_30%_30%,#fff3d8,transparent_45%),linear-gradient(180deg,#173d30,#1f6448)] px-2 text-center text-[11px] font-bold text-[#f8e1a0] sm:h-11 sm:w-11 sm:rounded-[15px] sm:text-xs">
-                        {groupMonogram(entry.name)}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[17px] font-semibold leading-none tracking-[-0.03em] text-[#102018] sm:text-[18px]">
-                          {entry.name}
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-[#637268] sm:text-[12px]">
-                          {formatMemberCount(entry.members)}
-                        </div>
-                        {index === 0 ? (
-                          <div className="mt-1 text-[11px] text-[#2d7651] sm:text-[12px]">Leading the pack</div>
-                        ) : scoreGap !== null ? (
-                          <div className="mt-1 text-[11px] text-[#2d7651] sm:text-[12px]">{scoreGap} behind #{index}</div>
-                        ) : null}
-                      </div>
-                      <div className="text-right">
-                        <div className="font-serif text-[20px] font-semibold leading-none text-[#123426] sm:text-[22px]">
-                          {formatScore(entry.score)}
-                        </div>
-                        <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">score</div>
-                      </div>
-                      <div className="text-base text-[#637268]">›</div>
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                  In-group leaderboard
-                </div>
-                <div className="text-[12px] text-[#637268]">
-                  {selectedGroup?.name || 'Choose a group'}
-                </div>
-              </div>
-
-              <div className="mt-3 max-h-[380px] space-y-1.5 overflow-y-auto border-t border-dashed border-[#e6dfd3] pt-3 pr-0.5 sm:max-h-[420px]">
-                {loading ? (
-                  <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-5 text-sm text-[#7a857c]">
-                    Loading leaderboard...
-                  </div>
-                ) : !selectedGroupAggregate || selectedGroupAggregate.memberStats.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-5 text-sm text-[#7a857c]">
-                    Once members start solving cases, their rank, streak, and efficiency will show
-                    up here.
-                  </div>
-                ) : (
-                  selectedGroupAggregate.memberStats.slice(0, 5).map((entry, index) => (
-                    <div key={entry.member.id} className="rounded-[15px] bg-[#fcfbf8] px-3 py-2.5 sm:rounded-[16px]">
-                      <div className="flex items-start gap-2.5 sm:gap-3">
-                        <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-[11px] font-semibold text-[#637268] sm:h-9 sm:w-9 sm:text-xs">
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <div className="text-[15px] font-semibold tracking-[-0.03em] text-[#102018] sm:text-[17px]">
-                                {entry.member.display_name}
-                              </div>
-                              <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
-                                {entry.solves} solves
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="font-serif text-[18px] font-semibold leading-none text-[#123426] sm:text-[20px]">
-                                {entry.avgGuesses !== null ? entry.avgGuesses.toFixed(1) : '—'}
-                              </div>
-                              <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">avg guesses</div>
-                            </div>
-                          </div>
-                          <div className="mt-2 grid grid-cols-3 gap-2 border-t border-[#ece6db] pt-2 text-center">
-                            <div>
-                              <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[9px] sm:tracking-[0.16em]">
-                                Accuracy
-                              </div>
-                              <div className="mt-1 text-[15px] font-semibold text-[#102018] sm:text-base">
-                                {entry.totalGuesses > 0
-                                  ? `${Math.round((entry.correctGuesses / entry.totalGuesses) * 100)}%`
-                                  : '—'}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[9px] sm:tracking-[0.16em]">
-                                Longest streak
-                              </div>
-                              <div className="mt-1 text-[15px] font-semibold text-[#102018] sm:text-base">
-                                {entry.longestStreak}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[9px] sm:tracking-[0.16em]">
-                                First-try
-                              </div>
-                              <div className="mt-1 text-[15px] font-semibold text-[#102018] sm:text-base">
-                                {entry.firstTrySolves}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                  {selectedGroup ? 'Group actions' : actionMode === 'create' ? 'Create your group' : 'Join a group'}
-                </div>
-                <div className="flex gap-2">
+                {leaderboardEntries.length > 5 ? (
                   <button
                     type="button"
-                    onClick={() => setActionMode('create')}
-                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
-                      actionMode === 'create'
-                        ? 'border border-[#2d7651] bg-[#2d7651] text-white'
-                        : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
-                    }`}
+                    onClick={() => setShowAllGroups(prev => !prev)}
+                    className="text-[11px] text-[#637268] transition hover:text-[#2d7651]"
                   >
-                    Create
+                    {showAllGroups ? 'Top 5' : 'All groups'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setActionMode('join')}
-                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
-                      actionMode === 'join'
-                        ? 'border border-[#2d7651] bg-[#2d7651] text-white'
-                        : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
-                    }`}
-                  >
-                    Join
-                  </button>
-                </div>
-              </div>
-
-            <div className="mt-3 border-t border-dashed border-[#e6dfd3] pt-3">
-              <div className="grid gap-2.5 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
-                <div className="space-y-2.5">
-                  <p className="text-[12px] leading-5 text-[#637268] sm:text-[13px]">
-                    Compete with classmates, residents, or friends.{` `}
-                    {activeGroupsThisWeek > 0
-                      ? `${activeGroupsThisWeek} groups active this week.`
-                      : 'Be the first active group this week.'}
-                  </p>
-
-                  {!selectedGroup ? (
-                    <>
-                      {actionMode === 'create' ? (
-                        <>
-                          <input
-                            value={createName}
-                            onChange={event => setCreateName(event.target.value)}
-                            placeholder="UCLA Ortho & MSK"
-                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                          />
-                          <input
-                            value={createDisplayName}
-                            onChange={event => setCreateDisplayName(event.target.value)}
-                            placeholder="Your display name"
-                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                          />
-                          <input
-                            value={createCode}
-                            onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
-                            placeholder="Optional invite code"
-                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                          />
-                          <button
-                            type="button"
-                            disabled={creating}
-                            onClick={() => void createGroup()}
-                            className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
-                          >
-                            {creating ? 'Creating...' : 'Create group'}
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <input
-                            value={joinCode}
-                            onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
-                            placeholder="Invite code"
-                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                          />
-                          <input
-                            value={joinDisplayName}
-                            onChange={event => setJoinDisplayName(event.target.value)}
-                            placeholder="Your display name"
-                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                          />
-                          <button
-                            type="button"
-                            disabled={joining}
-                            onClick={() => void joinGroup()}
-                            className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
-                          >
-                            {joining ? 'Joining...' : 'Join group'}
-                          </button>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <div className="rounded-[16px] bg-[#fcfbf8] px-3 py-3">
-                      <div className="text-[12px] font-semibold text-[#102018]">Your group is live.</div>
-                      <div className="mt-1 text-[12px] text-[#637268]">
-                        Share your invite code, bring in teammates, and climb the weekly board.
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {selectedGroup ? (
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void copyInviteCode(selectedGroup)}
-                      className="inline-flex w-full min-h-[40px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#255e42] hover:shadow-[0_12px_22px_rgba(45,118,81,0.2)] active:scale-[0.98]"
-                    >
-                      {copiedCode === selectedGroup.id ? 'Invite link copied' : 'Invite teammates'}
-                    </button>
-                    <div className="rounded-[16px] bg-[#fcfbf8] px-3 py-2.5 text-[12px] text-[#637268]">
-                      Invite code: <span className="font-semibold text-[#102018]">{selectedGroup.join_code}</span>
-                    </div>
-                  </div>
                 ) : null}
               </div>
-            </div>
+              <div className="mt-3 space-y-2">
+                {loading ? (
+                  Array.from({ length: 3 }).map((_, index) => (
+                    <div
+                      key={index}
+                      className="h-[66px] rounded-[14px] border border-[#ece6db] bg-[#fcfbf8]"
+                    />
+                  ))
+                ) : visibleLeaderboardEntries.length > 0 ? (
+                  visibleLeaderboardEntries.map(
+                  (group, index) => {
+                    const rank = index + 1
+                    const previous = leaderboardEntries[index - 1]
+                    const isTop = rank === 1
+                    const scoreDelta =
+                      !isTop && previous ? Math.max(0, previous.score - group.score) : 0
+
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => {
+                          router.push(`/groups/${group.id}`)
+                        }}
+                        className={`grid w-full grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
+                          selectedGroupId === group.id
+                            ? 'border-[#2d7651] bg-[#fcfbf8]'
+                            : 'border-[#ece6db] bg-white'
+                        }`}
+                      >
+                        <div className="text-[15px] font-semibold text-[#102018]">{rank}</div>
+                        <div className="min-w-0">
+                          <div className="truncate font-serif text-[15px] font-semibold tracking-[-0.03em] text-[#102018]">
+                            {group.name}
+                          </div>
+                          <div className="mt-0.5 text-[10px] text-[#637268]">
+                            {formatMemberCount(group.members)}
+                            {isTop ? (
+                              <span className="ml-2 text-[#53715f]">Leading the pack</span>
+                            ) : (
+                              <span className="ml-2 text-[#53715f]">
+                                {scoreDelta || group.score} behind #{rank - 1}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-serif text-[18px] font-semibold leading-none text-[#102018]">
+                            {formatScore(group.score)}
+                          </div>
+                          <div className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-[#637268]">
+                            score
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  }
+                )
+                ) : (
+                  <div className="rounded-[14px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3.5 py-4 text-[13px] text-[#637268]">
+                    No leaderboard yet.
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setGroupActionMode('join')
+                  setShowJoinPanel(prev => (groupActionMode === 'join' ? !prev : true))
+                }}
+                className="flex items-center gap-3 rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 sm:py-4"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fcfbf8] text-[18px]">
+                  <UserPlus size={20} strokeWidth={2} />
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold text-[#102018]">Join a Group</div>
+                  <div className="text-[12px] text-[#637268]">Enter code or create</div>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedGroup) {
+                    void shareInviteLink(selectedGroup)
+                    return
+                  }
+                  setGroupActionMode('join')
+                  setShowJoinPanel(true)
+                }}
+                className="flex items-center gap-3 rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 sm:py-4"
+              >
+                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fcfbf8] text-[18px]">
+                  <Share2 size={20} strokeWidth={2} />
+                </div>
+                <div>
+                  <div className="text-[13px] font-semibold text-[#102018]">
+                    {selectedGroup && copiedCode === selectedGroup.id ? 'Link copied' : 'Invite Friends'}
+                  </div>
+                  <div className="text-[12px] text-[#637268]">Grow your group</div>
+                </div>
+              </button>
+            </section>
+
+            {showJoinPanel ? (
+              <section className="rounded-[18px] border border-[#e6dfd3] bg-white px-4 py-4 sm:rounded-[22px] sm:px-5 sm:py-5">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                      {groupActionMode === 'join' ? 'Join a group' : 'Create a group'}
+                    </div>
+                    <div className="mt-1 text-[12px] text-[#637268]">
+                      {groupActionMode === 'join'
+                        ? 'Use an invite code from a teammate.'
+                        : 'Start a private leaderboard for your team.'}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-1 text-[11px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setGroupActionMode('join')}
+                      className={`rounded-full px-3 py-1.5 transition ${
+                        groupActionMode === 'join'
+                          ? 'bg-[#2d7651] text-white'
+                          : 'text-[#637268] hover:text-[#102018]'
+                      }`}
+                    >
+                      Join
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setGroupActionMode('create')}
+                      className={`rounded-full px-3 py-1.5 transition ${
+                        groupActionMode === 'create'
+                          ? 'bg-[#2d7651] text-white'
+                          : 'text-[#637268] hover:text-[#102018]'
+                      }`}
+                    >
+                      Create
+                    </button>
+                  </div>
+                </div>
+
+                {groupActionMode === 'join' ? (
+                  <>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                      <input
+                        value={joinCode}
+                        onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
+                        placeholder="Invite code"
+                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                      <input
+                        value={joinDisplayName}
+                        onChange={event => setJoinDisplayName(event.target.value)}
+                        placeholder="Your display name"
+                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                      <button
+                        type="button"
+                        disabled={
+                          joining ||
+                          !normalizedJoinCode ||
+                          !joinDisplayName.trim() ||
+                          Boolean(normalizedJoinCode && !joinTargetGroup)
+                        }
+                        onClick={() => void submitGroupForm()}
+                        className="inline-flex h-10 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-5 text-[12px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {joining ? 'Joining...' : alreadyInJoinTarget ? 'Update' : 'Join'}
+                      </button>
+                    </div>
+                    <div className="mt-2 rounded-[14px] bg-[#fcfbf8] px-3 py-2 text-[11px] leading-5 text-[#637268]">
+                      {normalizedJoinCode && joinTargetGroup ? (
+                        <>
+                          Invite found:{' '}
+                          <span className="font-semibold text-[#102018]">{joinTargetGroup.name}</span>
+                          {alreadyInJoinTarget ? ' · You are already in this group.' : ''}
+                        </>
+                      ) : normalizedJoinCode ? (
+                        'No group found with that code yet.'
+                      ) : (
+                        'Paste a code from an invite link or ask a teammate for their group code.'
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                      <input
+                        value={createName}
+                        onChange={event => setCreateName(event.target.value)}
+                        placeholder="Group name"
+                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                      <input
+                        value={createDisplayName}
+                        onChange={event => setCreateDisplayName(event.target.value)}
+                        placeholder="Your display name"
+                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                      <input
+                        value={createCode}
+                        onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
+                        placeholder="Custom code"
+                        className="w-full rounded-[14px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                      <button
+                        type="button"
+                        disabled={creating || !createName.trim() || !createDisplayName.trim()}
+                        onClick={() => void submitGroupForm()}
+                        className="inline-flex h-10 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-5 text-[12px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {creating ? 'Creating...' : 'Create'}
+                      </button>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-5 text-[#8a9389]">
+                      Custom code is optional. If you leave it blank, Orthodle will make one for you.
+                    </p>
+                  </>
+                )}
+              </section>
+            ) : null}
           </div>
         </div>
       </section>
