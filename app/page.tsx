@@ -258,6 +258,7 @@ function PlayPageContent() {
   const [loading, setLoading] = useState(true)
   const [gameWon, setGameWon] = useState(false)
   const [gameOver, setGameOver] = useState(false)
+  const [justCompletedRound, setJustCompletedRound] = useState(false)
   const [shakeInput, setShakeInput] = useState(false)
   const [pulseSuccess, setPulseSuccess] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
@@ -692,6 +693,9 @@ function PlayPageContent() {
           setGameWon(savedProgress.gameWon)
           setGameOver(savedProgress.gameOver)
           setMessage(savedProgress.message)
+          setJustCompletedRound(false)
+        } else {
+          setJustCompletedRound(false)
         }
 
         const [{ data: visitRows }, { data: guessRows }] = await Promise.all([
@@ -1340,6 +1344,7 @@ function PlayPageContent() {
 
     if (data.correct) {
       setGameWon(true)
+      setJustCompletedRound(true)
       const nextMessage =
         `Correct — solved in ${nextGuessCount} ${
           nextGuessCount === 1 ? 'guess' : 'guesses'
@@ -1355,8 +1360,12 @@ function PlayPageContent() {
         gameOver: false,
         message: nextMessage,
       })
-      triggerSuccessPulse()
-      triggerConfetti()
+      if (typeof window !== 'undefined' && window.innerWidth < 640) {
+        triggerSuccessPulse()
+      } else {
+        triggerSuccessPulse()
+        triggerConfetti()
+      }
       return
     }
 
@@ -1364,6 +1373,7 @@ function PlayPageContent() {
 
     if (nextGuessCount >= MAX_GUESSES) {
       setGameOver(true)
+      setJustCompletedRound(true)
       const nextMessage = 'Out of guesses.'
       setMessage(nextMessage)
       saveRoundProgress({
@@ -1435,7 +1445,7 @@ function PlayPageContent() {
   }, [dailyCase, roundComplete, gameWon, guesses])
 
   useEffect(() => {
-    if (!roundComplete) return
+    if (!roundComplete || !justCompletedRound) return
     if (typeof window === 'undefined' || window.innerWidth >= 640) return
 
     const timeoutId = window.setTimeout(() => {
@@ -1446,13 +1456,14 @@ function PlayPageContent() {
 
       if (gameWon) {
         window.setTimeout(() => {
+          triggerConfetti()
           triggerSuccessPulse()
         }, 520)
       }
     }, gameWon ? 500 : 280)
 
     return () => window.clearTimeout(timeoutId)
-  }, [gameWon, roundComplete])
+  }, [gameWon, justCompletedRound, roundComplete])
 
   const todayCompletedLevels = new Set(
     dailySummary.levels

@@ -185,9 +185,6 @@ export default function ArchivePage() {
           <h1 className="mt-2 font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:text-[30px]">
             Browse older cases
           </h1>
-          <p className="mt-2 max-w-2xl text-[12px] leading-5 text-[#637268] sm:text-[13px] sm:leading-5.5">
-            Jump straight into earlier Orthodle cases by date and difficulty.
-          </p>
 
           {surpriseTarget && (
             <div className="mt-4 flex flex-wrap gap-2">
@@ -211,7 +208,7 @@ export default function ArchivePage() {
                   clearStatsSummary()
                   setCompletedArchiveKeys(new Set())
                 }}
-                className="inline-flex rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#637268] transition hover:bg-[#fbfaf7]"
+                className="inline-flex min-w-[124px] items-center justify-center rounded-full border border-[#ded7ca] bg-white px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-[#fbfaf7]"
               >
                 Reset cases
               </button>
