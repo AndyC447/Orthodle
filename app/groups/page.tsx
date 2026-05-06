@@ -153,6 +153,10 @@ function formatScore(value: number) {
   return value.toLocaleString('en-US')
 }
 
+function formatMemberCount(count: number) {
+  return `${count} member${count === 1 ? '' : 's'}`
+}
+
 function buildMemberStats(
   member: GroupMemberRow,
   guessRows: GuessRow[],
@@ -221,9 +225,9 @@ export default function GroupsPage() {
   const [joining, setJoining] = useState(false)
   const [copiedCode, setCopiedCode] = useState('')
   const [urlJoinCode, setUrlJoinCode] = useState('')
-  const [timeframe, setTimeframe] = useState<'week' | 'all'>('week')
   const [actionMode, setActionMode] = useState<'create' | 'join'>('join')
   const sessionId = useMemo(() => getSessionId(), [])
+  const timeframe: 'all' = 'all'
 
   async function loadGroupsData() {
     const { data: groupData, error: groupError } = await supabase
@@ -463,6 +467,14 @@ export default function GroupsPage() {
           .map(row => row.session_id)
       ).size
     : 0
+  const selectedGroupTodaySolveCount = selectedGroup
+    ? guessRows.filter(
+        row =>
+          row.created_at.slice(0, 10) === todayDate &&
+          row.is_correct &&
+          selectedMembers.some(member => member.session_id === row.session_id)
+      ).length
+    : 0
   const nextRankGroup =
     selectedGroupRank && selectedGroupRank > 1 ? groupAggregates[selectedGroupRank - 2] : null
   const pointsBehindNextGroup =
@@ -478,6 +490,22 @@ export default function GroupsPage() {
   const selectedWeeklyMomentum = selectedGroupAggregate
     ? Math.round(selectedGroupAggregate.totalSolves * 18 + selectedGroupAggregate.longestStreak * 9)
     : 0
+  const rankProgressLabel =
+    pointsBehindNextGroup !== null
+      ? `${pointsBehindNextGroup} pts behind next rank`
+      : groupAggregates.length > 1 && selectedGroupAggregate
+        ? `${selectedGroupAggregate.score - groupAggregates[1].score} pts ahead of 2nd`
+        : 'Holding 1st place'
+  const recentActivityHeadline =
+    selectedGroupTodaySolveCount > 0
+      ? `${selectedGroupTodaySolveCount} solve${selectedGroupTodaySolveCount === 1 ? '' : 's'} today`
+      : `${selectedGroupTodayActiveCount} member${selectedGroupTodayActiveCount === 1 ? '' : 's'} active today`
+  const recentActivitySubline =
+    myMembership && selectedGroupTodaySolveCount > 0
+      ? `${myMembership.display_name} solved today’s case`
+      : selectedGroupTodayActiveCount > 0
+        ? 'Group activity is rolling'
+        : 'No one has checked in yet'
 
   async function createGroup() {
     const name = createName.trim()
@@ -619,37 +647,15 @@ export default function GroupsPage() {
 
       <section className="mx-auto max-w-[940px] px-2.5 py-2.5 sm:px-3 sm:py-3">
         <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-3">
-          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
+          <div>
             <div>
-              <div className="flex items-center gap-2 sm:gap-2.5">
-                <div className="inline-flex h-8.5 w-8.5 items-center justify-center rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] text-[17px] text-[#1f6448] sm:h-9 sm:w-9 sm:text-[18px]">
-                  👥
-                </div>
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                    Groups
-                  </div>
-                  <h1 className="mt-0.5 font-serif text-[23px] font-bold leading-none tracking-[-0.04em] text-[#102018] sm:text-[27px]">
-                    Groups
-                  </h1>
-                </div>
-              </div>
+              <h1 className="font-serif text-[23px] font-bold leading-none tracking-[-0.04em] text-[#102018] sm:text-[27px]">
+                Groups
+              </h1>
               <p className="mt-1.5 max-w-xl pr-1 text-[12px] leading-5 text-[#637268] sm:mt-2 sm:text-[13px]">
                 Compete, collaborate, and climb the ranks with your residency, class, or friend
                 group.
               </p>
-            </div>
-
-            <div className="inline-flex w-full items-center gap-2 rounded-[16px] border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-2 sm:w-auto sm:rounded-[18px]">
-              <span className="text-base text-[#637268]">🗓</span>
-              <select
-                value={timeframe}
-                onChange={event => setTimeframe(event.target.value as 'week' | 'all')}
-                className="w-full bg-transparent text-[13px] font-semibold text-[#102018] outline-none sm:w-auto"
-              >
-                <option value="week">This Week</option>
-                <option value="all">All Time</option>
-              </select>
             </div>
           </div>
 
@@ -682,7 +688,7 @@ export default function GroupsPage() {
                             {selectedGroup.name}
                           </div>
                           <div className="mt-0.5 text-[12px] text-[#637268] sm:text-[13px]">
-                            {selectedGroupAggregate.members.length} members
+                            {formatMemberCount(selectedGroupAggregate.members.length)}
                           </div>
                           <div className="mt-1 text-[9px] font-semibold uppercase tracking-[0.15em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                             Code {selectedGroup.join_code}
@@ -724,9 +730,7 @@ export default function GroupsPage() {
                           ? `${Math.round(selectedGroupAggregate.avgAccuracy)}%`
                           : '—'}
                       </div>
-                      <div className="mt-1 text-[11px] text-[#2d7651] sm:text-[12px]">
-                        {timeframe === 'week' ? 'This week' : 'All time'}
-                      </div>
+                      <div className="mt-1 text-[11px] text-[#637268] sm:text-[12px]">All time</div>
                     </div>
                     <div className="border-l border-[#ece6db] px-3 sm:px-4">
                       <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -742,10 +746,13 @@ export default function GroupsPage() {
                   <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
                     <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
                       <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Recent activity
+                        Recent group activity
                       </div>
                       <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
-                        {selectedGroupTodayActiveCount} members active today
+                        {recentActivityHeadline}
+                      </div>
+                      <div className="mt-1 text-[11px] text-[#637268]">
+                        {recentActivitySubline}
                       </div>
                     </div>
                     <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
@@ -755,15 +762,16 @@ export default function GroupsPage() {
                       <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
                         +{selectedWeeklyMomentum} pts this week
                       </div>
+                      <div className="mt-1 text-[11px] text-[#637268]">
+                        Current rank: #{selectedGroupRank || 1}
+                      </div>
                     </div>
                     <div className="rounded-[14px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2 sm:rounded-[16px]">
                       <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                         Next rank
                       </div>
                       <div className="mt-1 text-[12px] font-semibold text-[#102018] sm:text-[13px]">
-                        {pointsBehindNextGroup !== null
-                          ? `${pointsBehindNextGroup} behind ${nextRankGroup?.group.name}`
-                          : 'You’re in first'}
+                        {rankProgressLabel}
                       </div>
                       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#ebe5db]">
                         <div
@@ -786,9 +794,6 @@ export default function GroupsPage() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                     Top 3 groups
-                  </div>
-                  <div className="text-[12px] text-[#637268]">
-                    {timeframe === 'week' ? 'This week' : 'All time'}
                   </div>
                 </div>
                 <div className="-mx-1 mt-3 flex gap-2.5 overflow-x-auto px-1 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
@@ -831,113 +836,11 @@ export default function GroupsPage() {
                         >
                           {formatScore(entry.score)}
                         </div>
-                        <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">{entry.members} members</div>
+                        <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">{formatMemberCount(entry.members)}</div>
                       </button>
                     )
                   })}
                 </div>
-              </div>
-
-              <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
-                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                  {actionMode === 'create' ? 'Create your group' : 'Join a group'}
-                </div>
-                <div className="mt-2.5 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActionMode('create')}
-                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
-                      actionMode === 'create'
-                        ? 'border border-[#2d7651] bg-[#2d7651] text-white'
-                        : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
-                    }`}
-                  >
-                    Create
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActionMode('join')}
-                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
-                      actionMode === 'join'
-                        ? 'border border-[#2d7651] bg-[#2d7651] text-white'
-                        : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
-                    }`}
-                  >
-                    Join
-                  </button>
-                </div>
-
-                <div className="mt-3 space-y-2.5 sm:mt-3.5">
-                  <p className="text-[12px] leading-5 text-[#637268] sm:text-[13px]">
-                    Compete with classmates, residents, or friends.{` `}
-                    {activeGroupsThisWeek > 0
-                      ? `${activeGroupsThisWeek} groups active this week.`
-                      : 'Be the first active group this week.'}
-                  </p>
-                  {actionMode === 'create' ? (
-                    <>
-                      <input
-                        value={createName}
-                        onChange={event => setCreateName(event.target.value)}
-                        placeholder="UCLA Ortho & MSK"
-                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                      />
-                      <input
-                        value={createDisplayName}
-                        onChange={event => setCreateDisplayName(event.target.value)}
-                        placeholder="Your display name"
-                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                      />
-                      <input
-                        value={createCode}
-                        onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
-                        placeholder="Optional invite code"
-                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                      />
-                      <button
-                        type="button"
-                        disabled={creating}
-                        onClick={() => void createGroup()}
-                        className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
-                      >
-                        {creating ? 'Creating...' : 'Create group'}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <input
-                        value={joinCode}
-                        onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
-                        placeholder="Invite code"
-                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                      />
-                      <input
-                        value={joinDisplayName}
-                        onChange={event => setJoinDisplayName(event.target.value)}
-                        placeholder="Your display name"
-                        className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
-                      />
-                      <button
-                        type="button"
-                        disabled={joining}
-                        onClick={() => void joinGroup()}
-                        className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
-                      >
-                        {joining ? 'Joining...' : 'Join group'}
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {selectedGroup ? (
-                  <button
-                    type="button"
-                    onClick={() => void copyInviteCode(selectedGroup)}
-                    className="mt-2.5 inline-flex w-full min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#255e42] hover:shadow-[0_12px_22px_rgba(45,118,81,0.2)] active:scale-[0.98] sm:w-auto"
-                  >
-                    {copiedCode === selectedGroup.id ? 'Invite link copied' : 'Invite friends'}
-                  </button>
-                ) : null}
               </div>
             </div>
           </div>
@@ -978,7 +881,7 @@ export default function GroupsPage() {
                           {entry.name}
                         </div>
                         <div className="mt-0.5 text-[11px] text-[#637268] sm:text-[12px]">
-                          {entry.members} members
+                          {formatMemberCount(entry.members)}
                         </div>
                         {index === 0 ? (
                           <div className="mt-1 text-[11px] text-[#2d7651] sm:text-[12px]">Leading the pack</div>
@@ -1076,6 +979,131 @@ export default function GroupsPage() {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-2.5">
+            <div className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[20px] sm:p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                  {selectedGroup ? 'Group actions' : actionMode === 'create' ? 'Create your group' : 'Join a group'}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActionMode('create')}
+                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
+                      actionMode === 'create'
+                        ? 'border border-[#2d7651] bg-[#2d7651] text-white'
+                        : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
+                    }`}
+                  >
+                    Create
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActionMode('join')}
+                    className={`inline-flex min-h-[34px] items-center justify-center rounded-full px-3.5 text-[10px] font-semibold uppercase tracking-[0.13em] transition ${
+                      actionMode === 'join'
+                        ? 'border border-[#2d7651] bg-[#2d7651] text-white'
+                        : 'border border-[#ded7ca] bg-[#fcfbf8] text-[#637268]'
+                    }`}
+                  >
+                    Join
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2.5 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+                <div className="space-y-2.5">
+                  <p className="text-[12px] leading-5 text-[#637268] sm:text-[13px]">
+                    Compete with classmates, residents, or friends.{` `}
+                    {activeGroupsThisWeek > 0
+                      ? `${activeGroupsThisWeek} groups active this week.`
+                      : 'Be the first active group this week.'}
+                  </p>
+
+                  {!selectedGroup ? (
+                    <>
+                      {actionMode === 'create' ? (
+                        <>
+                          <input
+                            value={createName}
+                            onChange={event => setCreateName(event.target.value)}
+                            placeholder="UCLA Ortho & MSK"
+                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
+                          />
+                          <input
+                            value={createDisplayName}
+                            onChange={event => setCreateDisplayName(event.target.value)}
+                            placeholder="Your display name"
+                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
+                          />
+                          <input
+                            value={createCode}
+                            onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
+                            placeholder="Optional invite code"
+                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
+                          />
+                          <button
+                            type="button"
+                            disabled={creating}
+                            onClick={() => void createGroup()}
+                            className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
+                          >
+                            {creating ? 'Creating...' : 'Create group'}
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <input
+                            value={joinCode}
+                            onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
+                            placeholder="Invite code"
+                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] uppercase text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
+                          />
+                          <input
+                            value={joinDisplayName}
+                            onChange={event => setJoinDisplayName(event.target.value)}
+                            placeholder="Your display name"
+                            className="w-full rounded-[16px] border border-[#dfd8cb] bg-white px-3.5 py-2.5 text-[13px] text-[#102018] outline-none transition focus:border-[#2d7651] sm:rounded-[18px]"
+                          />
+                          <button
+                            type="button"
+                            disabled={joining}
+                            onClick={() => void joinGroup()}
+                            className="inline-flex min-h-[38px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white transition hover:bg-[#255e42] disabled:opacity-60"
+                          >
+                            {joining ? 'Joining...' : 'Join group'}
+                          </button>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div className="rounded-[16px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-3">
+                      <div className="text-[12px] font-semibold text-[#102018]">Your group is live.</div>
+                      <div className="mt-1 text-[12px] text-[#637268]">
+                        Share your invite code, bring in teammates, and climb the weekly board.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {selectedGroup ? (
+                  <div className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void copyInviteCode(selectedGroup)}
+                      className="inline-flex w-full min-h-[40px] items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[13px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.16)] transition duration-200 hover:-translate-y-0.5 hover:bg-[#255e42] hover:shadow-[0_12px_22px_rgba(45,118,81,0.2)] active:scale-[0.98]"
+                    >
+                      {copiedCode === selectedGroup.id ? 'Invite link copied' : 'Invite teammates'}
+                    </button>
+                    <div className="rounded-[16px] border border-[#eee7dd] bg-[#fcfbf8] px-3 py-2.5 text-[12px] text-[#637268]">
+                      Invite code: <span className="font-semibold text-[#102018]">{selectedGroup.join_code}</span>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
