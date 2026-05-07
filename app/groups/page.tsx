@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Info, Share2, UserPlus, X } from 'lucide-react'
+import { Flame, Info, Share2, Target, UserPlus, X, Zap } from 'lucide-react'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 import { getSessionId } from '@/lib/utils'
@@ -38,6 +38,7 @@ type CaseRow = {
   case_date: string
   level: 'med_student' | 'resident' | 'attending'
   answer: string
+  category: string | null
 }
 
 type MemberStats = {
@@ -49,6 +50,10 @@ type MemberStats = {
   firstTrySolves: number
   totalGuesses: number
   correctGuesses: number
+  attendingSolves: number
+  categorySolves: Record<string, number>
+  hasClutchSolve: boolean
+  nightShiftSolves: number
 }
 
 type GroupAggregate = {
@@ -354,6 +359,140 @@ function rankCircleClass(rank: number) {
   return 'bg-[#e6dfd3] text-[#637268]'
 }
 
+function getCategoryCount(stats: MemberStats | null, keywords: string[]) {
+  if (!stats) return 0
+
+  return Object.entries(stats.categorySolves).reduce((total, [category, count]) => {
+    const normalizedCategory = category.toLowerCase()
+    return keywords.some(keyword => normalizedCategory.includes(keyword)) ? total + count : total
+  }, 0)
+}
+
+function buildTrophyCase({
+  stats,
+  isGroupMvp,
+  selectedGroupRank,
+}: {
+  stats: MemberStats | null
+  isGroupMvp: boolean
+  selectedGroupRank: number | null
+}) {
+  const solves = stats?.solves || 0
+  const accuracy =
+    stats && stats.totalGuesses > 0 ? (stats.correctGuesses / stats.totalGuesses) * 100 : 0
+
+  return [
+    {
+      title: 'Group MVP',
+      description: 'Earned MVP in your group',
+      icon: '🏆',
+      earned: isGroupMvp,
+    },
+    {
+      title: '7-Day Streak',
+      description: 'Solved correctly 7 days in a row',
+      icon: '🛡️',
+      earned: (stats?.longestStreak || 0) >= 7,
+    },
+    {
+      title: '100 Solves',
+      description: 'Solve 100 cases',
+      icon: '⭐',
+      earned: solves >= 100,
+    },
+    {
+      title: 'First Try Master',
+      description: 'Solve 50 cases on the first try',
+      icon: '🧭',
+      earned: (stats?.firstTrySolves || 0) >= 50,
+    },
+    {
+      title: 'Attending Slayer',
+      description: 'Solve 10 attending difficulty cases',
+      icon: '👑',
+      earned: (stats?.attendingSolves || 0) >= 10,
+    },
+    {
+      title: 'Ortho Beginner',
+      description: 'Complete your first case',
+      icon: '🦴',
+      earned: solves >= 1,
+    },
+    {
+      title: 'Hot Streak',
+      description: 'Correctly solve 5 cases in a row',
+      icon: '🔥',
+      earned: (stats?.longestStreak || 0) >= 5,
+    },
+    {
+      title: 'Speed Demon',
+      description: 'Solve a case in under 30 seconds',
+      icon: '⚡',
+      earned: false,
+    },
+    {
+      title: 'Clutch Solver',
+      description: 'Solve a case with clue 4 or less',
+      icon: '🎯',
+      earned: Boolean(stats?.hasClutchSolve),
+    },
+    {
+      title: 'Consistent',
+      description: 'Maintain 70%+ accuracy for 7 guesses',
+      icon: '🔒',
+      earned: (stats?.totalGuesses || 0) >= 7 && accuracy >= 70,
+    },
+    {
+      title: 'Top 3 Finish',
+      description: 'Your group finishes in the top 3',
+      icon: '🏅',
+      earned: Boolean(selectedGroupRank && selectedGroupRank <= 3),
+    },
+    {
+      title: 'Anatomy Ace',
+      description: 'Solve 20 anatomy cases',
+      icon: '🧬',
+      earned: getCategoryCount(stats, ['anatomy']) >= 20,
+    },
+    {
+      title: 'Trauma Champ',
+      description: 'Solve 20 trauma cases',
+      icon: '🏥',
+      earned: getCategoryCount(stats, ['trauma']) >= 20,
+    },
+    {
+      title: 'Hand Specialist',
+      description: 'Solve 15 hand cases',
+      icon: '🖐️',
+      earned: getCategoryCount(stats, ['hand', 'wrist']) >= 15,
+    },
+    {
+      title: 'Spine Whisperer',
+      description: 'Solve 15 spine cases',
+      icon: '🦴',
+      earned: getCategoryCount(stats, ['spine', 'cervical', 'lumbar']) >= 15,
+    },
+    {
+      title: 'Joint Expert',
+      description: 'Solve 20 joint cases',
+      icon: '🦵',
+      earned: getCategoryCount(stats, ['joint', 'knee', 'hip', 'shoulder', 'ankle', 'elbow']) >= 20,
+    },
+    {
+      title: 'Night Shift Demon',
+      description: 'Solve 10 cases between 12AM - 6AM',
+      icon: '🌙',
+      earned: (stats?.nightShiftSolves || 0) >= 10,
+    },
+    {
+      title: 'Perfectionist',
+      description: 'Achieve 100% accuracy in a week',
+      icon: '💎',
+      earned: (stats?.totalGuesses || 0) >= 3 && accuracy === 100,
+    },
+  ]
+}
+
 function GroupsTopBanner({
   activeTab,
   onTabChange,
@@ -382,9 +521,12 @@ function GroupsTopBanner({
     window.localStorage.setItem('orthodle_theme', nextTheme)
   }
 
+  const navItemClass =
+    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[10.5px] font-bold leading-none transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
+
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
-      <div className="mx-auto flex max-w-[760px] items-center justify-between gap-3 px-4 py-2 sm:px-5">
+      <div className="mx-auto hidden max-w-[760px] items-center justify-between gap-3 px-4 py-2 sm:flex sm:px-5">
         <Link href="/" className="font-serif text-xl font-semibold text-[#102018]">
           <span className="flex items-center gap-2">
             <span className="text-lg text-[#c96b37]">●</span>
@@ -425,9 +567,15 @@ function GroupsTopBanner({
         </button>
       </div>
 
-      <nav className="mx-auto -mt-1 flex max-w-[760px] justify-center px-4 pb-2 sm:px-5">
+      <nav className="mx-auto flex max-w-[760px] justify-center px-4 py-2 sm:-mt-1 sm:px-5 sm:pb-2 sm:pt-0">
         <div className="w-full max-w-[430px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
           <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
+            <Link
+              href="/"
+              className={`${navItemClass} bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`}
+            >
+              Cases
+            </Link>
             {tabs.map(tab => {
               const active = activeTab === tab.id
 
@@ -436,26 +584,82 @@ function GroupsTopBanner({
                   key={tab.id}
                   type="button"
                   onClick={() => onTabChange(tab.id)}
-                  className={`flex h-7 items-center justify-center rounded-[16px] px-2 text-[10.5px] font-bold transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651] ${
+                  className={`${navItemClass} ${
                     active
                       ? 'border border-[#1f6448] bg-[#1f6448] text-white shadow-sm'
-                      : 'border border-[#ebe3d7] bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]'
+                      : 'bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]'
                   }`}
                 >
                   {tab.label}
                 </button>
               )
             })}
-            <Link
-              href="/"
-              className="flex h-7 items-center justify-center rounded-[16px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-[10.5px] font-bold text-[#102018] transition hover:bg-[#f7f5f0] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]"
-            >
-              Cases
-            </Link>
           </div>
         </div>
       </nav>
     </header>
+  )
+}
+
+function TrophyCase({
+  trophies,
+}: {
+  trophies: Array<{
+    title: string
+    description: string
+    icon: string
+    earned: boolean
+  }>
+}) {
+  const earnedCount = trophies.filter(trophy => trophy.earned).length
+
+  return (
+    <section className="mt-4 rounded-[22px] border border-[#e7e1d6] bg-white p-4 text-left shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-[24px] font-bold tracking-[-0.05em] text-[#102018]">
+            <span className="mr-2 text-[22px]">🏆</span>
+            Trophy Case
+          </h2>
+          <p className="mt-1 text-xs text-[#637268] sm:text-sm">
+            Earn trophies. Flex on the competition.
+          </p>
+        </div>
+        <div className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+          {earnedCount}/{trophies.length}
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        {trophies.map(trophy => (
+          <div
+            key={trophy.title}
+            className={`rounded-[16px] border px-2.5 py-3 text-center transition ${
+              trophy.earned
+                ? 'border-[#ead9b7] bg-[radial-gradient(circle_at_50%_0%,rgba(231,184,63,0.16),transparent_42%),#fffdf8] shadow-[0_8px_18px_rgba(16,32,24,0.04)]'
+                : 'border-[#ece6db] bg-[#fcfbf8] opacity-55'
+            }`}
+          >
+            <div
+              className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full border text-[32px] ${
+                trophy.earned
+                  ? 'border-[#ead9b7] bg-[#fff4df] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]'
+                  : 'border-[#e6dfd3] bg-white grayscale'
+              }`}
+              aria-hidden="true"
+            >
+              {trophy.icon}
+            </div>
+            <div className="mt-2 font-serif text-[14px] font-bold leading-tight text-[#102018]">
+              {trophy.title}
+            </div>
+            <p className="mt-1 text-[11px] leading-4 text-[#637268]">{trophy.description}</p>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-3 text-xs text-[#8a9389]">🔒 More trophies coming soon. Keep solving and stay legendary.</p>
+    </section>
   )
 }
 
@@ -498,7 +702,11 @@ function buildMemberStats(
   let totalGuessesToSolve = 0
   let totalGuesses = 0
   let correctGuesses = 0
+  let attendingSolves = 0
+  let hasClutchSolve = false
+  let nightShiftSolves = 0
   const solvedDates: string[] = []
+  const categorySolves: Record<string, number> = {}
 
   for (const [caseId, rows] of guessesByCase.entries()) {
     const caseInfo = caseLookup[caseId]
@@ -511,6 +719,22 @@ function buildMemberStats(
     totalGuessesToSolve += firstCorrectIndex + 1
     if (firstCorrectIndex === 0) {
       firstTrySolves += 1
+    }
+    if (firstCorrectIndex + 1 <= 4) {
+      hasClutchSolve = true
+    }
+    if (caseInfo.level === 'attending') {
+      attendingSolves += 1
+    }
+    if (caseInfo.category) {
+      categorySolves[caseInfo.category] = (categorySolves[caseInfo.category] || 0) + 1
+    }
+    const correctGuess = rows[firstCorrectIndex]
+    if (correctGuess?.created_at) {
+      const solvedHour = new Date(correctGuess.created_at).getHours()
+      if (solvedHour >= 0 && solvedHour < 6) {
+        nightShiftSolves += 1
+      }
     }
     solvedDates.push(caseInfo.case_date)
   }
@@ -530,6 +754,10 @@ function buildMemberStats(
     firstTrySolves,
     totalGuesses,
     correctGuesses,
+    attendingSolves,
+    categorySolves,
+    hasClutchSolve,
+    nightShiftSolves,
   }
 }
 
@@ -642,7 +870,7 @@ export default function GroupsPage() {
 
     const { data: caseData, error: caseError } = await supabase
       .from('cases')
-      .select('id, case_date, level, answer')
+      .select('id, case_date, level, answer, category')
       .in('id', caseIds)
 
     if (caseError) {
@@ -834,6 +1062,15 @@ export default function GroupsPage() {
         group: groupOfWeekAggregate.group,
       }
     : null
+  const trophyCaseItems = useMemo(
+    () =>
+      buildTrophyCase({
+        stats: myMemberStats || null,
+        isGroupMvp: mvpEntry?.stats.member.session_id === sessionId,
+        selectedGroupRank,
+      }),
+    [mvpEntry?.stats.member.session_id, myMemberStats, selectedGroupRank, sessionId]
+  )
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
@@ -1420,7 +1657,7 @@ export default function GroupsPage() {
                     <div className="space-y-2">
                       {[
                         {
-                          icon: '◎',
+                          Icon: Target,
                           value:
                             mvpEntry.stats.totalGuesses > 0
                               ? `${Math.round((mvpEntry.stats.correctGuesses / mvpEntry.stats.totalGuesses) * 100)}%`
@@ -1428,19 +1665,22 @@ export default function GroupsPage() {
                           label: 'Accuracy',
                         },
                         {
-                          icon: 'ϟ',
+                          Icon: Zap,
                           value: mvpEntry.stats.firstTrySolves,
                           label: 'First try solves',
                         },
                         {
-                          icon: '♨',
+                          Icon: Flame,
                           value: mvpEntry.stats.longestStreak,
                           label: 'Day streak',
                         },
-                      ].map(item => (
+                      ].map(item => {
+                        const StatIcon = item.Icon
+
+                        return (
                         <div key={item.label} className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#eaf4ee] text-sm text-[#1f6448] sm:h-9 sm:w-9 sm:text-lg">
-                            {item.icon}
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
+                            <StatIcon size={15} strokeWidth={2.2} />
                           </div>
                           <div>
                             <div className="font-serif text-[16px] font-bold leading-none text-[#102018] sm:text-[20px]">
@@ -1451,7 +1691,8 @@ export default function GroupsPage() {
                             </div>
                           </div>
                         </div>
-                      ))}
+                        )
+                      })}
                       <div className="hidden rounded-2xl border border-[#eadfce] bg-[#fffaf1] px-3 py-2 text-[11px] leading-4 text-[#1f6448] sm:block sm:text-xs sm:leading-5">
                         Top performer of the week. Leading the pack!
                       </div>
@@ -1552,7 +1793,6 @@ export default function GroupsPage() {
                     <div className="font-serif text-[16px] font-bold text-[#1f6448] sm:text-[18px]">
                       Think your group can take the crown?
                     </div>
-                    <p className="text-xs text-[#637268] sm:text-sm">Keep solving. Climb the ranks. Be the best.</p>
                   </div>
                 </div>
                 <button
@@ -1735,90 +1975,94 @@ export default function GroupsPage() {
         {!loading && activeGroupsTab === 'profile' ? (
           <div className="mx-auto w-full">
             {myMembership ? (
-              <section className="rounded-[22px] border border-[#e7e1d6] bg-white p-4 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-5">
-                <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] text-[44px] shadow-[0_12px_28px_rgba(16,32,24,0.07)] sm:h-28 sm:w-28 sm:text-[50px]">
-                  <IconMark
-                    value={myMembership.icon}
-                    fallback={myMembership.display_name.slice(0, 1).toUpperCase()}
-                  />
-                </div>
-                <h1 className="mt-4 font-serif text-[25px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[28px]">
-                  {myMembership.display_name}
-                </h1>
-                <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                  {selectedGroup?.name || 'Orthodle player'}
-                </p>
-
-                <div className="mt-4 grid grid-cols-3 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-3">
-                  {[
-                    ['Score', formatScore(myMemberStats?.score || 0)],
-                    ['Solves', myMemberStats?.solves || 0],
-                    ['Streak', myMemberStats?.longestStreak || 0],
-                  ].map(([label, value]) => (
-                    <div key={label} className="px-2">
-                      <div className="font-serif text-[20px] font-bold text-[#102018]">{value}</div>
-                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 grid gap-3 text-left">
-                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                    <input
-                      value={editDisplayName}
-                      onChange={event => setEditDisplayName(event.target.value)}
-                      placeholder="Your display name"
-                      className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              <>
+                <section className="rounded-[22px] border border-[#e7e1d6] bg-white p-4 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-5">
+                  <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] text-[44px] shadow-[0_12px_28px_rgba(16,32,24,0.07)] sm:h-28 sm:w-28 sm:text-[50px]">
+                    <IconMark
+                      value={myMembership.icon}
+                      fallback={myMembership.display_name.slice(0, 1).toUpperCase()}
                     />
-                    <button
-                      type="button"
-                      disabled={savingDisplayName || !editDisplayName.trim()}
-                      onClick={() => void updateMyDisplayName()}
-                      className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
-                    >
-                      {savingDisplayName ? 'Saving...' : 'Save name'}
-                    </button>
+                  </div>
+                  <h1 className="mt-4 font-serif text-[25px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[28px]">
+                    {myMembership.display_name}
+                  </h1>
+                  <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                    {selectedGroup?.name || 'Orthodle player'}
+                  </p>
+
+                  <div className="mt-4 grid grid-cols-3 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-3">
+                    {[
+                      ['Score', formatScore(myMemberStats?.score || 0)],
+                      ['Solves', myMemberStats?.solves || 0],
+                      ['Streak', myMemberStats?.longestStreak || 0],
+                    ].map(([label, value]) => (
+                      <div key={label} className="px-2">
+                        <div className="font-serif text-[20px] font-bold text-[#102018]">{value}</div>
+                        <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
+                      </div>
+                    ))}
                   </div>
 
-                  <IconPicker
-                    label="Choose icon"
-                    selectedIcon={editMemberIcon}
-                    isOpen={showSelectedMemberIconPicker}
-                    disabled={savingMemberIcon}
-                    onToggle={() => setShowSelectedMemberIconPicker(prev => !prev)}
-                    onSelect={icon => {
-                      void updateMyMemberIcon(icon)
-                      setShowSelectedMemberIconPicker(false)
-                    }}
-                    ariaLabelPrefix="Use your icon"
-                  />
-
-                  <div className="rounded-2xl border border-[#ece6db] bg-[#fcfbf8] p-3">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                      Bitmoji / image URL
-                    </div>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <div className="mt-4 grid gap-3 text-left">
+                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                       <input
-                        value={bitmojiUrl}
-                        onChange={event => setBitmojiUrl(event.target.value)}
-                        placeholder="Paste an image URL"
+                        value={editDisplayName}
+                        onChange={event => setEditDisplayName(event.target.value)}
+                        placeholder="Your display name"
                         className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />
                       <button
                         type="button"
-                        disabled={savingMemberIcon || !bitmojiUrl.trim()}
-                        onClick={() => void updateMyMemberIcon(bitmojiUrl.trim())}
-                        className="h-10 rounded-xl border border-[#ded7ca] px-4 text-xs font-bold text-[#102018] disabled:opacity-50"
+                        disabled={savingDisplayName || !editDisplayName.trim()}
+                        onClick={() => void updateMyDisplayName()}
+                        className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
                       >
-                        Use image
+                        {savingDisplayName ? 'Saving...' : 'Save name'}
                       </button>
                     </div>
-                    <p className="mt-2 text-xs text-[#637268]">
-                      If you have a hosted Bitmoji/avatar image, paste the direct image link here.
-                    </p>
+
+                    <IconPicker
+                      label="Choose icon"
+                      selectedIcon={editMemberIcon}
+                      isOpen={showSelectedMemberIconPicker}
+                      disabled={savingMemberIcon}
+                      onToggle={() => setShowSelectedMemberIconPicker(prev => !prev)}
+                      onSelect={icon => {
+                        void updateMyMemberIcon(icon)
+                        setShowSelectedMemberIconPicker(false)
+                      }}
+                      ariaLabelPrefix="Use your icon"
+                    />
+
+                    <div className="rounded-2xl border border-[#ece6db] bg-[#fcfbf8] p-3">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        Bitmoji / image URL
+                      </div>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <input
+                          value={bitmojiUrl}
+                          onChange={event => setBitmojiUrl(event.target.value)}
+                          placeholder="Paste an image URL"
+                          className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                        <button
+                          type="button"
+                          disabled={savingMemberIcon || !bitmojiUrl.trim()}
+                          onClick={() => void updateMyMemberIcon(bitmojiUrl.trim())}
+                          className="h-10 rounded-xl border border-[#ded7ca] px-4 text-xs font-bold text-[#102018] disabled:opacity-50"
+                        >
+                          Use image
+                        </button>
+                      </div>
+                      <p className="mt-2 text-xs text-[#637268]">
+                        If you have a hosted Bitmoji/avatar image, paste the direct image link here.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </section>
+                </section>
+
+                <TrophyCase trophies={trophyCaseItems} />
+              </>
             ) : (
               <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-5 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
                 <h1 className="font-serif text-2xl font-bold text-[#102018]">Create your profile</h1>
