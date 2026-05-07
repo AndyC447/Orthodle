@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Info, Share2, UserPlus, X } from 'lucide-react'
-import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 import { getSessionId } from '@/lib/utils'
@@ -71,6 +71,8 @@ type DisplayGroup = {
   avgAccuracy: number | null
   longestStreak: number
 }
+
+type GroupsTab = 'home' | 'my-group' | 'profile'
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
@@ -153,6 +155,64 @@ function buildInviteMessage(group: GroupRow) {
   ].join('\n')
 }
 
+function isImageIcon(value: string | null | undefined) {
+  if (!value) return false
+  return value.startsWith('http://') || value.startsWith('https://') || value.startsWith('data:image/')
+}
+
+function IconMark({
+  value,
+  fallback,
+  className = '',
+}: {
+  value: string | null | undefined
+  fallback: string
+  className?: string
+}) {
+  const displayValue = value || fallback
+
+  if (isImageIcon(displayValue)) {
+    return (
+      <img
+        src={displayValue}
+        alt=""
+        className={`h-full w-full rounded-full object-cover ${className}`}
+      />
+    )
+  }
+
+  return <span className={`leading-none ${className}`}>{displayValue}</span>
+}
+
+function getCurrentWeekRange() {
+  const now = new Date()
+  const day = now.getDay()
+  const daysFromMonday = day === 0 ? 6 : day - 1
+  const start = new Date(now)
+  start.setDate(now.getDate() - daysFromMonday)
+  start.setHours(0, 0, 0, 0)
+
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  end.setHours(23, 59, 59, 999)
+
+  const sameMonth = start.getMonth() === end.getMonth()
+  const startLabel = start.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+  const endLabel = end.toLocaleDateString('en-US', {
+    month: sameMonth ? undefined : 'short',
+    day: 'numeric',
+  })
+
+  return {
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+    label: `Week of ${startLabel} - ${endLabel}`,
+  }
+}
+
 function computeLongestRun(sortedDates: string[]) {
   if (sortedDates.length === 0) return 0
 
@@ -184,32 +244,26 @@ function groupMonogram(name: string) {
     .join('')
 }
 
-function groupAvatarLabel(group: Pick<GroupRow, 'name' | 'icon'>) {
-  return group.icon || groupMonogram(group.name)
-}
-
 function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
   const dimensions =
     size === 'lg'
-      ? 'h-[74px] w-[74px] text-[36px]'
+      ? 'h-16 w-16 text-[31px]'
       : size === 'sm'
-        ? 'h-12 w-12 text-[25px]'
-        : 'h-14 w-14 text-[28px]'
+        ? 'h-9 w-9 text-[20px]'
+        : 'h-12 w-12 text-[24px]'
 
   return (
     <div
       className={`orthodle-group-crest relative flex shrink-0 items-center justify-center rounded-full border border-[#d8cfbf] bg-[#fbf7ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_8px_18px_rgba(16,32,24,0.1)] ${dimensions}`}
       aria-hidden="true"
     >
-      <span className="orthodle-group-crest-mark leading-none">
-        {groupAvatarLabel(group)}
-      </span>
+      <IconMark
+        value={group.icon}
+        fallback={groupMonogram(group.name)}
+        className="orthodle-group-crest-mark"
+      />
     </div>
   )
-}
-
-function memberAvatarLabel(member: Pick<GroupMemberRow, 'display_name' | 'icon'>) {
-  return member.icon || member.display_name.slice(0, 1).toUpperCase()
 }
 
 function MemberAvatar({
@@ -226,7 +280,7 @@ function MemberAvatar({
       className={`orthodle-member-avatar flex shrink-0 items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] font-bold text-[#2d7651] ${dimensions}`}
       aria-hidden="true"
     >
-      {memberAvatarLabel(member)}
+      <IconMark value={member.icon} fallback={member.display_name.slice(0, 1).toUpperCase()} />
     </div>
   )
 }
@@ -263,8 +317,8 @@ function IconPicker({
           aria-expanded={isOpen}
           className="inline-flex h-8 items-center gap-2 rounded-full border border-[#e0d8ca] bg-white px-2 text-[11px] font-semibold text-[#102018] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <span className="orthodle-member-avatar flex h-6 w-6 items-center justify-center rounded-full border border-[#e0d7c8] text-[14px]">
-            {currentIcon}
+          <span className="orthodle-member-avatar flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-[#e0d7c8] text-[14px]">
+            <IconMark value={currentIcon} fallback={DEFAULT_MEMBER_ICON} />
           </span>
           {isOpen ? 'Hide' : 'Change'}
         </button>
@@ -298,6 +352,111 @@ function rankCircleClass(rank: number) {
   if (rank === 2) return 'bg-[#c9ced2] text-white'
   if (rank === 3) return 'bg-[#b8753d] text-white'
   return 'bg-[#e6dfd3] text-[#637268]'
+}
+
+function GroupsTopBanner({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab: GroupsTab
+  onTabChange: (tab: GroupsTab) => void
+}) {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const tabs: Array<{ id: GroupsTab; label: string }> = [
+    { id: 'home', label: 'Home' },
+    { id: 'my-group', label: 'My Group' },
+    { id: 'profile', label: 'Profile' },
+  ]
+
+  useEffect(() => {
+    const savedTheme =
+      (window.localStorage.getItem('orthodle_theme') as 'light' | 'dark' | null) || 'light'
+    setTheme(savedTheme)
+    document.documentElement.dataset.theme = savedTheme
+  }, [])
+
+  function toggleTheme() {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark'
+    setTheme(nextTheme)
+    document.documentElement.dataset.theme = nextTheme
+    window.localStorage.setItem('orthodle_theme', nextTheme)
+  }
+
+  return (
+    <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
+      <div className="mx-auto flex max-w-[760px] items-center justify-between gap-3 px-4 py-2 sm:px-5">
+        <Link href="/" className="font-serif text-xl font-semibold text-[#102018]">
+          <span className="flex items-center gap-2">
+            <span className="text-lg text-[#c96b37]">●</span>
+            Orthodle
+          </span>
+        </Link>
+
+        <button
+          type="button"
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'}
+          onClick={toggleTheme}
+          className={`group flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3] ${
+            theme === 'dark'
+              ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
+              : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+          }`}
+        >
+          <span className="relative flex h-5 w-5 items-center justify-center overflow-hidden">
+            <span
+              className={`absolute text-[15px] leading-none transition-all duration-300 ${
+                theme === 'dark'
+                  ? 'translate-y-0 scale-100 opacity-100'
+                  : '-translate-y-5 scale-75 opacity-0'
+              }`}
+            >
+              ☀
+            </span>
+            <span
+              className={`absolute text-[15px] leading-none transition-all duration-300 ${
+                theme === 'dark'
+                  ? 'translate-y-5 scale-75 opacity-0'
+                  : 'translate-y-0 scale-100 opacity-100'
+              }`}
+            >
+              ☾
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <nav className="mx-auto -mt-1 flex max-w-[760px] justify-center px-4 pb-2 sm:px-5">
+        <div className="w-full max-w-[430px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
+          <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
+            {tabs.map(tab => {
+              const active = activeTab === tab.id
+
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => onTabChange(tab.id)}
+                  className={`flex h-7 items-center justify-center rounded-[16px] px-2 text-[10.5px] font-bold transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651] ${
+                    active
+                      ? 'border border-[#1f6448] bg-[#1f6448] text-white shadow-sm'
+                      : 'border border-[#ebe3d7] bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              )
+            })}
+            <Link
+              href="/"
+              className="flex h-7 items-center justify-center rounded-[16px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-[10.5px] font-bold text-[#102018] transition hover:bg-[#f7f5f0] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]"
+            >
+              Cases
+            </Link>
+          </div>
+        </div>
+      </nav>
+    </header>
+  )
 }
 
 function formatScore(value: number) {
@@ -377,6 +536,7 @@ function buildMemberStats(
 export default function GroupsPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [activeGroupsTab, setActiveGroupsTab] = useState<GroupsTab>('home')
   const [groups, setGroups] = useState<GroupRow[]>([])
   const [members, setMembers] = useState<GroupMemberRow[]>([])
   const [guessRows, setGuessRows] = useState<GuessRow[]>([])
@@ -412,6 +572,8 @@ export default function GroupsPage() {
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
   const [editMemberIcon, setEditMemberIcon] = useState(DEFAULT_MEMBER_ICON)
+  const [bitmojiUrl, setBitmojiUrl] = useState('')
+  const [removingMemberId, setRemovingMemberId] = useState('')
   const sessionId = useMemo(() => getSessionId(), [])
   const router = useRouter()
 
@@ -595,15 +757,10 @@ export default function GroupsPage() {
   const alreadyInJoinTarget = joinTargetGroup
     ? members.some(member => member.group_id === joinTargetGroup.id && member.session_id === sessionId)
     : false
-  const weekStartIso = useMemo(() => {
-    const date = new Date()
-    date.setDate(date.getDate() - 6)
-    date.setHours(0, 0, 0, 0)
-    return date.toISOString()
-  }, [])
+  const weekRange = useMemo(() => getCurrentWeekRange(), [])
   const visibleGuessRows = useMemo(
-    () => guessRows.filter(row => row.created_at >= weekStartIso),
-    [guessRows, weekStartIso]
+    () => guessRows.filter(row => row.created_at >= weekRange.startIso && row.created_at <= weekRange.endIso),
+    [guessRows, weekRange.endIso, weekRange.startIso]
   )
 
   const groupAggregates = useMemo<GroupAggregate[]>(() => {
@@ -666,8 +823,17 @@ export default function GroupsPage() {
     ? groupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
     : null
   const myMembership = selectedMembers.find(member => member.session_id === sessionId) || null
+  const myMemberStats =
+    selectedGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
   const canEditSelectedGroup = selectedGroup?.creator_session_id === sessionId
   const canChangeSelectedGroupIcon = Boolean(canEditSelectedGroup)
+  const groupOfWeekAggregate = groupAggregates[0] || null
+  const mvpEntry = groupOfWeekAggregate?.memberStats[0]
+    ? {
+        stats: groupOfWeekAggregate.memberStats[0],
+        group: groupOfWeekAggregate.group,
+      }
+    : null
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
@@ -676,6 +842,7 @@ export default function GroupsPage() {
   useEffect(() => {
     setEditDisplayName(myMembership?.display_name || '')
     setEditMemberIcon(myMembership?.icon || DEFAULT_MEMBER_ICON)
+    setBitmojiUrl(isImageIcon(myMembership?.icon) ? myMembership?.icon || '' : '')
   }, [myMembership?.id, myMembership?.display_name, myMembership?.icon])
 
   useEffect(() => {
@@ -1036,6 +1203,46 @@ export default function GroupsPage() {
     setSavingMemberIcon(false)
   }
 
+  async function removeMemberFromGroup(member: GroupMemberRow) {
+    if (!selectedGroup || !canEditSelectedGroup) {
+      setMessage('Only the group leader can remove players.')
+      return
+    }
+
+    if (member.session_id === sessionId) {
+      setMessage('The group leader cannot remove themselves here.')
+      return
+    }
+
+    const confirmed = window.confirm(`Remove ${member.display_name} from ${selectedGroup.name}?`)
+    if (!confirmed) return
+
+    setRemovingMemberId(member.id)
+    setMessage('')
+
+    const response = await fetch('/api/groups/remove-member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        groupId: selectedGroup.id,
+        memberId: member.id,
+        leaderSessionId: sessionId,
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      setRemovingMemberId('')
+      setMessage(payload.error || 'Could not remove that player.')
+      return
+    }
+
+    setMembers(prev => prev.filter(entry => entry.id !== member.id))
+    setRemovingMemberId('')
+    setMessage(`${member.display_name} removed from ${selectedGroup.name}.`)
+  }
+
   async function submitGroupForm() {
     if (groupActionMode === 'join') {
       await joinGroup()
@@ -1082,7 +1289,13 @@ export default function GroupsPage() {
 
   return (
     <main className="app-surface min-h-screen">
-      <Header />
+      <GroupsTopBanner
+        activeTab={activeGroupsTab}
+        onTabChange={tab => {
+          setActiveGroupsTab(tab)
+          setShowJoinPanel(false)
+        }}
+      />
 
       {showGroupsExplainer ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
@@ -1129,7 +1342,657 @@ export default function GroupsPage() {
         </div>
       ) : null}
 
-      <section className="mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
+      <section className="mx-auto max-w-[760px] px-3 py-3 sm:px-5 sm:py-5">
+        {message ? (
+          <div className="mb-4 rounded-2xl border border-[#e7e1d6] bg-white px-4 py-3 text-sm text-[#355542] shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            {message}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-4 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
+            <div className="mx-auto h-2 w-24 rounded-full bg-[#e8e1d6]" />
+            <div className="mx-auto mt-3 h-2 w-36 rounded-full bg-[#f1ece3]" />
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              Loading groups
+            </p>
+          </section>
+        ) : activeGroupsTab === 'home' ? (
+          <div className="space-y-3 sm:space-y-3.5">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-[0.92fr_1.55fr]">
+              <section className="relative overflow-hidden rounded-[18px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.22),transparent_28%),linear-gradient(145deg,#0b4d36,#042f22)] p-2.5 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.18)] sm:rounded-[20px] sm:p-4">
+                <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.5px,transparent_1.5px)] [background-size:34px_34px]" />
+                <div className="relative">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f0c247]">
+                    Group of the week
+                  </div>
+                  <div className="mx-auto mt-3 flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#f0c247] bg-[#ffffff12] text-[36px] shadow-[0_10px_22px_rgba(0,0,0,0.14)] sm:h-24 sm:w-24 sm:text-[52px]">
+                    🏆
+                  </div>
+                  <h2 className="mt-3 font-serif text-[18px] font-bold tracking-[-0.05em] sm:text-[24px]">
+                    {groupOfWeekAggregate?.group.name || 'No champion yet'}
+                  </h2>
+                  <p className="mt-1 text-[11px] text-[#e4efe9]">{weekRange.label}</p>
+                  <div className="mx-auto mt-3 flex max-w-[138px] items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-2 py-1.5 sm:max-w-[160px] sm:py-2">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-xl bg-[#ffffff12] text-sm">
+                      ↗
+                    </span>
+                    <div className="text-left">
+                      <div className="font-serif text-base font-bold leading-none sm:text-lg">
+                        {formatScore(groupOfWeekAggregate?.score || 0)}
+                      </div>
+                      <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#d7e6de] sm:text-[9px]">
+                        avg score
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_12px_28px_rgba(16,32,24,0.045)] sm:rounded-[20px] sm:p-4">
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#d69a28]">
+                  MVP player
+                </div>
+                {mvpEntry ? (
+                  <div className="mt-3 grid gap-2.5 md:grid-cols-[1fr_1px_1fr] md:items-center">
+                    <div className="text-center">
+                      <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] shadow-[0_9px_20px_rgba(16,32,24,0.06)] sm:h-24 sm:w-24">
+                        <div className="absolute -top-4 text-[23px] sm:-top-5 sm:text-[28px]">👑</div>
+                        <IconMark
+                          value={mvpEntry.stats.member.icon}
+                          fallback={mvpEntry.stats.member.display_name.slice(0, 1).toUpperCase()}
+                          className="text-[30px] sm:text-[44px]"
+                        />
+                      </div>
+                      <h2 className="mt-2.5 font-serif text-[17px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[22px]">
+                        {mvpEntry.stats.member.display_name}
+                      </h2>
+                      <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[10px]">
+                        {mvpEntry.group.name}
+                      </p>
+                      <div className="mx-auto mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#ead9b7] bg-[#fffaf1] px-2 py-1 text-[10px] font-bold text-[#102018]">
+                        ⭐ {formatScore(mvpEntry.stats.score)} pts
+                      </div>
+                    </div>
+
+                    <div className="hidden h-full bg-[#ece6db] md:block" />
+
+                    <div className="space-y-2">
+                      {[
+                        {
+                          icon: '◎',
+                          value:
+                            mvpEntry.stats.totalGuesses > 0
+                              ? `${Math.round((mvpEntry.stats.correctGuesses / mvpEntry.stats.totalGuesses) * 100)}%`
+                              : '—',
+                          label: 'Accuracy',
+                        },
+                        {
+                          icon: 'ϟ',
+                          value: mvpEntry.stats.firstTrySolves,
+                          label: 'First try solves',
+                        },
+                        {
+                          icon: '♨',
+                          value: mvpEntry.stats.longestStreak,
+                          label: 'Day streak',
+                        },
+                      ].map(item => (
+                        <div key={item.label} className="flex items-center gap-2">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#eaf4ee] text-sm text-[#1f6448] sm:h-9 sm:w-9 sm:text-lg">
+                            {item.icon}
+                          </div>
+                          <div>
+                            <div className="font-serif text-[16px] font-bold leading-none text-[#102018] sm:text-[20px]">
+                              {item.value}
+                            </div>
+                            <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px]">
+                              {item.label}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="hidden rounded-2xl border border-[#eadfce] bg-[#fffaf1] px-3 py-2 text-[11px] leading-4 text-[#1f6448] sm:block sm:text-xs sm:leading-5">
+                        Top performer of the week. Leading the pack!
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-3 py-6 text-center text-xs text-[#637268]">
+                    No MVP yet. First correct solves this week will crown one.
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
+                  Leaderboard
+                </div>
+                {leaderboardEntries.length > 5 ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllGroups(prev => !prev)}
+                    className="rounded-full border border-[#e6dfd3] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    {showAllGroups ? 'Top 5' : 'This week'}⌄
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="mt-3 space-y-2">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <div key={index} className="h-[58px] rounded-2xl bg-[#fcfbf8]" />
+                  ))
+                ) : visibleLeaderboardEntries.length > 0 ? (
+                  visibleLeaderboardEntries.map((group, index) => {
+                    const rank = index + 1
+                    return (
+                      <button
+                        key={group.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedGroupId(group.id)
+                          setActiveGroupsTab('my-group')
+                        }}
+                        className={`grid w-full grid-cols-[34px_38px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-2xl border px-2.5 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[42px_46px_minmax(0,1fr)_86px_86px_76px] sm:px-3.5 ${
+                          rank === 1 ? 'border-[#e7b83f] bg-[#fffdf8]' : 'border-[#ece6db] bg-white'
+                        }`}
+                      >
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${rankCircleClass(rank)}`}>
+                          {rank}
+                        </div>
+                        <GroupCrest group={group} size="sm" />
+                        <div className="min-w-0">
+                          <div className="truncate font-serif text-[15px] font-bold text-[#102018] sm:text-[17px]">
+                            {group.name}
+                          </div>
+                          <div className="mt-0.5 text-xs text-[#637268]">{formatMemberCount(group.members)}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-serif text-[19px] font-bold leading-none text-[#102018] sm:text-[21px]">
+                            {formatScore(group.score)}
+                          </div>
+                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                            avg score
+                          </div>
+                        </div>
+                        <div className="hidden text-center sm:block">
+                          <div className="font-serif text-[19px] font-bold leading-none text-[#102018] sm:text-[21px]">
+                            {group.avgAccuracy !== null ? `${Math.round(group.avgAccuracy)}%` : '—'}
+                          </div>
+                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                            accuracy
+                          </div>
+                        </div>
+                        <div className="hidden text-center sm:block">
+                          <div className="font-serif text-[19px] font-bold leading-none text-[#102018] sm:text-[21px]">
+                            {group.longestStreak}
+                          </div>
+                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                            day streak
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#637268]">
+                    No groups yet. Create one and take the crown.
+                  </div>
+                )}
+              </div>
+
+              <div className="orthodle-groups-cta mt-4 flex flex-col gap-3 rounded-2xl border border-[#d7e8dd] bg-[#eef8f2] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl">🎉</div>
+                  <div>
+                    <div className="font-serif text-[16px] font-bold text-[#1f6448] sm:text-[18px]">
+                      Think your group can take the crown?
+                    </div>
+                    <p className="text-xs text-[#637268] sm:text-sm">Keep solving. Climb the ranks. Be the best.</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowJoinPanel(true)
+                    setGroupActionMode(selectedGroup ? 'join' : 'create')
+                  }}
+                  className="h-10 rounded-xl bg-[#007a52] px-4 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#006743]"
+                >
+                  {selectedGroup ? 'Invite / Join' : 'Create group'}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {!loading && activeGroupsTab === 'my-group' ? (
+          <div className="space-y-3.5 sm:space-y-4">
+            {selectedGroup && selectedGroupAggregate ? (
+              <>
+                <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-4 shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <GroupCrest group={selectedGroup} size="lg" />
+                      <div className="min-w-0">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          My group
+                        </div>
+                        <h1 className="truncate font-serif text-[24px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[27px]">
+                          {selectedGroup.name}
+                        </h1>
+                        <p className="text-xs text-[#637268]">
+                          {formatMemberCount(selectedGroupAggregate.members.length)} · Invite code {selectedGroup.join_code}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void shareInviteLink(selectedGroup)}
+                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white transition hover:-translate-y-0.5"
+                    >
+                      <Share2 size={16} strokeWidth={2} />
+                      {copiedCode === selectedGroup.id ? 'Copied' : 'Invite teammates'}
+                    </button>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-4 divide-x divide-[#ece6db] border-t border-[#ece6db] pt-4 text-center">
+                    {[
+                      ['Rank', `#${selectedGroupRank || '—'}`],
+                      ['Avg score', formatScore(selectedGroupAggregate.score)],
+                      ['Accuracy', selectedGroupAggregate.avgAccuracy !== null ? `${Math.round(selectedGroupAggregate.avgAccuracy)}%` : '—'],
+                      ['Streak', selectedGroupAggregate.longestStreak],
+                    ].map(([label, value]) => (
+                      <div key={label} className="px-2">
+                        <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
+                        <div className="mt-1 font-serif text-[19px] font-bold text-[#102018] sm:text-[21px]">{value}</div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {canEditSelectedGroup ? (
+                  <section className="rounded-[18px] border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.035)]">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                      Leader tools
+                    </div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]">
+                      <input
+                        value={editGroupName}
+                        onChange={event => setEditGroupName(event.target.value)}
+                        placeholder="Group name"
+                        className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                      <button
+                        type="button"
+                        disabled={savingGroupName || !editGroupName.trim()}
+                        onClick={() => void updateSelectedGroupName()}
+                        className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
+                      >
+                        {savingGroupName ? 'Saving...' : 'Save group'}
+                      </button>
+                    </div>
+                    <div className="mt-3">
+                      <IconPicker
+                        label="Group icon"
+                        selectedIcon={selectedGroup.icon}
+                        isOpen={showSelectedGroupIconPicker}
+                        disabled={savingGroupIcon}
+                        onToggle={() => setShowSelectedGroupIconPicker(prev => !prev)}
+                        onSelect={icon => {
+                          void updateSelectedGroupIcon(icon)
+                          setShowSelectedGroupIconPicker(false)
+                        }}
+                        ariaLabelPrefix="Use group icon"
+                      />
+                    </div>
+                  </section>
+                ) : null}
+
+                <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
+                    Member leaderboard
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {selectedGroupAggregate.memberStats.length > 0 ? (
+                      selectedGroupAggregate.memberStats.map((entry, index) => (
+                        <div
+                          key={entry.member.id}
+                          className="grid grid-cols-[32px_34px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-2xl border border-[#ece6db] bg-white px-2.5 py-2"
+                        >
+                          <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${rankCircleClass(index + 1)}`}>
+                            {index + 1}
+                          </div>
+                          <MemberAvatar member={entry.member} />
+                          <div className="min-w-0">
+                            <div className="truncate font-serif text-[15px] font-bold text-[#102018] sm:text-[17px]">
+                              {entry.member.display_name}
+                              {entry.member.session_id === sessionId ? (
+                                <span className="ml-2 rounded-full bg-[#eef7f1] px-2 py-0.5 align-middle text-[10px] font-bold text-[#2d7651]">
+                                  You
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="text-[11px] text-[#637268] sm:text-xs">
+                              {entry.solves} solves · {entry.firstTrySolves} first try · {entry.longestStreak} day streak
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <div className="font-serif text-[18px] font-bold leading-none text-[#102018] sm:text-[20px]">
+                                {formatScore(entry.score)}
+                              </div>
+                              <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                                pts
+                              </div>
+                            </div>
+                            {canEditSelectedGroup && entry.member.session_id !== sessionId ? (
+                              <button
+                                type="button"
+                                disabled={removingMemberId === entry.member.id}
+                                onClick={() => void removeMemberFromGroup(entry.member)}
+                                className="rounded-full border border-[#f0d7c8] px-2.5 py-1 text-[10px] font-bold text-[#a24d24] transition hover:bg-[#fff1e8] disabled:opacity-50"
+                              >
+                                {removingMemberId === entry.member.id ? 'Removing' : 'Remove'}
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#637268]">
+                        No members yet.
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-5 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
+                <h1 className="font-serif text-2xl font-bold text-[#102018]">No group yet</h1>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#637268]">
+                  Create or join a group to unlock your private leaderboard.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowJoinPanel(true)
+                    setGroupActionMode('join')
+                  }}
+                  className="mt-4 rounded-xl bg-[#1f6448] px-4 py-2.5 text-xs font-bold text-white"
+                >
+                  Join or create
+                </button>
+              </section>
+            )}
+          </div>
+        ) : null}
+
+        {!loading && activeGroupsTab === 'profile' ? (
+          <div className="mx-auto w-full">
+            {myMembership ? (
+              <section className="rounded-[22px] border border-[#e7e1d6] bg-white p-4 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-5">
+                <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] text-[44px] shadow-[0_12px_28px_rgba(16,32,24,0.07)] sm:h-28 sm:w-28 sm:text-[50px]">
+                  <IconMark
+                    value={myMembership.icon}
+                    fallback={myMembership.display_name.slice(0, 1).toUpperCase()}
+                  />
+                </div>
+                <h1 className="mt-4 font-serif text-[25px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[28px]">
+                  {myMembership.display_name}
+                </h1>
+                <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                  {selectedGroup?.name || 'Orthodle player'}
+                </p>
+
+                <div className="mt-4 grid grid-cols-3 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-3">
+                  {[
+                    ['Score', formatScore(myMemberStats?.score || 0)],
+                    ['Solves', myMemberStats?.solves || 0],
+                    ['Streak', myMemberStats?.longestStreak || 0],
+                  ].map(([label, value]) => (
+                    <div key={label} className="px-2">
+                      <div className="font-serif text-[20px] font-bold text-[#102018]">{value}</div>
+                      <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-4 grid gap-3 text-left">
+                  <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <input
+                      value={editDisplayName}
+                      onChange={event => setEditDisplayName(event.target.value)}
+                      placeholder="Your display name"
+                      className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                    <button
+                      type="button"
+                      disabled={savingDisplayName || !editDisplayName.trim()}
+                      onClick={() => void updateMyDisplayName()}
+                      className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
+                    >
+                      {savingDisplayName ? 'Saving...' : 'Save name'}
+                    </button>
+                  </div>
+
+                  <IconPicker
+                    label="Choose icon"
+                    selectedIcon={editMemberIcon}
+                    isOpen={showSelectedMemberIconPicker}
+                    disabled={savingMemberIcon}
+                    onToggle={() => setShowSelectedMemberIconPicker(prev => !prev)}
+                    onSelect={icon => {
+                      void updateMyMemberIcon(icon)
+                      setShowSelectedMemberIconPicker(false)
+                    }}
+                    ariaLabelPrefix="Use your icon"
+                  />
+
+                  <div className="rounded-2xl border border-[#ece6db] bg-[#fcfbf8] p-3">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                      Bitmoji / image URL
+                    </div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <input
+                        value={bitmojiUrl}
+                        onChange={event => setBitmojiUrl(event.target.value)}
+                        placeholder="Paste an image URL"
+                        className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      />
+                      <button
+                        type="button"
+                        disabled={savingMemberIcon || !bitmojiUrl.trim()}
+                        onClick={() => void updateMyMemberIcon(bitmojiUrl.trim())}
+                        className="h-10 rounded-xl border border-[#ded7ca] px-4 text-xs font-bold text-[#102018] disabled:opacity-50"
+                      >
+                        Use image
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-[#637268]">
+                      If you have a hosted Bitmoji/avatar image, paste the direct image link here.
+                    </p>
+                  </div>
+                </div>
+              </section>
+            ) : (
+              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-5 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
+                <h1 className="font-serif text-2xl font-bold text-[#102018]">Create your profile</h1>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#637268]">
+                  Join a group first, then you can customize your player name, icon, and stats card.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowJoinPanel(true)
+                    setGroupActionMode('join')
+                  }}
+                  className="mt-4 rounded-xl bg-[#1f6448] px-4 py-2.5 text-xs font-bold text-white"
+                >
+                  Join or create
+                </button>
+              </section>
+            )}
+          </div>
+        ) : null}
+
+        {showJoinPanel ? (
+          <section className="mt-5 rounded-[22px] border border-[#e6dfd3] bg-white px-4 py-4 shadow-[0_12px_30px_rgba(16,32,24,0.05)]">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                  {groupActionMode === 'join' ? 'Join a group' : 'Create a group'}
+                </div>
+                <div className="mt-1 text-[12px] text-[#637268]">
+                  {groupActionMode === 'join'
+                    ? 'Use a group code from a teammate.'
+                    : 'Start a private leaderboard for your team.'}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setGroupActionMode('join')}
+                    className={`rounded-full px-2.5 py-1 transition ${
+                      groupActionMode === 'join'
+                        ? 'bg-[#2d7651] text-white'
+                        : 'text-[#637268] hover:text-[#102018]'
+                    }`}
+                  >
+                    Join
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setGroupActionMode('create')}
+                    className={`rounded-full px-2.5 py-1 transition ${
+                      groupActionMode === 'create'
+                        ? 'bg-[#2d7651] text-white'
+                        : 'text-[#637268] hover:text-[#102018]'
+                    }`}
+                  >
+                    Create
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowJoinPanel(false)}
+                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:bg-[#fcfbf8]"
+                  aria-label="Close group form"
+                >
+                  <X size={13} strokeWidth={2} />
+                </button>
+              </div>
+            </div>
+
+            {groupActionMode === 'join' ? (
+              <>
+                <div className="mt-3">
+                  <IconPicker
+                    label="Your icon"
+                    selectedIcon={joinMemberIcon}
+                    isOpen={showJoinMemberIconPicker}
+                    onToggle={() => setShowJoinMemberIconPicker(prev => !prev)}
+                    onSelect={icon => {
+                      setJoinMemberIcon(icon)
+                      setShowJoinMemberIconPicker(false)
+                    }}
+                    ariaLabelPrefix="Use your icon"
+                  />
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <input
+                    value={joinCode}
+                    onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
+                    placeholder="Group code"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  />
+                  <input
+                    value={joinDisplayName}
+                    onChange={event => setJoinDisplayName(event.target.value)}
+                    placeholder="Your display name"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  />
+                  <button
+                    type="button"
+                    disabled={
+                      joining ||
+                      !normalizedJoinCode ||
+                      !joinDisplayName.trim() ||
+                      Boolean(normalizedJoinCode && !joinTargetGroup)
+                    }
+                    onClick={() => void submitGroupForm()}
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[#2d7651] px-4 text-[12px] font-bold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {joining ? 'Joining...' : alreadyInJoinTarget ? 'Update' : 'Join'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <IconPicker
+                    label="Group icon"
+                    selectedIcon={createIcon}
+                    isOpen={showCreateGroupIconPicker}
+                    onToggle={() => setShowCreateGroupIconPicker(prev => !prev)}
+                    onSelect={icon => {
+                      setCreateIcon(icon)
+                      setShowCreateGroupIconPicker(false)
+                    }}
+                    ariaLabelPrefix="Use group icon"
+                  />
+                  <IconPicker
+                    label="Your icon"
+                    selectedIcon={createMemberIcon}
+                    isOpen={showCreateMemberIconPicker}
+                    onToggle={() => setShowCreateMemberIconPicker(prev => !prev)}
+                    onSelect={icon => {
+                      setCreateMemberIcon(icon)
+                      setShowCreateMemberIconPicker(false)
+                    }}
+                    ariaLabelPrefix="Use your icon"
+                  />
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                  <input
+                    value={createName}
+                    onChange={event => setCreateName(event.target.value)}
+                    placeholder="Group name"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  />
+                  <input
+                    value={createDisplayName}
+                    onChange={event => setCreateDisplayName(event.target.value)}
+                    placeholder="Your display name"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  />
+                  <input
+                    value={createCode}
+                    onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
+                    placeholder="Custom code"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  />
+                  <button
+                    type="button"
+                    disabled={creating || !createName.trim() || !createDisplayName.trim()}
+                    onClick={() => void submitGroupForm()}
+                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[#2d7651] px-4 text-[12px] font-bold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {creating ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        ) : null}
+      </section>
+
+      <section className="hidden mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
         <div className="night-surface orthodle-groups-shell rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
           <div className="space-y-3.5 sm:space-y-4">
             <div>
@@ -1147,6 +2010,9 @@ export default function GroupsPage() {
                     <Info size={14} strokeWidth={2} />
                   </button>
                 </div>
+                <p className="mt-1 max-w-[420px] text-[12px] leading-5 text-[#637268] sm:text-[13px]">
+                  Private leaderboards for your class, rotation, residency, or friends.
+                </p>
               </div>
             </div>
 
@@ -1181,7 +2047,7 @@ export default function GroupsPage() {
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
-                        <GroupCrest group={selectedGroup} size="lg" />
+                        <GroupCrest group={selectedGroup} size="md" />
                         <div className="min-w-0">
                           <div className="truncate font-serif text-[18px] font-semibold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
                             {selectedGroup.name}
@@ -1202,8 +2068,8 @@ export default function GroupsPage() {
                   </button>
 
                   {yourGroupOpen ? (
-                    <div className="rounded-[16px] bg-[#fcfbf8] px-3 py-2">
-                      <div className="space-y-2 border-b border-[#ece6db] pb-3">
+                    <div className="rounded-[16px] bg-[#fcfbf8] px-3 py-2.5">
+                      <div className="space-y-2">
                         {canEditSelectedGroup ? (
                           <>
                             <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
@@ -1271,40 +2137,6 @@ export default function GroupsPage() {
                         ) : null}
                       </div>
 
-                      <div className="mb-1 mt-3 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Member leaderboard
-                      </div>
-                      <div className="divide-y divide-[#ece6db]">
-                        {selectedGroupAggregate.memberStats.length > 0 ? (
-                          selectedGroupAggregate.memberStats.map((entry, index) => (
-                            <div
-                              key={entry.member.id}
-                              className="grid grid-cols-[22px_30px_1fr_auto] items-center gap-2 py-2 text-[12px]"
-                            >
-                              <span className="font-semibold text-[#102018]">{index + 1}</span>
-                              <MemberAvatar member={entry.member} size="sm" />
-                              <div className="min-w-0">
-                                <div className="truncate font-semibold text-[#102018]">
-                                  {entry.member.display_name}
-                                  {entry.member.session_id === sessionId ? (
-                                    <span className="ml-1 rounded-full bg-[#eef7f1] px-1.5 py-0.5 text-[9px] font-semibold text-[#2d7651]">
-                                      You
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <div className="mt-0.5 text-[10px] text-[#637268]">
-                                  {entry.solves} solves · {entry.longestStreak} day streak
-                                </div>
-                              </div>
-                              <div className="text-right font-serif text-[15px] font-semibold text-[#102018]">
-                                {formatScore(entry.score)}
-                              </div>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="py-2 text-[12px] text-[#637268]">No members yet.</div>
-                        )}
-                      </div>
                     </div>
                   ) : null}
 
@@ -1386,6 +2218,11 @@ export default function GroupsPage() {
                             <div className="min-w-0">
                               <div className="truncate text-[11px] font-semibold text-[#102018]">
                                 {entry.member.display_name}
+                                {entry.member.session_id === sessionId ? (
+                                  <span className="ml-1 rounded-full bg-[#eef7f1] px-1.5 py-0.5 text-[9px] font-semibold text-[#2d7651]">
+                                    You
+                                  </span>
+                                ) : null}
                               </div>
                               <div className="text-[10px] text-[#637268]">
                                 {entry.solves} solves · {entry.firstTrySolves} first try
@@ -1434,14 +2271,14 @@ export default function GroupsPage() {
                     {Array.from({ length: 3 }).map((_, index) => (
                       <div
                         key={index}
-                        className="h-[136px] rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] sm:h-[154px]"
+                        className="h-[118px] rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] sm:h-[146px]"
                       />
                     ))}
                   </div>
                 </div>
               ) : leaderboardEntries.length > 0 ? (
                 <div className="pb-1.5 pt-1.5">
-                  <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+                  <div className="flex justify-center gap-1.5 sm:gap-3">
                     {leaderboardEntries.slice(0, 3).map((group, index) => {
                       const rank = index + 1
                       return (
@@ -1452,7 +2289,7 @@ export default function GroupsPage() {
                             router.push(`/groups/${group.id}`)
                           }}
                           data-rank={rank}
-                          className="orthodle-podium-card relative flex min-h-[136px] w-full flex-col items-center overflow-hidden rounded-[16px] border border-[#e0d7c8] bg-[linear-gradient(180deg,#fffdf8,#fbf7ef)] px-1.5 py-2.5 text-center shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(16,32,24,0.1)] sm:min-h-[154px] sm:rounded-[18px] sm:px-2.5 sm:py-3"
+                          className="orthodle-podium-card relative flex min-h-[118px] w-[32%] max-w-[150px] flex-col items-center overflow-hidden rounded-[16px] border border-[#e0d7c8] bg-[linear-gradient(180deg,#fffdf8,#fbf7ef)] px-1.5 py-2 text-center shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(16,32,24,0.1)] sm:min-h-[146px] sm:rounded-[18px] sm:px-2.5 sm:py-3"
                         >
                           <div className="absolute inset-x-6 bottom-0 h-px bg-[linear-gradient(90deg,transparent,#d8a947,transparent)]" />
                           <div
@@ -1460,17 +2297,17 @@ export default function GroupsPage() {
                           >
                             {rank}
                           </div>
-                          <div className="mt-1.5 sm:mt-2">
+                          <div className="mt-1 sm:mt-2">
                             <GroupCrest group={group} size="sm" />
                           </div>
-                          <div className="mt-1.5 line-clamp-2 min-h-[30px] font-serif text-[12px] font-semibold leading-tight text-[#102018] sm:mt-2 sm:text-[14px]">
+                          <div className="mt-1 line-clamp-2 min-h-[28px] font-serif text-[12px] font-semibold leading-tight text-[#102018] sm:mt-2 sm:text-[14px]">
                             {group.name}
                           </div>
-                          <div className="mt-1 text-[14px] font-semibold leading-none text-[#2d7651] sm:mt-1.5 sm:text-[16px]">
+                          <div className="mt-0.5 text-[14px] font-semibold leading-none text-[#2d7651] sm:mt-1.5 sm:text-[16px]">
                             {formatScore(group.score)}
                           </div>
                           <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8a9389]">
-                            score
+                            avg
                           </div>
                         </button>
                       )
@@ -1567,7 +2404,7 @@ export default function GroupsPage() {
               </div>
             </section>
 
-            <section className={`grid gap-1.5 ${selectedGroup ? 'sm:grid-cols-2' : ''}`}>
+            <section className={`grid gap-1.5 ${selectedGroup ? 'grid-cols-2' : ''}`}>
               <button
                 type="button"
                 onClick={() => {
@@ -1618,28 +2455,38 @@ export default function GroupsPage() {
                         : 'Start a private leaderboard for your team.'}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
+                  <div className="flex items-center gap-1.5">
+                    <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setGroupActionMode('join')}
+                        className={`rounded-full px-2.5 py-1 transition ${
+                          groupActionMode === 'join'
+                            ? 'bg-[#2d7651] text-white'
+                            : 'text-[#637268] hover:text-[#102018]'
+                        }`}
+                      >
+                        Join
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGroupActionMode('create')}
+                        className={`rounded-full px-2.5 py-1 transition ${
+                          groupActionMode === 'create'
+                            ? 'bg-[#2d7651] text-white'
+                            : 'text-[#637268] hover:text-[#102018]'
+                        }`}
+                      >
+                        Create
+                      </button>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setGroupActionMode('join')}
-                      className={`rounded-full px-2.5 py-1 transition ${
-                        groupActionMode === 'join'
-                          ? 'bg-[#2d7651] text-white'
-                          : 'text-[#637268] hover:text-[#102018]'
-                      }`}
+                      onClick={() => setShowJoinPanel(false)}
+                      className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:bg-[#fcfbf8]"
+                      aria-label="Close group form"
                     >
-                      Join
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setGroupActionMode('create')}
-                      className={`rounded-full px-2.5 py-1 transition ${
-                        groupActionMode === 'create'
-                          ? 'bg-[#2d7651] text-white'
-                          : 'text-[#637268] hover:text-[#102018]'
-                      }`}
-                    >
-                      Create
+                      <X size={13} strokeWidth={2} />
                     </button>
                   </div>
                 </div>

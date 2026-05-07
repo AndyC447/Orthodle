@@ -390,6 +390,13 @@ body {
   border-color: rgba(250, 245, 236, 0.44) !important;
 }
 
+:root[data-theme="dark"] .orthodle-groups-cta {
+  background:
+    linear-gradient(135deg, rgba(94, 168, 132, 0.16), rgba(227, 151, 100, 0.08)),
+    var(--card-strong) !important;
+  border-color: rgba(250, 245, 236, 0.22) !important;
+}
+
 :root[data-theme="dark"] .shadow-\[0_10px_30px_rgba\(16\,32\,24\,0\.06\)\],
 :root[data-theme="dark"] .shadow-\[0_18px_40px_rgba\(16\,32\,24\,0\.06\)\] {
   box-shadow: var(--shadow) !important;
