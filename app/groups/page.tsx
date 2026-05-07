@@ -558,13 +558,44 @@ function GroupsTopBanner({
 
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
-      <div className="mx-auto hidden max-w-[760px] items-center justify-between gap-3 px-4 py-2 sm:flex sm:px-5">
+      <div className="mx-auto hidden max-w-[760px] items-center gap-4 px-4 py-2 sm:flex sm:px-5">
         <Link href="/" className="font-serif text-xl font-semibold text-[#102018]">
           <span className="flex items-center gap-2">
             <span className="text-lg text-[#c96b37]">●</span>
             Orthodle
           </span>
         </Link>
+
+        <nav className="flex flex-1 justify-center">
+          <div className="w-full max-w-[390px] rounded-[24px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
+            <div className="grid grid-cols-4 gap-1 rounded-[22px] bg-white p-1">
+              <Link
+                href="/"
+                className={`${navItemClass} bg-[#fffdf8] px-2 text-[11px] text-[#102018] hover:bg-[#f7f5f0]`}
+              >
+                Cases
+              </Link>
+              {tabs.map(tab => {
+                const active = activeTab === tab.id
+
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => onTabChange(tab.id)}
+                    className={`${navItemClass} px-2 text-[11px] ${
+                      active
+                        ? 'border border-[#1f6448] bg-[#1f6448] text-white shadow-sm'
+                        : 'bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </nav>
 
         <button
           type="button"
@@ -599,7 +630,7 @@ function GroupsTopBanner({
         </button>
       </div>
 
-      <nav className="mx-auto flex max-w-[760px] justify-center px-4 py-2 sm:-mt-1 sm:px-5 sm:pb-2 sm:pt-0">
+      <nav className="mx-auto flex max-w-[760px] justify-center px-4 py-2 sm:hidden sm:px-5 sm:pb-2 sm:pt-0">
         <div className="w-full max-w-[430px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
           <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
             <Link
@@ -643,55 +674,109 @@ function TrophyCase({
     earned: boolean
   }>
 }) {
+  const [selectedTrophy, setSelectedTrophy] = useState<{
+    title: string
+    description: string
+    icon: string
+    earned: boolean
+  } | null>(null)
   const earnedCount = trophies.filter(trophy => trophy.earned).length
 
   return (
-    <section className="mt-3 rounded-[20px] border border-[#e7e1d6] bg-white p-3 text-left shadow-[0_10px_26px_rgba(16,32,24,0.04)] sm:p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-serif text-[21px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[23px]">
-            <span className="mr-1.5 text-[19px]">🏆</span>
-            Trophy Case
-          </h2>
-          <p className="mt-0.5 text-[11px] text-[#637268] sm:text-xs">
-            Earn trophies. Flex on the competition.
-          </p>
-        </div>
-        <div className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">
-          {earnedCount}/{trophies.length}
-        </div>
-      </div>
-
-      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
-        {trophies.map(trophy => (
-          <div
-            key={trophy.title}
-            className={`rounded-[14px] border px-1.5 py-2 text-center transition ${
-              trophy.earned
-                ? 'border-[#ead9b7] bg-[radial-gradient(circle_at_50%_0%,rgba(231,184,63,0.16),transparent_42%),#fffdf8] shadow-[0_8px_18px_rgba(16,32,24,0.04)]'
-                : 'border-[#ece6db] bg-[#fcfbf8] opacity-55'
-            }`}
-          >
-            <div
-              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full border text-[24px] sm:h-12 sm:w-12 sm:text-[28px] ${
-                trophy.earned
-                  ? 'border-[#ead9b7] bg-[#fff4df] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]'
-                  : 'border-[#e6dfd3] bg-white grayscale'
-              }`}
-              aria-hidden="true"
-            >
-              {trophy.icon}
-            </div>
-            <div className="mt-1.5 font-serif text-[11px] font-bold leading-tight text-[#102018] sm:text-[12px]">
-              {trophy.title}
-            </div>
-            <p className="mt-0.5 hidden text-[9.5px] leading-3 text-[#637268] sm:block">
-              {trophy.description}
+    <>
+      <section className="mt-3 rounded-[20px] border border-[#e7e1d6] bg-white p-3 text-left shadow-[0_10px_26px_rgba(16,32,24,0.04)] sm:p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-[21px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[23px]">
+              <span className="mr-1.5 text-[19px]">🏆</span>
+              Trophy Case
+            </h2>
+            <p className="mt-0.5 text-[11px] text-[#637268] sm:text-xs">
+              Tap any trophy to see how it is earned.
             </p>
           </div>
-        ))}
-      </div>
-    </section>
+          <div className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+            {earnedCount}/{trophies.length}
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+          {trophies.map(trophy => (
+            <button
+              key={trophy.title}
+              type="button"
+              onClick={() => setSelectedTrophy(trophy)}
+              className={`rounded-[14px] border px-1.5 py-2 text-center transition hover:-translate-y-0.5 ${
+                trophy.earned
+                  ? 'border-[#ead9b7] bg-[radial-gradient(circle_at_50%_0%,rgba(231,184,63,0.16),transparent_42%),#fffdf8] shadow-[0_8px_18px_rgba(16,32,24,0.04)]'
+                  : 'border-[#ece6db] bg-[#fcfbf8] opacity-55'
+              }`}
+            >
+              <div
+                className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full border text-[24px] sm:h-12 sm:w-12 sm:text-[28px] ${
+                  trophy.earned
+                    ? 'border-[#ead9b7] bg-[#fff4df] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]'
+                    : 'border-[#e6dfd3] bg-white grayscale'
+                }`}
+                aria-hidden="true"
+              >
+                {trophy.icon}
+              </div>
+              <div className="mt-1.5 font-serif text-[11px] font-bold leading-tight text-[#102018] sm:text-[12px]">
+                {trophy.title}
+              </div>
+              <p className="mt-0.5 hidden text-[9.5px] leading-3 text-[#637268] sm:block">
+                {trophy.description}
+              </p>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {selectedTrophy ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-[360px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Trophy
+                </div>
+                <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
+                  {selectedTrophy.title}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedTrophy(null)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                aria-label="Close trophy details"
+              >
+                <X size={15} />
+              </button>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <div className={`flex h-14 w-14 items-center justify-center rounded-full border text-[30px] ${
+                selectedTrophy.earned
+                  ? 'border-[#ead9b7] bg-[#fff4df]'
+                  : 'border-[#e6dfd3] bg-[#fcfbf8] grayscale'
+              }`}>
+                {selectedTrophy.icon}
+              </div>
+              <div>
+                <div className={`text-[11px] font-bold uppercase tracking-[0.16em] ${
+                  selectedTrophy.earned ? 'text-[#2d7651]' : 'text-[#8b938d]'
+                }`}>
+                  {selectedTrophy.earned ? 'Unlocked' : 'Locked'}
+                </div>
+                <p className="mt-1 text-sm leading-6 text-[#536158]">
+                  {selectedTrophy.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   )
 }
 
@@ -1872,9 +1957,10 @@ export default function GroupsPage() {
             </div>
             <div className="mt-4 space-y-2 text-[13px] leading-5 text-[#536158]">
               <p>Create a group for your class, residency, rotation, or friends.</p>
+              <p>Your group gets its own leaderboard, member rankings, activity feed, and weekly score race.</p>
               <p>Simple scoring: 10 points per solve, plus small bonuses for first try, streaks, and efficient guesses.</p>
-              <p>Group score is the average active member score, so bigger groups do not get an automatic advantage.</p>
-              <p>Share the invite link to add people to your group.</p>
+              <p>Group score is based on member averages, so bigger groups do not get an automatic advantage.</p>
+              <p>Share your invite link so teammates can join in one tap.</p>
               <p>Leaderboards reset Sunday at 11:59pm PST.</p>
             </div>
             <button
@@ -2163,7 +2249,7 @@ export default function GroupsPage() {
                         </div>
                       </button>
                       <div className="min-w-0 flex-1 pt-0.5">
-                        <h1 className="font-serif text-[20px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[29px] sm:leading-none">
+                        <h1 className="font-serif text-[24px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[31px] sm:leading-none">
                           {selectedGroup.name}
                         </h1>
                         <p className="mt-0.5 text-[13px] text-[#e3efe8] sm:mt-1 sm:text-sm">
@@ -2477,10 +2563,6 @@ export default function GroupsPage() {
                   </div>
                 </div>
               </div>
-
-              <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
-                {viewerGroup?.name || 'Free agent'}
-              </p>
 
               {showSelectedMemberIconPicker ? (
                 <div className="orthodle-icon-scroll mt-3 grid max-h-48 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2.5 sm:grid-cols-10">

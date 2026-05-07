@@ -163,6 +163,17 @@ export function Header() {
                   Stats
                 </Link>
                 <Link
+                  href="/groups"
+                  onClick={() => setMenuOpen(false)}
+                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
+                >
+                  Groups
+                </Link>
+                <Link
                   href="/submit"
                   onClick={() => setMenuOpen(false)}
                   className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
