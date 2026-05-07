@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Flame, Info, Share2, Star, Target, UserPlus, X, Zap } from 'lucide-react'
+import { BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 import { getSessionId } from '@/lib/utils'
@@ -82,6 +82,14 @@ type GroupsTab = 'home' | 'my-group' | 'profile'
 type LocalProfile = {
   displayName: string
   icon: string
+}
+
+type ActivityFeedItem = {
+  id: string
+  icon: 'solve' | 'mvp' | 'streak' | 'rank'
+  title: string
+  detail: string
+  createdAt: string
 }
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
@@ -179,15 +187,7 @@ function buildInviteLink(joinCode: string) {
 
 function buildInviteMessage(group: GroupRow) {
   const link = buildInviteLink(group.join_code)
-  return [
-    'Orthodle group invite',
-    '',
-    `Join ${group.name}.`,
-    'Solve the daily ortho cases with us and climb our private leaderboard.',
-    '',
-    `Join link: ${link}`,
-    `Group code: ${group.join_code}`,
-  ].join('\n')
+  return [`Join my Orthodle group: ${group.name}`, `Use this link: ${link}`].join('\n')
 }
 
 function isImageIcon(value: string | null | undefined) {
@@ -552,7 +552,7 @@ function GroupsTopBanner({
   }
 
   const navItemClass =
-    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[11px] font-extrabold leading-none no-underline transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
+    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[11.5px] font-extrabold tracking-[-0.01em] leading-none no-underline transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
 
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
@@ -602,7 +602,7 @@ function GroupsTopBanner({
           <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
             <Link
               href="/"
-              className={`${navItemClass} bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`}
+              className={`${navItemClass} bg-[#fffdf8] text-[12px] text-[#102018] hover:bg-[#f7f5f0]`}
             >
               Cases
             </Link>
@@ -699,6 +699,75 @@ function formatScore(value: number) {
 
 function formatMemberCount(count: number) {
   return `${count} member${count === 1 ? '' : 's'}`
+}
+
+function getXpForStats(stats: MemberStats | null) {
+  if (!stats) return 0
+
+  const efficiencyBonus =
+    stats.avgGuesses !== null ? Math.max(0, Math.round((7 - stats.avgGuesses) * 8)) : 0
+
+  return (
+    stats.correctGuesses * 12 +
+    stats.solves * 30 +
+    stats.firstTrySolves * 18 +
+    stats.longestStreak * 14 +
+    stats.attendingSolves * 20 +
+    efficiencyBonus
+  )
+}
+
+function getLevelFromXp(xp: number) {
+  let level = 1
+  let spentXp = 0
+  let nextRequirement = 120
+
+  while (xp >= spentXp + nextRequirement) {
+    spentXp += nextRequirement
+    level += 1
+    nextRequirement = 120 + (level - 1) * 28
+  }
+
+  return {
+    level,
+    currentXp: xp - spentXp,
+    nextXp: nextRequirement,
+  }
+}
+
+function getLevelTitle(level: number) {
+  if (level >= 32) return 'Program Legend'
+  if (level >= 24) return 'Chief Resident'
+  if (level >= 18) return 'Senior Resident'
+  if (level >= 12) return 'Consult Crusher'
+  if (level >= 7) return 'Junior Resident'
+  if (level >= 3) return 'Ortho Apprentice'
+  return 'Ortho Beginner'
+}
+
+function getGroupTagline(rank: number | null) {
+  if (rank === 1) return 'Leading the pack.'
+  if (rank && rank <= 3) return 'Consult first. Panic later.'
+  return 'Stacking solves one case at a time.'
+}
+
+function formatRelativeTime(iso: string) {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const minutes = Math.max(1, Math.round(diffMs / 60000))
+
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.round(hours / 24)
+  if (days === 1) return 'Yesterday'
+  return `${days}d ago`
+}
+
+function getActivityIcon(item: ActivityFeedItem['icon']) {
+  if (item === 'solve') return '🏆'
+  if (item === 'mvp') return '👑'
+  if (item === 'streak') return '🔥'
+  return '📈'
 }
 
 function calculateMemberScore(
@@ -834,6 +903,8 @@ export default function GroupsPage() {
     displayName: '',
     icon: DEFAULT_MEMBER_ICON,
   })
+  const [isEditingProfileName, setIsEditingProfileName] = useState(false)
+  const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
   const sessionId = useMemo(() => getSessionId(), [])
   const router = useRouter()
@@ -1095,13 +1166,29 @@ export default function GroupsPage() {
   const selectedGroupRank = selectedGroupAggregate
     ? groupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
     : null
+  const viewerMembership = members.find(member => member.session_id === sessionId) || null
+  const viewerGroup = viewerMembership
+    ? groups.find(group => group.id === viewerMembership.group_id) || null
+    : null
+  const viewerGroupAggregate = viewerMembership
+    ? groupAggregates.find(entry => entry.group.id === viewerMembership.group_id) || null
+    : null
   const myMembership = selectedMembers.find(member => member.session_id === sessionId) || null
   const myMemberStats =
     selectedGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
-  const profileDisplayName = myMembership?.display_name || localProfile.displayName || 'Orthodle player'
-  const profileIcon = myMembership?.icon || localProfile.icon || DEFAULT_MEMBER_ICON
+  const viewerMemberStats =
+    viewerGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
+  const viewerGroupRank = viewerGroupAggregate
+    ? groupAggregates.findIndex(entry => entry.group.id === viewerGroupAggregate.group.id) + 1
+    : null
+  const profileDisplayName =
+    viewerMembership?.display_name || localProfile.displayName || 'Orthodle player'
+  const profileIcon = viewerMembership?.icon || localProfile.icon || DEFAULT_MEMBER_ICON
+  const profileXp = getXpForStats(viewerMemberStats || null)
+  const profileLevel = getLevelFromXp(profileXp)
+  const profileLevelTitle = getLevelTitle(profileLevel.level)
+  const canChangeSelectedGroupIcon = Boolean(myMembership)
   const canEditSelectedGroup = selectedGroup?.creator_session_id === sessionId
-  const canChangeSelectedGroupIcon = Boolean(canEditSelectedGroup)
   const groupOfWeekAggregate = groupAggregates[0] || null
   const mvpEntry = groupOfWeekAggregate?.memberStats[0]
     ? {
@@ -1112,27 +1199,117 @@ export default function GroupsPage() {
   const trophyCaseItems = useMemo(
     () =>
       buildTrophyCase({
-        stats: myMemberStats || null,
+        stats: viewerMemberStats || null,
         isGroupMvp: mvpEntry?.stats.member.session_id === sessionId,
-        selectedGroupRank,
+        selectedGroupRank: viewerGroupRank,
       }),
-    [mvpEntry?.stats.member.session_id, myMemberStats, selectedGroupRank, sessionId]
+    [mvpEntry?.stats.member.session_id, sessionId, viewerGroupRank, viewerMemberStats]
   )
+  const selectedMemberTrophies = useMemo(
+    () =>
+      selectedMemberStats
+        ? buildTrophyCase({
+            stats: selectedMemberStats,
+            isGroupMvp: mvpEntry?.stats.member.session_id === selectedMemberStats.member.session_id,
+            selectedGroupRank,
+          })
+        : [],
+    [mvpEntry?.stats.member.session_id, selectedGroupRank, selectedMemberStats]
+  )
+  const groupActivityFeed = useMemo<ActivityFeedItem[]>(() => {
+    if (!selectedGroupAggregate || !selectedGroup) return []
+
+    const items: ActivityFeedItem[] = []
+    const memberLookup = new Map(
+      selectedGroupAggregate.members.map(member => [member.session_id, member] as const)
+    )
+    const groupSessionIds = new Set(selectedGroupAggregate.members.map(member => member.session_id))
+    const guessesBySolveKey = new Map<string, GuessRow[]>()
+
+    for (const row of visibleGuessRows) {
+      if (!row.case_id || !groupSessionIds.has(row.session_id)) continue
+      const key = `${row.session_id}:${row.case_id}`
+      if (!guessesBySolveKey.has(key)) {
+        guessesBySolveKey.set(key, [])
+      }
+      guessesBySolveKey.get(key)!.push(row)
+    }
+
+    for (const [key, rows] of guessesBySolveKey.entries()) {
+      const firstCorrectIndex = rows.findIndex(row => row.is_correct)
+      if (firstCorrectIndex === -1) continue
+
+      const [sessionIdForSolve, caseId] = key.split(':')
+      const member = memberLookup.get(sessionIdForSolve)
+      const caseInfo = caseLookup[caseId]
+      const solvedAt = rows[firstCorrectIndex]?.created_at
+
+      if (!member || !caseInfo || !solvedAt) continue
+
+      items.push({
+        id: `solve-${key}`,
+        icon: 'solve',
+        title: `${member.display_name} solved`,
+        detail: `${caseInfo.answer} in ${firstCorrectIndex + 1} guess${firstCorrectIndex === 0 ? '' : 'es'}`,
+        createdAt: solvedAt,
+      })
+    }
+
+    const nowIso = new Date().toISOString()
+
+    if (selectedGroupRank && selectedGroupRank <= 3) {
+      items.push({
+        id: `rank-${selectedGroup.id}`,
+        icon: 'rank',
+        title: `${selectedGroup.name} is on the podium`,
+        detail: `Currently ranked #${selectedGroupRank} this week`,
+        createdAt: nowIso,
+      })
+    }
+
+    if (selectedGroupAggregate.longestStreak >= 2) {
+      items.push({
+        id: `streak-${selectedGroup.id}`,
+        icon: 'streak',
+        title: `${selectedGroup.name} is heating up`,
+        detail: `Your group is on a ${selectedGroupAggregate.longestStreak}-day streak`,
+        createdAt: nowIso,
+      })
+    }
+
+    if (mvpEntry && mvpEntry.group.id === selectedGroup.id) {
+      items.push({
+        id: `mvp-${selectedGroup.id}`,
+        icon: 'mvp',
+        title: `New MVP: ${mvpEntry.stats.member.display_name}`,
+        detail: `${mvpEntry.stats.member.display_name} is leading the group this week`,
+        createdAt: nowIso,
+      })
+    }
+
+    return items
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+  }, [caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupRank, visibleGuessRows])
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
   }, [selectedGroup?.id, selectedGroup?.name])
 
   useEffect(() => {
-    setEditDisplayName(myMembership?.display_name || localProfile.displayName || '')
-    setEditMemberIcon(myMembership?.icon || localProfile.icon || DEFAULT_MEMBER_ICON)
+    setEditDisplayName(viewerMembership?.display_name || localProfile.displayName || '')
+    setEditMemberIcon(viewerMembership?.icon || localProfile.icon || DEFAULT_MEMBER_ICON)
   }, [
     localProfile.displayName,
     localProfile.icon,
-    myMembership?.display_name,
-    myMembership?.icon,
-    myMembership?.id,
+    viewerMembership?.display_name,
+    viewerMembership?.icon,
+    viewerMembership?.id,
   ])
+
+  useEffect(() => {
+    setIsEditingProfileName(false)
+  }, [selectedGroupId, viewerMembership?.id])
 
   useEffect(() => {
     if (joinTargetGroup && alreadyInJoinTarget) {
@@ -1433,7 +1610,7 @@ export default function GroupsPage() {
     setSavingDisplayName(true)
     setMessage('')
 
-    if (!myMembership) {
+    if (!viewerMembership) {
       const nextProfile = {
         displayName: nextName,
         icon: editMemberIcon || localProfile.icon || DEFAULT_MEMBER_ICON,
@@ -1450,7 +1627,7 @@ export default function GroupsPage() {
     const { error } = await supabase
       .from('group_members')
       .update({ display_name: nextName })
-      .eq('id', myMembership.id)
+      .eq('id', viewerMembership.id)
       .eq('session_id', sessionId)
 
     if (error) {
@@ -1461,17 +1638,17 @@ export default function GroupsPage() {
 
     setMembers(prev =>
       prev.map(member =>
-        member.id === myMembership.id ? { ...member, display_name: nextName } : member
+        member.id === viewerMembership.id ? { ...member, display_name: nextName } : member
       )
     )
 
-    if (selectedGroup) {
-      storeMemberProfile(selectedGroup.id, nextName, myMembership.icon)
+    if (viewerGroup) {
+      storeMemberProfile(viewerGroup.id, nextName, viewerMembership.icon)
     }
 
     const nextProfile = {
       displayName: nextName,
-      icon: myMembership.icon || localProfile.icon || DEFAULT_MEMBER_ICON,
+      icon: viewerMembership.icon || localProfile.icon || DEFAULT_MEMBER_ICON,
     }
     setLocalProfile(nextProfile)
     storeLocalProfile(nextProfile)
@@ -1485,7 +1662,7 @@ export default function GroupsPage() {
     setSavingMemberIcon(true)
     setMessage('')
 
-    if (!myMembership) {
+    if (!viewerMembership) {
       const nextProfile = {
         displayName: editDisplayName.trim() || localProfile.displayName,
         icon: nextIcon,
@@ -1502,7 +1679,7 @@ export default function GroupsPage() {
     const { error } = await supabase
       .from('group_members')
       .update({ icon: nextIcon })
-      .eq('id', myMembership.id)
+      .eq('id', viewerMembership.id)
       .eq('session_id', sessionId)
 
     if (error) {
@@ -1516,15 +1693,17 @@ export default function GroupsPage() {
     }
 
     setMembers(prev =>
-      prev.map(member => (member.id === myMembership.id ? { ...member, icon: nextIcon } : member))
+      prev.map(member =>
+        member.id === viewerMembership.id ? { ...member, icon: nextIcon } : member
+      )
     )
 
-    if (selectedGroup) {
-      storeMemberProfile(selectedGroup.id, myMembership.display_name, nextIcon)
+    if (viewerGroup) {
+      storeMemberProfile(viewerGroup.id, viewerMembership.display_name, nextIcon)
     }
 
     const nextProfile = {
-      displayName: myMembership.display_name || localProfile.displayName,
+      displayName: viewerMembership.display_name || localProfile.displayName,
       icon: nextIcon,
     }
     setLocalProfile(nextProfile)
@@ -1533,6 +1712,23 @@ export default function GroupsPage() {
     setCreateMemberIcon(nextIcon)
     setEditMemberIcon(nextIcon)
     setSavingMemberIcon(false)
+  }
+
+  async function commitProfileNameEdit() {
+    const nextName = editDisplayName.trim()
+    if (!nextName) {
+      setEditDisplayName(profileDisplayName)
+      setIsEditingProfileName(false)
+      return
+    }
+
+    if (nextName === profileDisplayName) {
+      setIsEditingProfileName(false)
+      return
+    }
+
+    await updateMyDisplayName()
+    setIsEditingProfileName(false)
   }
 
   async function removeMemberFromGroup(member: GroupMemberRow) {
@@ -1885,26 +2081,28 @@ export default function GroupsPage() {
                 )}
               </div>
 
-              <div className="orthodle-groups-cta mt-4 flex flex-col gap-3 rounded-2xl border border-[#d7e8dd] bg-[#eef8f2] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
-                <div className="flex items-center gap-3">
-                  <div className="text-3xl">🎉</div>
-                  <div>
-                    <div className="whitespace-nowrap font-serif text-[13px] font-bold text-[#1f6448] sm:text-[15px]">
-                      Think your group can take the crown?
+              {!selectedGroup ? (
+                <div className="orthodle-groups-cta mt-4 flex flex-col gap-3 rounded-2xl border border-[#d7e8dd] bg-[#eef8f2] px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl">🎉</div>
+                    <div>
+                      <div className="whitespace-nowrap font-serif text-[13px] font-bold text-[#1f6448] sm:text-[15px]">
+                        Think your group can take the crown?
+                      </div>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowJoinPanel(true)
+                      setGroupActionMode('create')
+                    }}
+                    className="h-10 rounded-xl bg-[#007a52] px-4 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#006743]"
+                  >
+                    Create group
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowJoinPanel(true)
-                    setGroupActionMode(selectedGroup ? 'join' : 'create')
-                  }}
-                  className="h-10 rounded-xl bg-[#007a52] px-4 text-xs font-bold text-white transition hover:-translate-y-0.5 hover:bg-[#006743]"
-                >
-                  {selectedGroup ? 'Invite / Join' : 'Create group'}
-                </button>
-              </div>
+              ) : null}
             </section>
           </div>
         ) : null}
@@ -1913,84 +2111,95 @@ export default function GroupsPage() {
           <div className="space-y-3.5 sm:space-y-4">
             {selectedGroup && selectedGroupAggregate ? (
               <>
-                <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-4 shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-4 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                      <GroupCrest group={selectedGroup} size="lg" />
-                      <div className="min-w-0">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                          My group
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!canChangeSelectedGroupIcon) return
+                          setShowSelectedGroupIconPicker(prev => !prev)
+                        }}
+                        className={`${canChangeSelectedGroupIcon ? 'transition hover:-translate-y-0.5' : ''}`}
+                        aria-label={canChangeSelectedGroupIcon ? 'Change group icon' : 'Group icon'}
+                      >
+                        <div className="rounded-full border-2 border-[#efbf48] p-1">
+                          <GroupCrest group={selectedGroup} size="lg" />
                         </div>
-                        <h1 className="truncate font-serif text-[24px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[27px]">
+                      </button>
+                      <div className="min-w-0">
+                        <h1 className="truncate font-serif text-[24px] font-bold tracking-[-0.05em] text-white sm:text-[29px]">
                           {selectedGroup.name}
                         </h1>
-                        <p className="text-xs text-[#637268]">
-                          {formatMemberCount(selectedGroupAggregate.members.length)} · Invite code {selectedGroup.join_code}
+                        <p className="mt-1 text-sm text-[#e3efe8]">
+                          {formatMemberCount(selectedGroupAggregate.members.length)}
+                        </p>
+                        <p className="mt-2 text-sm font-medium text-[#f6efe0]">
+                          "{getGroupTagline(selectedGroupRank)}"
                         </p>
                       </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => void shareInviteLink(selectedGroup)}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white transition hover:-translate-y-0.5"
+                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-4 text-xs font-bold text-white transition hover:bg-white/12"
                     >
-                      <Share2 size={16} strokeWidth={2} />
+                      <Share2 size={15} strokeWidth={2} />
                       {copiedCode === selectedGroup.id ? 'Copied' : 'Invite teammates'}
                     </button>
                   </div>
 
-                  <div className="mt-4 grid grid-cols-4 divide-x divide-[#ece6db] border-t border-[#ece6db] pt-4 text-center">
-                    {[
-                      ['Rank', `#${selectedGroupRank || '—'}`],
-                      ['Avg score', formatScore(selectedGroupAggregate.score)],
-                      ['Accuracy', selectedGroupAggregate.avgAccuracy !== null ? `${Math.round(selectedGroupAggregate.avgAccuracy)}%` : '—'],
-                      ['Streak', selectedGroupAggregate.longestStreak],
-                    ].map(([label, value]) => (
-                      <div key={label} className="px-2">
-                        <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
-                        <div className="mt-1 font-serif text-[19px] font-bold text-[#102018] sm:text-[21px]">{value}</div>
+                  {showSelectedGroupIconPicker && canChangeSelectedGroupIcon ? (
+                    <div className="orthodle-icon-scroll mt-4 grid max-h-40 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2 sm:grid-cols-10">
+                      {GROUP_ICONS.map(icon => (
+                        <button
+                          key={icon.value}
+                          type="button"
+                          disabled={savingGroupIcon}
+                          onClick={() => {
+                            void updateSelectedGroupIcon(icon.value)
+                            setShowSelectedGroupIconPicker(false)
+                          }}
+                          className={`flex h-9 w-full items-center justify-center rounded-xl border text-[19px] transition hover:-translate-y-0.5 ${
+                            selectedGroup.icon === icon.value
+                              ? 'border-[#efbf48] bg-white/16'
+                              : 'border-white/15 bg-white/6'
+                          } disabled:opacity-50`}
+                          aria-label={`Use ${icon.label} group icon`}
+                        >
+                          {icon.value}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-5 grid grid-cols-3 divide-x divide-white/18 border-t border-white/14 pt-4 text-center">
+                    <div className="px-2">
+                      <div className="font-serif text-[24px] font-bold leading-none text-white">
+                        #{selectedGroupRank || '—'}
                       </div>
-                    ))}
+                      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                        of {groupAggregates.length} groups
+                      </div>
+                    </div>
+                    <div className="px-2">
+                      <div className="font-serif text-[24px] font-bold leading-none text-white">
+                        {formatScore(selectedGroupAggregate.score)}
+                      </div>
+                      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                        pts this week
+                      </div>
+                    </div>
+                    <div className="px-2">
+                      <div className="font-serif text-[24px] font-bold leading-none text-white">
+                        {selectedGroupAggregate.longestStreak}
+                      </div>
+                      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                        day streak
+                      </div>
+                    </div>
                   </div>
                 </section>
-
-                {canEditSelectedGroup ? (
-                  <section className="rounded-[18px] border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.035)]">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                      Leader tools
-                    </div>
-                    <div className="mt-3 grid gap-3 md:grid-cols-[1fr_auto]">
-                      <input
-                        value={editGroupName}
-                        onChange={event => setEditGroupName(event.target.value)}
-                        placeholder="Group name"
-                        className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                      />
-                      <button
-                        type="button"
-                        disabled={savingGroupName || !editGroupName.trim()}
-                        onClick={() => void updateSelectedGroupName()}
-                        className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
-                      >
-                        {savingGroupName ? 'Saving...' : 'Save group'}
-                      </button>
-                    </div>
-                    <div className="mt-3">
-                      <IconPicker
-                        label="Group icon"
-                        selectedIcon={selectedGroup.icon}
-                        isOpen={showSelectedGroupIconPicker}
-                        disabled={savingGroupIcon}
-                        onToggle={() => setShowSelectedGroupIconPicker(prev => !prev)}
-                        onSelect={icon => {
-                          void updateSelectedGroupIcon(icon)
-                          setShowSelectedGroupIconPicker(false)
-                        }}
-                        ariaLabelPrefix="Use group icon"
-                      />
-                    </div>
-                  </section>
-                ) : null}
 
                 <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
@@ -1999,9 +2208,11 @@ export default function GroupsPage() {
                   <div className="mt-3 space-y-2">
                     {selectedGroupAggregate.memberStats.length > 0 ? (
                       selectedGroupAggregate.memberStats.map((entry, index) => (
-                        <div
+                        <button
                           key={entry.member.id}
-                          className="grid grid-cols-[32px_34px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-2xl border border-[#ece6db] bg-white px-2.5 py-2"
+                          type="button"
+                          onClick={() => setSelectedMemberStats(entry)}
+                          className="grid w-full grid-cols-[32px_34px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-2xl border border-[#ece6db] bg-white px-2.5 py-2 text-left transition hover:-translate-y-0.5"
                         >
                           <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${rankCircleClass(index + 1)}`}>
                             {index + 1}
@@ -2033,18 +2244,55 @@ export default function GroupsPage() {
                               <button
                                 type="button"
                                 disabled={removingMemberId === entry.member.id}
-                                onClick={() => void removeMemberFromGroup(entry.member)}
+                                onClick={event => {
+                                  event.stopPropagation()
+                                  void removeMemberFromGroup(entry.member)
+                                }}
                                 className="rounded-full border border-[#f0d7c8] px-2.5 py-1 text-[10px] font-bold text-[#a24d24] transition hover:bg-[#fff1e8] disabled:opacity-50"
                               >
                                 {removingMemberId === entry.member.id ? 'Removing' : 'Remove'}
                               </button>
                             ) : null}
                           </div>
-                        </div>
+                        </button>
                       ))
                     ) : (
                       <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#637268]">
                         No members yet.
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
+                      Activity feed
+                    </div>
+                    <div className="text-[11px] font-semibold text-[#2d7651]">
+                      {groupActivityFeed.length > 0 ? 'Live this week' : 'Waiting on activity'}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 divide-y divide-[#ece6db]">
+                    {groupActivityFeed.length > 0 ? (
+                      groupActivityFeed.map(item => (
+                        <div key={item.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f7f3ea] text-lg">
+                            {getActivityIcon(item.icon)}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[15px] font-semibold text-[#102018]">{item.title}</div>
+                            <div className="text-sm text-[#4d5c53]">{item.detail}</div>
+                          </div>
+                          <div className="shrink-0 text-xs text-[#7c877f]">
+                            {formatRelativeTime(item.createdAt)}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#637268]">
+                        No activity yet this week.
                       </div>
                     )}
                   </div>
@@ -2073,30 +2321,122 @@ export default function GroupsPage() {
 
         {!loading && activeGroupsTab === 'profile' ? (
           <div className="mx-auto w-full">
-            <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 text-center shadow-[0_10px_26px_rgba(16,32,24,0.04)] sm:p-4">
-              <button
-                type="button"
-                onClick={() => setShowSelectedMemberIconPicker(prev => !prev)}
-                className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] text-[38px] shadow-[0_10px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 sm:h-24 sm:w-24 sm:text-[46px]"
-                aria-label="Change profile icon"
-              >
-                <IconMark
-                  value={profileIcon}
-                  fallback={profileDisplayName.slice(0, 1).toUpperCase()}
-                />
-              </button>
-              <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#8a9389]">
-                Tap icon to change
+            <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-4 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowSelectedMemberIconPicker(prev => !prev)}
+                    className="relative transition hover:-translate-y-0.5"
+                    aria-label="Change profile icon"
+                  >
+                    <div className="rounded-full border-2 border-[#efbf48] p-1">
+                      <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#fbf7ef] text-[44px] shadow-[0_10px_22px_rgba(16,32,24,0.06)] sm:h-28 sm:w-28 sm:text-[50px]">
+                        <IconMark
+                          value={profileIcon}
+                          fallback={profileDisplayName.slice(0, 1).toUpperCase()}
+                        />
+                      </div>
+                    </div>
+                    <span className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full border border-[#d8cfbf] bg-white text-[#0e5a3f] shadow-[0_8px_18px_rgba(16,32,24,0.16)]">
+                      <Pencil size={14} strokeWidth={2.2} />
+                    </span>
+                  </button>
+
+                  <div className="min-w-0 text-left">
+                    {isEditingProfileName ? (
+                      <input
+                        autoFocus
+                        value={editDisplayName}
+                        onChange={event => setEditDisplayName(event.target.value)}
+                        onBlur={() => void commitProfileNameEdit()}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter') {
+                            event.preventDefault()
+                            void commitProfileNameEdit()
+                          }
+                          if (event.key === 'Escape') {
+                            setEditDisplayName(profileDisplayName)
+                            setIsEditingProfileName(false)
+                          }
+                        }}
+                        placeholder="Your display name"
+                        className="h-11 w-full max-w-[320px] rounded-xl border border-white/20 bg-white/10 px-3 text-lg font-semibold text-white outline-none transition placeholder:text-white/70 focus:border-[#efbf48]"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingProfileName(true)}
+                        className="text-left font-serif text-[28px] font-bold tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[32px]"
+                      >
+                        {profileDisplayName}
+                      </button>
+                    )}
+
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[#e7d4a7]/50 bg-[#fff6df] px-3 py-1.5 text-sm font-bold text-[#5f4a11]">
+                      <Star size={14} fill="currentColor" strokeWidth={0} />
+                      {profileLevelTitle}
+                    </div>
+
+                    <div className="mt-4 text-sm font-semibold text-[#dfece5]">
+                      Level {profileLevel.level}
+                    </div>
+                    <div className="mt-2 h-2.5 w-full max-w-[340px] overflow-hidden rounded-full bg-white/14">
+                      <div
+                        className="h-full rounded-full bg-[linear-gradient(90deg,#efbf48,#f0d98c)]"
+                        style={{ width: `${Math.max(10, (profileLevel.currentXp / profileLevel.nextXp) * 100)}%` }}
+                      />
+                    </div>
+                    <div className="mt-2 text-sm font-medium text-[#e7efe9]">
+                      {formatScore(profileXp)} XP
+                      <span className="text-[#d6e7df]"> / {formatScore(profileLevel.nextXp)} to next level</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 border-t border-white/14 pt-4 sm:min-w-[250px] sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+                  <div className="text-center">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-[#efbf48]">
+                      <Flame size={18} strokeWidth={2.1} />
+                    </div>
+                    <div className="mt-2 font-serif text-[24px] font-bold leading-none text-white">
+                      {viewerMemberStats?.longestStreak || 0}
+                    </div>
+                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                      day streak
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-[#efbf48]">
+                      <BookOpen size={18} strokeWidth={2.1} />
+                    </div>
+                    <div className="mt-2 font-serif text-[24px] font-bold leading-none text-white">
+                      {viewerMemberStats?.solves || 0}
+                    </div>
+                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                      total cases solved
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-[#efbf48]">
+                      <Target size={18} strokeWidth={2.1} />
+                    </div>
+                    <div className="mt-2 font-serif text-[24px] font-bold leading-none text-white">
+                      {viewerMemberStats?.firstTrySolves || 0}
+                    </div>
+                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                      first try solves
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h1 className="mt-2 font-serif text-[22px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[25px]">
-                {profileDisplayName}
-              </h1>
-              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#637268]">
-                {selectedGroup?.name || 'Free agent'}
+
+              <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                {viewerGroup?.name || 'Free agent'}
               </p>
 
               {showSelectedMemberIconPicker ? (
-                <div className="orthodle-icon-scroll mx-auto mt-3 grid max-h-40 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-[#ece6db] bg-[#fcfbf8] p-2 sm:grid-cols-10">
+                <div className="orthodle-icon-scroll mt-3 grid max-h-40 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2 sm:grid-cols-10">
                   {GROUP_ICONS.map(icon => (
                     <button
                       key={icon.value}
@@ -2108,8 +2448,8 @@ export default function GroupsPage() {
                       }}
                       className={`flex h-9 w-full items-center justify-center rounded-xl border text-[19px] transition hover:-translate-y-0.5 ${
                         editMemberIcon === icon.value
-                          ? 'border-[#1f6448] bg-[#eef7f1]'
-                          : 'border-[#e6dfd3] bg-white'
+                          ? 'border-[#efbf48] bg-white/16'
+                          : 'border-white/15 bg-white/6'
                       } disabled:opacity-50`}
                       aria-label={`Use ${icon.label} icon`}
                     >
@@ -2119,37 +2459,7 @@ export default function GroupsPage() {
                 </div>
               ) : null}
 
-              <div className="mt-3 grid grid-cols-3 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-2.5">
-                {[
-                  ['Score', formatScore(myMemberStats?.score || 0)],
-                  ['Solves', myMemberStats?.solves || 0],
-                  ['Streak', myMemberStats?.longestStreak || 0],
-                ].map(([label, value]) => (
-                  <div key={label} className="px-2">
-                    <div className="font-serif text-[17px] font-bold text-[#102018] sm:text-[19px]">{value}</div>
-                    <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-3 grid gap-2 text-left sm:grid-cols-[1fr_auto]">
-                <input
-                  value={editDisplayName}
-                  onChange={event => setEditDisplayName(event.target.value)}
-                  placeholder="Your display name"
-                  className="h-10 rounded-xl border border-[#ded7ca] px-3 text-sm text-[#102018]"
-                />
-                <button
-                  type="button"
-                  disabled={savingDisplayName || !editDisplayName.trim()}
-                  onClick={() => void updateMyDisplayName()}
-                  className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
-                >
-                  {savingDisplayName ? 'Saving...' : 'Save name'}
-                </button>
-              </div>
-
-              {!myMembership ? (
+              {!viewerMembership ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -2164,6 +2474,59 @@ export default function GroupsPage() {
             </section>
 
             <TrophyCase trophies={trophyCaseItems} />
+          </div>
+        ) : null}
+
+        {selectedMemberStats ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+            <div className="w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Player profile
+                  </div>
+                  <div className="mt-1 font-serif text-[23px] font-bold tracking-[-0.04em] text-[#102018]">
+                    {selectedMemberStats.member.display_name}
+                  </div>
+                  <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                    {selectedGroup?.name || 'Group member'}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMemberStats(null)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                  aria-label="Close player profile"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="mt-4 flex flex-col items-center text-center">
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] text-[46px] shadow-[0_10px_22px_rgba(16,32,24,0.06)]">
+                  <IconMark
+                    value={selectedMemberStats.member.icon}
+                    fallback={selectedMemberStats.member.display_name.slice(0, 1).toUpperCase()}
+                  />
+                </div>
+
+                <div className="mt-4 grid w-full grid-cols-4 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-2.5">
+                  {[
+                    ['Pts', formatScore(selectedMemberStats.score)],
+                    ['Solves', selectedMemberStats.solves],
+                    ['Accuracy', selectedMemberStats.totalGuesses > 0 ? `${Math.round((selectedMemberStats.correctGuesses / selectedMemberStats.totalGuesses) * 100)}%` : '—'],
+                    ['Streak', selectedMemberStats.longestStreak],
+                  ].map(([label, value]) => (
+                    <div key={label} className="px-2">
+                      <div className="font-serif text-[16px] font-bold text-[#102018] sm:text-[18px]">{value}</div>
+                      <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <TrophyCase trophies={selectedMemberTrophies} />
+            </div>
           </div>
         ) : null}
 
