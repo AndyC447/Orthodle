@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Flame, Info, Share2, Target, UserPlus, X, Zap } from 'lucide-react'
+import { Flame, Info, Share2, Star, Target, UserPlus, X, Zap } from 'lucide-react'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 import { getSessionId } from '@/lib/utils'
@@ -79,8 +79,14 @@ type DisplayGroup = {
 
 type GroupsTab = 'home' | 'my-group' | 'profile'
 
+type LocalProfile = {
+  displayName: string
+  icon: string
+}
+
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
+const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
 const DEFAULT_MEMBER_ICON = '🦴'
 const GROUP_ICONS = [
   { value: '🦴', label: 'Bone' },
@@ -140,6 +146,30 @@ function storeMemberProfile(groupId: string, displayName: string, icon: string |
     membershipKey(groupId),
     JSON.stringify({ displayName, icon: icon || DEFAULT_MEMBER_ICON })
   )
+}
+
+function readLocalProfile(): LocalProfile {
+  if (typeof window === 'undefined') {
+    return { displayName: '', icon: DEFAULT_MEMBER_ICON }
+  }
+
+  try {
+    const savedProfile = window.localStorage.getItem(LOCAL_PROFILE_STORAGE_KEY)
+    if (!savedProfile) return { displayName: '', icon: DEFAULT_MEMBER_ICON }
+
+    const parsed = JSON.parse(savedProfile) as Partial<LocalProfile>
+    return {
+      displayName: typeof parsed.displayName === 'string' ? parsed.displayName : '',
+      icon: typeof parsed.icon === 'string' && parsed.icon ? parsed.icon : DEFAULT_MEMBER_ICON,
+    }
+  } catch {
+    return { displayName: '', icon: DEFAULT_MEMBER_ICON }
+  }
+}
+
+function storeLocalProfile(profile: LocalProfile) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(LOCAL_PROFILE_STORAGE_KEY, JSON.stringify(profile))
 }
 
 function buildInviteLink(joinCode: string) {
@@ -522,7 +552,7 @@ function GroupsTopBanner({
   }
 
   const navItemClass =
-    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[10.5px] font-bold leading-none transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
+    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[11px] font-extrabold leading-none no-underline transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
 
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
@@ -614,34 +644,34 @@ function TrophyCase({
   const earnedCount = trophies.filter(trophy => trophy.earned).length
 
   return (
-    <section className="mt-4 rounded-[22px] border border-[#e7e1d6] bg-white p-4 text-left shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-5">
+    <section className="mt-3 rounded-[20px] border border-[#e7e1d6] bg-white p-3 text-left shadow-[0_10px_26px_rgba(16,32,24,0.04)] sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-serif text-[24px] font-bold tracking-[-0.05em] text-[#102018]">
-            <span className="mr-2 text-[22px]">🏆</span>
+          <h2 className="font-serif text-[21px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[23px]">
+            <span className="mr-1.5 text-[19px]">🏆</span>
             Trophy Case
           </h2>
-          <p className="mt-1 text-xs text-[#637268] sm:text-sm">
+          <p className="mt-0.5 text-[11px] text-[#637268] sm:text-xs">
             Earn trophies. Flex on the competition.
           </p>
         </div>
-        <div className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+        <div className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">
           {earnedCount}/{trophies.length}
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
         {trophies.map(trophy => (
           <div
             key={trophy.title}
-            className={`rounded-[16px] border px-2.5 py-3 text-center transition ${
+            className={`rounded-[14px] border px-1.5 py-2 text-center transition ${
               trophy.earned
                 ? 'border-[#ead9b7] bg-[radial-gradient(circle_at_50%_0%,rgba(231,184,63,0.16),transparent_42%),#fffdf8] shadow-[0_8px_18px_rgba(16,32,24,0.04)]'
                 : 'border-[#ece6db] bg-[#fcfbf8] opacity-55'
             }`}
           >
             <div
-              className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full border text-[32px] ${
+              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full border text-[24px] sm:h-12 sm:w-12 sm:text-[28px] ${
                 trophy.earned
                   ? 'border-[#ead9b7] bg-[#fff4df] shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]'
                   : 'border-[#e6dfd3] bg-white grayscale'
@@ -650,15 +680,15 @@ function TrophyCase({
             >
               {trophy.icon}
             </div>
-            <div className="mt-2 font-serif text-[14px] font-bold leading-tight text-[#102018]">
+            <div className="mt-1.5 font-serif text-[11px] font-bold leading-tight text-[#102018] sm:text-[12px]">
               {trophy.title}
             </div>
-            <p className="mt-1 text-[11px] leading-4 text-[#637268]">{trophy.description}</p>
+            <p className="mt-0.5 hidden text-[9.5px] leading-3 text-[#637268] sm:block">
+              {trophy.description}
+            </p>
           </div>
         ))}
       </div>
-
-      <p className="mt-3 text-xs text-[#8a9389]">🔒 More trophies coming soon. Keep solving and stay legendary.</p>
     </section>
   )
 }
@@ -800,7 +830,10 @@ export default function GroupsPage() {
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
   const [editMemberIcon, setEditMemberIcon] = useState(DEFAULT_MEMBER_ICON)
-  const [bitmojiUrl, setBitmojiUrl] = useState('')
+  const [localProfile, setLocalProfile] = useState<LocalProfile>({
+    displayName: '',
+    icon: DEFAULT_MEMBER_ICON,
+  })
   const [removingMemberId, setRemovingMemberId] = useState('')
   const sessionId = useMemo(() => getSessionId(), [])
   const router = useRouter()
@@ -922,6 +955,18 @@ export default function GroupsPage() {
     if (!window.localStorage.getItem(GROUPS_EXPLAINER_STORAGE_KEY)) {
       setShowGroupsExplainer(true)
     }
+  }, [])
+
+  useEffect(() => {
+    const savedProfile = readLocalProfile()
+
+    setLocalProfile(savedProfile)
+    setEditDisplayName(savedProfile.displayName)
+    setEditMemberIcon(savedProfile.icon)
+    setJoinDisplayName(savedProfile.displayName)
+    setCreateDisplayName(savedProfile.displayName)
+    setJoinMemberIcon(savedProfile.icon)
+    setCreateMemberIcon(savedProfile.icon)
   }, [])
 
   useEffect(() => {
@@ -1053,6 +1098,8 @@ export default function GroupsPage() {
   const myMembership = selectedMembers.find(member => member.session_id === sessionId) || null
   const myMemberStats =
     selectedGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
+  const profileDisplayName = myMembership?.display_name || localProfile.displayName || 'Orthodle player'
+  const profileIcon = myMembership?.icon || localProfile.icon || DEFAULT_MEMBER_ICON
   const canEditSelectedGroup = selectedGroup?.creator_session_id === sessionId
   const canChangeSelectedGroupIcon = Boolean(canEditSelectedGroup)
   const groupOfWeekAggregate = groupAggregates[0] || null
@@ -1077,10 +1124,15 @@ export default function GroupsPage() {
   }, [selectedGroup?.id, selectedGroup?.name])
 
   useEffect(() => {
-    setEditDisplayName(myMembership?.display_name || '')
-    setEditMemberIcon(myMembership?.icon || DEFAULT_MEMBER_ICON)
-    setBitmojiUrl(isImageIcon(myMembership?.icon) ? myMembership?.icon || '' : '')
-  }, [myMembership?.id, myMembership?.display_name, myMembership?.icon])
+    setEditDisplayName(myMembership?.display_name || localProfile.displayName || '')
+    setEditMemberIcon(myMembership?.icon || localProfile.icon || DEFAULT_MEMBER_ICON)
+  }, [
+    localProfile.displayName,
+    localProfile.icon,
+    myMembership?.display_name,
+    myMembership?.icon,
+    myMembership?.id,
+  ])
 
   useEffect(() => {
     if (joinTargetGroup && alreadyInJoinTarget) {
@@ -1194,7 +1246,9 @@ export default function GroupsPage() {
 
     if (typeof window !== 'undefined') {
       storeMemberProfile(groupData.id, displayName, createMemberIcon)
+      storeLocalProfile({ displayName, icon: createMemberIcon })
     }
+    setLocalProfile({ displayName, icon: createMemberIcon })
 
     setCreateName('')
     setCreateCode('')
@@ -1281,7 +1335,9 @@ export default function GroupsPage() {
 
     if (typeof window !== 'undefined') {
       storeMemberProfile(targetGroup.id, displayName, joinMemberIcon)
+      storeLocalProfile({ displayName, icon: joinMemberIcon })
     }
+    setLocalProfile({ displayName, icon: joinMemberIcon })
 
     setJoinDisplayName('')
     setJoinMemberIcon(DEFAULT_MEMBER_ICON)
@@ -1369,13 +1425,27 @@ export default function GroupsPage() {
   async function updateMyDisplayName() {
     const nextName = editDisplayName.trim()
 
-    if (!myMembership || !nextName) {
+    if (!nextName) {
       setMessage('Add a display name first.')
       return
     }
 
     setSavingDisplayName(true)
     setMessage('')
+
+    if (!myMembership) {
+      const nextProfile = {
+        displayName: nextName,
+        icon: editMemberIcon || localProfile.icon || DEFAULT_MEMBER_ICON,
+      }
+      setLocalProfile(nextProfile)
+      storeLocalProfile(nextProfile)
+      setJoinDisplayName(nextName)
+      setCreateDisplayName(nextName)
+      setSavingDisplayName(false)
+      setMessage('Profile updated.')
+      return
+    }
 
     const { error } = await supabase
       .from('group_members')
@@ -1399,18 +1469,35 @@ export default function GroupsPage() {
       storeMemberProfile(selectedGroup.id, nextName, myMembership.icon)
     }
 
+    const nextProfile = {
+      displayName: nextName,
+      icon: myMembership.icon || localProfile.icon || DEFAULT_MEMBER_ICON,
+    }
+    setLocalProfile(nextProfile)
+    storeLocalProfile(nextProfile)
+    setJoinDisplayName(nextName)
+    setCreateDisplayName(nextName)
     setSavingDisplayName(false)
     setMessage('Display name updated.')
   }
 
   async function updateMyMemberIcon(nextIcon: string) {
-    if (!myMembership) {
-      setMessage('Join a group before choosing your icon.')
-      return
-    }
-
     setSavingMemberIcon(true)
     setMessage('')
+
+    if (!myMembership) {
+      const nextProfile = {
+        displayName: editDisplayName.trim() || localProfile.displayName,
+        icon: nextIcon,
+      }
+      setLocalProfile(nextProfile)
+      storeLocalProfile(nextProfile)
+      setEditMemberIcon(nextIcon)
+      setJoinMemberIcon(nextIcon)
+      setCreateMemberIcon(nextIcon)
+      setSavingMemberIcon(false)
+      return
+    }
 
     const { error } = await supabase
       .from('group_members')
@@ -1436,6 +1523,14 @@ export default function GroupsPage() {
       storeMemberProfile(selectedGroup.id, myMembership.display_name, nextIcon)
     }
 
+    const nextProfile = {
+      displayName: myMembership.display_name || localProfile.displayName,
+      icon: nextIcon,
+    }
+    setLocalProfile(nextProfile)
+    storeLocalProfile(nextProfile)
+    setJoinMemberIcon(nextIcon)
+    setCreateMemberIcon(nextIcon)
     setEditMemberIcon(nextIcon)
     setSavingMemberIcon(false)
   }
@@ -1627,7 +1722,7 @@ export default function GroupsPage() {
               </section>
 
               <section className="rounded-[18px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_12px_28px_rgba(16,32,24,0.045)] sm:rounded-[20px] sm:p-4">
-                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#d69a28]">
+                <div className="text-center text-[9px] font-bold uppercase tracking-[0.18em] text-[#d69a28]">
                   MVP player
                 </div>
                 {mvpEntry ? (
@@ -1647,15 +1742,17 @@ export default function GroupsPage() {
                       <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[10px]">
                         {mvpEntry.group.name}
                       </p>
-                      <div className="mx-auto mt-2 inline-flex items-center gap-1.5 rounded-full border border-[#ead9b7] bg-[#fffaf1] px-2 py-1 text-[10px] font-bold text-[#102018]">
-                        ⭐ {formatScore(mvpEntry.stats.score)} pts
-                      </div>
                     </div>
 
                     <div className="hidden h-full bg-[#ece6db] md:block" />
 
                     <div className="space-y-2">
                       {[
+                        {
+                          Icon: Star,
+                          value: formatScore(mvpEntry.stats.score),
+                          label: 'Pts',
+                        },
                         {
                           Icon: Target,
                           value:
@@ -1678,19 +1775,19 @@ export default function GroupsPage() {
                         const StatIcon = item.Icon
 
                         return (
-                        <div key={item.label} className="flex items-center gap-2">
-                          <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
-                            <StatIcon size={15} strokeWidth={2.2} />
-                          </div>
-                          <div>
-                            <div className="font-serif text-[16px] font-bold leading-none text-[#102018] sm:text-[20px]">
-                              {item.value}
+                          <div key={item.label} className="flex items-center gap-2">
+                            <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
+                              <StatIcon size={15} strokeWidth={2.2} />
                             </div>
-                            <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px]">
-                              {item.label}
+                            <div>
+                              <div className="font-serif text-[16px] font-bold leading-none text-[#102018] sm:text-[20px]">
+                                {item.value}
+                              </div>
+                              <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px]">
+                                {item.label}
+                              </div>
                             </div>
                           </div>
-                        </div>
                         )
                       })}
                       <div className="hidden rounded-2xl border border-[#eadfce] bg-[#fffaf1] px-3 py-2 text-[11px] leading-4 text-[#1f6448] sm:block sm:text-xs sm:leading-5">
@@ -1750,7 +1847,9 @@ export default function GroupsPage() {
                           <div className="truncate font-serif text-[15px] font-bold text-[#102018] sm:text-[17px]">
                             {group.name}
                           </div>
-                          <div className="mt-0.5 text-xs text-[#637268]">{formatMemberCount(group.members)}</div>
+                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                            {formatMemberCount(group.members)}
+                          </div>
                         </div>
                         <div className="text-right">
                           <div className="font-serif text-[19px] font-bold leading-none text-[#102018] sm:text-[21px]">
@@ -1790,7 +1889,7 @@ export default function GroupsPage() {
                 <div className="flex items-center gap-3">
                   <div className="text-3xl">🎉</div>
                   <div>
-                    <div className="font-serif text-[16px] font-bold text-[#1f6448] sm:text-[18px]">
+                    <div className="whitespace-nowrap font-serif text-[13px] font-bold text-[#1f6448] sm:text-[15px]">
                       Think your group can take the crown?
                     </div>
                   </div>
@@ -1974,113 +2073,97 @@ export default function GroupsPage() {
 
         {!loading && activeGroupsTab === 'profile' ? (
           <div className="mx-auto w-full">
-            {myMembership ? (
-              <>
-                <section className="rounded-[22px] border border-[#e7e1d6] bg-white p-4 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-5">
-                  <div className="mx-auto flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] text-[44px] shadow-[0_12px_28px_rgba(16,32,24,0.07)] sm:h-28 sm:w-28 sm:text-[50px]">
-                    <IconMark
-                      value={myMembership.icon}
-                      fallback={myMembership.display_name.slice(0, 1).toUpperCase()}
-                    />
-                  </div>
-                  <h1 className="mt-4 font-serif text-[25px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[28px]">
-                    {myMembership.display_name}
-                  </h1>
-                  <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                    {selectedGroup?.name || 'Orthodle player'}
-                  </p>
+            <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 text-center shadow-[0_10px_26px_rgba(16,32,24,0.04)] sm:p-4">
+              <button
+                type="button"
+                onClick={() => setShowSelectedMemberIconPicker(prev => !prev)}
+                className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] text-[38px] shadow-[0_10px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 sm:h-24 sm:w-24 sm:text-[46px]"
+                aria-label="Change profile icon"
+              >
+                <IconMark
+                  value={profileIcon}
+                  fallback={profileDisplayName.slice(0, 1).toUpperCase()}
+                />
+              </button>
+              <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#8a9389]">
+                Tap icon to change
+              </div>
+              <h1 className="mt-2 font-serif text-[22px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[25px]">
+                {profileDisplayName}
+              </h1>
+              <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#637268]">
+                {selectedGroup?.name || 'Free agent'}
+              </p>
 
-                  <div className="mt-4 grid grid-cols-3 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-3">
-                    {[
-                      ['Score', formatScore(myMemberStats?.score || 0)],
-                      ['Solves', myMemberStats?.solves || 0],
-                      ['Streak', myMemberStats?.longestStreak || 0],
-                    ].map(([label, value]) => (
-                      <div key={label} className="px-2">
-                        <div className="font-serif text-[20px] font-bold text-[#102018]">{value}</div>
-                        <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="mt-4 grid gap-3 text-left">
-                    <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                      <input
-                        value={editDisplayName}
-                        onChange={event => setEditDisplayName(event.target.value)}
-                        placeholder="Your display name"
-                        className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                      />
-                      <button
-                        type="button"
-                        disabled={savingDisplayName || !editDisplayName.trim()}
-                        onClick={() => void updateMyDisplayName()}
-                        className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
-                      >
-                        {savingDisplayName ? 'Saving...' : 'Save name'}
-                      </button>
-                    </div>
-
-                    <IconPicker
-                      label="Choose icon"
-                      selectedIcon={editMemberIcon}
-                      isOpen={showSelectedMemberIconPicker}
+              {showSelectedMemberIconPicker ? (
+                <div className="orthodle-icon-scroll mx-auto mt-3 grid max-h-40 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-[#ece6db] bg-[#fcfbf8] p-2 sm:grid-cols-10">
+                  {GROUP_ICONS.map(icon => (
+                    <button
+                      key={icon.value}
+                      type="button"
                       disabled={savingMemberIcon}
-                      onToggle={() => setShowSelectedMemberIconPicker(prev => !prev)}
-                      onSelect={icon => {
-                        void updateMyMemberIcon(icon)
+                      onClick={() => {
+                        void updateMyMemberIcon(icon.value)
                         setShowSelectedMemberIconPicker(false)
                       }}
-                      ariaLabelPrefix="Use your icon"
-                    />
+                      className={`flex h-9 w-full items-center justify-center rounded-xl border text-[19px] transition hover:-translate-y-0.5 ${
+                        editMemberIcon === icon.value
+                          ? 'border-[#1f6448] bg-[#eef7f1]'
+                          : 'border-[#e6dfd3] bg-white'
+                      } disabled:opacity-50`}
+                      aria-label={`Use ${icon.label} icon`}
+                    >
+                      {icon.value}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
 
-                    <div className="rounded-2xl border border-[#ece6db] bg-[#fcfbf8] p-3">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                        Bitmoji / image URL
-                      </div>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
-                        <input
-                          value={bitmojiUrl}
-                          onChange={event => setBitmojiUrl(event.target.value)}
-                          placeholder="Paste an image URL"
-                          className="rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                        />
-                        <button
-                          type="button"
-                          disabled={savingMemberIcon || !bitmojiUrl.trim()}
-                          onClick={() => void updateMyMemberIcon(bitmojiUrl.trim())}
-                          className="h-10 rounded-xl border border-[#ded7ca] px-4 text-xs font-bold text-[#102018] disabled:opacity-50"
-                        >
-                          Use image
-                        </button>
-                      </div>
-                      <p className="mt-2 text-xs text-[#637268]">
-                        If you have a hosted Bitmoji/avatar image, paste the direct image link here.
-                      </p>
-                    </div>
+              <div className="mt-3 grid grid-cols-3 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-2.5">
+                {[
+                  ['Score', formatScore(myMemberStats?.score || 0)],
+                  ['Solves', myMemberStats?.solves || 0],
+                  ['Streak', myMemberStats?.longestStreak || 0],
+                ].map(([label, value]) => (
+                  <div key={label} className="px-2">
+                    <div className="font-serif text-[17px] font-bold text-[#102018] sm:text-[19px]">{value}</div>
+                    <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">{label}</div>
                   </div>
-                </section>
+                ))}
+              </div>
 
-                <TrophyCase trophies={trophyCaseItems} />
-              </>
-            ) : (
-              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-5 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
-                <h1 className="font-serif text-2xl font-bold text-[#102018]">Create your profile</h1>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#637268]">
-                  Join a group first, then you can customize your player name, icon, and stats card.
-                </p>
+              <div className="mt-3 grid gap-2 text-left sm:grid-cols-[1fr_auto]">
+                <input
+                  value={editDisplayName}
+                  onChange={event => setEditDisplayName(event.target.value)}
+                  placeholder="Your display name"
+                  className="h-10 rounded-xl border border-[#ded7ca] px-3 text-sm text-[#102018]"
+                />
+                <button
+                  type="button"
+                  disabled={savingDisplayName || !editDisplayName.trim()}
+                  onClick={() => void updateMyDisplayName()}
+                  className="h-10 rounded-xl bg-[#1f6448] px-4 text-xs font-bold text-white disabled:opacity-50"
+                >
+                  {savingDisplayName ? 'Saving...' : 'Save name'}
+                </button>
+              </div>
+
+              {!myMembership ? (
                 <button
                   type="button"
                   onClick={() => {
                     setShowJoinPanel(true)
                     setGroupActionMode('join')
                   }}
-                  className="mt-4 rounded-xl bg-[#1f6448] px-4 py-2.5 text-xs font-bold text-white"
+                  className="mt-3 rounded-full border border-[#e6dfd3] px-3 py-1.5 text-[11px] font-bold text-[#1f6448] transition hover:bg-[#fbfaf7]"
                 >
-                  Join or create
+                  Join or create a group
                 </button>
-              </section>
-            )}
+              ) : null}
+            </section>
+
+            <TrophyCase trophies={trophyCaseItems} />
           </div>
         ) : null}
 
@@ -2615,7 +2698,7 @@ export default function GroupsPage() {
                           <div className="truncate font-serif text-[15px] font-semibold tracking-[-0.03em] text-[#102018]">
                             {group.name}
                           </div>
-                          <div className="mt-0.5 text-[10px] text-[#637268]">
+                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
                             {formatMemberCount(group.members)}
                             {isTop ? (
                               <span className="ml-2 text-[#53715f]">Leading the pack</span>
