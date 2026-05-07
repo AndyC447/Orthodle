@@ -84,6 +84,8 @@ type LocalProfile = {
   icon: string
 }
 
+type LeaderboardWindow = 'week' | 'all-time'
+
 type ActivityFeedItem = {
   id: string
   icon: 'solve' | 'mvp' | 'streak' | 'rank'
@@ -780,6 +782,59 @@ function calculateMemberScore(
   return Math.round(solves * 10 + firstTrySolves * 3 + longestStreak * 2 + efficiencyBonus)
 }
 
+function buildGroupAggregatesFromRows(
+  groups: GroupRow[],
+  members: GroupMemberRow[],
+  guessRows: GuessRow[],
+  caseLookup: Record<string, CaseRow>
+) {
+  return groups
+    .map(group => {
+      const groupMembers = members.filter(member => member.group_id === group.id)
+      const memberStats = groupMembers.map(member => buildMemberStats(member, guessRows, caseLookup))
+
+      const totalCorrectGuesses = memberStats.reduce((sum, entry) => sum + entry.correctGuesses, 0)
+      const totalGuessCount = memberStats.reduce((sum, entry) => sum + entry.totalGuesses, 0)
+      const avgAccuracy =
+        totalGuessCount > 0 ? (totalCorrectGuesses / totalGuessCount) * 100 : null
+      const avgGuessEntries = memberStats.filter(entry => entry.avgGuesses !== null)
+      const avgGuesses =
+        avgGuessEntries.length > 0
+          ? avgGuessEntries.reduce((sum, entry) => sum + (entry.avgGuesses || 0), 0) /
+            avgGuessEntries.length
+          : null
+      const longestStreak = memberStats.reduce(
+        (max, entry) => Math.max(max, entry.longestStreak),
+        0
+      )
+      const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
+      const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
+      const totalMemberScore = activeMemberStats.reduce((sum, entry) => sum + entry.score, 0)
+      const score =
+        activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
+
+      return {
+        group,
+        members: groupMembers,
+        memberStats: memberStats.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score
+          if (b.longestStreak !== a.longestStreak) return b.longestStreak - a.longestStreak
+          if (b.solves !== a.solves) return b.solves - a.solves
+          if ((a.avgGuesses ?? Infinity) !== (b.avgGuesses ?? Infinity)) {
+            return (a.avgGuesses ?? Infinity) - (b.avgGuesses ?? Infinity)
+          }
+          return b.firstTrySolves - a.firstTrySolves
+        }),
+        score,
+        avgAccuracy,
+        avgGuesses,
+        longestStreak,
+        totalSolves,
+      }
+    })
+    .sort((a, b) => b.score - a.score)
+}
+
 function buildMemberStats(
   member: GroupMemberRow,
   guessRows: GuessRow[],
@@ -877,6 +932,7 @@ export default function GroupsPage() {
   const [joinCode, setJoinCode] = useState('')
   const [joinDisplayName, setJoinDisplayName] = useState('')
   const [joinMemberIcon, setJoinMemberIcon] = useState(DEFAULT_MEMBER_ICON)
+  const [leaderboardWindow, setLeaderboardWindow] = useState<LeaderboardWindow>('week')
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
   const [savingGroupName, setSavingGroupName] = useState(false)
@@ -1106,65 +1162,30 @@ export default function GroupsPage() {
     () => guessRows.filter(row => row.created_at >= weekRange.startIso && row.created_at <= weekRange.endIso),
     [guessRows, weekRange.endIso, weekRange.startIso]
   )
+  const allTimeGuessRows = useMemo(
+    () => guessRows.filter(row => Boolean(row.case_id)),
+    [guessRows]
+  )
 
   const groupAggregates = useMemo<GroupAggregate[]>(() => {
-    return groups
-      .map(group => {
-        const groupMembers = members.filter(member => member.group_id === group.id)
-        const memberStats = groupMembers.map(member =>
-          buildMemberStats(member, visibleGuessRows, caseLookup)
-        )
-
-        const totalCorrectGuesses = memberStats.reduce((sum, entry) => sum + entry.correctGuesses, 0)
-        const totalGuessCount = memberStats.reduce((sum, entry) => sum + entry.totalGuesses, 0)
-        const avgAccuracy =
-          totalGuessCount > 0 ? (totalCorrectGuesses / totalGuessCount) * 100 : null
-        const avgGuessEntries = memberStats.filter(entry => entry.avgGuesses !== null)
-        const avgGuesses =
-          avgGuessEntries.length > 0
-            ? avgGuessEntries.reduce((sum, entry) => sum + (entry.avgGuesses || 0), 0) /
-              avgGuessEntries.length
-            : null
-        const longestStreak = memberStats.reduce(
-          (max, entry) => Math.max(max, entry.longestStreak),
-          0
-        )
-        const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
-        const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
-        const totalMemberScore = activeMemberStats.reduce((sum, entry) => sum + entry.score, 0)
-        const score =
-          activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
-
-        return {
-          group,
-          members: groupMembers,
-          memberStats: memberStats.sort((a, b) => {
-            if (b.score !== a.score) return b.score - a.score
-            if (b.longestStreak !== a.longestStreak) return b.longestStreak - a.longestStreak
-            if (b.solves !== a.solves) return b.solves - a.solves
-            if ((a.avgGuesses ?? Infinity) !== (b.avgGuesses ?? Infinity)) {
-              return (a.avgGuesses ?? Infinity) - (b.avgGuesses ?? Infinity)
-            }
-            return b.firstTrySolves - a.firstTrySolves
-          }),
-          score,
-          avgAccuracy,
-          avgGuesses,
-          longestStreak,
-          totalSolves,
-        }
-      })
-      .sort((a, b) => b.score - a.score)
+    return buildGroupAggregatesFromRows(groups, members, visibleGuessRows, caseLookup)
   }, [groups, visibleGuessRows, members, caseLookup])
 
+  const allTimeGroupAggregates = useMemo<GroupAggregate[]>(() => {
+    return buildGroupAggregatesFromRows(groups, members, allTimeGuessRows, caseLookup)
+  }, [allTimeGuessRows, caseLookup, groups, members])
+
+  const activeGroupAggregates =
+    leaderboardWindow === 'week' ? groupAggregates : allTimeGroupAggregates
+
   const selectedGroupAggregate =
-    groupAggregates.find(entry => entry.group.id === selectedGroupId) || null
+    activeGroupAggregates.find(entry => entry.group.id === selectedGroupId) || null
   const selectedMemberPreviewRows =
     selectedGroupAggregate && (memberPreviewOpen || selectedGroupAggregate.memberStats.length <= 3)
       ? selectedGroupAggregate.memberStats
       : selectedGroupAggregate?.memberStats.slice(0, 3) || []
   const selectedGroupRank = selectedGroupAggregate
-    ? groupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
+    ? activeGroupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
     : null
   const viewerMembership = members.find(member => member.session_id === sessionId) || null
   const viewerGroup = viewerMembership
@@ -1177,7 +1198,7 @@ export default function GroupsPage() {
   const myMemberStats =
     selectedGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
   const viewerMemberStats =
-    viewerGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
+    viewerMembership ? buildMemberStats(viewerMembership, allTimeGuessRows, caseLookup) : null
   const viewerGroupRank = viewerGroupAggregate
     ? groupAggregates.findIndex(entry => entry.group.id === viewerGroupAggregate.group.id) + 1
     : null
@@ -1322,8 +1343,8 @@ export default function GroupsPage() {
   }, [alreadyInJoinTarget, joinTargetGroup?.id, members, sessionId])
 
   const displayLeaderboard: DisplayGroup[] =
-    groupAggregates.length > 0
-      ? groupAggregates.map(entry => ({
+    activeGroupAggregates.length > 0
+      ? activeGroupAggregates.map(entry => ({
           id: entry.group.id,
           name: entry.group.name,
           icon: entry.group.icon,
@@ -1986,9 +2007,6 @@ export default function GroupsPage() {
                           </div>
                         )
                       })}
-                      <div className="hidden rounded-2xl border border-[#eadfce] bg-[#fffaf1] px-3 py-2 text-[11px] leading-4 text-[#1f6448] sm:block sm:text-xs sm:leading-5">
-                        Top performer of the week. Leading the pack!
-                      </div>
                     </div>
                   </div>
                 ) : (
@@ -2004,15 +2022,26 @@ export default function GroupsPage() {
                 <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
                   Leaderboard
                 </div>
-                {leaderboardEntries.length > 5 ? (
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setShowAllGroups(prev => !prev)}
+                    onClick={() =>
+                      setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
+                    }
                     className="rounded-full border border-[#e6dfd3] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
-                    {showAllGroups ? 'Top 5' : 'This week'}⌄
+                    {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                   </button>
-                ) : null}
+                  {leaderboardEntries.length > 5 ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAllGroups(prev => !prev)}
+                      className="rounded-full border border-[#e6dfd3] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                    >
+                      {showAllGroups ? 'Top 5' : 'View more'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
               <div className="mt-3 space-y-2">
@@ -2111,9 +2140,10 @@ export default function GroupsPage() {
           <div className="space-y-3.5 sm:space-y-4">
             {selectedGroup && selectedGroupAggregate ? (
               <>
-                <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-4 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
+                <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
+                  <div className="flex flex-col gap-3 sm:gap-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
                       <button
                         type="button"
                         onClick={() => {
@@ -2123,34 +2153,51 @@ export default function GroupsPage() {
                         className={`${canChangeSelectedGroupIcon ? 'transition hover:-translate-y-0.5' : ''}`}
                         aria-label={canChangeSelectedGroupIcon ? 'Change group icon' : 'Group icon'}
                       >
-                        <div className="rounded-full border-2 border-[#efbf48] p-1">
-                          <GroupCrest group={selectedGroup} size="lg" />
+                        <div className="relative rounded-full border-2 border-[#efbf48] p-1">
+                          <div className="flex h-20 w-20 items-center justify-center sm:h-28 sm:w-28">
+                            <GroupCrest group={selectedGroup} size="lg" />
+                          </div>
+                          <span className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[#d8cfbf] bg-white text-[#0e5a3f] shadow-[0_8px_18px_rgba(16,32,24,0.16)] sm:h-8 sm:w-8">
+                            <Pencil size={13} strokeWidth={2.2} />
+                          </span>
                         </div>
                       </button>
                       <div className="min-w-0">
-                        <h1 className="truncate font-serif text-[24px] font-bold tracking-[-0.05em] text-white sm:text-[29px]">
+                        <h1 className="truncate font-serif text-[21px] font-bold tracking-[-0.05em] text-white sm:text-[29px]">
                           {selectedGroup.name}
                         </h1>
-                        <p className="mt-1 text-sm text-[#e3efe8]">
+                        <p className="mt-0.5 text-[13px] text-[#e3efe8] sm:mt-1 sm:text-sm">
                           {formatMemberCount(selectedGroupAggregate.members.length)}
                         </p>
-                        <p className="mt-2 text-sm font-medium text-[#f6efe0]">
+                        <p className="mt-1.5 text-[13px] font-medium text-[#f6efe0] sm:mt-2 sm:text-sm">
                           "{getGroupTagline(selectedGroupRank)}"
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void shareInviteLink(selectedGroup)}
-                      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-4 text-xs font-bold text-white transition hover:bg-white/12"
-                    >
-                      <Share2 size={15} strokeWidth={2} />
-                      {copiedCode === selectedGroup.id ? 'Copied' : 'Invite teammates'}
-                    </button>
+                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
+                        }
+                        className="inline-flex h-8 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:px-4 sm:text-xs"
+                      >
+                        {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void shareInviteLink(selectedGroup)}
+                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:gap-2 sm:px-4 sm:text-xs"
+                      >
+                        <Share2 size={13} strokeWidth={2} />
+                        {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
+                      </button>
+                    </div>
+                  </div>
                   </div>
 
                   {showSelectedGroupIconPicker && canChangeSelectedGroupIcon ? (
-                    <div className="orthodle-icon-scroll mt-4 grid max-h-40 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2 sm:grid-cols-10">
+                    <div className="orthodle-icon-scroll mt-3 grid max-h-[13.5rem] grid-cols-5 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2.5 sm:mt-4 sm:max-h-48 sm:grid-cols-10">
                       {GROUP_ICONS.map(icon => (
                         <button
                           key={icon.value}
@@ -2173,28 +2220,28 @@ export default function GroupsPage() {
                     </div>
                   ) : null}
 
-                  <div className="mt-5 grid grid-cols-3 divide-x divide-white/18 border-t border-white/14 pt-4 text-center">
+                  <div className="mt-4 grid grid-cols-3 divide-x divide-white/18 border-t border-white/14 pt-3.5 text-center sm:mt-5 sm:pt-4">
                     <div className="px-2">
-                      <div className="font-serif text-[24px] font-bold leading-none text-white">
+                      <div className="font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                         #{selectedGroupRank || '—'}
                       </div>
-                      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
-                        of {groupAggregates.length} groups
+                      <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
+                        of {activeGroupAggregates.length} groups
                       </div>
                     </div>
                     <div className="px-2">
-                      <div className="font-serif text-[24px] font-bold leading-none text-white">
+                      <div className="font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                         {formatScore(selectedGroupAggregate.score)}
                       </div>
-                      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
-                        pts this week
+                      <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
+                        pts {leaderboardWindow === 'week' ? 'this week' : 'all time'}
                       </div>
                     </div>
                     <div className="px-2">
-                      <div className="font-serif text-[24px] font-bold leading-none text-white">
+                      <div className="font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                         {selectedGroupAggregate.longestStreak}
                       </div>
-                      <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                      <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
                         day streak
                       </div>
                     </div>
@@ -2212,14 +2259,14 @@ export default function GroupsPage() {
                           key={entry.member.id}
                           type="button"
                           onClick={() => setSelectedMemberStats(entry)}
-                          className="grid w-full grid-cols-[32px_34px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-2xl border border-[#ece6db] bg-white px-2.5 py-2 text-left transition hover:-translate-y-0.5"
+                          className="grid w-full grid-cols-[28px_32px_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-[#ece6db] bg-white px-2 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[32px_34px_minmax(0,1fr)_auto] sm:gap-2.5 sm:px-2.5"
                         >
-                          <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${rankCircleClass(index + 1)}`}>
+                          <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold sm:h-7 sm:w-7 sm:text-xs ${rankCircleClass(index + 1)}`}>
                             {index + 1}
                           </div>
                           <MemberAvatar member={entry.member} />
                           <div className="min-w-0">
-                            <div className="truncate font-serif text-[15px] font-bold text-[#102018] sm:text-[17px]">
+                            <div className="truncate font-serif text-[14px] font-bold text-[#102018] sm:text-[17px]">
                               {entry.member.display_name}
                               {entry.member.session_id === sessionId ? (
                                 <span className="ml-2 rounded-full bg-[#eef7f1] px-2 py-0.5 align-middle text-[10px] font-bold text-[#2d7651]">
@@ -2227,13 +2274,13 @@ export default function GroupsPage() {
                                 </span>
                               ) : null}
                             </div>
-                            <div className="text-[11px] text-[#637268] sm:text-xs">
+                            <div className="text-[10px] text-[#637268] sm:text-xs">
                               {entry.solves} solves · {entry.firstTrySolves} first try · {entry.longestStreak} day streak
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2 sm:gap-3">
                             <div className="text-right">
-                              <div className="font-serif text-[18px] font-bold leading-none text-[#102018] sm:text-[20px]">
+                              <div className="font-serif text-[16px] font-bold leading-none text-[#102018] sm:text-[20px]">
                                 {formatScore(entry.score)}
                               </div>
                               <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">
@@ -2277,7 +2324,7 @@ export default function GroupsPage() {
                   <div className="mt-3 divide-y divide-[#ece6db]">
                     {groupActivityFeed.length > 0 ? (
                       groupActivityFeed.map(item => (
-                        <div key={item.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                        <div key={item.id} className="flex items-start gap-2.5 py-2.5 first:pt-0 last:pb-0 sm:gap-3 sm:py-3">
                           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f7f3ea] text-lg">
                             {getActivityIcon(item.icon)}
                           </div>
@@ -2436,7 +2483,7 @@ export default function GroupsPage() {
               </p>
 
               {showSelectedMemberIconPicker ? (
-                <div className="orthodle-icon-scroll mt-3 grid max-h-40 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2 sm:grid-cols-10">
+                <div className="orthodle-icon-scroll mt-3 grid max-h-48 grid-cols-6 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2.5 sm:grid-cols-10">
                   {GROUP_ICONS.map(icon => (
                     <button
                       key={icon.value}
