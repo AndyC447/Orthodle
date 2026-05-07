@@ -2142,8 +2142,8 @@ export default function GroupsPage() {
               <>
                 <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
                   <div className="flex flex-col gap-3 sm:gap-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-start gap-3">
                       <button
                         type="button"
                         onClick={() => {
@@ -2162,32 +2162,32 @@ export default function GroupsPage() {
                           </span>
                         </div>
                       </button>
-                      <div className="min-w-0">
-                        <h1 className="truncate font-serif text-[21px] font-bold tracking-[-0.05em] text-white sm:text-[29px]">
+                      <div className="min-w-0 flex-1 pt-0.5">
+                        <h1 className="font-serif text-[20px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[29px] sm:leading-none">
                           {selectedGroup.name}
                         </h1>
                         <p className="mt-0.5 text-[13px] text-[#e3efe8] sm:mt-1 sm:text-sm">
                           {formatMemberCount(selectedGroupAggregate.members.length)}
                         </p>
-                        <p className="mt-1.5 text-[13px] font-medium text-[#f6efe0] sm:mt-2 sm:text-sm">
+                        <p className="mt-1.5 max-w-[18rem] text-[13px] font-medium leading-[1.35] text-[#f6efe0] sm:mt-2 sm:max-w-none sm:text-sm">
                           "{getGroupTagline(selectedGroupRank)}"
                         </p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 self-start sm:self-auto">
+                      </div>
+                    <div className="flex w-full items-center gap-2 sm:w-auto sm:self-auto">
                       <button
                         type="button"
                         onClick={() =>
                           setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
                         }
-                        className="inline-flex h-8 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:px-4 sm:text-xs"
+                        className="inline-flex h-9 min-w-0 flex-1 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
                       >
                         {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                       </button>
                       <button
                         type="button"
                         onClick={() => void shareInviteLink(selectedGroup)}
-                        className="inline-flex h-8 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:gap-2 sm:px-4 sm:text-xs"
+                        className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
                       >
                         <Share2 size={13} strokeWidth={2} />
                         {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
