@@ -412,8 +412,6 @@ export default function GroupsPage() {
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
   const [editMemberIcon, setEditMemberIcon] = useState(DEFAULT_MEMBER_ICON)
-  const [adminUnlocked, setAdminUnlocked] = useState(false)
-  const [deletingGroupId, setDeletingGroupId] = useState('')
   const sessionId = useMemo(() => getSessionId(), [])
   const router = useRouter()
 
@@ -534,7 +532,6 @@ export default function GroupsPage() {
     if (!window.localStorage.getItem(GROUPS_EXPLAINER_STORAGE_KEY)) {
       setShowGroupsExplainer(true)
     }
-    setAdminUnlocked(window.sessionStorage.getItem('orthodle_admin_unlocked') === 'true')
   }, [])
 
   useEffect(() => {
@@ -963,45 +960,6 @@ export default function GroupsPage() {
       prev.map(group => (group.id === selectedGroup.id ? { ...group, icon: nextIcon } : group))
     )
     setSavingGroupIcon(false)
-  }
-
-  async function deleteGroupAsAdmin(group: Pick<GroupRow, 'id' | 'name'>) {
-    if (!adminUnlocked || typeof window === 'undefined') return
-
-    const adminPassword = window.sessionStorage.getItem('orthodle_admin_password') || ''
-    if (!adminPassword) {
-      setMessage('Unlock admin first, then come back to remove groups.')
-      return
-    }
-
-    const confirmed = window.confirm(`Remove "${group.name}" and its members?`)
-    if (!confirmed) return
-
-    setDeletingGroupId(group.id)
-    setMessage('')
-
-    const response = await fetch('/api/admin-delete-group', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: adminPassword, groupId: group.id }),
-    })
-
-    const payload = await response.json().catch(() => ({}))
-
-    if (!response.ok) {
-      setDeletingGroupId('')
-      setMessage(payload.error || 'Could not remove that group.')
-      return
-    }
-
-    setGroups(prev => prev.filter(entry => entry.id !== group.id))
-    setMembers(prev => prev.filter(member => member.group_id !== group.id))
-    if (selectedGroupId === group.id) {
-      setSelectedGroupId('')
-      setYourGroupOpen(false)
-    }
-    window.localStorage.removeItem(membershipKey(group.id))
-    setDeletingGroupId('')
   }
 
   async function updateMyDisplayName() {
@@ -1607,26 +1565,6 @@ export default function GroupsPage() {
                   </div>
                 )}
               </div>
-              {adminUnlocked && leaderboardEntries.length > 0 ? (
-                <div className="mt-3 rounded-[14px] border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-2">
-                  <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                    Admin controls
-                  </div>
-                <div className="flex max-w-full min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {leaderboardEntries.map(group => (
-                      <button
-                        key={group.id}
-                        type="button"
-                        onClick={() => void deleteGroupAsAdmin(group)}
-                        disabled={deletingGroupId === group.id}
-                        className="inline-flex h-7 items-center justify-center rounded-full border border-[#e0d8ca] bg-white px-2.5 text-[10px] font-semibold text-[#a24d24] transition hover:-translate-y-0.5 hover:bg-[#fff8ef] disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {deletingGroupId === group.id ? 'Removing...' : `Remove ${group.name}`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
             </section>
 
             <section className={`grid gap-1.5 ${selectedGroup ? 'sm:grid-cols-2' : ''}`}>

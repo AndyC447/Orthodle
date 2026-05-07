@@ -185,6 +185,7 @@ type AdminSidebarSectionId =
   | 'submissions'
   | 'answer_choices'
   | 'feedback'
+  | 'groups'
   | 'cases_by_date'
 
 type AdminCollapsedSectionId =
@@ -209,6 +210,7 @@ const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'submissions',
   'answer_choices',
   'feedback',
+  'groups',
   'cases_by_date',
 ]
 
@@ -2038,6 +2040,19 @@ export default function AdminPage() {
           </div>
         </div>
         <p className="mt-2 text-sm text-[#8a948d]">{feedbackSummary.total} total</p>
+      </section>
+    ),
+    groups: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Link
+            href="/admin/groups"
+            className="font-serif text-xl font-bold transition hover:text-[#1f6448]"
+          >
+            Groups
+          </Link>
+        </div>
+        <p className="mt-2 text-sm text-[#8a948d]">Manage group boards</p>
       </section>
     ),
     analytics: (
