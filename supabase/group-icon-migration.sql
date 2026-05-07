@@ -16,3 +16,12 @@ create policy "public update groups"
   with check (true);
 
 grant select, insert, update on public.groups to anon, authenticated;
+
+alter table public.group_members
+  add column if not exists icon text default '🦴';
+
+update public.group_members
+set icon = '🦴'
+where icon is null;
+
+grant select, insert, update on public.group_members to anon, authenticated;

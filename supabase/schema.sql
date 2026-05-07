@@ -200,8 +200,11 @@ create table if not exists group_members (
   group_id uuid not null references groups(id) on delete cascade,
   session_id text not null,
   display_name text not null,
+  icon text default '🦴',
   created_at timestamptz default now()
 );
+
+alter table group_members add column if not exists icon text default '🦴';
 
 create or replace view daily_analytics as
 select

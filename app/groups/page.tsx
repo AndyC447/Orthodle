@@ -22,6 +22,7 @@ type GroupMemberRow = {
   group_id: string
   session_id: string
   display_name: string
+  icon: string | null
   created_at: string
 }
 
@@ -73,6 +74,7 @@ type DisplayGroup = {
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
+const DEFAULT_MEMBER_ICON = '🦴'
 const GROUP_ICONS = [
   { value: '🦴', label: 'Bone' },
   { value: '🦵', label: 'Leg' },
@@ -123,6 +125,14 @@ function makeRandomJoinCode() {
 
 function membershipKey(groupId: string) {
   return `orthodle_group_member:${groupId}`
+}
+
+function storeMemberProfile(groupId: string, displayName: string, icon: string | null) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(
+    membershipKey(groupId),
+    JSON.stringify({ displayName, icon: icon || DEFAULT_MEMBER_ICON })
+  )
 }
 
 function buildInviteLink(joinCode: string) {
@@ -194,6 +204,91 @@ function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'ic
       <span className="orthodle-group-crest-mark leading-none">
         {groupAvatarLabel(group)}
       </span>
+    </div>
+  )
+}
+
+function memberAvatarLabel(member: Pick<GroupMemberRow, 'display_name' | 'icon'>) {
+  return member.icon || member.display_name.slice(0, 1).toUpperCase()
+}
+
+function MemberAvatar({
+  member,
+  size = 'md',
+}: {
+  member: Pick<GroupMemberRow, 'display_name' | 'icon'>
+  size?: 'sm' | 'md'
+}) {
+  const dimensions = size === 'sm' ? 'h-7 w-7 text-[14px]' : 'h-8 w-8 text-[16px]'
+
+  return (
+    <div
+      className={`orthodle-member-avatar flex shrink-0 items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] font-bold text-[#2d7651] ${dimensions}`}
+      aria-hidden="true"
+    >
+      {memberAvatarLabel(member)}
+    </div>
+  )
+}
+
+function IconPicker({
+  label,
+  selectedIcon,
+  isOpen,
+  disabled = false,
+  onToggle,
+  onSelect,
+  ariaLabelPrefix,
+}: {
+  label: string
+  selectedIcon: string | null
+  isOpen: boolean
+  disabled?: boolean
+  onToggle: () => void
+  onSelect: (icon: string) => void
+  ariaLabelPrefix: string
+}) {
+  const currentIcon = selectedIcon || DEFAULT_MEMBER_ICON
+
+  return (
+    <div className="min-w-0">
+      <div className="space-y-1.5">
+        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+          {label}
+        </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={disabled}
+          aria-expanded={isOpen}
+          className="inline-flex h-8 items-center gap-2 rounded-full border border-[#e0d8ca] bg-white px-2 text-[11px] font-semibold text-[#102018] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className="orthodle-member-avatar flex h-6 w-6 items-center justify-center rounded-full border border-[#e0d7c8] text-[14px]">
+            {currentIcon}
+          </span>
+          {isOpen ? 'Hide' : 'Change'}
+        </button>
+      </div>
+      {isOpen ? (
+        <div className="orthodle-icon-scroll mt-2 grid max-w-full min-w-0 auto-cols-[2rem] grid-flow-col grid-rows-2 gap-1.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {GROUP_ICONS.map(icon => (
+            <button
+              key={icon.value}
+              type="button"
+              disabled={disabled}
+              onClick={() => onSelect(icon.value)}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[15px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                currentIcon === icon.value
+                  ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
+                  : 'border-[#e6dfd3] bg-white'
+              }`}
+              aria-label={`${ariaLabelPrefix} ${icon.label}`}
+            >
+              {icon.value}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -290,14 +385,17 @@ export default function GroupsPage() {
   const [createName, setCreateName] = useState('')
   const [createCode, setCreateCode] = useState('')
   const [createIcon, setCreateIcon] = useState(GROUP_ICONS[0].value)
+  const [createMemberIcon, setCreateMemberIcon] = useState(DEFAULT_MEMBER_ICON)
   const [createDisplayName, setCreateDisplayName] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [joinDisplayName, setJoinDisplayName] = useState('')
+  const [joinMemberIcon, setJoinMemberIcon] = useState(DEFAULT_MEMBER_ICON)
   const [creating, setCreating] = useState(false)
   const [joining, setJoining] = useState(false)
   const [savingGroupName, setSavingGroupName] = useState(false)
   const [savingGroupIcon, setSavingGroupIcon] = useState(false)
   const [savingDisplayName, setSavingDisplayName] = useState(false)
+  const [savingMemberIcon, setSavingMemberIcon] = useState(false)
   const [copiedCode, setCopiedCode] = useState('')
   const [urlJoinCode, setUrlJoinCode] = useState('')
   const [showJoinPanel, setShowJoinPanel] = useState(false)
@@ -305,9 +403,15 @@ export default function GroupsPage() {
   const [showAllGroups, setShowAllGroups] = useState(false)
   const [yourGroupOpen, setYourGroupOpen] = useState(false)
   const [memberPreviewOpen, setMemberPreviewOpen] = useState(false)
+  const [showSelectedGroupIconPicker, setShowSelectedGroupIconPicker] = useState(false)
+  const [showSelectedMemberIconPicker, setShowSelectedMemberIconPicker] = useState(false)
+  const [showJoinMemberIconPicker, setShowJoinMemberIconPicker] = useState(false)
+  const [showCreateGroupIconPicker, setShowCreateGroupIconPicker] = useState(false)
+  const [showCreateMemberIconPicker, setShowCreateMemberIconPicker] = useState(false)
   const [showGroupsExplainer, setShowGroupsExplainer] = useState(false)
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
+  const [editMemberIcon, setEditMemberIcon] = useState(DEFAULT_MEMBER_ICON)
   const [adminUnlocked, setAdminUnlocked] = useState(false)
   const [deletingGroupId, setDeletingGroupId] = useState('')
   const sessionId = useMemo(() => getSessionId(), [])
@@ -472,7 +576,15 @@ export default function GroupsPage() {
       setYourGroupOpen(false)
     }
     setMemberPreviewOpen(false)
+    setShowSelectedGroupIconPicker(false)
+    setShowSelectedMemberIconPicker(false)
   }, [selectedGroupId])
+
+  useEffect(() => {
+    setShowJoinMemberIconPicker(false)
+    setShowCreateGroupIconPicker(false)
+    setShowCreateMemberIconPicker(false)
+  }, [groupActionMode, showJoinPanel])
 
   const selectedGroup = groups.find(group => group.id === selectedGroupId) || null
   const selectedMembers = useMemo(
@@ -566,7 +678,18 @@ export default function GroupsPage() {
 
   useEffect(() => {
     setEditDisplayName(myMembership?.display_name || '')
-  }, [myMembership?.id, myMembership?.display_name])
+    setEditMemberIcon(myMembership?.icon || DEFAULT_MEMBER_ICON)
+  }, [myMembership?.id, myMembership?.display_name, myMembership?.icon])
+
+  useEffect(() => {
+    if (joinTargetGroup && alreadyInJoinTarget) {
+      const existingMembership = members.find(
+        member => member.group_id === joinTargetGroup.id && member.session_id === sessionId
+      )
+      setJoinDisplayName(existingMembership?.display_name || joinDisplayName)
+      setJoinMemberIcon(existingMembership?.icon || DEFAULT_MEMBER_ICON)
+    }
+  }, [alreadyInJoinTarget, joinTargetGroup?.id, members, sessionId])
 
   const displayLeaderboard: DisplayGroup[] =
     groupAggregates.length > 0
@@ -646,11 +769,21 @@ export default function GroupsPage() {
       return
     }
 
-    const { error: memberError } = await supabase.from('group_members').insert({
+    let { error: memberError } = await supabase.from('group_members').insert({
       group_id: groupData.id,
       session_id: sessionId,
       display_name: displayName,
+      icon: createMemberIcon,
     })
+
+    if (memberError?.message.includes('icon')) {
+      const fallbackResult = await supabase.from('group_members').insert({
+        group_id: groupData.id,
+        session_id: sessionId,
+        display_name: displayName,
+      })
+      memberError = fallbackResult.error
+    }
 
     if (memberError) {
       setCreating(false)
@@ -659,12 +792,13 @@ export default function GroupsPage() {
     }
 
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(membershipKey(groupData.id), displayName)
+      storeMemberProfile(groupData.id, displayName, createMemberIcon)
     }
 
     setCreateName('')
     setCreateCode('')
     setCreateIcon(GROUP_ICONS[0].value)
+    setCreateMemberIcon(DEFAULT_MEMBER_ICON)
     setCreateDisplayName('')
     setJoinDisplayName('')
     setJoinCode('')
@@ -702,10 +836,18 @@ export default function GroupsPage() {
     )
 
     if (existingMembership) {
-      const { error } = await supabase
+      let { error } = await supabase
         .from('group_members')
-        .update({ display_name: displayName })
+        .update({ display_name: displayName, icon: joinMemberIcon })
         .eq('id', existingMembership.id)
+
+      if (error?.message.includes('icon')) {
+        const fallbackResult = await supabase
+          .from('group_members')
+          .update({ display_name: displayName })
+          .eq('id', existingMembership.id)
+        error = fallbackResult.error
+      }
 
       if (error) {
         setJoining(false)
@@ -713,11 +855,21 @@ export default function GroupsPage() {
         return
       }
     } else {
-      const { error } = await supabase.from('group_members').insert({
+      let { error } = await supabase.from('group_members').insert({
         group_id: targetGroup.id,
         session_id: sessionId,
         display_name: displayName,
+        icon: joinMemberIcon,
       })
+
+      if (error?.message.includes('icon')) {
+        const fallbackResult = await supabase.from('group_members').insert({
+          group_id: targetGroup.id,
+          session_id: sessionId,
+          display_name: displayName,
+        })
+        error = fallbackResult.error
+      }
 
       if (error) {
         setJoining(false)
@@ -727,10 +879,11 @@ export default function GroupsPage() {
     }
 
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(membershipKey(targetGroup.id), displayName)
+      storeMemberProfile(targetGroup.id, displayName, joinMemberIcon)
     }
 
     setJoinDisplayName('')
+    setJoinMemberIcon(DEFAULT_MEMBER_ICON)
     setJoinCode('')
     setShowJoinPanel(false)
     setJoining(false)
@@ -881,11 +1034,48 @@ export default function GroupsPage() {
     )
 
     if (selectedGroup) {
-      window.localStorage.setItem(membershipKey(selectedGroup.id), nextName)
+      storeMemberProfile(selectedGroup.id, nextName, myMembership.icon)
     }
 
     setSavingDisplayName(false)
     setMessage('Display name updated.')
+  }
+
+  async function updateMyMemberIcon(nextIcon: string) {
+    if (!myMembership) {
+      setMessage('Join a group before choosing your icon.')
+      return
+    }
+
+    setSavingMemberIcon(true)
+    setMessage('')
+
+    const { error } = await supabase
+      .from('group_members')
+      .update({ icon: nextIcon })
+      .eq('id', myMembership.id)
+      .eq('session_id', sessionId)
+
+    if (error) {
+      setSavingMemberIcon(false)
+      setMessage(
+        error.message.includes('icon')
+          ? 'Run the member icon SQL once, then try again.'
+          : error.message
+      )
+      return
+    }
+
+    setMembers(prev =>
+      prev.map(member => (member.id === myMembership.id ? { ...member, icon: nextIcon } : member))
+    )
+
+    if (selectedGroup) {
+      storeMemberProfile(selectedGroup.id, myMembership.display_name, nextIcon)
+    }
+
+    setEditMemberIcon(nextIcon)
+    setSavingMemberIcon(false)
   }
 
   async function submitGroupForm() {
@@ -982,7 +1172,7 @@ export default function GroupsPage() {
       ) : null}
 
       <section className="mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
-        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
+        <div className="night-surface orthodle-groups-shell rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
           <div className="space-y-3.5 sm:space-y-4">
             <div>
               <div>
@@ -1074,48 +1264,51 @@ export default function GroupsPage() {
                                 {savingGroupName ? 'Saving...' : 'Save group'}
                               </button>
                             </div>
-                            <div>
-                              <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                                Group icon
-                              </div>
-                              <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                                {GROUP_ICONS.map(icon => (
-                                  <button
-                                    key={icon.value}
-                                    type="button"
-                                    disabled={savingGroupIcon}
-                                    onClick={() => void updateSelectedGroupIcon(icon.value)}
-                                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
-                                      selectedGroup.icon === icon.value
-                                        ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
-                                        : 'border-[#e6dfd3] bg-[#fcfbf8]'
-                                    }`}
-                                    aria-label={`Use ${icon.label} icon`}
-                                  >
-                                    {icon.value}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
+                            <IconPicker
+                              label="Group icon"
+                              selectedIcon={selectedGroup.icon}
+                              isOpen={showSelectedGroupIconPicker}
+                              disabled={savingGroupIcon}
+                              onToggle={() => setShowSelectedGroupIconPicker(prev => !prev)}
+                              onSelect={icon => {
+                                void updateSelectedGroupIcon(icon)
+                                setShowSelectedGroupIconPicker(false)
+                              }}
+                              ariaLabelPrefix="Use group icon"
+                            />
                           </>
                         ) : null}
 
                         {myMembership ? (
-                          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                            <input
-                              value={editDisplayName}
-                              onChange={event => setEditDisplayName(event.target.value)}
-                              placeholder="Your display name"
-                              className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                          <div className="space-y-2">
+                            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                              <input
+                                value={editDisplayName}
+                                onChange={event => setEditDisplayName(event.target.value)}
+                                placeholder="Your display name"
+                                className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                              />
+                              <button
+                                type="button"
+                                disabled={savingDisplayName || !editDisplayName.trim()}
+                                onClick={() => void updateMyDisplayName()}
+                                className="inline-flex h-9 items-center justify-center rounded-full border border-[#e0d8ca] bg-[#fcfbf8] px-4 text-[11px] font-semibold text-[#102018] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                {savingDisplayName ? 'Saving...' : 'Save name'}
+                              </button>
+                            </div>
+                            <IconPicker
+                              label="Your icon"
+                              selectedIcon={editMemberIcon}
+                              isOpen={showSelectedMemberIconPicker}
+                              disabled={savingMemberIcon}
+                              onToggle={() => setShowSelectedMemberIconPicker(prev => !prev)}
+                              onSelect={icon => {
+                                void updateMyMemberIcon(icon)
+                                setShowSelectedMemberIconPicker(false)
+                              }}
+                              ariaLabelPrefix="Use your icon"
                             />
-                            <button
-                              type="button"
-                              disabled={savingDisplayName || !editDisplayName.trim()}
-                              onClick={() => void updateMyDisplayName()}
-                              className="inline-flex h-9 items-center justify-center rounded-full border border-[#e0d8ca] bg-[#fcfbf8] px-4 text-[11px] font-semibold text-[#102018] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              {savingDisplayName ? 'Saving...' : 'Save name'}
-                            </button>
                           </div>
                         ) : null}
                       </div>
@@ -1128,9 +1321,10 @@ export default function GroupsPage() {
                           selectedGroupAggregate.memberStats.map((entry, index) => (
                             <div
                               key={entry.member.id}
-                              className="grid grid-cols-[22px_1fr_auto] items-center gap-2 py-2 text-[12px]"
+                              className="grid grid-cols-[22px_30px_1fr_auto] items-center gap-2 py-2 text-[12px]"
                             >
                               <span className="font-semibold text-[#102018]">{index + 1}</span>
+                              <MemberAvatar member={entry.member} size="sm" />
                               <div className="min-w-0">
                                 <div className="truncate font-semibold text-[#102018]">
                                   {entry.member.display_name}
@@ -1227,9 +1421,10 @@ export default function GroupsPage() {
                         {selectedMemberPreviewRows.map((entry, index) => (
                           <div
                             key={entry.member.id}
-                            className="grid grid-cols-[20px_1fr_auto] items-center gap-2 py-1.5"
+                            className="grid grid-cols-[20px_28px_1fr_auto] items-center gap-2 py-1.5"
                           >
                             <div className="text-[11px] font-semibold text-[#102018]">{index + 1}</div>
+                            <MemberAvatar member={entry.member} size="sm" />
                             <div className="min-w-0">
                               <div className="truncate text-[11px] font-semibold text-[#102018]">
                                 {entry.member.display_name}
@@ -1298,6 +1493,7 @@ export default function GroupsPage() {
                           onClick={() => {
                             router.push(`/groups/${group.id}`)
                           }}
+                          data-rank={rank}
                           className="orthodle-podium-card relative flex min-h-[136px] w-full flex-col items-center overflow-hidden rounded-[16px] border border-[#e0d7c8] bg-[linear-gradient(180deg,#fffdf8,#fbf7ef)] px-1.5 py-2.5 text-center shadow-[0_8px_22px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_12px_26px_rgba(16,32,24,0.1)] sm:min-h-[154px] sm:rounded-[18px] sm:px-2.5 sm:py-3"
                         >
                           <div className="absolute inset-x-6 bottom-0 h-px bg-[linear-gradient(90deg,transparent,#d8a947,transparent)]" />
@@ -1369,7 +1565,7 @@ export default function GroupsPage() {
                         onClick={() => {
                           router.push(`/groups/${group.id}`)
                         }}
-                        className={`grid w-full grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
+                        className={`orthodle-leaderboard-row grid w-full grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
                           selectedGroupId === group.id
                             ? 'border-[#2d7651] bg-[#fcfbf8]'
                             : 'border-[#ece6db] bg-white'
@@ -1416,7 +1612,7 @@ export default function GroupsPage() {
                   <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                     Admin controls
                   </div>
-                  <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex max-w-full min-w-0 gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {leaderboardEntries.map(group => (
                       <button
                         key={group.id}
@@ -1440,7 +1636,7 @@ export default function GroupsPage() {
                   setGroupActionMode('join')
                   setShowJoinPanel(prev => (groupActionMode === 'join' ? !prev : true))
                 }}
-                className="flex items-center gap-2 rounded-[13px] border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5"
+                className="orthodle-group-action-tile flex items-center gap-2 rounded-[13px] border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5"
               >
                 <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-[#fcfbf8] text-[15px]">
                   <UserPlus size={15} strokeWidth={2} />
@@ -1456,7 +1652,7 @@ export default function GroupsPage() {
                   onClick={() => {
                     void shareInviteLink(selectedGroup)
                   }}
-                  className="flex items-center gap-2 rounded-[13px] border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5"
+                  className="orthodle-group-action-tile flex items-center gap-2 rounded-[13px] border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5"
                 >
                   <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-[#fcfbf8] text-[15px]">
                     <Share2 size={15} strokeWidth={2} />
@@ -1512,6 +1708,19 @@ export default function GroupsPage() {
 
                 {groupActionMode === 'join' ? (
                   <>
+                    <div className="mt-3">
+                      <IconPicker
+                        label="Your icon"
+                        selectedIcon={joinMemberIcon}
+                        isOpen={showJoinMemberIconPicker}
+                        onToggle={() => setShowJoinMemberIconPicker(prev => !prev)}
+                        onSelect={icon => {
+                          setJoinMemberIcon(icon)
+                          setShowJoinMemberIconPicker(false)
+                        }}
+                        ariaLabelPrefix="Use your icon"
+                      />
+                    </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                       <input
                         value={joinCode}
@@ -1555,27 +1764,29 @@ export default function GroupsPage() {
                   </>
                 ) : (
                   <>
-                    <div className="mt-3">
-                      <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Group icon
-                      </div>
-                      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {GROUP_ICONS.map(icon => (
-                          <button
-                            key={icon.value}
-                            type="button"
-                            onClick={() => setCreateIcon(icon.value)}
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 ${
-                              createIcon === icon.value
-                                ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
-                                : 'border-[#e6dfd3] bg-[#fcfbf8]'
-                            }`}
-                            aria-label={`Use ${icon.label} icon`}
-                          >
-                            {icon.value}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <IconPicker
+                        label="Group icon"
+                        selectedIcon={createIcon}
+                        isOpen={showCreateGroupIconPicker}
+                        onToggle={() => setShowCreateGroupIconPicker(prev => !prev)}
+                        onSelect={icon => {
+                          setCreateIcon(icon)
+                          setShowCreateGroupIconPicker(false)
+                        }}
+                        ariaLabelPrefix="Use group icon"
+                      />
+                      <IconPicker
+                        label="Your icon"
+                        selectedIcon={createMemberIcon}
+                        isOpen={showCreateMemberIconPicker}
+                        onToggle={() => setShowCreateMemberIconPicker(prev => !prev)}
+                        onSelect={icon => {
+                          setCreateMemberIcon(icon)
+                          setShowCreateMemberIconPicker(false)
+                        }}
+                        ariaLabelPrefix="Use your icon"
+                      />
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
                       <input

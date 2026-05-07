@@ -111,7 +111,9 @@ body {
 }
 
 .orthodle-podium-card {
-  background: linear-gradient(180deg, #fffdf8, #fbf7ef);
+  background:
+    radial-gradient(circle at 50% -12%, rgba(231, 184, 63, 0.2), transparent 34%),
+    linear-gradient(180deg, #fffdf8, #fbf7ef);
   border-color: #e0d7c8;
   transition:
     background-color 300ms ease,
@@ -121,14 +123,104 @@ body {
     transform 160ms ease;
 }
 
+.orthodle-podium-card[data-rank="1"] {
+  border-color: rgba(216, 169, 71, 0.7);
+  box-shadow: 0 10px 26px rgba(216, 169, 71, 0.16);
+}
+
+.orthodle-podium-card[data-rank="2"] {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(167, 177, 182, 0.2), transparent 34%),
+    linear-gradient(180deg, #fffdf8, #fbf7ef);
+}
+
+.orthodle-podium-card[data-rank="3"] {
+  background:
+    radial-gradient(circle at 50% -12%, rgba(184, 117, 61, 0.18), transparent 34%),
+    linear-gradient(180deg, #fffdf8, #fbf7ef);
+}
+
+.orthodle-groups-shell {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(45, 118, 81, 0.08), transparent 30%),
+    radial-gradient(circle at 92% 8%, rgba(201, 107, 55, 0.08), transparent 28%),
+    #ffffff;
+}
+
+.orthodle-groups-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #1f6448, #c76b3a, #ead9b7);
+  pointer-events: none;
+}
+
+.orthodle-groups-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.orthodle-group-detail-hero,
+.orthodle-leaderboard-row,
+.orthodle-group-action-tile {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease,
+    color 300ms ease,
+    transform 160ms ease;
+}
+
+.orthodle-group-detail-hero {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(45, 118, 81, 0.1), transparent 36%),
+    radial-gradient(circle at 92% 4%, rgba(201, 107, 55, 0.08), transparent 32%),
+    linear-gradient(180deg, #fffdf8, #ffffff);
+}
+
+.orthodle-leaderboard-row {
+  background:
+    linear-gradient(90deg, rgba(45, 118, 81, 0.045), transparent 36%),
+    #ffffff;
+}
+
+.orthodle-group-action-tile {
+  background:
+    linear-gradient(135deg, rgba(45, 118, 81, 0.06), rgba(234, 217, 183, 0.24)),
+    #ffffff;
+}
+
 .orthodle-group-crest {
   background:
-    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.9), transparent 32%),
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.92), transparent 32%),
+    radial-gradient(circle at 68% 78%, rgba(199, 107, 58, 0.16), transparent 34%),
+    radial-gradient(circle at 30% 82%, rgba(45, 118, 81, 0.18), transparent 34%),
     #fbf7ef;
 }
 
 .orthodle-group-crest-mark {
   filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55));
+}
+
+.orthodle-member-avatar {
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.9), transparent 32%),
+    linear-gradient(145deg, #fffdf8, #eef7f1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    0 4px 10px rgba(16, 32, 24, 0.08);
+}
+
+.orthodle-icon-scroll {
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .orthodle-group-feature-card {
@@ -243,16 +335,54 @@ body {
 }
 
 :root[data-theme="dark"] .orthodle-podium-card {
-  background: linear-gradient(180deg, #18231f, #131d19) !important;
+  background:
+    radial-gradient(circle at 50% -12%, rgba(231, 184, 63, 0.16), transparent 34%),
+    linear-gradient(180deg, #18231f, #131d19) !important;
   border-color: rgba(250, 245, 236, 0.44) !important;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-shell {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(94, 168, 132, 0.12), transparent 30%),
+    radial-gradient(circle at 92% 8%, rgba(227, 151, 100, 0.12), transparent 28%),
+    var(--card-strong) !important;
+}
+
+:root[data-theme="dark"] .orthodle-group-detail-hero {
+  background:
+    radial-gradient(circle at 12% 0%, rgba(94, 168, 132, 0.12), transparent 36%),
+    radial-gradient(circle at 92% 4%, rgba(227, 151, 100, 0.1), transparent 32%),
+    linear-gradient(180deg, #18231f, #151f1b) !important;
+}
+
+:root[data-theme="dark"] .orthodle-leaderboard-row {
+  background:
+    linear-gradient(90deg, rgba(94, 168, 132, 0.08), transparent 36%),
+    var(--card-strong) !important;
+}
+
+:root[data-theme="dark"] .orthodle-group-action-tile {
+  background:
+    linear-gradient(135deg, rgba(94, 168, 132, 0.1), rgba(227, 151, 100, 0.08)),
+    var(--card-strong) !important;
 }
 
 :root[data-theme="dark"] .orthodle-group-crest {
   border-color: rgba(250, 245, 236, 0.46) !important;
   background:
     radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.12), transparent 32%),
+    radial-gradient(circle at 68% 78%, rgba(227, 151, 100, 0.16), transparent 34%),
+    radial-gradient(circle at 30% 82%, rgba(94, 168, 132, 0.16), transparent 34%),
     #202a25 !important;
+}
+
+:root[data-theme="dark"] .orthodle-member-avatar {
+  border-color: rgba(250, 245, 236, 0.38) !important;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(255, 255, 255, 0.12), transparent 32%),
+    linear-gradient(145deg, #202a25, #16211c) !important;
+  color: var(--ink) !important;
 }
 
 :root[data-theme="dark"] .orthodle-group-feature-card {

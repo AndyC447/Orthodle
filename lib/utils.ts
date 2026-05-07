@@ -147,7 +147,32 @@ export function isAcceptedGuess(guess: string, acceptedAnswers: string[]) {
 export function getSessionId() {
   if (typeof window === 'undefined') return ''
   const key = 'orthodle_session_id'
-  let id = localStorage.getItem(key)
+  const readCookieValue = () => {
+    const match = document.cookie
+      .split('; ')
+      .find(cookie => cookie.startsWith(`${key}=`))
+
+    return match ? decodeURIComponent(match.split('=').slice(1).join('=')) : ''
+  }
+  const writeCookieValue = (value: string) => {
+    const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+    document.cookie = `${key}=${encodeURIComponent(
+      value
+    )}; Max-Age=63072000; Path=/; SameSite=Lax${secure}`
+  }
+
+  let id = ''
+
+  try {
+    id = localStorage.getItem(key) || ''
+  } catch {
+    id = ''
+  }
+
+  if (!id) {
+    id = readCookieValue()
+  }
+
   if (!id) {
     const cryptoObject =
       typeof window !== 'undefined' && 'crypto' in window ? window.crypto : undefined
@@ -156,8 +181,15 @@ export function getSessionId() {
     } else {
       id = `orthodle_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
     }
-    localStorage.setItem(key, id)
   }
+
+  try {
+    localStorage.setItem(key, id)
+  } catch {
+    // The cookie keeps the anonymous account recoverable if storage is restricted.
+  }
+  writeCookieValue(id)
+
   return id
 }
 

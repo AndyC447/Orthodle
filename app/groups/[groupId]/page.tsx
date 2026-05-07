@@ -22,6 +22,7 @@ type GroupMemberRow = {
   group_id: string
   session_id: string
   display_name: string
+  icon: string | null
   created_at: string
 }
 
@@ -98,6 +99,8 @@ const GROUP_ICONS = [
   { value: '🐍', label: 'Snake' },
 ]
 
+const DEFAULT_MEMBER_ICON = '🦴'
+
 function buildInviteLink(joinCode: string) {
   if (typeof window === 'undefined') return `https://orthodle.com/groups?code=${joinCode}`
   return `${window.location.origin}/groups?code=${joinCode}`
@@ -167,6 +170,83 @@ function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'ic
       <span className="orthodle-group-crest-mark leading-none">
         {groupAvatarLabel(group)}
       </span>
+    </div>
+  )
+}
+
+function memberAvatarLabel(member: Pick<GroupMemberRow, 'display_name' | 'icon'>) {
+  return member.icon || member.display_name.slice(0, 1).toUpperCase()
+}
+
+function MemberAvatar({ member }: { member: Pick<GroupMemberRow, 'display_name' | 'icon'> }) {
+  return (
+    <div
+      className="orthodle-member-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] text-[16px] font-bold text-[#2d7651]"
+      aria-hidden="true"
+    >
+      {memberAvatarLabel(member)}
+    </div>
+  )
+}
+
+function IconPicker({
+  label,
+  selectedIcon,
+  isOpen,
+  disabled = false,
+  onToggle,
+  onSelect,
+  ariaLabelPrefix,
+}: {
+  label: string
+  selectedIcon: string | null
+  isOpen: boolean
+  disabled?: boolean
+  onToggle: () => void
+  onSelect: (icon: string) => void
+  ariaLabelPrefix: string
+}) {
+  const currentIcon = selectedIcon || DEFAULT_MEMBER_ICON
+
+  return (
+    <div className="min-w-0">
+      <div className="space-y-1.5">
+        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+          {label}
+        </div>
+        <button
+          type="button"
+          onClick={onToggle}
+          disabled={disabled}
+          aria-expanded={isOpen}
+          className="inline-flex h-8 items-center gap-2 rounded-full border border-[#e0d8ca] bg-white px-2 text-[11px] font-semibold text-[#102018] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className="orthodle-member-avatar flex h-6 w-6 items-center justify-center rounded-full border border-[#e0d7c8] text-[14px]">
+            {currentIcon}
+          </span>
+          {isOpen ? 'Hide' : 'Change'}
+        </button>
+      </div>
+      {isOpen ? (
+        <div className="orthodle-icon-scroll mt-2 grid max-w-full min-w-0 auto-cols-[2rem] grid-flow-col grid-rows-2 gap-1.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {GROUP_ICONS.map(icon => (
+            <button
+              key={icon.value}
+              type="button"
+              disabled={disabled}
+              onClick={() => onSelect(icon.value)}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[15px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                currentIcon === icon.value
+                  ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
+                  : 'border-[#e6dfd3] bg-white'
+              }`}
+              aria-label={`${ariaLabelPrefix} ${icon.label}`}
+            >
+              {icon.value}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -309,6 +389,9 @@ export default function GroupDetailPage() {
   const [guesses, setGuesses] = useState<GuessRow[]>([])
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
   const [savingGroupIcon, setSavingGroupIcon] = useState(false)
+  const [savingMemberIcon, setSavingMemberIcon] = useState(false)
+  const [showGroupIconPicker, setShowGroupIconPicker] = useState(false)
+  const [showMemberIconPicker, setShowMemberIconPicker] = useState(false)
   const [copied, setCopied] = useState(false)
 
   async function loadGroupPageData() {
@@ -394,6 +477,8 @@ export default function GroupDetailPage() {
 
   useEffect(() => {
     void loadGroupPageData()
+    setShowGroupIconPicker(false)
+    setShowMemberIconPicker(false)
   }, [groupId])
 
   useEffect(() => {
@@ -457,6 +542,37 @@ export default function GroupDetailPage() {
     setSavingGroupIcon(false)
   }
 
+  async function updateMemberIcon(nextIcon: string) {
+    if (!membership) {
+      setMessage('Join this group before choosing your icon.')
+      return
+    }
+
+    setSavingMemberIcon(true)
+    setMessage('')
+
+    const { error } = await supabase
+      .from('group_members')
+      .update({ icon: nextIcon })
+      .eq('id', membership.id)
+      .eq('session_id', sessionId)
+
+    if (error) {
+      setSavingMemberIcon(false)
+      setMessage(
+        error.message.includes('icon')
+          ? 'Run the member icon SQL once, then try again.'
+          : error.message
+      )
+      return
+    }
+
+    setMembers(prev =>
+      prev.map(member => (member.id === membership.id ? { ...member, icon: nextIcon } : member))
+    )
+    setSavingMemberIcon(false)
+  }
+
   async function shareInvite() {
     if (!group) return
 
@@ -497,7 +613,7 @@ export default function GroupDetailPage() {
       <Header />
 
       <section className="mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
-        <div className="night-surface rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
+        <div className="night-surface orthodle-groups-shell rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
           <div className="space-y-3.5 sm:space-y-4">
             <button
               type="button"
@@ -520,7 +636,7 @@ export default function GroupDetailPage() {
               </div>
             ) : group && aggregate ? (
               <>
-                <section className="rounded-[20px] border border-[#e6dfd3] bg-white p-3.5 sm:p-4">
+                <section className="orthodle-group-detail-hero rounded-[20px] border border-[#e6dfd3] bg-white p-3.5 sm:p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-center gap-3">
                       <GroupCrest group={group} size="lg" />
@@ -585,28 +701,35 @@ export default function GroupDetailPage() {
                     </div>
                   </div>
                   {canEditGroup ? (
-                    <div className="mt-3 border-t border-[#ece6db] pt-3">
-                      <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Group icon
-                      </div>
-                      <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                        {GROUP_ICONS.map(icon => (
-                          <button
-                            key={icon.value}
-                            type="button"
-                            disabled={savingGroupIcon}
-                            onClick={() => void updateGroupIcon(icon.value)}
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[16px] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_3px_8px_rgba(16,32,24,0.04)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
-                              group.icon === icon.value
-                                ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
-                                : 'border-[#e6dfd3] bg-[#fcfbf8]'
-                            }`}
-                            aria-label={`Use ${icon.label} icon`}
-                          >
-                            {icon.value}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="mt-3 min-w-0 border-t border-[#ece6db] pt-3">
+                      <IconPicker
+                        label="Group icon"
+                        selectedIcon={group.icon}
+                        isOpen={showGroupIconPicker}
+                        disabled={savingGroupIcon}
+                        onToggle={() => setShowGroupIconPicker(prev => !prev)}
+                        onSelect={icon => {
+                          void updateGroupIcon(icon)
+                          setShowGroupIconPicker(false)
+                        }}
+                        ariaLabelPrefix="Use group icon"
+                      />
+                    </div>
+                  ) : null}
+                  {membership ? (
+                    <div className="mt-3 min-w-0 border-t border-[#ece6db] pt-3">
+                      <IconPicker
+                        label="Your icon"
+                        selectedIcon={membership.icon || DEFAULT_MEMBER_ICON}
+                        isOpen={showMemberIconPicker}
+                        disabled={savingMemberIcon}
+                        onToggle={() => setShowMemberIconPicker(prev => !prev)}
+                        onSelect={icon => {
+                          void updateMemberIcon(icon)
+                          setShowMemberIconPicker(false)
+                        }}
+                        ariaLabelPrefix="Use your icon"
+                      />
                     </div>
                   ) : null}
                 </section>
@@ -625,13 +748,11 @@ export default function GroupDetailPage() {
                       aggregate.memberStats.map((entry, index) => (
                         <div
                           key={entry.member.id}
-                          className="grid grid-cols-[24px_1fr_auto] items-center gap-2 rounded-[14px] border border-[#ece6db] bg-white px-3 py-2.5 transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                          className="orthodle-leaderboard-row grid grid-cols-[24px_1fr_auto] items-center gap-2 rounded-[14px] border border-[#ece6db] bg-white px-3 py-2.5 transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
                         >
                           <div className="text-[14px] font-semibold text-[#102018]">{index + 1}</div>
                           <div className="flex min-w-0 items-center gap-2">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#eff5ef] text-[11px] font-bold text-[#2d7651]">
-                              {entry.member.display_name.slice(0, 1).toUpperCase()}
-                            </div>
+                            <MemberAvatar member={entry.member} />
                             <div className="min-w-0">
                               <div className="truncate text-[13px] font-semibold text-[#102018]">
                                 {entry.member.display_name}
