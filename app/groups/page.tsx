@@ -2244,9 +2244,11 @@ export default function GroupsPage() {
                           <div className="flex h-20 w-20 items-center justify-center sm:h-28 sm:w-28">
                             <GroupCrest group={selectedGroup} size="lg" />
                           </div>
-                          <span className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[#d8cfbf] bg-white text-[#0e5a3f] shadow-[0_8px_18px_rgba(16,32,24,0.16)] sm:h-8 sm:w-8">
-                            <Pencil size={13} strokeWidth={2.2} />
-                          </span>
+                          {canChangeSelectedGroupIcon ? (
+                            <span className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[#d8cfbf] bg-white text-[#0e5a3f] shadow-[0_8px_18px_rgba(16,32,24,0.16)] sm:h-8 sm:w-8">
+                              <Pencil size={13} strokeWidth={2.2} />
+                            </span>
+                          ) : null}
                         </div>
                       </button>
                       <div className="min-w-0 flex-1 pt-0.5">
