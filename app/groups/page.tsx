@@ -2228,6 +2228,18 @@ export default function GroupsPage() {
           <div className="space-y-3.5 sm:space-y-4">
             {selectedGroup && selectedGroupAggregate ? (
               <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveGroupsTab('home')
+                    setShowSelectedGroupIconPicker(false)
+                    setSelectedMemberStats(null)
+                  }}
+                  className="inline-flex h-9 items-center gap-2 self-start rounded-full border border-[#e6dfd3] bg-white px-3.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#355542] transition hover:-translate-y-0.5 hover:bg-[#fbfaf7]"
+                >
+                  <span aria-hidden="true">←</span>
+                  Back to groups
+                </button>
                 <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
                   <div className="flex flex-col gap-3 sm:gap-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
