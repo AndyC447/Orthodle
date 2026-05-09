@@ -1196,9 +1196,10 @@ export default function GroupsPage() {
 
     const nextSelected =
       (matchingGroup && userGroupIds.has(matchingGroup.id) ? matchingGroup.id : '') ||
-      (selectedGroupId && userGroupIds.has(selectedGroupId) ? selectedGroupId : '') ||
-      (storedGroupId && userGroupIds.has(storedGroupId) ? storedGroupId : '') ||
+      (selectedGroupId && groups.some(group => group.id === selectedGroupId) ? selectedGroupId : '') ||
+      (storedGroupId && groups.some(group => group.id === storedGroupId) ? storedGroupId : '') ||
       knownUserMemberships[0]?.group_id ||
+      groups[0]?.id ||
       ''
 
     if (nextSelected !== selectedGroupId) {
@@ -1280,6 +1281,7 @@ export default function GroupsPage() {
     ? groupAggregates.find(entry => entry.group.id === viewerMembership.group_id) || null
     : null
   const myMembership = selectedMembers.find(member => member.session_id === sessionId) || null
+  const isViewingOwnGroup = Boolean(viewerGroup?.id && selectedGroup?.id && viewerGroup.id === selectedGroup.id)
   const myMemberStats =
     selectedGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
   const viewerMemberStats =
@@ -1293,8 +1295,8 @@ export default function GroupsPage() {
   const profileXp = getXpForStats(viewerMemberStats || null)
   const profileLevel = getLevelFromXp(profileXp)
   const profileLevelTitle = getLevelTitle(profileLevel.level)
-  const canChangeSelectedGroupIcon = Boolean(myMembership)
-  const canEditSelectedGroup = selectedGroup?.creator_session_id === sessionId
+  const canChangeSelectedGroupIcon = Boolean(myMembership && isViewingOwnGroup)
+  const canEditSelectedGroup = Boolean(selectedGroup?.creator_session_id === sessionId && isViewingOwnGroup)
   const groupOfWeekAggregate = groupAggregates[0] || null
   const mvpEntry = groupOfWeekAggregate?.memberStats[0]
     ? {
@@ -2270,14 +2272,16 @@ export default function GroupsPage() {
                       >
                         {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => void shareInviteLink(selectedGroup)}
-                        className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
-                      >
-                        <Share2 size={13} strokeWidth={2} />
-                        {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
-                      </button>
+                      {isViewingOwnGroup ? (
+                        <button
+                          type="button"
+                          onClick={() => void shareInviteLink(selectedGroup)}
+                          className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
+                        >
+                          <Share2 size={13} strokeWidth={2} />
+                          {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                   </div>
