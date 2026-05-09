@@ -1028,7 +1028,6 @@ export default function GroupsPage() {
   const [urlJoinCode, setUrlJoinCode] = useState('')
   const [showJoinPanel, setShowJoinPanel] = useState(false)
   const [groupActionMode, setGroupActionMode] = useState<'join' | 'create'>('join')
-  const [showAllGroups, setShowAllGroups] = useState(false)
   const [yourGroupOpen, setYourGroupOpen] = useState(false)
   const [memberPreviewOpen, setMemberPreviewOpen] = useState(false)
   const [showSelectedGroupIconPicker, setShowSelectedGroupIconPicker] = useState(false)
@@ -1442,9 +1441,6 @@ export default function GroupsPage() {
         }))
       : []
   const leaderboardEntries = displayLeaderboard
-  const visibleLeaderboardEntries = showAllGroups
-    ? leaderboardEntries
-    : leaderboardEntries.slice(0, 5)
   async function createGroup() {
     const name = createName.trim()
     const displayName = (createDisplayName || joinDisplayName).trim()
@@ -2110,25 +2106,16 @@ export default function GroupsPage() {
                 <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
                   Leaderboard
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
                       setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
                     }
                     className="rounded-full border border-[#e6dfd3] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
                     {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                   </button>
-                  {leaderboardEntries.length > 5 ? (
-                    <button
-                      type="button"
-                      onClick={() => setShowAllGroups(prev => !prev)}
-                      className="rounded-full border border-[#e6dfd3] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                    >
-                      {showAllGroups ? 'Top 5' : 'View more'}
-                    </button>
-                  ) : null}
                 </div>
               </div>
 
@@ -2137,8 +2124,8 @@ export default function GroupsPage() {
                   Array.from({ length: 5 }).map((_, index) => (
                     <div key={index} className="h-[58px] rounded-2xl bg-[#fcfbf8]" />
                   ))
-                ) : visibleLeaderboardEntries.length > 0 ? (
-                  visibleLeaderboardEntries.map((group, index) => {
+                ) : leaderboardEntries.length > 0 ? (
+                  leaderboardEntries.map((group, index) => {
                     const rank = index + 1
                     return (
                       <button
@@ -3090,15 +3077,6 @@ export default function GroupsPage() {
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Top 3 groups
                 </div>
-                {leaderboardEntries.length > 3 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllGroups(prev => !prev)}
-                    className="text-[11px] text-[#637268] transition hover:text-[#2d7651]"
-                  >
-                    {showAllGroups ? 'Show less' : 'View all'} ›
-                  </button>
-                ) : null}
               </div>
               {loading ? (
                 <div className="pb-1.5 pt-1.5">
@@ -3161,15 +3139,6 @@ export default function GroupsPage() {
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                   Leaderboard
                 </div>
-                {leaderboardEntries.length > 5 ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowAllGroups(prev => !prev)}
-                    className="text-[11px] text-[#637268] transition hover:text-[#2d7651]"
-                  >
-                    {showAllGroups ? 'Top 5' : 'All groups'}
-                  </button>
-                ) : null}
               </div>
               <div className="mt-2 space-y-2">
                 {loading ? (
@@ -3179,8 +3148,8 @@ export default function GroupsPage() {
                       className="h-[66px] rounded-[14px] border border-[#ece6db] bg-[#fcfbf8]"
                     />
                   ))
-                ) : visibleLeaderboardEntries.length > 0 ? (
-                  visibleLeaderboardEntries.map(
+                ) : leaderboardEntries.length > 0 ? (
+                  leaderboardEntries.map(
                   (group, index) => {
                     const rank = index + 1
                     const previous = leaderboardEntries[index - 1]
