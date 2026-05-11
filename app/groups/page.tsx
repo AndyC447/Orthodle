@@ -1331,7 +1331,6 @@ export default function GroupsPage() {
       (selectedGroupId && groups.some(group => group.id === selectedGroupId) ? selectedGroupId : '') ||
       (storedGroupId && groups.some(group => group.id === storedGroupId) ? storedGroupId : '') ||
       knownUserMemberships[0]?.group_id ||
-      groups[0]?.id ||
       ''
 
     if (nextSelected !== selectedGroupId) {
@@ -2138,6 +2137,23 @@ export default function GroupsPage() {
       <GroupsTopBanner
         activeTab={activeGroupsTab}
         onTabChange={tab => {
+          if (tab === 'my-group') {
+            if (viewerGroup?.id) {
+              setSelectedGroupId(viewerGroup.id)
+              setActiveGroupsTab('my-group')
+              setShowJoinPanel(false)
+              setMessage('')
+              return
+            }
+
+            setSelectedGroupId('')
+            setActiveGroupsTab('my-group')
+            setGroupActionMode('join')
+            setShowJoinPanel(true)
+            setMessage('Join or create a group to unlock your private leaderboard.')
+            return
+          }
+
           setActiveGroupsTab(tab)
           setShowJoinPanel(false)
         }}
