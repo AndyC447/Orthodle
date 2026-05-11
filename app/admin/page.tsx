@@ -165,6 +165,14 @@ type HomepageAnnouncementRow = {
   created_at: string
 }
 
+type GroupAnnouncementRow = {
+  id: string
+  message: string
+  start_date: string
+  end_date: string | null
+  created_at: string
+}
+
 type HomepageSurveyRow = {
   id: string
   question: string
@@ -282,6 +290,11 @@ export default function AdminPage() {
   const [announcementStartDate, setAnnouncementStartDate] = useState(shiftISODate(today, 1))
   const [announcementEndDate, setAnnouncementEndDate] = useState(shiftISODate(today, 1))
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
+  const [groupAnnouncements, setGroupAnnouncements] = useState<GroupAnnouncementRow[]>([])
+  const [groupAnnouncementMessage, setGroupAnnouncementMessage] = useState('')
+  const [groupAnnouncementStartDate, setGroupAnnouncementStartDate] = useState(shiftISODate(today, 1))
+  const [groupAnnouncementEndDate, setGroupAnnouncementEndDate] = useState(shiftISODate(today, 1))
+  const [editingGroupAnnouncementId, setEditingGroupAnnouncementId] = useState<string | null>(null)
   const [homepageSurveys, setHomepageSurveys] = useState<HomepageSurveyRow[]>([])
   const [surveyQuestion, setSurveyQuestion] = useState('To tailor my questions most effectively, what level of training are you?')
   const [surveyOption1, setSurveyOption1] = useState('Med Student')
@@ -371,6 +384,7 @@ export default function AdminPage() {
     loadSubmissionSummary()
     loadFeedbackSummary()
     loadHomepageAnnouncements()
+    loadGroupAnnouncements()
     loadHomepageSurveys()
   }, [isUnlocked])
 
@@ -1223,6 +1237,14 @@ export default function AdminPage() {
     setHomepageAnnouncements((data as HomepageAnnouncementRow[] | null) || [])
   }
 
+  async function loadGroupAnnouncements() {
+    const { data } = await supabase
+      .from('group_announcements')
+      .select('id, message, start_date, end_date, created_at')
+      .order('start_date', { ascending: false })
+    setGroupAnnouncements((data as GroupAnnouncementRow[] | null) || [])
+  }
+
   async function loadHomepageSurveys() {
     const { data } = await supabase
       .from('homepage_surveys')
@@ -1270,6 +1292,13 @@ export default function AdminPage() {
     setAnnouncementMessage('')
     setAnnouncementStartDate(tomorrow)
     setAnnouncementEndDate(tomorrow)
+  }
+
+  function resetGroupAnnouncementForm() {
+    setEditingGroupAnnouncementId(null)
+    setGroupAnnouncementMessage('')
+    setGroupAnnouncementStartDate(tomorrow)
+    setGroupAnnouncementEndDate(tomorrow)
   }
 
   async function saveHomepageAnnouncement() {
@@ -1322,6 +1351,58 @@ export default function AdminPage() {
 
     setStatus('Homepage note deleted.')
     setHomepageAnnouncements(prev => prev.filter(item => item.id !== id))
+  }
+
+  async function saveGroupAnnouncement() {
+    const trimmedMessage = groupAnnouncementMessage.trim()
+
+    if (!trimmedMessage) {
+      setStatus('Add a groups note before saving.')
+      return
+    }
+
+    const payload = {
+      message: trimmedMessage,
+      start_date: groupAnnouncementStartDate,
+      end_date: groupAnnouncementEndDate || null,
+    }
+
+    const result = editingGroupAnnouncementId
+      ? await supabase.from('group_announcements').update(payload).eq('id', editingGroupAnnouncementId)
+      : await supabase.from('group_announcements').insert(payload)
+
+    if (result.error) {
+      setStatus('Could not save the groups note.')
+      return
+    }
+
+    setStatus(editingGroupAnnouncementId ? 'Groups note updated.' : 'Groups note scheduled.')
+    resetGroupAnnouncementForm()
+    await loadGroupAnnouncements()
+  }
+
+  function editGroupAnnouncement(item: GroupAnnouncementRow) {
+    setEditingGroupAnnouncementId(item.id)
+    setGroupAnnouncementMessage(item.message)
+    setGroupAnnouncementStartDate(item.start_date)
+    setGroupAnnouncementEndDate(item.end_date || item.start_date)
+    setStatus('')
+  }
+
+  async function deleteGroupAnnouncement(id: string) {
+    const { error } = await supabase.from('group_announcements').delete().eq('id', id)
+
+    if (error) {
+      setStatus('Could not delete the groups note.')
+      return
+    }
+
+    if (editingGroupAnnouncementId === id) {
+      resetGroupAnnouncementForm()
+    }
+
+    setStatus('Groups note deleted.')
+    setGroupAnnouncements(prev => prev.filter(item => item.id !== id))
   }
 
   function resetSurveyForm() {
@@ -2053,6 +2134,104 @@ export default function AdminPage() {
           </Link>
         </div>
         <p className="mt-2 text-sm text-[#8a948d]">Manage group boards</p>
+
+        <div className="mt-4 space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-serif text-lg font-bold">Groups Announcement</h3>
+            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              {groupAnnouncements.length} scheduled
+            </div>
+          </div>
+
+          <textarea
+            value={groupAnnouncementMessage}
+            onChange={e => setGroupAnnouncementMessage(e.target.value)}
+            rows={3}
+            placeholder="Add a short note just for the groups page"
+            className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+          />
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              Start
+              <input
+                type="date"
+                value={groupAnnouncementStartDate}
+                onChange={e => setGroupAnnouncementStartDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+            </label>
+
+            <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              End
+              <input
+                type="date"
+                value={groupAnnouncementEndDate}
+                onChange={e => setGroupAnnouncementEndDate(e.target.value)}
+                className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+            </label>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void saveGroupAnnouncement()}
+              className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
+            >
+              {editingGroupAnnouncementId ? 'Update note' : 'Schedule note'}
+            </button>
+            {editingGroupAnnouncementId && (
+              <button
+                type="button"
+                onClick={resetGroupAnnouncementForm}
+                className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+
+          <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              Groups page preview
+            </div>
+            <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+              {groupAnnouncementMessage.trim() || 'Your scheduled groups note will preview here.'}
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            {groupAnnouncements.map(item => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
+              >
+                <p className="text-sm leading-5 text-[#102018]">{item.message}</p>
+                <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                  {item.start_date}
+                  {item.end_date && item.end_date !== item.start_date ? ` to ${item.end_date}` : ''}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => editGroupAnnouncement(item)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void deleteGroupAnnouncement(item.id)}
+                    className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
     ),
     analytics: (

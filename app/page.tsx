@@ -703,16 +703,7 @@ function PlayPageContent() {
 
         const isArchiveCase = data.case_date !== today
         const savedProgress = getRoundProgress(data.case_date, data.level, isArchiveCase)
-
-        if (savedProgress && savedProgress.caseId === data.id) {
-          setGuesses(savedProgress.guesses)
-          setGameWon(savedProgress.gameWon)
-          setGameOver(savedProgress.gameOver)
-          setMessage(savedProgress.message)
-          setJustCompletedRound(false)
-        } else {
-          setJustCompletedRound(false)
-        }
+        setJustCompletedRound(false)
 
         const [{ data: visitRows }, { data: guessRows }] = await Promise.all([
           supabase.from('visits').select('session_id').eq('path', `/${data.level}/${data.case_date}`),
@@ -724,6 +715,52 @@ function PlayPageContent() {
         ])
 
         if (cancelled) return
+
+        const viewerGuessRows = (guessRows || []).filter(row => row.session_id === sessionId)
+        const serverGuesses = viewerGuessRows.map(row => ({
+          text: row.guess_text || '',
+          correct: Boolean(row.is_correct),
+        }))
+        const solvedIndex = viewerGuessRows.findIndex(row => Boolean(row.is_correct))
+        const serverProgressAvailable = serverGuesses.length > 0
+        const shouldUseSavedProgress =
+          Boolean(savedProgress && savedProgress.caseId === data.id) &&
+          (!serverProgressAvailable || (savedProgress?.guesses.length || 0) >= serverGuesses.length)
+
+        if (shouldUseSavedProgress && savedProgress) {
+          setGuesses(savedProgress.guesses)
+          setGameWon(savedProgress.gameWon)
+          setGameOver(savedProgress.gameOver)
+          setMessage(savedProgress.message)
+        } else if (serverProgressAvailable) {
+          const solvedOnServer = solvedIndex >= 0
+          const gameOverOnServer = solvedOnServer || serverGuesses.length >= MAX_GUESSES
+          const serverMessage = solvedOnServer
+            ? `Correct — solved in ${solvedIndex + 1} ${solvedIndex + 1 === 1 ? 'guess' : 'guesses'}.`
+            : gameOverOnServer
+              ? 'Out of guesses.'
+              : `Not quite. ${MAX_GUESSES - serverGuesses.length} guesses remaining.`
+
+          setGuesses(serverGuesses)
+          setGameWon(solvedOnServer)
+          setGameOver(gameOverOnServer)
+          setMessage(serverMessage)
+          saveRoundProgress({
+            caseId: data.id,
+            caseDate: data.case_date,
+            level: data.level,
+            isArchive: isArchiveCase,
+            guesses: serverGuesses,
+            gameWon: solvedOnServer,
+            gameOver: gameOverOnServer,
+            message: serverMessage,
+          })
+        } else {
+          setGuesses([])
+          setGameWon(false)
+          setGameOver(false)
+          setMessage('')
+        }
 
         const players = new Set<string>([
           ...(visitRows || []).map(item => item.session_id),

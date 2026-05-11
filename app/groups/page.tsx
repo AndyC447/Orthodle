@@ -6,7 +6,14 @@ import { useRouter } from 'next/navigation'
 import { BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
-import { getSessionId } from '@/lib/utils'
+import {
+  clearAccountSession,
+  getAccountSession,
+  getAnonymousSessionId,
+  getSessionId,
+  setAccountSession,
+  type AccountSession,
+} from '@/lib/utils'
 
 type GroupRow = {
   id: string
@@ -113,6 +120,14 @@ type WeeklyRecap = {
   title: string
   detail: string
   accent: string
+}
+
+type GroupAnnouncementRow = {
+  id: string
+  message: string
+  start_date: string
+  end_date: string | null
+  created_at: string
 }
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
@@ -1134,6 +1149,7 @@ function buildMemberStats(
 }
 
 export default function GroupsPage() {
+  const today = useMemo(() => getLocalIsoDate(), [])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [activeGroupsTab, setActiveGroupsTab] = useState<GroupsTab>('home')
@@ -1141,6 +1157,7 @@ export default function GroupsPage() {
   const [members, setMembers] = useState<GroupMemberRow[]>([])
   const [guessRows, setGuessRows] = useState<GuessRow[]>([])
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
+  const [groupAnnouncement, setGroupAnnouncement] = useState<GroupAnnouncementRow | null>(null)
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [createName, setCreateName] = useState('')
   const [createCode, setCreateCode] = useState('')
@@ -1176,11 +1193,30 @@ export default function GroupsPage() {
     displayName: '',
     icon: DEFAULT_MEMBER_ICON,
   })
+  const [accountSession, setAccountSessionState] = useState<AccountSession | null>(null)
+  const [identityVersion, setIdentityVersion] = useState(0)
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup')
+  const [authUsername, setAuthUsername] = useState('')
+  const [authPassword, setAuthPassword] = useState('')
+  const [authSubmitting, setAuthSubmitting] = useState(false)
   const [isEditingProfileName, setIsEditingProfileName] = useState(false)
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
-  const sessionId = useMemo(() => getSessionId(), [])
+  const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
+
+  async function loadGroupAnnouncement() {
+    const { data } = await supabase
+      .from('group_announcements')
+      .select('id, message, start_date, end_date, created_at')
+      .lte('start_date', today)
+      .or(`end_date.is.null,end_date.gte.${today}`)
+      .order('start_date', { ascending: false })
+      .limit(1)
+
+    const activeAnnouncement = (data as GroupAnnouncementRow[] | null)?.[0] || null
+    setGroupAnnouncement(activeAnnouncement?.message?.trim() ? activeAnnouncement : null)
+  }
 
   async function loadGroupsData() {
     const { data: groupData, error: groupError } = await supabase
@@ -1267,7 +1303,8 @@ export default function GroupsPage() {
 
   useEffect(() => {
     void loadGroupsData()
-  }, [])
+    void loadGroupAnnouncement()
+  }, [sessionId, today])
 
   useEffect(() => {
     const refresh = () => void loadGroupsData()
@@ -1303,14 +1340,17 @@ export default function GroupsPage() {
 
   useEffect(() => {
     const savedProfile = readLocalProfile()
+    const savedAccountSession = getAccountSession()
 
+    setAccountSessionState(savedAccountSession)
     setLocalProfile(savedProfile)
-    setEditDisplayName(savedProfile.displayName)
-    setEditMemberIcon(savedProfile.icon)
-    setJoinDisplayName(savedProfile.displayName)
-    setCreateDisplayName(savedProfile.displayName)
-    setJoinMemberIcon(savedProfile.icon)
-    setCreateMemberIcon(savedProfile.icon)
+    setEditDisplayName(savedAccountSession?.displayName || savedProfile.displayName)
+    setEditMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
+    setJoinDisplayName(savedAccountSession?.displayName || savedProfile.displayName)
+    setCreateDisplayName(savedAccountSession?.displayName || savedProfile.displayName)
+    setJoinMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
+    setCreateMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
+    setAuthUsername(savedAccountSession?.username || '')
   }, [])
 
   useEffect(() => {
@@ -1421,8 +1461,12 @@ export default function GroupsPage() {
     ? groupAggregates.findIndex(entry => entry.group.id === viewerGroupAggregate.group.id) + 1
     : null
   const profileDisplayName =
-    viewerMembership?.display_name || localProfile.displayName || 'Orthodle player'
-  const profileIcon = viewerMembership?.icon || localProfile.icon || DEFAULT_MEMBER_ICON
+    viewerMembership?.display_name ||
+    accountSession?.displayName ||
+    localProfile.displayName ||
+    'Orthodle player'
+  const profileIcon =
+    viewerMembership?.icon || accountSession?.profileIcon || localProfile.icon || DEFAULT_MEMBER_ICON
   const profileXp = getXpForStats(viewerMemberStats || null)
   const profileLevel = getLevelFromXp(profileXp)
   const profileLevelTitle = getLevelTitle(profileLevel.level)
@@ -1654,6 +1698,104 @@ export default function GroupsPage() {
         }))
       : []
   const leaderboardEntries = displayLeaderboard
+
+  async function syncProfileToAccount(nextDisplayName: string, nextIcon: string | null) {
+    if (!accountSession?.accountId) return null
+
+    const response = await fetch('/api/account/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accountId: accountSession.accountId,
+        displayName: nextDisplayName,
+        profileIcon: nextIcon,
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(payload.error || 'Could not sync your profile right now.')
+    }
+
+    const nextSession = payload.account as AccountSession
+    setAccountSession(nextSession)
+    setAccountSessionState(nextSession)
+    return nextSession
+  }
+
+  async function submitAccountAuth() {
+    const username = authUsername.trim()
+    const password = authPassword
+
+    if (!username || !password) {
+      setMessage('Add a username and password first.')
+      return
+    }
+
+    setAuthSubmitting(true)
+    setMessage('')
+
+    const displayName = editDisplayName.trim() || localProfile.displayName || username
+    const profileIcon = editMemberIcon || localProfile.icon || DEFAULT_MEMBER_ICON
+
+    const response = await fetch('/api/account/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mode: authMode,
+        username,
+        password,
+        displayName,
+        profileIcon,
+        anonymousSessionId: getAnonymousSessionId(),
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      setAuthSubmitting(false)
+      setMessage(payload.error || 'Could not sign you in.')
+      return
+    }
+
+    const nextSession = payload.account as AccountSession
+    setAccountSession(nextSession)
+    setAccountSessionState(nextSession)
+    setLocalProfile({
+      displayName: nextSession.displayName,
+      icon: nextSession.profileIcon || DEFAULT_MEMBER_ICON,
+    })
+    storeLocalProfile({
+      displayName: nextSession.displayName,
+      icon: nextSession.profileIcon || DEFAULT_MEMBER_ICON,
+    })
+    setEditDisplayName(nextSession.displayName)
+    setEditMemberIcon(nextSession.profileIcon || DEFAULT_MEMBER_ICON)
+    setJoinDisplayName(nextSession.displayName)
+    setCreateDisplayName(nextSession.displayName)
+    setJoinMemberIcon(nextSession.profileIcon || DEFAULT_MEMBER_ICON)
+    setCreateMemberIcon(nextSession.profileIcon || DEFAULT_MEMBER_ICON)
+    setAuthPassword('')
+    setIdentityVersion(version => version + 1)
+    setAuthSubmitting(false)
+    setMessage(
+      authMode === 'signup'
+        ? 'Account created. Your progress is now tied to this login.'
+        : 'Signed in. Your progress is now synced to this account.'
+    )
+  }
+
+  function logoutAccount() {
+    clearAccountSession()
+    setAccountSessionState(null)
+    setAuthPassword('')
+    setAuthUsername('')
+    setIdentityVersion(version => version + 1)
+    setMessage('Signed out. This browser is back on its local profile.')
+  }
+
   async function createGroup() {
     const name = createName.trim()
     const displayName = (createDisplayName || joinDisplayName).trim()
@@ -1743,6 +1885,13 @@ export default function GroupsPage() {
       storeLocalProfile({ displayName, icon: createMemberIcon })
     }
     setLocalProfile({ displayName, icon: createMemberIcon })
+    if (accountSession?.accountId) {
+      try {
+        await syncProfileToAccount(displayName, createMemberIcon)
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : 'Group created, but your profile did not sync.')
+      }
+    }
 
     setCreateName('')
     setCreateCode('')
@@ -1832,6 +1981,13 @@ export default function GroupsPage() {
       storeLocalProfile({ displayName, icon: joinMemberIcon })
     }
     setLocalProfile({ displayName, icon: joinMemberIcon })
+    if (accountSession?.accountId) {
+      try {
+        await syncProfileToAccount(displayName, joinMemberIcon)
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : 'Joined the group, but your profile did not sync.')
+      }
+    }
 
     setJoinDisplayName('')
     setJoinMemberIcon(DEFAULT_MEMBER_ICON)
@@ -1932,6 +2088,18 @@ export default function GroupsPage() {
         displayName: nextName,
         icon: editMemberIcon || localProfile.icon || DEFAULT_MEMBER_ICON,
       }
+      if (accountSession?.accountId) {
+        try {
+          const syncedSession = await syncProfileToAccount(nextName, nextProfile.icon)
+          if (syncedSession) {
+            setEditDisplayName(syncedSession.displayName)
+          }
+        } catch (error) {
+          setSavingDisplayName(false)
+          setMessage(error instanceof Error ? error.message : 'Could not update your profile.')
+          return
+        }
+      }
       setLocalProfile(nextProfile)
       storeLocalProfile(nextProfile)
       setJoinDisplayName(nextName)
@@ -1967,6 +2135,15 @@ export default function GroupsPage() {
       displayName: nextName,
       icon: viewerMembership.icon || localProfile.icon || DEFAULT_MEMBER_ICON,
     }
+    if (accountSession?.accountId) {
+      try {
+        await syncProfileToAccount(nextName, nextProfile.icon)
+      } catch (error) {
+        setSavingDisplayName(false)
+        setMessage(error instanceof Error ? error.message : 'Could not update your profile.')
+        return
+      }
+    }
     setLocalProfile(nextProfile)
     storeLocalProfile(nextProfile)
     setJoinDisplayName(nextName)
@@ -1983,6 +2160,18 @@ export default function GroupsPage() {
       const nextProfile = {
         displayName: editDisplayName.trim() || localProfile.displayName,
         icon: nextIcon,
+      }
+      if (accountSession?.accountId) {
+        try {
+          const syncedSession = await syncProfileToAccount(nextProfile.displayName, nextIcon)
+          if (syncedSession) {
+            setEditDisplayName(syncedSession.displayName)
+          }
+        } catch (error) {
+          setSavingMemberIcon(false)
+          setMessage(error instanceof Error ? error.message : 'Could not update your profile.')
+          return
+        }
       }
       setLocalProfile(nextProfile)
       storeLocalProfile(nextProfile)
@@ -2022,6 +2211,15 @@ export default function GroupsPage() {
     const nextProfile = {
       displayName: viewerMembership.display_name || localProfile.displayName,
       icon: nextIcon,
+    }
+    if (accountSession?.accountId) {
+      try {
+        await syncProfileToAccount(nextProfile.displayName, nextIcon)
+      } catch (error) {
+        setSavingMemberIcon(false)
+        setMessage(error instanceof Error ? error.message : 'Could not update your profile.')
+        return
+      }
     }
     setLocalProfile(nextProfile)
     storeLocalProfile(nextProfile)
@@ -2158,6 +2356,17 @@ export default function GroupsPage() {
           setShowJoinPanel(false)
         }}
       />
+
+      {groupAnnouncement ? (
+        <section className="mx-auto max-w-[760px] px-4 pt-3 sm:px-5">
+          <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-[13px] leading-5 text-[#102018] shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              Groups announcement
+            </div>
+            <div className="mt-1.5">{groupAnnouncement.message}</div>
+          </div>
+        </section>
+      ) : null}
 
       {showGroupsExplainer ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
@@ -3009,6 +3218,88 @@ export default function GroupsPage() {
                   Join or create a group
                 </button>
               ) : null}
+            </section>
+
+            <section className="mt-3 rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Account sync
+                  </div>
+                  <div className="mt-1 font-serif text-[20px] font-bold tracking-[-0.03em] text-[#102018]">
+                    {accountSession ? accountSession.username : 'Save your progress'}
+                  </div>
+                </div>
+                {accountSession ? (
+                  <button
+                    type="button"
+                    onClick={logoutAccount}
+                    className="rounded-full border border-[#ded7ca] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Sign out
+                  </button>
+                ) : null}
+              </div>
+
+              {accountSession ? (
+                <div className="mt-2 text-[13px] leading-5 text-[#637268]">
+                  This profile is tied to your login, so your group membership and play progress can follow you across devices.
+                </div>
+              ) : (
+                <div className="mt-3 space-y-3">
+                  <div className="text-[13px] leading-5 text-[#637268]">
+                    Create a username and password to keep your progress if your browser gets cleared and to pick up where you left off on another computer.
+                  </div>
+
+                  <div className="inline-flex rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[11px] font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('signup')}
+                      className={`rounded-full px-3 py-1 transition ${authMode === 'signup' ? 'bg-[#1f6448] text-white' : 'text-[#637268]'}`}
+                    >
+                      Create login
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('login')}
+                      className={`rounded-full px-3 py-1 transition ${authMode === 'login' ? 'bg-[#1f6448] text-white' : 'text-[#637268]'}`}
+                    >
+                      Sign in
+                    </button>
+                  </div>
+
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      value={authUsername}
+                      onChange={event => setAuthUsername(event.target.value)}
+                      placeholder="Username"
+                      className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448]"
+                    />
+                    <input
+                      type="password"
+                      value={authPassword}
+                      onChange={event => setAuthPassword(event.target.value)}
+                      placeholder="Password"
+                      className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448]"
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={authSubmitting}
+                    onClick={() => void submitAccountAuth()}
+                    className="rounded-xl bg-[#1f6448] px-4 py-2 text-[12px] font-bold text-white transition hover:bg-[#174c37] disabled:opacity-50"
+                  >
+                    {authSubmitting
+                      ? authMode === 'signup'
+                        ? 'Creating login...'
+                        : 'Signing in...'
+                      : authMode === 'signup'
+                        ? 'Create account'
+                        : 'Sign in'}
+                  </button>
+                </div>
+              )}
             </section>
 
             <TrophyCase trophies={trophyCaseItems} />

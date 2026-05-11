@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
-import { clearStatsSummary, getCompletedCaseKeys, todayISO } from '@/lib/utils'
+import { clearStatsSummary, getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -32,6 +32,7 @@ const LAUNCH_DATE = '2026-04-27'
 
 export default function ArchivePage() {
   const today = todayISO()
+  const sessionId = useMemo(() => getSessionId(), [])
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
   const [showCaseList, setShowCaseList] = useState(true)
@@ -66,14 +67,27 @@ export default function ArchivePage() {
           .limit(5000),
       ])
 
-      setCases((data || []) as ArchiveCase[])
-      setGuessRows((guessData || []) as GuessLite[])
+      const nextCases = (data || []) as ArchiveCase[]
+      const nextGuessRows = (guessData || []) as GuessLite[]
+
+      setCases(nextCases)
+      setGuessRows(nextGuessRows)
       setFeedbackRows((feedbackData || []) as FeedbackLite[])
+      const completedKeysFromServer = new Set(
+        nextGuessRows
+          .filter(row => row.session_id === sessionId && row.case_id)
+          .map(row => nextCases.find(item => item.id === row.case_id))
+          .filter((item): item is ArchiveCase => Boolean(item) && item.case_date !== today)
+          .map(item => `${item.case_date}:${item.level}:archive`)
+      )
+      if (completedKeysFromServer.size > 0) {
+        setCompletedArchiveKeys(completedKeysFromServer)
+      }
       setLoading(false)
     }
 
     void loadArchive()
-  }, [today])
+  }, [sessionId, today])
 
   const categoryOptions = useMemo(() => {
     return Array.from(

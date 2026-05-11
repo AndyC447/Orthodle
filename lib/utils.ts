@@ -147,6 +147,8 @@ export function isAcceptedGuess(guess: string, acceptedAnswers: string[]) {
 export function getSessionId() {
   if (typeof window === 'undefined') return ''
   const key = 'orthodle_session_id'
+  const anonymousKey = 'orthodle_anonymous_session_id'
+  const accountKey = 'orthodle_account_session_v1'
   const readCookieValue = () => {
     const match = document.cookie
       .split('; ')
@@ -161,10 +163,39 @@ export function getSessionId() {
     )}; Max-Age=63072000; Path=/; SameSite=Lax${secure}`
   }
 
+  const readStoredAccount = () => {
+    try {
+      const raw = window.localStorage.getItem(accountKey)
+      if (!raw) return null as AccountSession | null
+      const parsed = JSON.parse(raw) as Partial<AccountSession>
+      if (!parsed?.accountId || !parsed?.username) return null
+      return {
+        accountId: parsed.accountId,
+        username: parsed.username,
+        displayName: typeof parsed.displayName === 'string' ? parsed.displayName : parsed.username,
+        profileIcon: typeof parsed.profileIcon === 'string' ? parsed.profileIcon : null,
+        loggedInAt: typeof parsed.loggedInAt === 'string' ? parsed.loggedInAt : new Date().toISOString(),
+      } satisfies AccountSession
+    } catch {
+      return null
+    }
+  }
+
+  const storedAccount = readStoredAccount()
+  if (storedAccount?.accountId) {
+    writeCookieValue(storedAccount.accountId)
+    try {
+      window.localStorage.setItem(key, storedAccount.accountId)
+    } catch {
+      // keep the cookie in sync when storage is restricted
+    }
+    return storedAccount.accountId
+  }
+
   let id = ''
 
   try {
-    id = localStorage.getItem(key) || ''
+    id = localStorage.getItem(anonymousKey) || localStorage.getItem(key) || ''
   } catch {
     id = ''
   }
@@ -184,6 +215,7 @@ export function getSessionId() {
   }
 
   try {
+    localStorage.setItem(anonymousKey, id)
     localStorage.setItem(key, id)
   } catch {
     // The cookie keeps the anonymous account recoverable if storage is restricted.
@@ -191,6 +223,71 @@ export function getSessionId() {
   writeCookieValue(id)
 
   return id
+}
+
+export type AccountSession = {
+  accountId: string
+  username: string
+  displayName: string
+  profileIcon: string | null
+  loggedInAt: string
+}
+
+const ACCOUNT_SESSION_STORAGE_KEY = 'orthodle_account_session_v1'
+
+export function getAnonymousSessionId() {
+  if (typeof window === 'undefined') return ''
+  const currentAccount = getAccountSession()
+  if (currentAccount?.accountId) {
+    const anonymousId =
+      window.localStorage.getItem('orthodle_anonymous_session_id') ||
+      window.localStorage.getItem('orthodle_session_id') ||
+      ''
+    return anonymousId
+  }
+
+  return getSessionId()
+}
+
+export function getAccountSession() {
+  if (typeof window === 'undefined') return null as AccountSession | null
+
+  try {
+    const raw = window.localStorage.getItem(ACCOUNT_SESSION_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<AccountSession>
+    if (!parsed?.accountId || !parsed?.username) return null
+    return {
+      accountId: parsed.accountId,
+      username: parsed.username,
+      displayName: typeof parsed.displayName === 'string' ? parsed.displayName : parsed.username,
+      profileIcon: typeof parsed.profileIcon === 'string' ? parsed.profileIcon : null,
+      loggedInAt: typeof parsed.loggedInAt === 'string' ? parsed.loggedInAt : new Date().toISOString(),
+    }
+  } catch {
+    return null
+  }
+}
+
+export function setAccountSession(session: AccountSession) {
+  if (typeof window === 'undefined') return
+  window.localStorage.setItem(ACCOUNT_SESSION_STORAGE_KEY, JSON.stringify(session))
+  try {
+    window.localStorage.setItem('orthodle_session_id', session.accountId)
+  } catch {
+    // noop
+  }
+}
+
+export function clearAccountSession() {
+  if (typeof window === 'undefined') return
+  window.localStorage.removeItem(ACCOUNT_SESSION_STORAGE_KEY)
+  const anonymousId = window.localStorage.getItem('orthodle_anonymous_session_id') || ''
+  if (anonymousId) {
+    window.localStorage.setItem('orthodle_session_id', anonymousId)
+  } else {
+    window.localStorage.removeItem('orthodle_session_id')
+  }
 }
 
 const TRACKING_DISABLED_KEY = 'orthodle_tracking_disabled'
