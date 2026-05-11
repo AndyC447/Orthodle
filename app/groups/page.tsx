@@ -133,6 +133,7 @@ type GroupAnnouncementRow = {
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
 const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
+const GROUP_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_group_announcement'
 const DEFAULT_MEMBER_ICON = '🦴'
 const GROUP_ICONS = [
   { value: '🦴', label: 'Bone' },
@@ -1158,6 +1159,7 @@ export default function GroupsPage() {
   const [guessRows, setGuessRows] = useState<GuessRow[]>([])
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
   const [groupAnnouncement, setGroupAnnouncement] = useState<GroupAnnouncementRow | null>(null)
+  const [dismissedGroupAnnouncementKey, setDismissedGroupAnnouncementKey] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [createName, setCreateName] = useState('')
   const [createCode, setCreateCode] = useState('')
@@ -1204,6 +1206,10 @@ export default function GroupsPage() {
   const [removingMemberId, setRemovingMemberId] = useState('')
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
+
+  const groupAnnouncementKey = groupAnnouncement
+    ? `${groupAnnouncement.id}:${groupAnnouncement.start_date}:${groupAnnouncement.end_date || ''}`
+    : ''
 
   async function loadGroupAnnouncement() {
     const { data } = await supabase
@@ -1336,6 +1342,9 @@ export default function GroupsPage() {
     if (!window.localStorage.getItem(GROUPS_EXPLAINER_STORAGE_KEY)) {
       setShowGroupsExplainer(true)
     }
+    setDismissedGroupAnnouncementKey(
+      window.localStorage.getItem(GROUP_ANNOUNCEMENT_DISMISS_KEY) || ''
+    )
   }, [])
 
   useEffect(() => {
@@ -1794,6 +1803,12 @@ export default function GroupsPage() {
     setAuthUsername('')
     setIdentityVersion(version => version + 1)
     setMessage('Signed out. This browser is back on its local profile.')
+  }
+
+  function dismissGroupAnnouncement() {
+    if (!groupAnnouncementKey || typeof window === 'undefined') return
+    window.localStorage.setItem(GROUP_ANNOUNCEMENT_DISMISS_KEY, groupAnnouncementKey)
+    setDismissedGroupAnnouncementKey(groupAnnouncementKey)
   }
 
   async function createGroup() {
@@ -2357,13 +2372,25 @@ export default function GroupsPage() {
         }}
       />
 
-      {groupAnnouncement ? (
+      {groupAnnouncement && groupAnnouncementKey !== dismissedGroupAnnouncementKey ? (
         <section className="mx-auto max-w-[760px] px-4 pt-3 sm:px-5">
           <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-[13px] leading-5 text-[#102018] shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-              Groups announcement
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Groups announcement
+                </div>
+                <div className="mt-1.5">{groupAnnouncement.message}</div>
+              </div>
+              <button
+                type="button"
+                onClick={dismissGroupAnnouncement}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e2d5bb] bg-white/70 text-[#637268] transition hover:bg-white"
+                aria-label="Dismiss groups announcement"
+              >
+                <X size={14} />
+              </button>
             </div>
-            <div className="mt-1.5">{groupAnnouncement.message}</div>
           </div>
         </section>
       ) : null}
