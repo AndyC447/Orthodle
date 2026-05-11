@@ -968,6 +968,12 @@ function getActivityIcon(item: ActivityFeedItem['icon']) {
   return '📈'
 }
 
+function formatCaseLevelLabel(level: CaseRow['level']) {
+  if (level === 'med_student') return 'med student'
+  if (level === 'resident') return 'resident'
+  return 'attending'
+}
+
 function calculateMemberScore(
   solves: number,
   firstTrySolves: number,
@@ -1474,6 +1480,13 @@ export default function GroupsPage() {
     if (!groupAhead) return null
     return `${Math.max(0, groupAhead.score - viewerGroupAggregate.score)} pts behind #${viewerGroupRank - 1}`
   })()
+  const solvedCaseIdsByViewer = useMemo(() => {
+    return new Set(
+      allTimeGuessRows
+        .filter(row => row.session_id === sessionId && row.case_id && row.is_correct)
+        .map(row => row.case_id as string)
+    )
+  }, [allTimeGuessRows, sessionId])
   const selectedGroupChallenge = buildWeeklyChallenge(selectedWeeklyGroupAggregate)
   const selectedGroupRecap = buildWeeklyRecap(
     selectedWeeklyGroupAggregate,
@@ -1525,11 +1538,16 @@ export default function GroupsPage() {
 
       if (!member || !caseInfo || !solvedAt) continue
 
+      const canSeeAnswer = solvedCaseIdsByViewer.has(caseId)
+      const solveLabel = canSeeAnswer
+        ? caseInfo.answer
+        : `${formatCaseLevelLabel(caseInfo.level)} case`
+
       items.push({
         id: `solve-${key}`,
         icon: 'solve',
         title: `${member.display_name} solved`,
-        detail: `${caseInfo.answer} in ${firstCorrectIndex + 1} guess${firstCorrectIndex === 0 ? '' : 'es'}`,
+        detail: `${solveLabel} in ${firstCorrectIndex + 1} guess${firstCorrectIndex === 0 ? '' : 'es'}`,
         createdAt: solvedAt,
       })
     }
@@ -1593,7 +1611,7 @@ export default function GroupsPage() {
     return items
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
-  }, [activeGroupAggregates, caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupRank, visibleGuessRows])
+  }, [activeGroupAggregates, caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupRank, solvedCaseIdsByViewer, visibleGuessRows])
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
@@ -2526,68 +2544,71 @@ export default function GroupsPage() {
                   <span aria-hidden="true">←</span>
                   Back to groups
                 </button>
-                <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
+                <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
                   <div className="flex flex-col gap-3 sm:gap-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
                       <div className="flex min-w-0 items-start gap-3">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (!canChangeSelectedGroupIcon) return
-                          setShowSelectedGroupIconPicker(prev => !prev)
-                        }}
-                        className={`${canChangeSelectedGroupIcon ? 'transition hover:-translate-y-0.5' : ''}`}
-                        aria-label={canChangeSelectedGroupIcon ? 'Change group icon' : 'Group icon'}
-                      >
-                        <div className="relative rounded-full border-2 border-[#efbf48] p-1">
-                          <div className="flex h-20 w-20 items-center justify-center sm:h-28 sm:w-28">
-                            <GroupCrest group={selectedGroup} size="lg" />
-                          </div>
-                          {canChangeSelectedGroupIcon ? (
-                            <span className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[#d8cfbf] bg-white text-[#0e5a3f] shadow-[0_8px_18px_rgba(16,32,24,0.16)] sm:h-8 sm:w-8">
-                              <Pencil size={13} strokeWidth={2.2} />
-                            </span>
-                          ) : null}
-                        </div>
-                      </button>
-                      <div className="min-w-0 flex-1 pt-0.5">
-                        <h1 className="font-serif text-[24px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[31px] sm:leading-none">
-                          {selectedGroup.name}
-                        </h1>
-                        <p className="mt-0.5 text-[13px] text-[#e3efe8] sm:mt-1 sm:text-sm">
-                          {formatMemberCount(selectedGroupAggregate.members.length)}
-                        </p>
-                        <p className="mt-1.5 max-w-[18rem] text-[13px] font-medium leading-[1.35] text-[#f6efe0] sm:mt-2 sm:max-w-none sm:text-sm">
-                          "{getGroupTagline(selectedGroupRank)}"
-                        </p>
-                      </div>
-                      </div>
-                    <div className="flex w-full items-center gap-2 sm:w-auto sm:self-auto">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
-                        }
-                        className="inline-flex h-9 min-w-0 flex-1 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
-                      >
-                        {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
-                      </button>
-                      {isViewingOwnGroup ? (
                         <button
                           type="button"
-                          onClick={() => void shareInviteLink(selectedGroup)}
-                          className="inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
+                          onClick={() => {
+                            if (!canChangeSelectedGroupIcon) return
+                            setShowSelectedGroupIconPicker(prev => !prev)
+                          }}
+                          className={`${canChangeSelectedGroupIcon ? 'transition hover:-translate-y-0.5' : ''}`}
+                          aria-label={canChangeSelectedGroupIcon ? 'Change group icon' : 'Group icon'}
                         >
-                          <Share2 size={13} strokeWidth={2} />
-                          {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
+                          <div className="relative rounded-full border-2 border-[#efbf48] p-1">
+                            <div className="flex h-20 w-20 items-center justify-center sm:h-28 sm:w-28">
+                              <GroupCrest group={selectedGroup} size="lg" />
+                            </div>
+                            {canChangeSelectedGroupIcon ? (
+                              <span className="absolute bottom-1 right-1 flex h-7 w-7 items-center justify-center rounded-full border border-[#d8cfbf] bg-white text-[#0e5a3f] shadow-[0_8px_18px_rgba(16,32,24,0.16)] sm:h-8 sm:w-8">
+                                <Pencil size={13} strokeWidth={2.2} />
+                              </span>
+                            ) : null}
+                          </div>
                         </button>
-                      ) : null}
+                        <div className="min-w-0 flex-1 pt-0.5">
+                          <h1 className="break-words font-serif text-[22px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[31px] sm:leading-none">
+                            {selectedGroup.name}
+                          </h1>
+                          <p className="mt-0.5 text-[13px] text-[#e3efe8] sm:mt-1 sm:text-sm">
+                            {formatMemberCount(selectedGroupAggregate.members.length)}
+                          </p>
+                          <p className="mt-1.5 max-w-[15rem] text-[12px] font-medium leading-[1.28] text-[#f6efe0] sm:mt-2 sm:max-w-none sm:text-sm">
+                            "{getGroupTagline(selectedGroupRank)}"
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:self-auto">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
+                          }
+                          className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
+                        >
+                          {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
+                        </button>
+                        {isViewingOwnGroup ? (
+                          <button
+                            type="button"
+                            onClick={() => void shareInviteLink(selectedGroup)}
+                            className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
+                          >
+                            <Share2 size={13} strokeWidth={2} />
+                            {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
+                          </button>
+                        ) : (
+                          <div className="hidden sm:block" />
+                        )}
+                      </div>
                     </div>
-                  </div>
                   </div>
 
                   {showSelectedGroupIconPicker && canChangeSelectedGroupIcon ? (
-                    <div className="orthodle-icon-scroll mt-3 grid max-h-[13.5rem] grid-cols-5 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2.5 sm:mt-4 sm:max-h-48 sm:grid-cols-10">
+                    <div className="orthodle-icon-scroll mt-3 grid max-h-[13.5rem] grid-cols-5 gap-1.5 overflow-y-auto rounded-2xl border border-white/12 bg-white/8 p-2.5 pb-3 sm:mt-4 sm:max-h-48 sm:grid-cols-10">
                       {GROUP_ICONS.map(icon => (
                         <button
                           key={icon.value}
@@ -2610,12 +2631,12 @@ export default function GroupsPage() {
                     </div>
                   ) : null}
 
-                  <div className="mt-4 grid grid-cols-3 divide-x divide-white/18 border-t border-white/14 pt-3.5 text-center sm:mt-5 sm:pt-4">
+                  <div className="mt-4 grid grid-cols-3 divide-x divide-white/18 border-t border-white/14 pt-3 text-center sm:mt-5 sm:pt-4">
                     <div className="px-2">
                       <div className="font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                         #{selectedGroupRank || '—'}
                       </div>
-                      <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
+                      <div className="mt-1 text-[7px] font-bold uppercase tracking-[0.1em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
                         of {activeGroupAggregates.length} groups
                       </div>
                     </div>
@@ -2623,7 +2644,7 @@ export default function GroupsPage() {
                       <div className="font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                         {formatScore(selectedGroupAggregate.score)}
                       </div>
-                      <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
+                      <div className="mt-1 text-[7px] font-bold uppercase tracking-[0.1em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
                         pts {leaderboardWindow === 'week' ? 'this week' : 'all time'}
                       </div>
                     </div>
@@ -2631,22 +2652,22 @@ export default function GroupsPage() {
                       <div className="font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                         {selectedGroupAggregate.longestStreak}
                       </div>
-                      <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
+                      <div className="mt-1 text-[7px] font-bold uppercase tracking-[0.1em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
                         day streak
                       </div>
                     </div>
                   </div>
 
                   <div className="mt-3 rounded-[16px] border border-white/12 bg-white/6 px-3 py-2.5">
-                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#dfece5]">
                         Weekly momentum
                       </div>
-                      <div className="text-[12px] font-semibold text-white">
+                      <div className="text-[11px] font-semibold text-white sm:text-[12px]">
                         {selectedGroupMomentum || 'Keep stacking solves.'}
                       </div>
                     </div>
-                    <div className="mt-1 text-[12px] text-[#dbe8e1]">
+                    <div className="mt-1 text-[11px] text-[#dbe8e1] sm:text-[12px]">
                       {selectedWeeklyGroupAggregate?.currentStreak || 0}-day group streak ·{' '}
                       {selectedWeeklyGroupAggregate?.activeTodayCount || 0} active today
                     </div>
