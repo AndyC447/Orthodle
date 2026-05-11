@@ -1238,10 +1238,20 @@ export default function AdminPage() {
   }
 
   async function loadGroupAnnouncements() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('group_announcements')
       .select('id, message, start_date, end_date, created_at')
       .order('start_date', { ascending: false })
+
+    if (error) {
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Groups announcements are not set up yet. Run the new SQL once, then try again.'
+          : `Could not load groups notes: ${error.message}`
+      )
+      return
+    }
+
     setGroupAnnouncements((data as GroupAnnouncementRow[] | null) || [])
   }
 
@@ -1372,7 +1382,11 @@ export default function AdminPage() {
       : await supabase.from('group_announcements').insert(payload)
 
     if (result.error) {
-      setStatus('Could not save the groups note.')
+      setStatus(
+        result.error.message.includes('relation') || result.error.message.includes('does not exist')
+          ? 'Groups announcements are not set up yet. Run the new SQL once, then try again.'
+          : `Could not save the groups note: ${result.error.message}`
+      )
       return
     }
 
@@ -1393,7 +1407,11 @@ export default function AdminPage() {
     const { error } = await supabase.from('group_announcements').delete().eq('id', id)
 
     if (error) {
-      setStatus('Could not delete the groups note.')
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Groups announcements are not set up yet. Run the new SQL once, then try again.'
+          : `Could not delete the groups note: ${error.message}`
+      )
       return
     }
 
