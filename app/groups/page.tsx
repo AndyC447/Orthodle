@@ -47,6 +47,7 @@ type MemberStats = {
   solves: number
   avgGuesses: number | null
   longestStreak: number
+  currentStreak: number
   firstTrySolves: number
   totalGuesses: number
   correctGuesses: number
@@ -54,6 +55,7 @@ type MemberStats = {
   categorySolves: Record<string, number>
   hasClutchSolve: boolean
   nightShiftSolves: number
+  solvedDates: string[]
 }
 
 type GroupAggregate = {
@@ -64,7 +66,12 @@ type GroupAggregate = {
   avgAccuracy: number | null
   avgGuesses: number | null
   longestStreak: number
+  currentStreak: number
   totalSolves: number
+  totalFirstTrySolves: number
+  totalAttendingSolves: number
+  activeTodayCount: number
+  solvedDates: string[]
 }
 
 type DisplayGroup = {
@@ -92,6 +99,20 @@ type ActivityFeedItem = {
   title: string
   detail: string
   createdAt: string
+}
+
+type WeeklyChallenge = {
+  title: string
+  detail: string
+  progress: number
+  goal: number
+  reward: string
+}
+
+type WeeklyRecap = {
+  title: string
+  detail: string
+  accent: string
 }
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
@@ -850,6 +871,96 @@ function formatRelativeTime(iso: string) {
   return `${days}d ago`
 }
 
+function getLocalIsoDate(isoLike?: string) {
+  const date = isoLike ? new Date(isoLike) : new Date()
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function getCurrentRun(sortedDates: string[]) {
+  if (sortedDates.length === 0) return 0
+
+  let current = 1
+  for (let index = sortedDates.length - 1; index > 0; index -= 1) {
+    const currentDate = new Date(`${sortedDates[index]}T12:00:00`)
+    const previousDate = new Date(`${sortedDates[index - 1]}T12:00:00`)
+    const diffDays = Math.round(
+      (currentDate.getTime() - previousDate.getTime()) / (1000 * 60 * 60 * 24)
+    )
+    if (diffDays === 1) current += 1
+    else break
+  }
+
+  return current
+}
+
+function buildWeeklyChallenge(groupAggregate: GroupAggregate | null): WeeklyChallenge | null {
+  if (!groupAggregate) return null
+
+  if (groupAggregate.totalFirstTrySolves < 6) {
+    return {
+      title: 'First-Try Friday',
+      detail: 'Stack first-try solves as a team this week.',
+      progress: groupAggregate.totalFirstTrySolves,
+      goal: 6,
+      reward: 'Bonus momentum for sharp pattern recognition.',
+    }
+  }
+
+  if (groupAggregate.activeTodayCount < Math.min(3, Math.max(1, groupAggregate.members.length))) {
+    return {
+      title: 'Daily Check-In',
+      detail: 'Get more teammates to solve today’s case.',
+      progress: groupAggregate.activeTodayCount,
+      goal: Math.min(3, Math.max(1, groupAggregate.members.length)),
+      reward: 'Keep the group streak alive.',
+    }
+  }
+
+  return {
+    title: 'Consult Climb',
+    detail: 'Push your weekly score by solving efficiently.',
+    progress: groupAggregate.score,
+    goal: groupAggregate.score + 12,
+    reward: 'Enough to realistically gain ground this week.',
+  }
+}
+
+function buildWeeklyRecap(
+  groupAggregate: GroupAggregate | null,
+  rank: number | null,
+  totalGroups: number,
+  mvpName?: string
+): WeeklyRecap | null {
+  if (!groupAggregate) return null
+
+  if (rank === 1) {
+    return {
+      title: 'Holding first place',
+      detail: mvpName
+        ? `${mvpName} is pacing the team while the group protects the lead.`
+        : 'Your group is setting the pace this week.',
+      accent: 'Leader',
+    }
+  }
+
+  if (rank && rank <= 3) {
+    return {
+      title: 'Podium push',
+      detail: `You’re sitting #${rank} of ${totalGroups} groups with room to climb.`,
+      accent: 'Podium',
+    }
+  }
+
+  return {
+    title: 'Still in striking distance',
+    detail: 'A few efficient solves can change the board quickly.',
+    accent: 'Chasing',
+  }
+}
+
 function getActivityIcon(item: ActivityFeedItem['icon']) {
   if (item === 'solve') return '🏆'
   if (item === 'mvp') return '👑'
@@ -892,11 +1003,19 @@ function buildGroupAggregatesFromRows(
         (max, entry) => Math.max(max, entry.longestStreak),
         0
       )
+      const allSolvedDates = Array.from(
+        new Set(memberStats.flatMap(entry => entry.solvedDates))
+      ).sort()
+      const currentStreak = getCurrentRun(allSolvedDates)
       const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
+      const totalFirstTrySolves = memberStats.reduce((sum, entry) => sum + entry.firstTrySolves, 0)
+      const totalAttendingSolves = memberStats.reduce((sum, entry) => sum + entry.attendingSolves, 0)
       const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
       const totalMemberScore = activeMemberStats.reduce((sum, entry) => sum + entry.score, 0)
       const score =
         activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
+      const todayKey = getLocalIsoDate()
+      const activeTodayCount = memberStats.filter(entry => entry.solvedDates.includes(todayKey)).length
 
       return {
         group,
@@ -914,7 +1033,12 @@ function buildGroupAggregatesFromRows(
         avgAccuracy,
         avgGuesses,
         longestStreak,
+        currentStreak,
         totalSolves,
+        totalFirstTrySolves,
+        totalAttendingSolves,
+        activeTodayCount,
+        solvedDates: allSolvedDates,
       }
     })
     .sort((a, b) => b.score - a.score)
@@ -982,6 +1106,7 @@ function buildMemberStats(
 
   const avgGuesses = solves > 0 ? totalGuessesToSolve / solves : null
   const longestStreak = computeLongestRun(uniqueSortedDates)
+  const currentStreak = getCurrentRun(uniqueSortedDates)
   const score = calculateMemberScore(solves, firstTrySolves, longestStreak, avgGuesses)
 
   return {
@@ -990,6 +1115,7 @@ function buildMemberStats(
     solves,
     avgGuesses,
     longestStreak,
+    currentStreak,
     firstTrySolves,
     totalGuesses,
     correctGuesses,
@@ -997,6 +1123,7 @@ function buildMemberStats(
     categorySolves,
     hasClutchSolve,
     nightShiftSolves,
+    solvedDates: uniqueSortedDates,
   }
 }
 
@@ -1323,6 +1450,51 @@ export default function GroupsPage() {
         : [],
     [mvpEntry?.stats.member.session_id, selectedGroupRank, selectedMemberStats]
   )
+  const selectedWeeklyGroupAggregate =
+    groupAggregates.find(entry => entry.group.id === selectedGroupId) || null
+  const selectedWeeklyGroupRank = selectedWeeklyGroupAggregate
+    ? groupAggregates.findIndex(entry => entry.group.id === selectedWeeklyGroupAggregate.group.id) + 1
+    : null
+  const viewerGroupChallenge = buildWeeklyChallenge(viewerGroupAggregate)
+  const viewerGroupRecap = buildWeeklyRecap(
+    viewerGroupAggregate,
+    viewerGroupRank,
+    groupAggregates.length,
+    viewerGroupAggregate?.memberStats[0]?.member.display_name
+  )
+  const viewerGroupMomentum = (() => {
+    if (!viewerGroupAggregate || !viewerGroupRank) return null
+    if (viewerGroupRank === 1) {
+      const secondPlace = groupAggregates[1]
+      if (!secondPlace) return 'You own the top spot.'
+      return `${Math.max(0, viewerGroupAggregate.score - secondPlace.score)} pts ahead of #2`
+    }
+
+    const groupAhead = groupAggregates[viewerGroupRank - 2]
+    if (!groupAhead) return null
+    return `${Math.max(0, groupAhead.score - viewerGroupAggregate.score)} pts behind #${viewerGroupRank - 1}`
+  })()
+  const selectedGroupChallenge = buildWeeklyChallenge(selectedWeeklyGroupAggregate)
+  const selectedGroupRecap = buildWeeklyRecap(
+    selectedWeeklyGroupAggregate,
+    selectedWeeklyGroupRank,
+    groupAggregates.length,
+    selectedWeeklyGroupAggregate?.memberStats[0]?.member.display_name
+  )
+  const selectedGroupMomentum = (() => {
+    if (!selectedWeeklyGroupAggregate || !selectedWeeklyGroupRank) return null
+    if (selectedWeeklyGroupRank === 1) {
+      const secondPlace = groupAggregates[1]
+      if (!secondPlace) return 'You own the top spot.'
+      const lead = Math.max(0, selectedWeeklyGroupAggregate.score - secondPlace.score)
+      return `${lead} pts ahead of #2`
+    }
+
+    const groupAhead = groupAggregates[selectedWeeklyGroupRank - 2]
+    if (!groupAhead) return null
+    const deficit = Math.max(0, groupAhead.score - selectedWeeklyGroupAggregate.score)
+    return `${deficit} pts behind #${selectedWeeklyGroupRank - 1}`
+  })()
   const groupActivityFeed = useMemo<ActivityFeedItem[]>(() => {
     if (!selectedGroupAggregate || !selectedGroup) return []
 
@@ -1379,7 +1551,7 @@ export default function GroupsPage() {
         id: `streak-${selectedGroup.id}`,
         icon: 'streak',
         title: `${selectedGroup.name} is heating up`,
-        detail: `Your group is on a ${selectedGroupAggregate.longestStreak}-day streak`,
+        detail: `${selectedGroup.name} is on a ${selectedGroupAggregate.longestStreak}-day streak`,
         createdAt: nowIso,
       })
     }
@@ -1394,10 +1566,34 @@ export default function GroupsPage() {
       })
     }
 
+    if (selectedGroupAggregate.activeTodayCount >= 2) {
+      items.push({
+        id: `checkin-${selectedGroup.id}`,
+        icon: 'streak',
+        title: `${selectedGroupAggregate.activeTodayCount} members checked in today`,
+        detail: 'Daily activity is keeping the group warm.',
+        createdAt: nowIso,
+      })
+    }
+
+    if (selectedGroupRank && selectedGroupRank > 1) {
+      const groupAhead = activeGroupAggregates[selectedGroupRank - 2]
+      if (groupAhead) {
+        const deficit = Math.max(0, groupAhead.score - selectedGroupAggregate.score)
+        items.push({
+          id: `gap-${selectedGroup.id}`,
+          icon: 'rank',
+          title: `${deficit} pts behind ${groupAhead.group.name}`,
+          detail: `A small run flips you from #${selectedGroupRank} to #${selectedGroupRank - 1}`,
+          createdAt: nowIso,
+        })
+      }
+    }
+
     return items
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
-  }, [caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupRank, visibleGuessRows])
+  }, [activeGroupAggregates, caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupRank, visibleGuessRows])
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
@@ -2101,6 +2297,109 @@ export default function GroupsPage() {
               </section>
             </div>
 
+            {viewerGroup && viewerGroupAggregate ? (
+              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
+                      Your group this week
+                    </div>
+                    <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
+                      {viewerGroup.name}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedGroupId(viewerGroup.id)
+                      setActiveGroupsTab('my-group')
+                    }}
+                    className="rounded-full border border-[#e6dfd3] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Open group
+                  </button>
+                </div>
+
+                <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+                  <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                      Group streak
+                    </div>
+                    <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                      {viewerGroupAggregate.currentStreak}
+                    </div>
+                    <div className="mt-1 text-[11px] text-[#2d7651]">
+                      {viewerGroupAggregate.activeTodayCount} active today
+                    </div>
+                  </div>
+                  <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3 sm:col-span-2">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                      Momentum
+                    </div>
+                    <div className="mt-1 font-semibold text-[#102018]">
+                      {viewerGroupMomentum || 'Keep stacking solves.'}
+                    </div>
+                    <div className="mt-1 text-[11px] text-[#637268]">
+                      {viewerGroupRecap?.detail || 'Every solve moves the board.'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                  {viewerGroupChallenge ? (
+                    <div className="rounded-[16px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
+                        Weekly challenge
+                      </div>
+                      <div className="mt-1 font-semibold text-[#102018]">
+                        {viewerGroupChallenge.title}
+                      </div>
+                      <div className="mt-1 text-[12px] text-[#637268]">
+                        {viewerGroupChallenge.detail}
+                      </div>
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
+                        <div
+                          className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.max(
+                                12,
+                                (viewerGroupChallenge.progress / viewerGroupChallenge.goal) * 100
+                              )
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="mt-1 flex items-center justify-between text-[11px]">
+                        <span className="font-semibold text-[#102018]">
+                          {viewerGroupChallenge.progress}/{viewerGroupChallenge.goal}
+                        </span>
+                        <span className="text-[#637268]">{viewerGroupChallenge.reward}</span>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {viewerGroupRecap ? (
+                    <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Weekly recap
+                      </div>
+                      <div className="mt-1 font-semibold text-[#102018]">
+                        {viewerGroupRecap.title}
+                      </div>
+                      <div className="mt-1 text-[12px] text-[#637268]">
+                        {viewerGroupRecap.detail}
+                      </div>
+                      <div className="mt-2 text-[11px] font-semibold text-[#2d7651]">
+                        {viewerGroupRecap.accent}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+
             <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
@@ -2337,7 +2636,75 @@ export default function GroupsPage() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="mt-3 rounded-[16px] border border-white/12 bg-white/6 px-3 py-2.5">
+                    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#dfece5]">
+                        Weekly momentum
+                      </div>
+                      <div className="text-[12px] font-semibold text-white">
+                        {selectedGroupMomentum || 'Keep stacking solves.'}
+                      </div>
+                    </div>
+                    <div className="mt-1 text-[12px] text-[#dbe8e1]">
+                      {selectedWeeklyGroupAggregate?.currentStreak || 0}-day group streak ·{' '}
+                      {selectedWeeklyGroupAggregate?.activeTodayCount || 0} active today
+                    </div>
+                  </div>
                 </section>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {selectedGroupChallenge ? (
+                    <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
+                        Weekly challenge
+                      </div>
+                      <div className="mt-1 font-serif text-[20px] font-bold tracking-[-0.03em] text-[#102018]">
+                        {selectedGroupChallenge.title}
+                      </div>
+                      <div className="mt-1 text-[13px] leading-5 text-[#637268]">
+                        {selectedGroupChallenge.detail}
+                      </div>
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
+                        <div
+                          className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.max(
+                                12,
+                                (selectedGroupChallenge.progress / selectedGroupChallenge.goal) * 100
+                              )
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-3 text-[12px]">
+                        <span className="font-semibold text-[#102018]">
+                          {selectedGroupChallenge.progress}/{selectedGroupChallenge.goal}
+                        </span>
+                        <span className="text-right text-[#637268]">{selectedGroupChallenge.reward}</span>
+                      </div>
+                    </section>
+                  ) : null}
+
+                  {selectedGroupRecap ? (
+                    <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                        Weekly recap
+                      </div>
+                      <div className="mt-1 font-serif text-[20px] font-bold tracking-[-0.03em] text-[#102018]">
+                        {selectedGroupRecap.title}
+                      </div>
+                      <div className="mt-1 text-[13px] leading-5 text-[#637268]">
+                        {selectedGroupRecap.detail}
+                      </div>
+                      <div className="mt-3 inline-flex rounded-full border border-[#dfe9e2] bg-[#f7fbf8] px-2.5 py-1 text-[11px] font-semibold text-[#2d7651]">
+                        {selectedGroupRecap.accent}
+                      </div>
+                    </section>
+                  ) : null}
+                </div>
 
                 <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
