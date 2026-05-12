@@ -608,7 +608,7 @@ function GroupsTopBanner({
             <div className="grid grid-cols-4 gap-1 rounded-[22px] bg-white p-1">
               <Link
                 href="/"
-                className={`${navItemClass} bg-[#fffdf8] px-2 text-[11px] text-[#102018] hover:bg-[#f7f5f0]`}
+                className={`${navItemClass} px-2 text-[11px] bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`}
               >
                 Cases
               </Link>
@@ -672,7 +672,7 @@ function GroupsTopBanner({
           <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
             <Link
               href="/"
-              className={`${navItemClass} bg-[#fffdf8] text-[12px] text-[#102018] hover:bg-[#f7f5f0]`}
+              className={`${navItemClass} bg-[#fffdf8] text-[11px] text-[#102018] hover:bg-[#f7f5f0]`}
             >
               Cases
             </Link>
@@ -3240,7 +3240,7 @@ export default function GroupsPage() {
           <div className="mx-auto w-full">
             <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
               <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
+                <div className="flex min-w-0 flex-col items-center gap-3 text-center sm:flex-1 sm:pr-5">
                   <button
                     type="button"
                     onClick={() => setShowSelectedMemberIconPicker(prev => !prev)}
@@ -3260,7 +3260,7 @@ export default function GroupsPage() {
                     </span>
                   </button>
 
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 w-full max-w-[360px]">
                     {isEditingProfileName ? (
                       <input
                         autoFocus
@@ -3278,13 +3278,13 @@ export default function GroupsPage() {
                           }
                         }}
                         placeholder="Your display name"
-                        className="h-11 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-base font-semibold text-white outline-none transition placeholder:text-white/70 focus:border-[#efbf48] sm:max-w-[320px] sm:text-lg"
+                        className="mx-auto h-11 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-center text-base font-semibold text-white outline-none transition placeholder:text-white/70 focus:border-[#efbf48] sm:text-lg"
                       />
                     ) : (
                       <button
                         type="button"
                         onClick={() => setIsEditingProfileName(true)}
-                        className="max-w-full break-words font-serif text-[24px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[32px]"
+                        className="mx-auto block max-w-full break-words text-center font-serif text-[28px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[36px]"
                       >
                         {profileDisplayName}
                       </button>
