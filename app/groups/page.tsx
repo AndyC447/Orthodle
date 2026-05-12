@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
+import { fetchExcludedStatsSessionIds } from '@/lib/stats-exclusions'
 import {
   clearAccountSession,
   getAccountSession,
@@ -591,7 +592,9 @@ function GroupsTopBanner({
   }
 
   const navItemClass =
-    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[11.5px] font-extrabold tracking-[-0.01em] leading-none no-underline transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
+    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[11.5px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
+  const inactiveNavItemClass =
+    `${navItemClass} bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`
 
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
@@ -608,7 +611,7 @@ function GroupsTopBanner({
             <div className="grid grid-cols-4 gap-1 rounded-[22px] bg-white p-1">
               <Link
                 href="/"
-                className={`${navItemClass} px-2 text-[11px] bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`}
+                className={inactiveNavItemClass}
               >
                 Cases
               </Link>
@@ -620,10 +623,10 @@ function GroupsTopBanner({
                     key={tab.id}
                     type="button"
                     onClick={() => onTabChange(tab.id)}
-                    className={`${navItemClass} px-2 text-[11px] ${
+                    className={`${
                       active
-                        ? 'border border-[#1f6448] bg-[#1f6448] text-white shadow-sm'
-                        : 'bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]'
+                        ? `${navItemClass} border border-[#1f6448] bg-[#1f6448] text-white shadow-sm`
+                        : inactiveNavItemClass
                     }`}
                   >
                     {tab.label}
@@ -672,7 +675,7 @@ function GroupsTopBanner({
           <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
             <Link
               href="/"
-              className={`${navItemClass} bg-[#fffdf8] text-[11px] text-[#102018] hover:bg-[#f7f5f0]`}
+              className={inactiveNavItemClass}
             >
               Cases
             </Link>
@@ -684,10 +687,10 @@ function GroupsTopBanner({
                   key={tab.id}
                   type="button"
                   onClick={() => onTabChange(tab.id)}
-                  className={`${navItemClass} ${
+                  className={`${
                     active
-                      ? 'border border-[#1f6448] bg-[#1f6448] text-white shadow-sm'
-                      : 'bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]'
+                      ? `${navItemClass} border border-[#1f6448] bg-[#1f6448] text-white shadow-sm`
+                      : inactiveNavItemClass
                   }`}
                 >
                   {tab.label}
@@ -1205,6 +1208,7 @@ export default function GroupsPage() {
   const [isEditingProfileName, setIsEditingProfileName] = useState(false)
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
+  const [excludedSessionIds, setExcludedSessionIds] = useState<string[]>([])
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
 
@@ -1226,6 +1230,7 @@ export default function GroupsPage() {
   }
 
   async function loadGroupsData() {
+    const nextExcludedSessionIds = await fetchExcludedStatsSessionIds()
     const { data: groupData, error: groupError } = await supabase
       .from('groups')
       .select('*')
@@ -1253,6 +1258,7 @@ export default function GroupsPage() {
 
     const allMembers = (memberData || []) as GroupMemberRow[]
     setMembers(allMembers)
+    setExcludedSessionIds(nextExcludedSessionIds)
 
     const memberSessionIds = Array.from(new Set(allMembers.map(member => member.session_id)))
 
@@ -1413,6 +1419,11 @@ export default function GroupsPage() {
   }, [groupActionMode, showJoinPanel])
 
   const selectedGroup = groups.find(group => group.id === selectedGroupId) || null
+  const excludedSessionIdSet = useMemo(() => new Set(excludedSessionIds), [excludedSessionIds])
+  const statEligibleMembers = useMemo(
+    () => members.filter(member => !excludedSessionIdSet.has(member.session_id)),
+    [excludedSessionIdSet, members]
+  )
   const selectedMembers = useMemo(
     () => members.filter(member => member.group_id === selectedGroupId),
     [members, selectedGroupId]
@@ -1426,21 +1437,31 @@ export default function GroupsPage() {
     : false
   const weekRange = useMemo(() => getCurrentWeekRange(), [])
   const visibleGuessRows = useMemo(
-    () => guessRows.filter(row => row.created_at >= weekRange.startIso && row.created_at <= weekRange.endIso),
-    [guessRows, weekRange.endIso, weekRange.startIso]
+    () =>
+      guessRows.filter(
+        row =>
+          !excludedSessionIdSet.has(row.session_id) &&
+          row.created_at >= weekRange.startIso &&
+          row.created_at <= weekRange.endIso
+      ),
+    [excludedSessionIdSet, guessRows, weekRange.endIso, weekRange.startIso]
   )
   const allTimeGuessRows = useMemo(
+    () => guessRows.filter(row => Boolean(row.case_id) && !excludedSessionIdSet.has(row.session_id)),
+    [excludedSessionIdSet, guessRows]
+  )
+  const viewerAllTimeGuessRows = useMemo(
     () => guessRows.filter(row => Boolean(row.case_id)),
     [guessRows]
   )
 
   const groupAggregates = useMemo<GroupAggregate[]>(() => {
-    return buildGroupAggregatesFromRows(groups, members, visibleGuessRows, caseLookup)
-  }, [groups, visibleGuessRows, members, caseLookup])
+    return buildGroupAggregatesFromRows(groups, statEligibleMembers, visibleGuessRows, caseLookup)
+  }, [groups, visibleGuessRows, statEligibleMembers, caseLookup])
 
   const allTimeGroupAggregates = useMemo<GroupAggregate[]>(() => {
-    return buildGroupAggregatesFromRows(groups, members, allTimeGuessRows, caseLookup)
-  }, [allTimeGuessRows, caseLookup, groups, members])
+    return buildGroupAggregatesFromRows(groups, statEligibleMembers, allTimeGuessRows, caseLookup)
+  }, [allTimeGuessRows, caseLookup, groups, statEligibleMembers])
 
   const activeGroupAggregates =
     leaderboardWindow === 'week' ? groupAggregates : allTimeGroupAggregates
@@ -1466,7 +1487,7 @@ export default function GroupsPage() {
   const myMemberStats =
     selectedGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
   const viewerMemberStats =
-    viewerMembership ? buildMemberStats(viewerMembership, allTimeGuessRows, caseLookup) : null
+    viewerMembership ? buildMemberStats(viewerMembership, viewerAllTimeGuessRows, caseLookup) : null
   const viewerGroupRank = viewerGroupAggregate
     ? groupAggregates.findIndex(entry => entry.group.id === viewerGroupAggregate.group.id) + 1
     : null

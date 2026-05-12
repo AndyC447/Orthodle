@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
+import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import { clearStatsSummary, getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
@@ -49,7 +50,8 @@ export default function ArchivePage() {
 
   useEffect(() => {
     async function loadArchive() {
-      const [{ data }, { data: guessData }, { data: feedbackData }] = await Promise.all([
+      const [excludedSessionIds, { data }, { data: guessData }, { data: feedbackData }] = await Promise.all([
+        fetchExcludedStatsSessionIds(),
         supabase
           .from('cases')
           .select('id, case_date, level, category, image_url')
@@ -68,7 +70,10 @@ export default function ArchivePage() {
       ])
 
       const nextCases = (data || []) as ArchiveCase[]
-      const nextGuessRows = (guessData || []) as GuessLite[]
+      const nextGuessRows = filterExcludedSessionRows(
+        (guessData || []) as GuessLite[],
+        new Set(excludedSessionIds)
+      )
 
       setCases(nextCases)
       setGuessRows(nextGuessRows)

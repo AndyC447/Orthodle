@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
+import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 
 type FeedbackRow = {
   id: string
@@ -111,6 +112,7 @@ export default function AdminFeedbackPage() {
   }, [isUnlocked])
 
   async function loadFeedback() {
+    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const { data, error } = await supabase
       .from('case_feedback')
       .select('*')
@@ -121,7 +123,7 @@ export default function AdminFeedbackPage() {
       return
     }
 
-    setFeedbackRows((data || []) as FeedbackRow[])
+    setFeedbackRows(filterExcludedSessionRows((data || []) as FeedbackRow[], excludedSessionIdSet))
   }
 
   async function deleteFeedback(id: string) {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
+import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
   normalizeAnswer,
   ORTHO_DIAGNOSIS_BANK,
@@ -886,6 +887,7 @@ export default function AdminPage() {
   }
 
   async function loadAnalytics() {
+    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const visitPages: VisitAnalyticsRow[] = []
     let visitOffset = 0
 
@@ -930,8 +932,8 @@ export default function AdminPage() {
       guessOffset += ANALYTICS_PAGE_SIZE
     }
 
-    const visits = visitPages
-    const guesses = guessPages
+    const visits = filterExcludedSessionRows(visitPages, excludedSessionIdSet)
+    const guesses = filterExcludedSessionRows(guessPages, excludedSessionIdSet)
 
     const byDate: Record<string, AnalyticsRow> = {}
     const sessionsByDate: Record<string, Set<string>> = {}
@@ -1212,18 +1214,20 @@ export default function AdminPage() {
   }
 
   async function loadFeedbackSummary() {
-    const { data, error, count } = await supabase
+    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
+    const { data, error } = await supabase
       .from('case_feedback')
-      .select('created_at', { count: 'exact' })
+      .select('created_at, session_id')
       .order('created_at', { ascending: false })
-      .limit(1)
+      .limit(5000)
 
     if (error) return
 
-    const latestCreatedAt = data?.[0]?.created_at || null
+    const visibleRows = filterExcludedSessionRows(data || [], excludedSessionIdSet)
+    const latestCreatedAt = visibleRows[0]?.created_at || null
     const seenAt = window.localStorage.getItem('orthodle_seen_feedback_at')
     setFeedbackSummary({
-      total: count || 0,
+      total: visibleRows.length,
       hasNew: Boolean(latestCreatedAt && latestCreatedAt !== seenAt),
       latestCreatedAt,
     })
@@ -1256,6 +1260,7 @@ export default function AdminPage() {
   }
 
   async function loadHomepageSurveys() {
+    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const { data } = await supabase
       .from('homepage_surveys')
       .select('id, question, option_1, option_2, option_3, start_date, end_date, created_at')
@@ -1270,7 +1275,7 @@ export default function AdminPage() {
     const surveyIds = surveys.map(item => item.id)
     const { data: responseData } = await supabase
       .from('homepage_survey_responses')
-      .select('survey_id, response')
+      .select('survey_id, response, session_id')
       .in('survey_id', surveyIds)
 
     const countsBySurvey = new Map<string, Record<string, number>>()
@@ -1283,7 +1288,7 @@ export default function AdminPage() {
       })
     }
 
-    for (const row of responseData || []) {
+    for (const row of filterExcludedSessionRows(responseData || [], excludedSessionIdSet)) {
       const existing = countsBySurvey.get(row.survey_id)
       if (!existing) continue
       existing[row.response] = (existing[row.response] || 0) + 1
@@ -1495,6 +1500,7 @@ export default function AdminPage() {
   }
 
   async function loadCaseCommunityStats() {
+    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const matchingCase = cases.find(item => item.case_date === caseDate && item.level === level)
 
     if (!matchingCase) {
@@ -1518,9 +1524,12 @@ export default function AdminPage() {
       return
     }
 
+    const publicVisitRows = filterExcludedSessionRows(visitRows || [], excludedSessionIdSet)
+    const publicGuessRows = filterExcludedSessionRows(guessRows || [], excludedSessionIdSet)
+
     const players = new Set<string>([
-      ...((visitRows || []).map(item => item.session_id)),
-      ...((guessRows || []).map(item => item.session_id)),
+      ...publicVisitRows.map(item => item.session_id),
+      ...publicGuessRows.map(item => item.session_id),
     ])
 
     const guessesBySession = new Map<
@@ -1528,7 +1537,7 @@ export default function AdminPage() {
       Array<{ is_correct: boolean; created_at: string }>
     >()
 
-    for (const guessRow of guessRows || []) {
+    for (const guessRow of publicGuessRows) {
       const item = {
         is_correct: Boolean(guessRow.is_correct),
         created_at: guessRow.created_at,
@@ -1562,7 +1571,7 @@ export default function AdminPage() {
       }
     }
 
-    for (const guessRow of guessRows || []) {
+    for (const guessRow of publicGuessRows) {
       if (guessRow.is_correct) continue
 
       const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
@@ -1598,11 +1607,11 @@ export default function AdminPage() {
 
     setCaseCommunityStats({
       players: players.size,
-      totalGuesses: (guessRows || []).length,
-      totalCorrectGuesses: (guessRows || []).filter(item => item.is_correct).length,
+      totalGuesses: publicGuessRows.length,
+      totalCorrectGuesses: publicGuessRows.filter(item => item.is_correct).length,
       solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
       averageGuessesPerPlayer:
-        players.size > 0 ? (guessRows || []).length / players.size : null,
+        players.size > 0 ? publicGuessRows.length / players.size : null,
       averageGuessesToSolve:
         solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
       firstTrySolveRate:

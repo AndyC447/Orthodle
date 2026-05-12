@@ -6,6 +6,7 @@ import { Share2 } from 'lucide-react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
+import { fetchExcludedStatsSessionIds } from '@/lib/stats-exclusions'
 import { getSessionId } from '@/lib/utils'
 
 type GroupRow = {
@@ -393,8 +394,10 @@ export default function GroupDetailPage() {
   const [showGroupIconPicker, setShowGroupIconPicker] = useState(false)
   const [showMemberIconPicker, setShowMemberIconPicker] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [excludedSessionIds, setExcludedSessionIds] = useState<string[]>([])
 
   async function loadGroupPageData() {
+    const nextExcludedSessionIds = await fetchExcludedStatsSessionIds()
     const { data: groupData, error: groupError } = await supabase
       .from('groups')
       .select('*')
@@ -422,6 +425,7 @@ export default function GroupDetailPage() {
 
     const allMembers = (memberData || []) as GroupMemberRow[]
     setMembers(allMembers)
+    setExcludedSessionIds(nextExcludedSessionIds)
     const memberSessionIds = Array.from(new Set(allMembers.map(member => member.session_id)))
 
     if (memberSessionIds.length === 0) {
@@ -496,8 +500,14 @@ export default function GroupDetailPage() {
   }, [groupId])
 
   const groupAggregates = useMemo(
-    () => buildGroupAggregates(groups, members, guesses, caseLookup),
-    [groups, members, guesses, caseLookup]
+    () =>
+      buildGroupAggregates(
+        groups,
+        members.filter(member => !excludedSessionIds.includes(member.session_id)),
+        guesses.filter(row => !excludedSessionIds.includes(row.session_id)),
+        caseLookup
+      ),
+    [groups, members, guesses, caseLookup, excludedSessionIds]
   )
   const aggregate = groupAggregates.find(entry => entry.group.id === groupId) || null
   const group = aggregate?.group || groups.find(entry => entry.id === groupId) || null

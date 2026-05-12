@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
+import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
   getStatsSummary,
   normalizeAnswer,
@@ -725,7 +726,8 @@ function PlayPageContent() {
         const savedProgress = getRoundProgress(data.case_date, data.level, isArchiveCase)
         setJustCompletedRound(false)
 
-        const [{ data: visitRows }, { data: guessRows }] = await Promise.all([
+        const [excludedSessionIds, { data: visitRows }, { data: guessRows }] = await Promise.all([
+          fetchExcludedStatsSessionIds(),
           supabase.from('visits').select('session_id').eq('path', `/${data.level}/${data.case_date}`),
           supabase
             .from('guesses')
@@ -736,6 +738,9 @@ function PlayPageContent() {
 
         if (cancelled) return
 
+        const excludedSessionIdSet = new Set(excludedSessionIds)
+        const publicVisitRows = filterExcludedSessionRows(visitRows, excludedSessionIdSet)
+        const publicGuessRows = filterExcludedSessionRows(guessRows, excludedSessionIdSet)
         const viewerGuessRows = (guessRows || []).filter(row => row.session_id === sessionId)
         const serverGuesses = viewerGuessRows.map(row => ({
           text: row.guess_text || '',
@@ -783,8 +788,8 @@ function PlayPageContent() {
         }
 
         const players = new Set<string>([
-          ...(visitRows || []).map(item => item.session_id),
-          ...(guessRows || []).map(item => item.session_id),
+          ...publicVisitRows.map(item => item.session_id),
+          ...publicGuessRows.map(item => item.session_id),
         ])
 
         const guessesBySession = new Map<
@@ -792,7 +797,7 @@ function PlayPageContent() {
           Array<{ is_correct: boolean; created_at: string }>
         >()
 
-        for (const guessRow of guessRows || []) {
+        for (const guessRow of publicGuessRows) {
           const existing = guessesBySession.get(guessRow.session_id)
           const item = {
             is_correct: Boolean(guessRow.is_correct),
@@ -823,7 +828,7 @@ function PlayPageContent() {
           }
         }
 
-        for (const guessRow of guessRows || []) {
+        for (const guessRow of publicGuessRows) {
           if (guessRow.is_correct) continue
 
           const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
@@ -850,7 +855,7 @@ function PlayPageContent() {
         setCommunityStats({
           solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
           averageGuessesPerPlayer:
-            players.size > 0 ? (guessRows || []).length / players.size : null,
+            players.size > 0 ? publicGuessRows.length / players.size : null,
           averageGuessesToSolve:
             solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
           firstTrySolveRate:
