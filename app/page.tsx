@@ -2216,38 +2216,6 @@ function PlayPageContent() {
                 </div>
               </div>
 
-              <details className="mt-3 overflow-hidden rounded-xl border border-[#e7e1d6] bg-[#fcfbf8]">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
-                  <div className="text-left">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                      Round recap
-                    </div>
-                    <div className="mt-1 text-[12px] text-[#102018]">
-                      {gameWon ? `Solved in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}` : 'See what this round changed'}
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                    Expand
-                  </span>
-                </summary>
-                <div className="grid gap-2 border-t border-[#ebe5db] px-3 py-3 sm:grid-cols-3">
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">Guesses used</div>
-                    <div className="mt-1 font-serif text-[18px] font-bold text-[#102018]">{guesses.length}/{MAX_GUESSES}</div>
-                  </div>
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">Clues unlocked</div>
-                    <div className="mt-1 font-serif text-[18px] font-bold text-[#102018]">{visibleFindings.length}/{findings.length}</div>
-                  </div>
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">Streak impact</div>
-                    <div className="mt-1 text-[12px] font-semibold text-[#1f6448]">
-                      {gameWon && onTodayCard ? `${formatLevel(selectedLevel)} streak now ${levelStreak} days` : 'No streak change'}
-                    </div>
-                  </div>
-                </div>
-              </details>
-
               <div className="mt-3 space-y-2 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-2.5">
                 <div>
                   <div className="space-y-1">

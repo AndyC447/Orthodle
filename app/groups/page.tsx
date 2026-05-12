@@ -3126,9 +3126,9 @@ export default function GroupsPage() {
 
         {!loading && activeGroupsTab === 'profile' ? (
           <div className="mx-auto w-full">
-            <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-4 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex min-w-0 items-center gap-4">
+            <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
+              <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex min-w-0 flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
                   <button
                     type="button"
                     onClick={() => setShowSelectedMemberIconPicker(prev => !prev)}
@@ -3136,7 +3136,7 @@ export default function GroupsPage() {
                     aria-label="Change profile icon"
                   >
                     <div className="rounded-full border-2 border-[#efbf48] p-1">
-                      <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#fbf7ef] text-[44px] shadow-[0_10px_22px_rgba(16,32,24,0.06)] sm:h-28 sm:w-28 sm:text-[50px]">
+                      <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-[#fbf7ef] text-[38px] shadow-[0_10px_22px_rgba(16,32,24,0.06)] sm:h-28 sm:w-28 sm:text-[50px]">
                         <IconMark
                           value={profileIcon}
                           fallback={profileDisplayName.slice(0, 1).toUpperCase()}
@@ -3148,7 +3148,7 @@ export default function GroupsPage() {
                     </span>
                   </button>
 
-                  <div className="min-w-0 text-left">
+                  <div className="min-w-0 flex-1">
                     {isEditingProfileName ? (
                       <input
                         autoFocus
@@ -3166,73 +3166,73 @@ export default function GroupsPage() {
                           }
                         }}
                         placeholder="Your display name"
-                        className="h-11 w-full max-w-[320px] rounded-xl border border-white/20 bg-white/10 px-3 text-lg font-semibold text-white outline-none transition placeholder:text-white/70 focus:border-[#efbf48]"
+                        className="h-11 w-full rounded-xl border border-white/20 bg-white/10 px-3 text-base font-semibold text-white outline-none transition placeholder:text-white/70 focus:border-[#efbf48] sm:max-w-[320px] sm:text-lg"
                       />
                     ) : (
                       <button
                         type="button"
                         onClick={() => setIsEditingProfileName(true)}
-                        className="text-left font-serif text-[28px] font-bold tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[32px]"
+                        className="max-w-full break-words font-serif text-[24px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[32px]"
                       >
                         {profileDisplayName}
                       </button>
                     )}
 
-                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[#e7d4a7]/50 bg-[#fff6df] px-3 py-1.5 text-sm font-bold text-[#5f4a11]">
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-[#e7d4a7]/50 bg-[#fff6df] px-3 py-1.5 text-[12px] font-bold text-[#5f4a11] sm:text-sm">
                       <Star size={14} fill="currentColor" strokeWidth={0} />
                       {profileLevelTitle}
                     </div>
 
-                    <div className="mt-4 text-sm font-semibold text-[#dfece5]">
+                    <div className="mt-3 text-[13px] font-semibold text-[#dfece5] sm:mt-4 sm:text-sm">
                       Level {profileLevel.level}
                     </div>
-                    <div className="mt-2 h-2.5 w-full max-w-[340px] overflow-hidden rounded-full bg-white/14">
+                    <div className="mt-2 h-2.5 w-full max-w-[340px] overflow-hidden rounded-full bg-white/14 sm:max-w-[360px]">
                       <div
                         className="h-full rounded-full bg-[linear-gradient(90deg,#efbf48,#f0d98c)]"
                         style={{ width: `${Math.max(10, (profileLevel.currentXp / profileLevel.nextXp) * 100)}%` }}
                       />
                     </div>
-                    <div className="mt-2 text-sm font-medium text-[#e7efe9]">
+                    <div className="mt-2 text-[12px] font-medium leading-5 text-[#e7efe9] sm:text-sm">
                       {formatScore(profileXp)} XP
                       <span className="text-[#d6e7df]"> / {formatScore(profileLevel.nextXp)} to next level</span>
                     </div>
-                    <div className="mt-1 text-[11px] font-medium text-[#d6e7df]">
+                    <div className="mt-1 text-[10px] font-medium leading-4 text-[#d6e7df] sm:text-[11px]">
                       Next title: {nextProfileTitle} · {formatScore(Math.max(0, profileLevel.nextXp - profileXp))} XP to go
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4 border-t border-white/14 pt-4 sm:min-w-[250px] sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0">
+                <div className="grid w-full grid-cols-3 gap-2.5 border-t border-white/14 pt-3 sm:min-w-[250px] sm:border-l sm:border-t-0 sm:gap-4 sm:pl-5 sm:pt-0">
                   <div className="text-center">
-                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-[#efbf48]">
+                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[#efbf48] sm:h-10 sm:w-10">
                       <Flame size={18} strokeWidth={2.1} />
                     </div>
-                    <div className="mt-2 font-serif text-[24px] font-bold leading-none text-white">
+                    <div className="mt-2 font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                       {viewerMemberStats?.longestStreak || 0}
                     </div>
-                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                    <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
                       day streak
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-[#efbf48]">
+                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[#efbf48] sm:h-10 sm:w-10">
                       <BookOpen size={18} strokeWidth={2.1} />
                     </div>
-                    <div className="mt-2 font-serif text-[24px] font-bold leading-none text-white">
+                    <div className="mt-2 font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                       {viewerMemberStats?.solves || 0}
                     </div>
-                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                    <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
                       total cases solved
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-[#efbf48]">
+                    <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-[#efbf48] sm:h-10 sm:w-10">
                       <Target size={18} strokeWidth={2.1} />
                     </div>
-                    <div className="mt-2 font-serif text-[24px] font-bold leading-none text-white">
+                    <div className="mt-2 font-serif text-[21px] font-bold leading-none text-white sm:text-[24px]">
                       {viewerMemberStats?.firstTrySolves || 0}
                     </div>
-                    <div className="mt-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#dfece5]">
+                    <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
                       first try solves
                     </div>
                   </div>
