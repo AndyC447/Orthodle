@@ -1541,13 +1541,6 @@ function PlayPageContent() {
     [levelTaglines]
   )
   const levelStreak = statsSummary.levelStreaks[selectedLevel]?.current || 0
-  const guessesRemaining = Math.max(0, MAX_GUESSES - guesses.length)
-  const progressSummary = [
-    `${visibleFindings.length}/${findings.length} clues`,
-    visibleImages.length > 0 ? `${visibleImages.length} image${visibleImages.length === 1 ? '' : 's'}` : 'Images locked',
-    `${guessesRemaining} guess${guessesRemaining === 1 ? '' : 'es'} left`,
-    onTodayCard ? `${levelStreak}-day streak` : 'Archive study',
-  ]
   const activeExpandedImage = visibleImages[expandedImageIndex] || visibleImages[0] || null
   const streakBadge =
     onTodayCard && statsSummary.currentStreak >= 2
@@ -1972,19 +1965,6 @@ function PlayPageContent() {
             })}
           </div>
         </div>
-
-        {!loading && dailyCase && (
-          <div className="orthodle-progress-rail mx-auto mb-2 flex max-w-lg flex-wrap items-center justify-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#637268] shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:max-w-[560px] sm:gap-2 sm:px-3 sm:text-[10px]">
-            {progressSummary.map(item => (
-              <span
-                key={item}
-                className="rounded-full border border-[#ebe5db] bg-[#fcfbf8] px-2 py-1 text-center"
-              >
-                {item}
-              </span>
-            ))}
-          </div>
-        )}
 
       </section>
 
