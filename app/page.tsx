@@ -112,6 +112,13 @@ const levels = [
   { key: 'attending' as Level, label: 'Attending' },
 ]
 
+const homeTabs = [
+  { type: 'level' as const, key: 'med_student' as const, label: 'Med Student' },
+  { type: 'level' as const, key: 'resident' as const, label: 'Resident' },
+  { type: 'level' as const, key: 'attending' as const, label: 'Attending' },
+  { type: 'link' as const, href: '/groups', label: 'Groups', subtitle: 'COMPETE' },
+]
+
 const nextLevelMap: Partial<Record<Level, Level>> = {
   med_student: 'resident',
   resident: 'attending',
@@ -132,9 +139,9 @@ const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
 }))
 
 const DEFAULT_LEVEL_TAGLINES: Record<Level, string[]> = {
-  med_student: ['START HERE'],
-  resident: ['MAKE THE CALL'],
-  attending: ['CONNECT THE DOTS'],
+  med_student: [''],
+  resident: [''],
+  attending: [''],
 }
 
 const GENERIC_DIAGNOSIS_TERMS = new Set([
@@ -250,6 +257,16 @@ function getBrowserTheme() {
   return 'light'
 }
 
+function getInitialLevelFromParams(value: string | null): Level {
+  if (value === 'resident' || value === 'attending') return value
+  return 'med_student'
+}
+
+function getInitialDateFromParams(value: string | null, fallback: string) {
+  if (value && value >= LAUNCH_DATE && value <= fallback) return value
+  return fallback
+}
+
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
@@ -261,8 +278,10 @@ function PlayPageContent() {
   const imagePinchStart = useRef<number | null>(null)
   const imageScaleStart = useRef<number>(1)
   const today = todayISO()
-  const [selectedLevel, setSelectedLevel] = useState<Level>('med_student')
-  const [selectedDate, setSelectedDate] = useState(today)
+  const initialLevel = getInitialLevelFromParams(searchParams.get('level'))
+  const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
+  const [selectedLevel, setSelectedLevel] = useState<Level>(initialLevel)
+  const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
   const [answerOptions, setAnswerOptions] = useState<string[]>([])
@@ -983,7 +1002,9 @@ function PlayPageContent() {
 
     return [
       `ORTHODLE${archiveLabel.toUpperCase()} ${score}`,
-      `${formatLevel(selectedLevel).toUpperCase()} • ${selectedTaglines[selectedLevel]}`,
+      selectedTaglines[selectedLevel]
+        ? `${formatLevel(selectedLevel).toUpperCase()} • ${selectedTaglines[selectedLevel]}`
+        : formatLevel(selectedLevel).toUpperCase(),
       prettyDate,
       boxes,
       'orthodle.com',
@@ -1932,33 +1953,50 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto max-w-lg rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] sm:max-w-[560px] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
-          <div className="grid grid-cols-3 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
-            {levels.map(level => {
-              const active = selectedLevel === level.key
+        <div className={`mx-auto max-w-[760px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+          <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
+            {homeTabs.map(item => {
+              if (item.type === 'link') {
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex min-h-[58px] flex-col items-center justify-center rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 py-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2"
+                  >
+                    <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
+                      {item.label}
+                    </div>
+                    <div className="mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]">
+                      {item.subtitle}
+                    </div>
+                  </Link>
+                )
+              }
+
+              const active = selectedLevel === item.key
 
               return (
                 <button
-                  key={level.key}
-                  onClick={() => setSelectedLevel(level.key)}
+                  key={item.key}
+                  onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `min-h-[58px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-2 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
-                      : `min-h-[58px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-2 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2 ${hasMobileInteraction ? 'py-1.5' : 'py-1.5'}`
+                      ? 'min-h-[58px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-1.5 py-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 sm:py-2'
+                      : 'min-h-[58px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 py-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2'
                   }
                 >
-                  <div className="font-serif text-[11px] font-bold leading-none sm:text-[12px]">
-                    {level.label}
+                  <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
+                    {item.label}
                   </div>
 
                   <div
                     className={
                       active
-                        ? 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.15em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
-                        : 'mt-1 text-[6.5px] font-semibold uppercase tracking-[0.15em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
+                        ? 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
+                        : 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
                     }
                   >
-                    {selectedTaglines[level.key]}
+                    {selectedTaglines[item.key]}
                   </div>
                 </button>
               )
