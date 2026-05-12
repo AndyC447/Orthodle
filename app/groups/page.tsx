@@ -1479,6 +1479,7 @@ export default function GroupsPage() {
   const profileXp = getXpForStats(viewerMemberStats || null)
   const profileLevel = getLevelFromXp(profileXp)
   const profileLevelTitle = getLevelTitle(profileLevel.level)
+  const nextProfileTitle = getLevelTitle(profileLevel.level + 1)
   const canChangeSelectedGroupIcon = Boolean(myMembership && isViewingOwnGroup)
   const canEditSelectedGroup = Boolean(selectedGroup?.creator_session_id === sessionId && isViewingOwnGroup)
   const groupOfWeekAggregate = groupAggregates[0] || null
@@ -1532,6 +1533,10 @@ export default function GroupsPage() {
     if (!groupAhead) return null
     return `${Math.max(0, groupAhead.score - viewerGroupAggregate.score)} pts behind #${viewerGroupRank - 1}`
   })()
+  const viewerGroupTodaySolvers =
+    viewerGroupAggregate?.memberStats
+      .filter(entry => entry.solvedDates.includes(today))
+      .map(entry => entry.member.display_name) || []
   const solvedCaseIdsByViewer = useMemo(() => {
     return new Set(
       allTimeGuessRows
@@ -2615,6 +2620,28 @@ export default function GroupsPage() {
                   </div>
                 </div>
 
+                <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                  <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                      Today's solvers
+                    </div>
+                    <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
+                      {viewerGroupTodaySolvers.length > 0 ? viewerGroupTodaySolvers.join(' · ') : 'Nobody has checked in yet'}
+                    </div>
+                  </div>
+                  <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                      Race status
+                    </div>
+                    <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
+                      {viewerGroupMomentum || 'Keep stacking solves.'}
+                    </div>
+                    <div className="mt-1 text-[11px] text-[#2d7651]">
+                      {viewerGroupRank === 1 ? 'Defend the lead today.' : 'A small run can flip the board.'}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
                   {viewerGroupChallenge ? (
                     <div className="rounded-[16px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
@@ -3168,6 +3195,9 @@ export default function GroupsPage() {
                     <div className="mt-2 text-sm font-medium text-[#e7efe9]">
                       {formatScore(profileXp)} XP
                       <span className="text-[#d6e7df]"> / {formatScore(profileLevel.nextXp)} to next level</span>
+                    </div>
+                    <div className="mt-1 text-[11px] font-medium text-[#d6e7df]">
+                      Next title: {nextProfileTitle} · {formatScore(Math.max(0, profileLevel.nextXp - profileXp))} XP to go
                     </div>
                   </div>
                 </div>

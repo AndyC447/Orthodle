@@ -155,8 +155,8 @@ export default function AdminFeedbackPage() {
     return (
       <main className="min-h-screen bg-[#fbfaf7]">
         <Header />
-        <div className="mx-auto max-w-xl px-6 py-12">
-          <section className="rounded-2xl border border-[#ded7ca] bg-white p-6 shadow-sm">
+        <div className="mx-auto max-w-xl px-4 py-10 sm:px-6 sm:py-12">
+          <section className="rounded-2xl border border-[#ded7ca] bg-white p-5 shadow-sm sm:p-6">
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
               Admin Access
             </div>
@@ -182,13 +182,13 @@ export default function AdminFeedbackPage() {
     <main className="min-h-screen bg-[#fbfaf7]">
       <Header />
 
-      <div className="mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-7">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="mx-auto max-w-5xl px-3 py-4 sm:px-6 sm:py-7">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
               Admin
             </div>
-            <h1 className="mt-2 font-serif text-3xl font-bold text-[#102018]">
+            <h1 className="mt-2 font-serif text-[30px] font-bold leading-none text-[#102018] sm:text-3xl">
               Case Feedback
             </h1>
             <p className="mt-1.5 text-sm text-[#637268]">
@@ -198,7 +198,7 @@ export default function AdminFeedbackPage() {
 
           <Link
             href="/admin"
-            className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+            className="self-start rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
           >
             Back to admin
           </Link>
@@ -208,8 +208,8 @@ export default function AdminFeedbackPage() {
           <p className="mt-4 text-sm text-[#637268]">{status}</p>
         )}
 
-        <section className="mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="flex items-center justify-between gap-3">
+        <section className="mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mt-5 sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-serif text-xl font-bold text-[#102018]">
               Feedback sheet
             </h2>
@@ -218,7 +218,7 @@ export default function AdminFeedbackPage() {
             </div>
           </div>
 
-          <div className="mt-4 overflow-hidden rounded-xl border border-[#e7e1d6]">
+          <div className="mt-3 hidden overflow-hidden rounded-xl border border-[#e7e1d6] md:block">
             <div className="grid grid-cols-[110px_130px_150px_minmax(0,1fr)_100px] border-b border-[#e7e1d6] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
               <div>Date</div>
               <div>Level</div>
@@ -274,10 +274,65 @@ export default function AdminFeedbackPage() {
               )}
             </div>
           </div>
+
+          <div className="mt-3 space-y-2.5 md:hidden">
+            {feedbackRows.length === 0 ? (
+              <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-4 text-sm text-[#637268]">
+                No feedback yet.
+              </div>
+            ) : (
+              feedbackRows.map(item => (
+                <article
+                  key={item.id}
+                  className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]">
+                          {item.case_date || item.created_at.slice(0, 10)}
+                        </span>
+                        <span className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]">
+                          {formatLevel(item.level)}
+                        </span>
+                      </div>
+                      <div className="mt-2 text-sm font-semibold text-[#102018]">
+                        {item.answer || 'Unknown'}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => deleteFeedback(item.id)}
+                      className="shrink-0 rounded-lg border border-[#f0d7c8] bg-[#fff1e8] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#ffe8da]"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  {item.feedback_tags && item.feedback_tags.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {item.feedback_tags.map(tag => (
+                        <span
+                          key={`${item.id}-${tag}`}
+                          className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#102018]"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="mt-2 text-sm leading-6 text-[#102018]">
+                    {item.feedback_text}
+                  </p>
+                </article>
+              ))
+            )}
+          </div>
         </section>
 
-        <section className="mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="flex items-center justify-between gap-3">
+        <section className="mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mt-5 sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-serif text-xl font-bold text-[#102018]">
               Quick reactions
             </h2>
@@ -286,16 +341,16 @@ export default function AdminFeedbackPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
             {FEEDBACK_TAG_OPTIONS.map(tag => (
               <div
                 key={tag}
-                className="rounded-xl border border-[#ded7ca] bg-white px-3 py-3 text-center"
+                className="rounded-xl border border-[#ded7ca] bg-white px-2.5 py-2.5 text-center sm:px-3 sm:py-3"
               >
-                <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#102018]">
+                <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] sm:text-[10px] sm:tracking-[0.16em]">
                   {tag}
                 </div>
-                <div className="mt-1 font-serif text-2xl font-bold text-[#102018]">
+                <div className="mt-1 font-serif text-xl font-bold text-[#102018] sm:text-2xl">
                   {feedbackTagSummary[tag]}
                 </div>
               </div>
@@ -303,12 +358,12 @@ export default function AdminFeedbackPage() {
           </div>
         </section>
 
-        <section className="mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="flex items-center justify-between gap-3">
+        <section className="mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mt-5 sm:p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-serif text-xl font-bold text-[#102018]">
               Reactions by case
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                 {reactionsByCase.length} cases
               </div>
@@ -331,13 +386,13 @@ export default function AdminFeedbackPage() {
               No quick reactions yet.
             </p>
           ) : (
-            <div className="mt-4 space-y-3">
+            <div className="mt-3 space-y-3">
               {visibleReactionCases.map(item => (
                 <div
                   key={`${item.caseDate}-${item.level}-${item.answer}`}
                   className="rounded-xl border border-[#e7e1d6] bg-white p-3"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <div>
                       <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
                         {item.caseDate} · {formatLevel(item.level)}
@@ -351,13 +406,13 @@ export default function AdminFeedbackPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="mt-3 grid grid-cols-2 gap-2 xl:grid-cols-4">
                     {FEEDBACK_TAG_OPTIONS.map(tag => (
                       <div
                         key={`${item.caseDate}-${item.answer}-${tag}`}
-                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-center"
+                        className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-2 text-center sm:px-3"
                       >
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018]">
+                        <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-[#102018] sm:text-[10px] sm:tracking-[0.14em]">
                           {tag}
                         </div>
                         <div className="mt-1 text-lg font-semibold text-[#102018]">

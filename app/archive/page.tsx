@@ -191,8 +191,8 @@ export default function ArchivePage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
-        <div className="night-surface rounded-[28px] border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-5">
+      <section className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-5">
+        <div className="night-surface rounded-[28px] border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-5">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
             Archive
           </div>
@@ -229,32 +229,56 @@ export default function ArchivePage() {
             </div>
           )}
 
-          <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-2 sm:p-3">
-            <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268] sm:hidden">
+          <div className="mt-3 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
+            <div className="mb-2 text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
               Filters
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-3">
-              <label className="grid gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">
-                Difficulty
-                <select
-                  value={selectedLevel}
-                  onChange={e => setSelectedLevel(e.target.value as 'all' | Level)}
-                  className="min-h-[38px] rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] text-[#102018]"
-                >
-                  <option value="all">All levels</option>
-                  <option value="med_student">Med Student</option>
-                  <option value="resident">Resident</option>
-                  <option value="attending">Attending</option>
-                </select>
-              </label>
+            <div className="space-y-2.5">
+              <div>
+                <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">
+                  Difficulty
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    ['all', 'All levels'],
+                    ['med_student', 'Med Student'],
+                    ['resident', 'Resident'],
+                    ['attending', 'Attending'],
+                  ].map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setSelectedLevel(value as 'all' | Level)}
+                      className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold transition ${
+                        selectedLevel === value
+                          ? 'border-[#1f6448] bg-[#1f6448] text-white'
+                          : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setImagingOnly(current => !current)}
+                    className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold transition ${
+                      imagingOnly
+                        ? 'border-[#1f6448] bg-[#eef7f2] text-[#1f6448]'
+                        : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
+                    }`}
+                  >
+                    Has imaging
+                  </button>
+                </div>
+              </div>
 
               <label className="grid gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">
                 Category
                 <select
                   value={selectedCategory}
                   onChange={e => setSelectedCategory(e.target.value)}
-                  className="min-h-[38px] rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] text-[#102018]"
+                  className="min-h-[36px] rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] text-[#102018]"
                 >
                   <option value="all">All categories</option>
                   {categoryOptions.map(option => (
@@ -263,18 +287,6 @@ export default function ArchivePage() {
                     </option>
                   ))}
                 </select>
-              </label>
-
-              <label className="flex items-end">
-                <span className="flex min-h-[38px] w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] text-[#102018]">
-                  <span>Has imaging</span>
-                  <input
-                    type="checkbox"
-                    checked={imagingOnly}
-                    onChange={e => setImagingOnly(e.target.checked)}
-                    className="h-4 w-4 accent-[#1f6448]"
-                  />
-                </span>
               </label>
             </div>
 

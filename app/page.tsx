@@ -278,6 +278,7 @@ function PlayPageContent() {
   const [pulseSuccess, setPulseSuccess] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
+  const [expandedImageIndex, setExpandedImageIndex] = useState(0)
   const [imageHidden, setImageHidden] = useState(false)
   const [communityStats, setCommunityStats] = useState<CommunityCaseStats | null>(null)
   const [reminderEmail, setReminderEmail] = useState('')
@@ -957,13 +958,15 @@ function PlayPageContent() {
     imageScaleStart.current = 1
   }
 
-  function openExpandedImage() {
+  function openExpandedImage(index = 0) {
     resetExpandedImageView()
+    setExpandedImageIndex(index)
     setImageExpanded(true)
   }
 
   function closeExpandedImage() {
     setImageExpanded(false)
+    setExpandedImageIndex(0)
     resetExpandedImageView()
   }
 
@@ -1538,6 +1541,14 @@ function PlayPageContent() {
     [levelTaglines]
   )
   const levelStreak = statsSummary.levelStreaks[selectedLevel]?.current || 0
+  const guessesRemaining = Math.max(0, MAX_GUESSES - guesses.length)
+  const progressSummary = [
+    `${visibleFindings.length}/${findings.length} clues`,
+    visibleImages.length > 0 ? `${visibleImages.length} image${visibleImages.length === 1 ? '' : 's'}` : 'Images locked',
+    `${guessesRemaining} guess${guessesRemaining === 1 ? '' : 'es'} left`,
+    onTodayCard ? `${levelStreak}-day streak` : 'Archive study',
+  ]
+  const activeExpandedImage = visibleImages[expandedImageIndex] || visibleImages[0] || null
   const streakBadge =
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
@@ -1962,6 +1973,19 @@ function PlayPageContent() {
           </div>
         </div>
 
+        {!loading && dailyCase && (
+          <div className="orthodle-progress-rail mx-auto mb-2 flex max-w-lg flex-wrap items-center justify-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#637268] shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:max-w-[560px] sm:gap-2 sm:px-3 sm:text-[10px]">
+            {progressSummary.map(item => (
+              <span
+                key={item}
+                className="rounded-full border border-[#ebe5db] bg-[#fcfbf8] px-2 py-1 text-center"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
+        )}
+
       </section>
 
       <div className={`mx-auto max-w-[700px] px-4 py-1 pb-3 sm:px-6 sm:pb-8 ${hasMobileInteraction ? 'pt-1.5' : 'pt-1'}`}>
@@ -2033,7 +2057,7 @@ function PlayPageContent() {
                       {visibleImages.map((image, index) => (
                         <div key={`${image.url}-${index}`}>
                           <button
-                            onClick={openExpandedImage}
+                            onClick={() => openExpandedImage(index)}
                             className="night-surface orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-1.5"
                           >
                             <img
@@ -2132,11 +2156,11 @@ function PlayPageContent() {
                   </>
                 )}
 
-                {canAdvanceToNextLevel && nextLevel && (
+                {!roundComplete && canAdvanceToNextLevel && nextLevel && (
                   <button
                     type="button"
                     onClick={moveToNextLevel}
-                    className={`${roundComplete ? '' : 'mt-3 '}w-full rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white`}
+                    className="mt-3 w-full rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
                   >
                     Continue to the {formatLevel(nextLevel)} case
                   </button>
@@ -2174,6 +2198,38 @@ function PlayPageContent() {
                 </div>
               </div>
 
+              <details className="mt-3 overflow-hidden rounded-xl border border-[#e7e1d6] bg-[#fcfbf8]">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2">
+                  <div className="text-left">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                      Round recap
+                    </div>
+                    <div className="mt-1 text-[12px] text-[#102018]">
+                      {gameWon ? `Solved in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}` : 'See what this round changed'}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                    Expand
+                  </span>
+                </summary>
+                <div className="grid gap-2 border-t border-[#ebe5db] px-3 py-3 sm:grid-cols-3">
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">Guesses used</div>
+                    <div className="mt-1 font-serif text-[18px] font-bold text-[#102018]">{guesses.length}/{MAX_GUESSES}</div>
+                  </div>
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">Clues unlocked</div>
+                    <div className="mt-1 font-serif text-[18px] font-bold text-[#102018]">{visibleFindings.length}/{findings.length}</div>
+                  </div>
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">Streak impact</div>
+                    <div className="mt-1 text-[12px] font-semibold text-[#1f6448]">
+                      {gameWon && onTodayCard ? `${formatLevel(selectedLevel)} streak now ${levelStreak} days` : 'No streak change'}
+                    </div>
+                  </div>
+                </div>
+              </details>
+
               <div className="mt-3 space-y-2 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-2.5">
                 <div>
                   <div className="space-y-1">
@@ -2187,12 +2243,34 @@ function PlayPageContent() {
                 </div>
 
                 {roundComplete && (
-                  <div className="mx-auto mt-2 flex w-full max-w-[420px] flex-col items-center">
-                    <div className="w-full">
+                  <div className="mx-auto mt-2 w-full max-w-[460px]">
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {canAdvanceToNextLevel && nextLevel ? (
+                        <button
+                          type="button"
+                          onClick={moveToNextLevel}
+                          className="rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
+                        >
+                          Try the {formatLevel(nextLevel)} case
+                        </button>
+                      ) : (
+                        <Link
+                          href="/archive"
+                          className="rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        >
+                          Browse archive
+                        </Link>
+                      )}
+                      <Link
+                        href="/stats"
+                        className="rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                      >
+                        View your stats
+                      </Link>
                       <button
                         type="button"
                         onClick={shareResult}
-                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#174c37]"
+                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:col-span-2"
                       >
                         Share the case
                       </button>
@@ -2364,11 +2442,16 @@ function PlayPageContent() {
                   Imaging
                 </div>
                 <div className="mt-1 text-[10px] text-[#8a948d]">
-                  Pinch to zoom. Swipe down to close.
+                  Pinch to zoom. Double tap to zoom. Swipe down to close.
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
+                {visibleImages.length > 1 && (
+                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                    {expandedImageIndex + 1} / {visibleImages.length}
+                  </div>
+                )}
                 {imageScale > 1.02 && (
                   <button
                     onClick={resetExpandedImageView}
@@ -2389,7 +2472,14 @@ function PlayPageContent() {
             <div
               className="bg-[#f7f4ee] p-5"
               onClick={e => e.stopPropagation()}
-              onDoubleClick={resetExpandedImageView}
+              onDoubleClick={() => {
+                if (imageScale > 1.2) {
+                  resetExpandedImageView()
+                } else {
+                  setImageScale(2.2)
+                  setImageOffset({ x: 0, y: 0 })
+                }
+              }}
               onTouchStart={e => {
                 imageTouchStartY.current = e.touches[0]?.clientY ?? null
                 if (e.touches.length === 2) {
@@ -2436,12 +2526,43 @@ function PlayPageContent() {
                 imageTouchStartY.current = null
               }}
             >
-              <div className={`grid gap-3 ${visibleImages.length > 1 ? 'md:grid-cols-2' : 'grid-cols-1'}`}>
-                {visibleImages.map((image, index) => (
-                  <div key={`expanded-${image.url}-${index}`}>
+              {activeExpandedImage && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    {visibleImages.length > 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            resetExpandedImageView()
+                            setExpandedImageIndex(current =>
+                              current === 0 ? visibleImages.length - 1 : current - 1
+                            )
+                          }}
+                          className="rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
+                        >
+                          Previous
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            resetExpandedImageView()
+                            setExpandedImageIndex(current => (current + 1) % visibleImages.length)
+                          }}
+                          className="rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
+                        >
+                          Next
+                        </button>
+                      </>
+                    ) : (
+                      <div />
+                    )}
+                  </div>
+
+                  <div>
                     <img
-                      src={image.url}
-                      alt={image.alt}
+                      src={activeExpandedImage.url}
+                      alt={activeExpandedImage.alt}
                       className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain transition-transform"
                       style={{
                         transform: `translate(${imageOffset.x}px, ${imageOffset.y}px) scale(${imageScale})`,
@@ -2449,14 +2570,40 @@ function PlayPageContent() {
                         touchAction: 'none',
                       }}
                     />
-                    {image.credit && (
+                    {activeExpandedImage.credit && (
                       <p className="mt-3 text-center text-[10px] leading-4 text-[#8a948d]">
-                        {image.credit}
+                        {activeExpandedImage.credit}
                       </p>
                     )}
                   </div>
-                ))}
-              </div>
+
+                  {visibleImages.length > 1 && (
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {visibleImages.map((image, index) => (
+                        <button
+                          key={`expanded-thumb-${image.url}-${index}`}
+                          type="button"
+                          onClick={() => {
+                            resetExpandedImageView()
+                            setExpandedImageIndex(index)
+                          }}
+                          className={`overflow-hidden rounded-xl border p-1 transition ${
+                            index === expandedImageIndex
+                              ? 'border-[#1f6448] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.08)]'
+                              : 'border-[#ded7ca] bg-white/80'
+                          }`}
+                        >
+                          <img
+                            src={image.url}
+                            alt={image.alt}
+                            className="h-14 w-14 rounded-lg object-cover"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
