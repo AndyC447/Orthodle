@@ -1958,7 +1958,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto max-w-[760px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`mx-auto max-w-[700px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
             {homeTabs.map(item => {
               if (item.type === 'link') {

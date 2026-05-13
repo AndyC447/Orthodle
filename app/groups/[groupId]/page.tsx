@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Share2 } from 'lucide-react'
+import { GroupIconMark } from '@/components/GroupIconMark'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import { DEFAULT_MEMBER_ICON, getIconsForSection, GROUP_ICON_SECTIONS } from '@/lib/group-icons'
 import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds } from '@/lib/stats-exclusions'
 import { getSessionId } from '@/lib/utils'
@@ -62,45 +64,6 @@ type GroupAggregate = {
   longestStreak: number
   totalSolves: number
 }
-
-const GROUP_ICONS = [
-  { value: '🦴', label: 'Bone' },
-  { value: '🦵', label: 'Leg' },
-  { value: '🦶', label: 'Foot' },
-  { value: '💀', label: 'Skull' },
-  { value: '🔨', label: 'Hammer' },
-  { value: '🛠️', label: 'Tools' },
-  { value: '🪛', label: 'Screwdriver' },
-  { value: '🧰', label: 'Toolbox' },
-  { value: '🩻', label: 'X-ray' },
-  { value: '🩺', label: 'Doctor' },
-  { value: '🥼', label: 'White coat' },
-  { value: '🏥', label: 'Hospital' },
-  { value: '💊', label: 'Pill' },
-  { value: '💉', label: 'Syringe' },
-  { value: '🩹', label: 'Bandage' },
-  { value: '🧬', label: 'DNA' },
-  { value: '💪', label: 'Strength' },
-  { value: '🧠', label: 'Brain' },
-  { value: '❤️', label: 'Heart' },
-  { value: '⚕️', label: 'Medicine' },
-  { value: '🐶', label: 'Dog' },
-  { value: '🐱', label: 'Cat' },
-  { value: '🦁', label: 'Lion' },
-  { value: '🐯', label: 'Tiger' },
-  { value: '🐻', label: 'Bear' },
-  { value: '🐺', label: 'Wolf' },
-  { value: '🦊', label: 'Fox' },
-  { value: '🐵', label: 'Monkey' },
-  { value: '🦍', label: 'Gorilla' },
-  { value: '🦅', label: 'Eagle' },
-  { value: '🦉', label: 'Owl' },
-  { value: '🐢', label: 'Turtle' },
-  { value: '🦈', label: 'Shark' },
-  { value: '🐍', label: 'Snake' },
-]
-
-const DEFAULT_MEMBER_ICON = '🦴'
 
 function buildInviteLink(joinCode: string) {
   if (typeof window === 'undefined') return `https://orthodle.com/groups?code=${joinCode}`
@@ -168,9 +131,11 @@ function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'ic
       className={`orthodle-group-crest relative flex shrink-0 items-center justify-center rounded-full border border-[#d8cfbf] bg-[#fbf7ef] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_8px_18px_rgba(16,32,24,0.1)] ${dimensions}`}
       aria-hidden="true"
     >
-      <span className="orthodle-group-crest-mark leading-none">
-        {groupAvatarLabel(group)}
-      </span>
+      <GroupIconMark
+        value={groupAvatarLabel(group)}
+        fallback={groupMonogram(group.name)}
+        className="orthodle-group-crest-mark"
+      />
     </div>
   )
 }
@@ -185,7 +150,10 @@ function MemberAvatar({ member }: { member: Pick<GroupMemberRow, 'display_name' 
       className="orthodle-member-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] text-[16px] font-bold text-[#2d7651]"
       aria-hidden="true"
     >
-      {memberAvatarLabel(member)}
+      <GroupIconMark
+        value={memberAvatarLabel(member)}
+        fallback={member.display_name.slice(0, 1).toUpperCase()}
+      />
     </div>
   )
 }
@@ -223,29 +191,40 @@ function IconPicker({
           className="inline-flex h-8 items-center gap-2 rounded-full border border-[#e0d8ca] bg-white px-2 text-[11px] font-semibold text-[#102018] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="orthodle-member-avatar flex h-6 w-6 items-center justify-center rounded-full border border-[#e0d7c8] text-[14px]">
-            {currentIcon}
+            <GroupIconMark value={currentIcon} fallback={DEFAULT_MEMBER_ICON} />
           </span>
           {isOpen ? 'Hide' : 'Change'}
         </button>
       </div>
       {isOpen ? (
-        <div className="orthodle-icon-scroll mt-2 grid max-w-full min-w-0 auto-cols-[2rem] grid-flow-col grid-rows-2 gap-1.5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {GROUP_ICONS.map(icon => (
-            <button
-              key={icon.value}
-              type="button"
-              disabled={disabled}
-              onClick={() => onSelect(icon.value)}
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-[15px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
-                currentIcon === icon.value
-                  ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
-                  : 'border-[#e6dfd3] bg-white'
-              }`}
-              aria-label={`${ariaLabelPrefix} ${icon.label}`}
-            >
-              {icon.value}
-            </button>
-          ))}
+        <div className="orthodle-icon-scroll mt-2 max-h-[16.5rem] overflow-y-auto rounded-2xl border border-[#e6dfd3] bg-[#fcfbf8] p-2.5 pr-1.5">
+          <div className="space-y-2.5 pr-1">
+            {GROUP_ICON_SECTIONS.map(section => (
+              <div key={section.id}>
+                <div className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                  {section.label}
+                </div>
+                <div className="grid grid-cols-5 gap-1.5 sm:grid-cols-7">
+                  {getIconsForSection(section.id).map(icon => (
+                    <button
+                      key={icon.value}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => onSelect(icon.value)}
+                      className={`flex h-9 w-full items-center justify-center rounded-xl border text-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                        currentIcon === icon.value
+                          ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
+                          : 'border-[#e6dfd3] bg-white'
+                      }`}
+                      aria-label={`${ariaLabelPrefix} ${icon.label}`}
+                    >
+                      {icon.value}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>
