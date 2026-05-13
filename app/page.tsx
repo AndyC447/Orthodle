@@ -1196,26 +1196,45 @@ function PlayPageContent() {
     setIsSavingFeedback(false)
   }
 
-  function renderFormattedLine(line: string) {
-    const parts = line.split(/(<u>.*?<\/u>|\*\*[^*]+\*\*|\*[^*]+\*)/g)
+  function renderFormattedLine(line: string, keyPrefix = 'inline'): React.ReactNode[] {
+    const matches = [
+      { type: 'underline' as const, match: line.match(/<u>(.*?)<\/u>/) },
+      { type: 'bold' as const, match: line.match(/\*\*(.+?)\*\*/) },
+      { type: 'italic' as const, match: line.match(/\*(?!\*)(.+?)\*(?!\*)/) },
+    ]
+      .filter((entry): entry is { type: 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } => Boolean(entry.match))
+      .sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0))
 
-    return parts.map((part, index) => {
-      if (!part) return null
+    const firstMatch = matches[0]
+    if (!firstMatch) {
+      return [<span key={`${keyPrefix}-text`}>{line}</span>]
+    }
 
-      if (part.startsWith('<u>') && part.endsWith('</u>')) {
-        return <u key={index}>{part.slice(3, -4)}</u>
-      }
+    const matchIndex = firstMatch.match.index ?? 0
+    const fullMatch = firstMatch.match[0]
+    const innerText = firstMatch.match[1] ?? ''
+    const before = line.slice(0, matchIndex)
+    const after = line.slice(matchIndex + fullMatch.length)
+    const nodes: React.ReactNode[] = []
 
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index}>{part.slice(2, -2)}</strong>
-      }
+    if (before) {
+      nodes.push(...renderFormattedLine(before, `${keyPrefix}-before`))
+    }
 
-      if (part.startsWith('*') && part.endsWith('*')) {
-        return <em key={index}>{part.slice(1, -1)}</em>
-      }
+    const innerNodes = renderFormattedLine(innerText, `${keyPrefix}-${firstMatch.type}`)
+    if (firstMatch.type === 'underline') {
+      nodes.push(<u key={`${keyPrefix}-underline`}>{innerNodes}</u>)
+    } else if (firstMatch.type === 'bold') {
+      nodes.push(<strong key={`${keyPrefix}-bold`}>{innerNodes}</strong>)
+    } else {
+      nodes.push(<em key={`${keyPrefix}-italic`}>{innerNodes}</em>)
+    }
 
-      return <span key={index}>{part}</span>
-    })
+    if (after) {
+      nodes.push(...renderFormattedLine(after, `${keyPrefix}-after`))
+    }
+
+    return nodes
   }
 
   function parseTeachingPointSections(text: string): TeachingPointSection[] {
@@ -1232,17 +1251,28 @@ function PlayPageContent() {
         continue
       }
 
-      const headingMatch = line.match(/^\*?\*?([A-Za-z][A-Za-z'’ /\-]+):\*?\*?\s*(.*)$/)
+      const strippedLine = line
+        .replace(/<\/?u>/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/\*(?!\*)/g, '')
+
+      const headingMatch = strippedLine.match(/^([A-Za-z][A-Za-z'’ /\-]+):\s*(.*)$/)
       if (headingMatch) {
-        const [, label, rest] = headingMatch
-        const normalizedLabel = label
+        const colonIndex = line.indexOf(':')
+        const rawLabel = colonIndex >= 0 ? line.slice(0, colonIndex).trim() : headingMatch[1].trim()
+        const rest = colonIndex >= 0 ? line.slice(colonIndex + 1).trim() : headingMatch[2].trim()
+        const normalizedLabel = headingMatch[1]
           .trim()
           .toLowerCase()
           .replace(/[’']/g, "'")
           .replace(/[^a-z' ]/g, '')
           .replace(/\s+/g, ' ')
+        const canonicalLabel = TEACHING_POINT_LABELS.get(normalizedLabel) || headingMatch[1].trim()
+        const displayLabel = rawLabel.includes(headingMatch[1].trim())
+          ? rawLabel.replace(headingMatch[1].trim(), canonicalLabel)
+          : canonicalLabel
         currentSection = {
-          label: TEACHING_POINT_LABELS.get(normalizedLabel) || label.trim(),
+          label: displayLabel,
           body: rest ? [rest.trim()] : [],
         }
         sections.push(currentSection)
@@ -1324,7 +1354,7 @@ function PlayPageContent() {
               className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-3' : ''}
             >
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
-                {section.label}
+                {renderFormattedLine(section.label, `label-${sectionIndex}`)}
               </div>
               <div className="mt-1.5 space-y-1.5">
                 {section.body.map((line, index) =>

@@ -613,26 +613,45 @@ export default function AdminPage() {
     })
   }
 
-  function renderFormattedPreviewLine(line: string) {
-    const parts = line.split(/(<u>.*?<\/u>|\*\*[^*]+\*\*|\*[^*]+\*)/g)
+  function renderFormattedPreviewLine(line: string, keyPrefix = 'preview'): React.ReactNode[] {
+    const matches = [
+      { type: 'underline' as const, match: line.match(/<u>(.*?)<\/u>/) },
+      { type: 'bold' as const, match: line.match(/\*\*(.+?)\*\*/) },
+      { type: 'italic' as const, match: line.match(/\*(?!\*)(.+?)\*(?!\*)/) },
+    ]
+      .filter((entry): entry is { type: 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } => Boolean(entry.match))
+      .sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0))
 
-    return parts.map((part, index) => {
-      if (!part) return null
+    const firstMatch = matches[0]
+    if (!firstMatch) {
+      return [<span key={`${keyPrefix}-text`}>{line}</span>]
+    }
 
-      if (part.startsWith('<u>') && part.endsWith('</u>')) {
-        return <u key={index}>{part.slice(3, -4)}</u>
-      }
+    const matchIndex = firstMatch.match.index ?? 0
+    const fullMatch = firstMatch.match[0]
+    const innerText = firstMatch.match[1] ?? ''
+    const before = line.slice(0, matchIndex)
+    const after = line.slice(matchIndex + fullMatch.length)
+    const nodes: React.ReactNode[] = []
 
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={index}>{part.slice(2, -2)}</strong>
-      }
+    if (before) {
+      nodes.push(...renderFormattedPreviewLine(before, `${keyPrefix}-before`))
+    }
 
-      if (part.startsWith('*') && part.endsWith('*')) {
-        return <em key={index}>{part.slice(1, -1)}</em>
-      }
+    const innerNodes = renderFormattedPreviewLine(innerText, `${keyPrefix}-${firstMatch.type}`)
+    if (firstMatch.type === 'underline') {
+      nodes.push(<u key={`${keyPrefix}-underline`}>{innerNodes}</u>)
+    } else if (firstMatch.type === 'bold') {
+      nodes.push(<strong key={`${keyPrefix}-bold`}>{innerNodes}</strong>)
+    } else {
+      nodes.push(<em key={`${keyPrefix}-italic`}>{innerNodes}</em>)
+    }
 
-      return <span key={index}>{part}</span>
-    })
+    if (after) {
+      nodes.push(...renderFormattedPreviewLine(after, `${keyPrefix}-after`))
+    }
+
+    return nodes
   }
 
   function formatPreviewTeachingPoint(text: string) {
