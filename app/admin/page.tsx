@@ -187,6 +187,7 @@ type HomepageSurveyRow = {
 }
 
 type AdminSidebarSectionId =
+  | 'case_generator'
   | 'button_subtitles'
   | 'analytics'
   | 'homepage_notes'
@@ -212,6 +213,7 @@ const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
+  'case_generator',
   'button_subtitles',
   'analytics',
   'homepage_notes',
@@ -222,6 +224,16 @@ const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'groups',
   'cases_by_date',
 ]
+const DEFAULT_IMAGE_CREDIT_TEMPLATE = 'Credit:'
+const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Who</u>**
+
+**<u>Pathophys</u>**
+
+**<u>Key Clues</u>**
+
+**<u>Tx</u>**
+
+**<u>Classic Pitfall</u>**`
 
 function shiftISODate(dateText: string, days: number) {
   const baseDate = new Date(`${dateText}T12:00:00`)
@@ -252,10 +264,10 @@ export default function AdminPage() {
   const [answer, setAnswer] = useState('')
   const [synonyms, setSynonyms] = useState('')
   const [imageUrl, setImageUrl] = useState('')
-  const [imageCredit, setImageCredit] = useState('')
+  const [imageCredit, setImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imageRevealClue, setImageRevealClue] = useState('none')
   const [imageUrl2, setImageUrl2] = useState('')
-  const [imageCredit2, setImageCredit2] = useState('')
+  const [imageCredit2, setImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imageRevealClue2, setImageRevealClue2] = useState('none')
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
@@ -263,7 +275,7 @@ export default function AdminPage() {
   const [clue4, setClue4] = useState('')
   const [clue5, setClue5] = useState('')
   const [clue6, setClue6] = useState('')
-  const [teachingPoint, setTeachingPoint] = useState('')
+  const [teachingPoint, setTeachingPoint] = useState(DEFAULT_TEACHING_POINT_TEMPLATE)
   const [status, setStatus] = useState('')
   const [cases, setCases] = useState<CaseRow[]>([])
   const [analytics, setAnalytics] = useState<AnalyticsRow[]>([])
@@ -508,6 +520,17 @@ export default function AdminPage() {
     [clue1, clue2, clue3, clue4, clue5, clue6]
   )
 
+  const duplicateAnswerMatches = useMemo(() => {
+    const normalizedAnswer = normalizeAnswer(answer)
+    if (!answer.trim() || !normalizedAnswer) return []
+
+    return cases.filter(item => {
+      if (!item.answer?.trim()) return false
+      if (normalizeAnswer(item.answer) !== normalizedAnswer) return false
+      return !(item.case_date === caseDate && item.level === level)
+    })
+  }, [answer, caseDate, cases, level])
+
   const composerGuardrails = useMemo(() => {
     const issues: string[] = []
     const answerPool = new Set<string>()
@@ -530,6 +553,18 @@ export default function AdminPage() {
 
     if (answer.trim() && !answerPool.has(normalizeAnswer(answer))) {
       issues.push('This answer is not in the master answer list yet.')
+    }
+
+    if (duplicateAnswerMatches.length > 0) {
+      const duplicateSummary = duplicateAnswerMatches
+        .slice(0, 3)
+        .map(item => `${item.case_date} · ${formatLevel(item.level)}`)
+        .join(', ')
+      const extraCount = duplicateAnswerMatches.length - 3
+
+      issues.push(
+        `This diagnosis already exists on ${duplicateSummary}${extraCount > 0 ? `, plus ${extraCount} more` : ''}.`
+      )
     }
 
     if (previewClues.length === 0) {
@@ -577,6 +612,7 @@ export default function AdminPage() {
     clue4,
     clue5,
     clue6,
+    duplicateAnswerMatches,
     diagnosisChoices,
     imageRevealClue,
     imageRevealClue2,
@@ -659,6 +695,63 @@ export default function AdminPage() {
       .split(/\n+/)
       .map(line => line.trim())
       .filter(Boolean)
+  }
+
+  function normalizeCreditValue(value: string) {
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === DEFAULT_IMAGE_CREDIT_TEMPLATE) return null
+    return trimmed
+  }
+
+  function clueMentionsShownAbove(value: string) {
+    return value.toLowerCase().includes('shown above')
+  }
+
+  function firstShownAboveClueIndex(clues: string[]) {
+    const index = clues.findIndex(clueMentionsShownAbove)
+    return index >= 0 ? index + 1 : null
+  }
+
+  function secondShownAboveClueIndex(clues: string[]) {
+    const indices = clues
+      .map((clue, index) => (clueMentionsShownAbove(clue) ? index + 1 : null))
+      .filter((value): value is number => value !== null)
+    return indices[1] ?? null
+  }
+
+  function syncImageRevealFromClues(
+    nextClues: string[],
+    options?: { hasImage1?: boolean; hasImage2?: boolean }
+  ) {
+    const firstIndex = firstShownAboveClueIndex(nextClues)
+    const secondIndex = secondShownAboveClueIndex(nextClues)
+    const hasImage1 = options?.hasImage1 ?? Boolean(imageUrl)
+    const hasImage2 = options?.hasImage2 ?? Boolean(imageUrl2)
+
+    if (hasImage1 && imageRevealClue === 'none' && firstIndex !== null) {
+      setImageRevealClue(String(firstIndex))
+    }
+
+    if (hasImage2 && imageRevealClue2 === 'none') {
+      const linkedIndex = secondIndex ?? (hasImage1 && imageRevealClue !== 'none' ? null : firstIndex)
+      if (linkedIndex !== null) {
+        setImageRevealClue2(String(linkedIndex))
+      }
+    }
+  }
+
+  function updateClueAt(index: number, value: string) {
+    const nextClues = [clue1, clue2, clue3, clue4, clue5, clue6]
+    nextClues[index] = value
+
+    setClue1(nextClues[0])
+    setClue2(nextClues[1])
+    setClue3(nextClues[2])
+    setClue4(nextClues[3])
+    setClue5(nextClues[4])
+    setClue6(nextClues[5])
+
+    syncImageRevealFromClues(nextClues)
   }
 
   function wrapTeachingPointSelection(format: 'bold' | 'italic' | 'underline') {
@@ -759,10 +852,10 @@ export default function AdminPage() {
     setAnswer('')
     setSynonyms('')
     setImageUrl('')
-    setImageCredit('')
+    setImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue('none')
     setImageUrl2('')
-    setImageCredit2('')
+    setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
     setClue1('')
     setClue2('')
@@ -770,7 +863,7 @@ export default function AdminPage() {
     setClue4('')
     setClue5('')
     setClue6('')
-    setTeachingPoint('')
+    setTeachingPoint(DEFAULT_TEACHING_POINT_TEMPLATE)
     setStatus(`Creating ${formatLevel(nextLevel)} case for ${date}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -784,10 +877,10 @@ export default function AdminPage() {
     setAnswer('')
     setSynonyms('')
     setImageUrl('')
-    setImageCredit('')
+    setImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue('none')
     setImageUrl2('')
-    setImageCredit2('')
+    setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
     setClue1('')
     setClue2('')
@@ -795,7 +888,7 @@ export default function AdminPage() {
     setClue4('')
     setClue5('')
     setClue6('')
-    setTeachingPoint('')
+    setTeachingPoint(DEFAULT_TEACHING_POINT_TEMPLATE)
     setActiveSubmissionId(null)
     setStatus('')
   }
@@ -809,14 +902,14 @@ export default function AdminPage() {
     setAnswer(c.answer || '')
     setSynonyms((c.synonyms || []).join(', '))
     setImageUrl(c.image_url || '')
-    setImageCredit(c.image_credit || '')
+    setImageCredit(c.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue(
       c.image_reveal_clue && c.image_reveal_clue >= 1 && c.image_reveal_clue <= 6
         ? String(c.image_reveal_clue)
         : 'none'
     )
     setImageUrl2(c.image_url_2 || '')
-    setImageCredit2(c.image_credit_2 || '')
+    setImageCredit2(c.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(
       c.image_reveal_clue_2 && c.image_reveal_clue_2 >= 1 && c.image_reveal_clue_2 <= 6
         ? String(c.image_reveal_clue_2)
@@ -828,7 +921,7 @@ export default function AdminPage() {
     setClue4(c.clue_4 || '')
     setClue5(c.clue_5 || '')
     setClue6(c.clue_6 || '')
-    setTeachingPoint(c.teaching_point || '')
+    setTeachingPoint(c.teaching_point || DEFAULT_TEACHING_POINT_TEMPLATE)
     setActiveSubmissionId(null)
     setStatus(`Editing ${c.case_date} · ${c.level}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -843,14 +936,14 @@ export default function AdminPage() {
     setAnswer(submission.answer || '')
     setSynonyms((submission.synonyms || []).join(', '))
     setImageUrl(submission.image_url || '')
-    setImageCredit(submission.image_credit || '')
+    setImageCredit(submission.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue(
       submission.image_reveal_clue && submission.image_reveal_clue >= 1 && submission.image_reveal_clue <= 6
         ? String(submission.image_reveal_clue)
         : 'none'
     )
     setImageUrl2(submission.image_url_2 || '')
-    setImageCredit2(submission.image_credit_2 || '')
+    setImageCredit2(submission.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(
       submission.image_reveal_clue_2 && submission.image_reveal_clue_2 >= 1 && submission.image_reveal_clue_2 <= 6
         ? String(submission.image_reveal_clue_2)
@@ -862,7 +955,7 @@ export default function AdminPage() {
     setClue4(submission.clue_4 || '')
     setClue5(submission.clue_5 || '')
     setClue6(submission.clue_6 || '')
-    setTeachingPoint(submission.teaching_point || '')
+    setTeachingPoint(submission.teaching_point || DEFAULT_TEACHING_POINT_TEMPLATE)
     setActiveSubmissionId(submission.id)
     setShowComposer(true)
     setStatus(
@@ -1727,6 +1820,9 @@ export default function AdminPage() {
       .map(s => s.trim())
       .filter(Boolean)
 
+    const savedImageCredit = normalizeCreditValue(imageCredit)
+    const savedImageCredit2 = normalizeCreditValue(imageCredit2)
+
     const parsedImageRevealClue =
       imageUrl && imageRevealClue !== 'none' ? Number(imageRevealClue) : null
     const parsedImageRevealClue2 =
@@ -1742,10 +1838,10 @@ export default function AdminPage() {
         answer,
         synonyms: synonymArray,
         image_url: imageUrl || null,
-        image_credit: imageCredit || null,
+        image_credit: savedImageCredit,
         image_reveal_clue: parsedImageRevealClue,
         image_url_2: imageUrl2 || null,
-        image_credit_2: imageCredit2 || null,
+        image_credit_2: savedImageCredit2,
         image_reveal_clue_2: parsedImageRevealClue2,
         clue_1: clue1 || null,
         clue_2: clue2 || null,
@@ -1844,6 +1940,16 @@ export default function AdminPage() {
   }
 
   const sidebarSections: Record<AdminSidebarSectionId, ReactNode> = {
+    case_generator: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <Link href="/admin/case-generator" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
+          Case Generator
+        </Link>
+        <p className="mt-2 text-sm text-[#8a948d]">
+          Build scheduled case drafts across med student, resident, and attending.
+        </p>
+      </section>
+    ),
     button_subtitles: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <Link href="/admin/taglines" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
@@ -2903,6 +3009,23 @@ export default function AdminPage() {
                   placeholder="Carpal tunnel syndrome"
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
+                {duplicateAnswerMatches.length > 0 && (
+                  <div className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-xs font-normal text-[#8a5a2b]">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8a5a2b]">
+                      Existing diagnosis match
+                    </div>
+                    <div className="mt-1 space-y-1">
+                      {duplicateAnswerMatches.slice(0, 4).map(match => (
+                        <p key={match.id}>
+                          {match.case_date} · {formatLevel(match.level)}
+                        </p>
+                      ))}
+                      {duplicateAnswerMatches.length > 4 && (
+                        <p>Plus {duplicateAnswerMatches.length - 4} more saved cases.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -2925,7 +3048,16 @@ export default function AdminPage() {
                       Image 1 URL
                       <input
                         value={imageUrl}
-                        onChange={e => setImageUrl(e.target.value)}
+                        onChange={e => {
+                          const nextValue = e.target.value
+                          setImageUrl(nextValue)
+                          if (nextValue && imageRevealClue === 'none') {
+                            syncImageRevealFromClues(
+                              [clue1, clue2, clue3, clue4, clue5, clue6],
+                              { hasImage1: true }
+                            )
+                          }
+                        }}
                         placeholder="Paste a hosted x-ray or image URL"
                         className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />
@@ -2951,7 +3083,7 @@ export default function AdminPage() {
                       <input
                         value={imageCredit}
                         onChange={e => setImageCredit(e.target.value)}
-                        placeholder="Optional small credit"
+                        placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
                         className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />
                     </label>
@@ -2967,7 +3099,7 @@ export default function AdminPage() {
                           type="button"
                           onClick={() => {
                             setImageUrl2('')
-                            setImageCredit2('')
+                            setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
                             setImageRevealClue2('none')
                           }}
                           className="rounded-lg border border-[#ead9b7] px-2.5 py-1 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
@@ -2980,7 +3112,16 @@ export default function AdminPage() {
                       Image 2 URL
                       <input
                         value={imageUrl2}
-                        onChange={e => setImageUrl2(e.target.value)}
+                        onChange={e => {
+                          const nextValue = e.target.value
+                          setImageUrl2(nextValue)
+                          if (nextValue && imageRevealClue2 === 'none') {
+                            syncImageRevealFromClues(
+                              [clue1, clue2, clue3, clue4, clue5, clue6],
+                              { hasImage2: true }
+                            )
+                          }
+                        }}
                         placeholder="Optional second hosted image URL"
                         className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />
@@ -3006,7 +3147,7 @@ export default function AdminPage() {
                       <input
                         value={imageCredit2}
                         onChange={e => setImageCredit2(e.target.value)}
-                        placeholder="Optional second image credit"
+                        placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
                         className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />
                     </label>
@@ -3021,11 +3162,15 @@ export default function AdminPage() {
                     alt="Uploaded case"
                     className="max-h-48 rounded-lg object-contain"
                   />
-                  {imageCredit && (
-                    <p className="mt-1 text-[11px] text-[#8a948d]">{imageCredit}</p>
+                  {normalizeCreditValue(imageCredit) && (
+                    <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit)}</p>
                   )}
                   <button
-                    onClick={() => setImageUrl('')}
+                    onClick={() => {
+                      setImageUrl('')
+                      setImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                      setImageRevealClue('none')
+                    }}
                     className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
                   >
                     Remove image
@@ -3040,11 +3185,15 @@ export default function AdminPage() {
                     alt="Uploaded second case"
                     className="max-h-48 rounded-lg object-contain"
                   />
-                  {imageCredit2 && (
-                    <p className="mt-1 text-[11px] text-[#8a948d]">{imageCredit2}</p>
+                  {normalizeCreditValue(imageCredit2) && (
+                    <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit2)}</p>
                   )}
                   <button
-                    onClick={() => setImageUrl2('')}
+                    onClick={() => {
+                      setImageUrl2('')
+                      setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                      setImageRevealClue2('none')
+                    }}
                     className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
                   >
                     Remove second image
@@ -3058,7 +3207,7 @@ export default function AdminPage() {
                     Clue 1
                     <textarea
                       value={clue1}
-                      onChange={e => setClue1(e.target.value)}
+                      onChange={e => updateClueAt(0, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -3069,7 +3218,7 @@ export default function AdminPage() {
                     Clue 2
                     <textarea
                       value={clue2}
-                      onChange={e => setClue2(e.target.value)}
+                      onChange={e => updateClueAt(1, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -3080,7 +3229,7 @@ export default function AdminPage() {
                     Clue 3
                     <textarea
                       value={clue3}
-                      onChange={e => setClue3(e.target.value)}
+                      onChange={e => updateClueAt(2, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -3091,7 +3240,7 @@ export default function AdminPage() {
                     Clue 4
                     <textarea
                       value={clue4}
-                      onChange={e => setClue4(e.target.value)}
+                      onChange={e => updateClueAt(3, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -3102,7 +3251,7 @@ export default function AdminPage() {
                     Clue 5
                     <textarea
                       value={clue5}
-                      onChange={e => setClue5(e.target.value)}
+                      onChange={e => updateClueAt(4, e.target.value)}
                       placeholder="Optional"
                       onInput={autoGrowTextarea}
                       rows={1}
@@ -3114,7 +3263,7 @@ export default function AdminPage() {
                     Clue 6
                     <textarea
                       value={clue6}
-                      onChange={e => setClue6(e.target.value)}
+                      onChange={e => updateClueAt(5, e.target.value)}
                       placeholder="Optional"
                       onInput={autoGrowTextarea}
                       rows={1}
@@ -3154,37 +3303,15 @@ export default function AdminPage() {
                   value={teachingPoint}
                   onChange={e => setTeachingPoint(e.target.value)}
                   onKeyDown={handleTeachingPointKeyDown}
-                  placeholder={`Clinical Context: **Most common cause of anterior knee pain** in adolescent athletes
+                  placeholder={`**<u>Who</u>**
 
-Who:
-- Adolescents (10-15)
-- During growth spurts
+**<u>Pathophys</u>**
 
-Pathophys:
-- Repetitive traction on an open tibial tubercle apophysis
+**<u>Key Clues</u>**
 
-Key Clues:
-- Anterior knee pain in a young athlete
-- Gradual onset, not acute
+**<u>Tx</u>**
 
-Imaging:
-- Lateral X-ray with tibial tubercle fragmentation
-
-Tx:
-- Relative rest, NSAIDs, stretching
-
-Don't Miss:
-- Tibial tubercle avulsion fracture
-
-Classic Pitfall:
-- Calling this a fracture instead of traction apophysitis
-
-Board Pearl:
-- Self-limited and improves with skeletal maturity
-
-DDx:
-- Patellar tendinopathy
-- Tibial tubercle avulsion fracture`}
+**<u>Classic Pitfall</u>**`}
                   rows={7}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
@@ -3434,8 +3561,8 @@ DDx:
                                   alt="Case preview"
                                   className="max-h-56 rounded-lg object-contain"
                                 />
-                                {imageCredit && (
-                                  <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit}</p>
+                                {normalizeCreditValue(imageCredit) && (
+                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit)}</p>
                                 )}
                                 <p className="mt-1 text-[11px] text-[#637268]">
                                   {imageRevealClue === 'none'
@@ -3451,8 +3578,8 @@ DDx:
                                   alt="Second case preview"
                                   className="max-h-56 rounded-lg object-contain"
                                 />
-                                {imageCredit2 && (
-                                  <p className="mt-2 text-[11px] text-[#8a948d]">{imageCredit2}</p>
+                                {normalizeCreditValue(imageCredit2) && (
+                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit2)}</p>
                                 )}
                                 <p className="mt-1 text-[11px] text-[#637268]">
                                   {imageRevealClue2 === 'none'
