@@ -614,10 +614,14 @@ export default function AdminPage() {
   }
 
   function renderFormattedPreviewLine(line: string) {
-    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
+    const parts = line.split(/(<u>.*?<\/u>|\*\*[^*]+\*\*|\*[^*]+\*)/g)
 
     return parts.map((part, index) => {
       if (!part) return null
+
+      if (part.startsWith('<u>') && part.endsWith('</u>')) {
+        return <u key={index}>{part.slice(3, -4)}</u>
+      }
 
       if (part.startsWith('**') && part.endsWith('**')) {
         return <strong key={index}>{part.slice(2, -2)}</strong>
@@ -638,14 +642,21 @@ export default function AdminPage() {
       .filter(Boolean)
   }
 
-  function wrapTeachingPointSelection(marker: '**' | '*') {
+  function wrapTeachingPointSelection(format: 'bold' | 'italic' | 'underline') {
     const textarea = teachingPointRef.current
     if (!textarea) return
+
+    const markers =
+      format === 'bold'
+        ? { open: '**', close: '**' }
+        : format === 'italic'
+          ? { open: '*', close: '*' }
+          : { open: '<u>', close: '</u>' }
 
     const selectionStart = textarea.selectionStart
     const selectionEnd = textarea.selectionEnd
     const selectedText = teachingPoint.slice(selectionStart, selectionEnd)
-    const wrapped = `${marker}${selectedText || 'text'}${marker}`
+    const wrapped = `${markers.open}${selectedText || 'text'}${markers.close}`
     const nextValue =
       teachingPoint.slice(0, selectionStart) +
       wrapped +
@@ -655,7 +666,7 @@ export default function AdminPage() {
 
     requestAnimationFrame(() => {
       textarea.focus()
-      const start = selectionStart + marker.length
+      const start = selectionStart + markers.open.length
       const end = start + (selectedText || 'text').length
       textarea.setSelectionRange(start, end)
     })
@@ -667,12 +678,17 @@ export default function AdminPage() {
     const key = event.key.toLowerCase()
     if (key === 'b') {
       event.preventDefault()
-      wrapTeachingPointSelection('**')
+      wrapTeachingPointSelection('bold')
     }
 
     if (key === 'i') {
       event.preventDefault()
-      wrapTeachingPointSelection('*')
+      wrapTeachingPointSelection('italic')
+    }
+
+    if (key === 'u') {
+      event.preventDefault()
+      wrapTeachingPointSelection('underline')
     }
   }
 
@@ -3091,6 +3107,29 @@ export default function AdminPage() {
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Teaching Point
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => wrapTeachingPointSelection('bold')}
+                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Bold
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => wrapTeachingPointSelection('italic')}
+                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Italic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => wrapTeachingPointSelection('underline')}
+                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Underline
+                  </button>
+                </div>
                 <textarea
                   ref={teachingPointRef}
                   value={teachingPoint}
@@ -3131,7 +3170,7 @@ DDx:
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
                 <span className="text-xs font-normal text-[#8a948d]">
-                  Line breaks are preserved. Use Ctrl/Cmd + B for bold and Ctrl/Cmd + I for italics. Orthodle Insight is added automatically when case stats exist.
+                  Line breaks are preserved. Use Ctrl/Cmd + B for bold, Ctrl/Cmd + I for italics, and Ctrl/Cmd + U for underline. Orthodle Insight is added automatically when case stats exist.
                 </span>
               </label>
 
