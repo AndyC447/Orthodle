@@ -163,6 +163,7 @@ const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
 const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
 const GROUP_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_group_announcement'
 const GROUP_NOTIFICATIONS_SEEN_KEY = 'orthodle_groups_notifications_seen_v1'
+const GROUP_DISMISSED_MESSAGES_KEY = 'orthodle_groups_dismissed_messages_v1'
 function normalizeJoinCode(value: string) {
   return value
     .toUpperCase()
@@ -1241,6 +1242,7 @@ export default function GroupsPage() {
   const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
   const [showProfileStatGuide, setShowProfileStatGuide] = useState(false)
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([])
+  const [dismissedMessages, setDismissedMessages] = useState<string[]>([])
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
   const [requestGroupId, setRequestGroupId] = useState('')
@@ -1281,6 +1283,18 @@ export default function GroupsPage() {
       }
     } catch {
       window.localStorage.removeItem(GROUP_NOTIFICATIONS_SEEN_KEY)
+    }
+
+    try {
+      const savedDismissedMessages = window.localStorage.getItem(GROUP_DISMISSED_MESSAGES_KEY)
+      if (savedDismissedMessages) {
+        const parsed = JSON.parse(savedDismissedMessages) as string[]
+        if (Array.isArray(parsed)) {
+          setDismissedMessages(parsed)
+        }
+      }
+    } catch {
+      window.localStorage.removeItem(GROUP_DISMISSED_MESSAGES_KEY)
     }
   }, [])
 
@@ -2853,6 +2867,21 @@ export default function GroupsPage() {
     window.setTimeout(() => setCopiedCode(''), 1800)
   }
 
+  function dismissTopMessage() {
+    if (!message || typeof window === 'undefined') {
+      setMessage('')
+      return
+    }
+
+    const nextDismissedMessages = Array.from(new Set([...dismissedMessages, message]))
+    setDismissedMessages(nextDismissedMessages)
+    window.localStorage.setItem(
+      GROUP_DISMISSED_MESSAGES_KEY,
+      JSON.stringify(nextDismissedMessages)
+    )
+    setMessage('')
+  }
+
   function openNotificationsPanel() {
     setShowNotificationsPanel(true)
     if (typeof window === 'undefined' || groupNotifications.length === 0) return
@@ -2959,13 +2988,13 @@ export default function GroupsPage() {
       ) : null}
 
       <section className="mx-auto max-w-[760px] px-2.5 py-2.5 sm:px-5 sm:py-5">
-        {message ? (
+        {message && !dismissedMessages.includes(message) ? (
           <div className="mb-3 rounded-2xl border border-[#e7e1d6] bg-white px-3 py-2.5 text-[13px] text-[#355542] shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">{message}</div>
               <button
                 type="button"
-                onClick={() => setMessage('')}
+                onClick={dismissTopMessage}
                 className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-[#fbfaf7] text-[#637268] transition hover:bg-white"
                 aria-label="Dismiss message"
               >
