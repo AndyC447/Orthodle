@@ -86,7 +86,7 @@ export default function ArchivePage() {
           .map(item => `${item.case_date}:${item.level}:archive`)
       )
       if (completedKeysFromServer.size > 0) {
-        setCompletedArchiveKeys(completedKeysFromServer)
+        setCompletedArchiveKeys(current => new Set([...current, ...completedKeysFromServer]))
       }
       setLoading(false)
     }
@@ -152,11 +152,9 @@ export default function ArchivePage() {
   const hasActiveFilters =
     selectedLevel !== 'all' || selectedCategory !== 'all' || imagingOnly
   const surprisePool = useMemo(() => {
-    const unseenCases = filteredCases.filter(
+    return filteredCases.filter(
       item => !completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
     )
-
-    return unseenCases.length > 0 ? unseenCases : filteredCases
   }, [completedArchiveKeys, filteredCases])
   const surpriseTarget =
     surprisePool.length > 0
@@ -205,14 +203,20 @@ export default function ArchivePage() {
             Browse older cases
           </h1>
 
-          {surpriseTarget && (
+          {(surpriseTarget || filteredCases.length > 0) && (
             <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              <Link
-                href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
-                className="inline-flex min-h-[34px] items-center justify-center rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#1f6448] transition hover:bg-white sm:min-w-[124px] sm:px-3.5 sm:text-[10px] sm:tracking-[0.16em]"
-              >
-                Surprise me
-              </Link>
+              {surpriseTarget ? (
+                <Link
+                  href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
+                  className="inline-flex min-h-[34px] items-center justify-center rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#1f6448] transition hover:bg-white sm:min-w-[124px] sm:px-3.5 sm:text-[10px] sm:tracking-[0.16em]"
+                >
+                  Surprise me
+                </Link>
+              ) : (
+                <div className="inline-flex min-h-[34px] items-center justify-center rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8b938d] sm:min-w-[124px] sm:px-3.5 sm:text-[10px] sm:tracking-[0.16em]">
+                  All done
+                </div>
+              )}
               {hardestPick && (
                 <Link
                   href={`/?case=${hardestPick.id}&date=${hardestPick.case_date}&level=${hardestPick.level}`}
