@@ -2791,9 +2791,11 @@ export default function GroupsPage() {
                 type="button"
                 onClick={openMvpInspection}
                 disabled={!mvpEntry}
-                className="relative overflow-hidden rounded-[18px] border border-[#e7d7bf] bg-[radial-gradient(circle_at_14%_16%,rgba(239,191,72,0.18),transparent_22%),radial-gradient(circle_at_86%_22%,rgba(45,118,81,0.09),transparent_26%),linear-gradient(145deg,#fffef9,#f6fbf7_48%,#fff9ef)] p-3 text-left shadow-[0_14px_32px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(16,32,24,0.1)] disabled:cursor-default sm:rounded-[20px] sm:p-4"
+                className="relative overflow-hidden rounded-[18px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_16%_18%,rgba(240,194,71,0.22),transparent_22%),radial-gradient(circle_at_84%_16%,rgba(255,255,255,0.18),transparent_18%),radial-gradient(circle_at_52%_78%,rgba(45,118,81,0.09),transparent_26%),linear-gradient(145deg,#fffaf0,#f5fbf5_46%,#fff7eb)] p-3 text-left shadow-[0_16px_34px_rgba(16,32,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_42px_rgba(16,32,24,0.12)] disabled:cursor-default sm:rounded-[20px] sm:p-4"
               >
-                <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle,rgba(214,154,40,0.18)_1.2px,transparent_1.2px)] [background-size:30px_30px]" />
+                <div className="absolute inset-0 opacity-45 [background-image:radial-gradient(circle,rgba(214,154,40,0.16)_1.2px,transparent_1.2px)] [background-size:30px_30px]" />
+                <div className="absolute left-4 top-4 h-24 w-24 rounded-full border border-[#efdfb4]/70 bg-[radial-gradient(circle,rgba(255,255,255,0.42),rgba(255,255,255,0.04)_72%)] opacity-70 blur-[1px] sm:h-32 sm:w-32" />
+                <div className="absolute bottom-5 right-5 h-16 w-16 rounded-full bg-[radial-gradient(circle,rgba(45,118,81,0.14),transparent_72%)] blur-xl sm:h-24 sm:w-24" />
                 <div className="text-center text-[9px] font-bold uppercase tracking-[0.18em] text-[#d69a28]">
                   MVP player
                 </div>
@@ -2847,7 +2849,7 @@ export default function GroupsPage() {
                         const StatIcon = item.Icon
 
                         return (
-                          <div key={item.label} className="flex items-center gap-2 rounded-[16px] border border-[#ece5d8] bg-white/70 px-2.5 py-2 backdrop-blur-sm md:border-transparent md:bg-transparent md:px-0 md:py-0">
+                          <div key={item.label} className="flex items-center gap-2 rounded-[16px] border border-[#eadfca] bg-white/76 px-2.5 py-2 backdrop-blur-sm md:border-[#efe4cf] md:bg-white/58 md:px-2.5 md:py-2">
                             <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
                               <StatIcon size={15} strokeWidth={2.2} />
                             </div>
