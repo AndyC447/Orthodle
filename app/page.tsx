@@ -298,6 +298,10 @@ function isSurgicalAnatomyDate(dateText: string) {
   return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
 }
 
+function canUseSurgicalAnatomyQuiz(dateText: string) {
+  return isSurgicalAnatomyDate(dateText) || isLocalhostBrowser()
+}
+
 function getInitialLevelFromParams(value: string | null): Level {
   if (value === 'resident' || value === 'attending') return value
   return 'med_student'
@@ -1012,7 +1016,7 @@ function PlayPageContent() {
     return () => {
       cancelled = true
     }
-  }, [today, selectedLevel])
+  }, [today, selectedLevel, selectedDate, dailyCase?.id])
 
   useEffect(() => {
     let cancelled = false
@@ -1086,7 +1090,7 @@ function PlayPageContent() {
         )
         const useQuizMode =
           data.level === 'attending' &&
-          isSurgicalAnatomyDate(data.case_date) &&
+          canUseSurgicalAnatomyQuiz(data.case_date) &&
           loadedQuizChoices.length >= 2
         const maxGuessesForLoadedCase = useQuizMode ? 1 : MAX_GUESSES
 
@@ -1308,8 +1312,10 @@ function PlayPageContent() {
     [dailyCase]
   )
 
-  const useSurgicalAnatomyQuiz = selectedLevel === 'attending' && surgicalAnatomyChoices.length >= 2
-    && isSurgicalAnatomyDate(dailyCase?.case_date || selectedDate)
+  const useSurgicalAnatomyQuiz =
+    selectedLevel === 'attending' &&
+    surgicalAnatomyChoices.length >= 2 &&
+    canUseSurgicalAnatomyQuiz(dailyCase?.case_date || selectedDate)
   const maxGuessesForCurrentCase = useSurgicalAnatomyQuiz ? 1 : MAX_GUESSES
   const selectedQuizGuess = useSurgicalAnatomyQuiz && guesses.length > 0 ? guesses[guesses.length - 1] : null
   const normalizedCorrectAnswers = useMemo(() => {
@@ -1732,7 +1738,7 @@ function PlayPageContent() {
   }
 
   function getOrthodleInsightLines() {
-    if (!communityStats) return []
+    if (!communityStats || useSurgicalAnatomyQuiz) return []
 
     const solveRate =
       communityStats.solveRate !== null ? `${Math.round(communityStats.solveRate)}%` : '—'
@@ -3020,6 +3026,7 @@ function PlayPageContent() {
             </div>
           )}
 
+          {!useSurgicalAnatomyQuiz && (
           <div className="orthodle-panel-shell hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
             <div className="mb-3 flex justify-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
@@ -3067,10 +3074,11 @@ function PlayPageContent() {
               })}
             </div>
           </div>
+          )}
         </section>
 
         <aside className="space-y-3">
-          {!roundComplete && (
+          {!roundComplete && !useSurgicalAnatomyQuiz && (
           <div className="orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
             <div className="mb-1.5 flex justify-center text-[10px] font-bold uppercase tracking-[0.22em] text-[#102018]">
               <span>Your guesses</span>
