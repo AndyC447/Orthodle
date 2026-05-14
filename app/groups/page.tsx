@@ -95,6 +95,11 @@ type DisplayGroup = {
 
 type GroupsTab = 'home' | 'my-group' | 'profile'
 
+function normalizeGroupsTab(value: string | null): GroupsTab {
+  if (value === 'my-group' || value === 'profile') return value
+  return 'home'
+}
+
 type LocalProfile = {
   displayName: string
   icon: string
@@ -1249,6 +1254,31 @@ export default function GroupsPage() {
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const nextTab = normalizeGroupsTab(new URLSearchParams(window.location.search).get('tab'))
+    setActiveGroupsTab(current => (current === nextTab ? current : nextTab))
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const currentUrlTab = normalizeGroupsTab(params.get('tab'))
+    if (currentUrlTab === activeGroupsTab) return
+
+    if (activeGroupsTab === 'home') {
+      params.delete('tab')
+    } else {
+      params.set('tab', activeGroupsTab)
+    }
+
+    const nextQuery = params.toString()
+    const nextUrl = nextQuery
+      ? `${window.location.pathname}?${nextQuery}`
+      : window.location.pathname
+    window.history.replaceState({}, '', nextUrl)
+  }, [activeGroupsTab])
+
   const groupAnnouncementKey = groupAnnouncement
     ? `${groupAnnouncement.id}:${groupAnnouncement.start_date}:${groupAnnouncement.end_date || ''}`
     : ''
@@ -1596,6 +1626,21 @@ export default function GroupsPage() {
   const viewerGroup = viewerMembership
     ? groups.find(group => group.id === viewerMembership.group_id) || null
     : null
+
+  useEffect(() => {
+    if (activeGroupsTab !== 'my-group') return
+
+    if (viewerGroup?.id) {
+      setSelectedGroupId(current => current || viewerGroup.id)
+      setShowJoinPanel(false)
+      return
+    }
+
+    setSelectedGroupId('')
+    setGroupActionMode('join')
+    setShowJoinPanel(true)
+  }, [activeGroupsTab, viewerGroup?.id])
+
   const viewerGroupAggregate = viewerMembership
     ? groupAggregates.find(entry => entry.group.id === viewerMembership.group_id) || null
     : null
