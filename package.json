@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-  "dev": "next dev --webpack",
-  "build": "next build --webpack",
-  "start": "next start"
-},
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "test:groups": "node --test tests/groups-leaderboard.test.mjs"
+  },
   "dependencies": {
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",

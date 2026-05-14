@@ -1164,6 +1164,8 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<GroupRow[]>([])
   const [members, setMembers] = useState<GroupMemberRow[]>([])
   const [guessRows, setGuessRows] = useState<GuessRow[]>([])
+  const [weeklyServerAggregates, setWeeklyServerAggregates] = useState<GroupAggregate[] | null>(null)
+  const [allTimeServerAggregates, setAllTimeServerAggregates] = useState<GroupAggregate[] | null>(null)
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
   const [groupAnnouncement, setGroupAnnouncement] = useState<GroupAnnouncementRow | null>(null)
   const [dismissedGroupAnnouncementKey, setDismissedGroupAnnouncementKey] = useState('')
@@ -1220,7 +1222,7 @@ export default function GroupsPage() {
     ? `${groupAnnouncement.id}:${groupAnnouncement.start_date}:${groupAnnouncement.end_date || ''}`
     : ''
 
-async function loadGroupAnnouncement() {
+  async function loadGroupAnnouncement() {
     const { data } = await supabase
       .from('group_announcements')
       .select('id, message, start_date, end_date, created_at')
@@ -1231,6 +1233,33 @@ async function loadGroupAnnouncement() {
 
     const activeAnnouncement = (data as GroupAnnouncementRow[] | null)?.[0] || null
     setGroupAnnouncement(activeAnnouncement?.message?.trim() ? activeAnnouncement : null)
+  }
+
+  async function loadServerLeaderboardData(windowMode: LeaderboardWindow, force = false) {
+    if (windowMode === 'all-time' && allTimeServerAggregates !== null && !force) return
+    if (windowMode === 'week' && weeklyServerAggregates !== null && !force) return
+
+    const params = new URLSearchParams({ window: windowMode })
+    if (windowMode === 'week') {
+      params.set('startIso', weekRange.startIso)
+      params.set('endIso', weekRange.endIso)
+    }
+
+    const response = await fetch(`/api/groups/leaderboard?${params.toString()}`, {
+      cache: 'no-store',
+    })
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      throw new Error(payload.error || 'Could not load the group leaderboard right now.')
+    }
+
+    const aggregates = Array.isArray(payload.aggregates) ? (payload.aggregates as GroupAggregate[]) : []
+    if (windowMode === 'week') {
+      setWeeklyServerAggregates(aggregates)
+    } else {
+      setAllTimeServerAggregates(aggregates)
+    }
   }
 
   async function fetchAllGroupGuessRows(memberSessionIds: string[]) {
@@ -1347,10 +1376,17 @@ async function loadGroupAnnouncement() {
   useEffect(() => {
     void loadGroupsData()
     void loadGroupAnnouncement()
+    void loadServerLeaderboardData('week', true)
   }, [sessionId, today])
 
   useEffect(() => {
-    const refresh = () => void loadGroupsData()
+    const refresh = () => {
+      void loadGroupsData()
+      void loadServerLeaderboardData('week', true)
+      if (allTimeServerAggregates !== null) {
+        void loadServerLeaderboardData('all-time', true)
+      }
+    }
     const channel = supabase
       .channel('groups-live-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, refresh)
@@ -1361,7 +1397,13 @@ async function loadGroupAnnouncement() {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [])
+  }, [allTimeServerAggregates])
+
+  useEffect(() => {
+    if (leaderboardWindow === 'all-time') {
+      void loadServerLeaderboardData('all-time')
+    }
+  }, [leaderboardWindow])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1484,13 +1526,16 @@ async function loadGroupAnnouncement() {
     [guessRows]
   )
 
-  const groupAggregates = useMemo<GroupAggregate[]>(() => {
+  const computedWeekGroupAggregates = useMemo<GroupAggregate[]>(() => {
     return buildGroupAggregatesFromRows(groups, members, visibleGuessRows, caseLookup)
   }, [groups, visibleGuessRows, members, caseLookup])
 
-  const allTimeGroupAggregates = useMemo<GroupAggregate[]>(() => {
+  const computedAllTimeGroupAggregates = useMemo<GroupAggregate[]>(() => {
     return buildGroupAggregatesFromRows(groups, members, allTimeGuessRows, caseLookup)
   }, [allTimeGuessRows, caseLookup, groups, members])
+
+  const groupAggregates = weeklyServerAggregates ?? computedWeekGroupAggregates
+  const allTimeGroupAggregates = allTimeServerAggregates ?? computedAllTimeGroupAggregates
 
   const activeGroupAggregates =
     leaderboardWindow === 'week' ? groupAggregates : allTimeGroupAggregates
