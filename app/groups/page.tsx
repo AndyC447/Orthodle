@@ -231,6 +231,8 @@ function getCurrentWeekRange() {
   return {
     startIso: start.toISOString(),
     endIso: end.toISOString(),
+    startMs: start.getTime(),
+    endMs: end.getTime(),
     label: `Week of ${startLabel} - ${endLabel}`,
   }
 }
@@ -1438,11 +1440,12 @@ export default function GroupsPage() {
   const visibleGuessRows = useMemo(
     () =>
       guessRows.filter(
-        row =>
-          row.created_at >= weekRange.startIso &&
-          row.created_at <= weekRange.endIso
+        row => {
+          const createdAtMs = new Date(row.created_at).getTime()
+          return createdAtMs >= weekRange.startMs && createdAtMs <= weekRange.endMs
+        }
       ),
-    [guessRows, weekRange.endIso, weekRange.startIso]
+    [guessRows, weekRange.endMs, weekRange.startMs]
   )
   const allTimeGuessRows = useMemo(
     () => guessRows.filter(row => Boolean(row.case_id)),
