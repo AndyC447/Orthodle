@@ -2861,7 +2861,6 @@ export default function GroupsPage() {
                 className="orthodle-mvp-card relative overflow-hidden rounded-[18px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_16%_18%,rgba(240,194,71,0.22),transparent_22%),radial-gradient(circle_at_84%_16%,rgba(255,255,255,0.18),transparent_18%),radial-gradient(circle_at_52%_78%,rgba(45,118,81,0.09),transparent_26%),linear-gradient(145deg,#fffaf0,#f5fbf5_46%,#fff7eb)] p-3 text-left shadow-[0_16px_34px_rgba(16,32,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_42px_rgba(16,32,24,0.12)] disabled:cursor-default sm:rounded-[20px] sm:p-4"
               >
                 <div className="absolute inset-0 opacity-45 [background-image:radial-gradient(circle,rgba(214,154,40,0.16)_1.2px,transparent_1.2px)] [background-size:30px_30px]" />
-                <div className="absolute left-4 top-4 h-24 w-24 rounded-full border border-[#efdfb4]/70 bg-[radial-gradient(circle,rgba(255,255,255,0.42),rgba(255,255,255,0.04)_72%)] opacity-70 blur-[1px] sm:h-32 sm:w-32" />
                 <div className="absolute bottom-5 right-5 h-16 w-16 rounded-full bg-[radial-gradient(circle,rgba(45,118,81,0.14),transparent_72%)] blur-xl sm:h-24 sm:w-24" />
                 <div className="text-center text-[9px] font-bold uppercase tracking-[0.18em] text-[#d69a28]">
                   MVP player
