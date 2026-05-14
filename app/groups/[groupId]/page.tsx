@@ -385,6 +385,37 @@ export default function GroupDetailPage() {
   const [showMemberIconPicker, setShowMemberIconPicker] = useState(false)
   const [copied, setCopied] = useState(false)
 
+  async function fetchAllGroupGuessRows(memberSessionIds: string[]) {
+    const pageSize = 1000
+    const rows: GuessRow[] = []
+    let from = 0
+
+    while (true) {
+      const to = from + pageSize - 1
+      const { data, error } = await supabase
+        .from('guesses')
+        .select('session_id, case_id, is_correct, created_at')
+        .in('session_id', memberSessionIds)
+        .order('created_at', { ascending: true })
+        .range(from, to)
+
+      if (error) {
+        throw error
+      }
+
+      const batch = (data || []) as GuessRow[]
+      rows.push(...batch)
+
+      if (batch.length < pageSize) {
+        break
+      }
+
+      from += pageSize
+    }
+
+    return rows
+  }
+
   async function loadGroupPageData() {
     const { data: groupData, error: groupError } = await supabase
       .from('groups')
@@ -422,19 +453,15 @@ export default function GroupDetailPage() {
       return
     }
 
-    const { data: guessData, error: guessError } = await supabase
-      .from('guesses')
-      .select('session_id, case_id, is_correct, created_at')
-      .in('session_id', memberSessionIds)
-      .order('created_at', { ascending: true })
+    let allGuesses: GuessRow[] = []
 
-    if (guessError) {
-      setMessage(guessError.message)
+    try {
+      allGuesses = await fetchAllGroupGuessRows(memberSessionIds)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not load group guesses.')
       setLoading(false)
       return
     }
-
-    const allGuesses = (guessData || []) as GuessRow[]
     setGuesses(allGuesses)
 
     const caseIds = Array.from(

@@ -1220,7 +1220,7 @@ export default function GroupsPage() {
     ? `${groupAnnouncement.id}:${groupAnnouncement.start_date}:${groupAnnouncement.end_date || ''}`
     : ''
 
-  async function loadGroupAnnouncement() {
+async function loadGroupAnnouncement() {
     const { data } = await supabase
       .from('group_announcements')
       .select('id, message, start_date, end_date, created_at')
@@ -1231,6 +1231,37 @@ export default function GroupsPage() {
 
     const activeAnnouncement = (data as GroupAnnouncementRow[] | null)?.[0] || null
     setGroupAnnouncement(activeAnnouncement?.message?.trim() ? activeAnnouncement : null)
+  }
+
+  async function fetchAllGroupGuessRows(memberSessionIds: string[]) {
+    const pageSize = 1000
+    const rows: GuessRow[] = []
+    let from = 0
+
+    while (true) {
+      const to = from + pageSize - 1
+      const { data, error } = await supabase
+        .from('guesses')
+        .select('session_id, case_id, is_correct, created_at')
+        .in('session_id', memberSessionIds)
+        .order('created_at', { ascending: true })
+        .range(from, to)
+
+      if (error) {
+        throw error
+      }
+
+      const batch = (data || []) as GuessRow[]
+      rows.push(...batch)
+
+      if (batch.length < pageSize) {
+        break
+      }
+
+      from += pageSize
+    }
+
+    return rows
   }
 
   async function loadGroupsData() {
@@ -1271,19 +1302,16 @@ export default function GroupsPage() {
       return
     }
 
-    const { data: guessesData, error: guessesError } = await supabase
-      .from('guesses')
-      .select('session_id, case_id, is_correct, created_at')
-      .in('session_id', memberSessionIds)
-      .order('created_at', { ascending: true })
+    let allGuesses: GuessRow[] = []
 
-    if (guessesError) {
-      setMessage(guessesError.message)
+    try {
+      allGuesses = await fetchAllGroupGuessRows(memberSessionIds)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Could not load group guesses.')
       setLoading(false)
       return
     }
 
-    const allGuesses = (guessesData || []) as GuessRow[]
     setGuessRows(allGuesses)
 
     const caseIds = Array.from(
