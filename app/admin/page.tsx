@@ -3112,12 +3112,18 @@ export default function AdminPage() {
                 Level
                 <select
                   value={level}
-                  onChange={e => setLevel(e.target.value as Level)}
+                  onChange={e => {
+                    const nextLevel = e.target.value as Level
+                    setLevel(nextLevel)
+                    if (nextLevel === 'attending' && !category.trim()) {
+                      setCategory('Surgical Anatomy')
+                    }
+                  }}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 >
                   <option value="med_student">Med Student</option>
                   <option value="resident">Resident</option>
-                  <option value="attending">Attending</option>
+                  <option value="attending">Surgical Anatomy (attending slot)</option>
                 </select>
               </label>
               </div>
@@ -3137,7 +3143,7 @@ export default function AdminPage() {
                 <input
                   value={category}
                   onChange={e => setCategory(e.target.value)}
-                  placeholder="Wrist / nerve"
+                  placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Wrist / nerve'}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
               </label>
@@ -3354,9 +3360,14 @@ export default function AdminPage() {
               )}
 
               <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                {level === 'attending' && (
+                  <div className="mb-3 rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-xs text-[#8a5a2b]">
+                    This mode now plays as a surgical anatomy multiple-choice quiz. Use Clues 1–4 as answer choices, keep the correct answer in the Answer field, and use the Teaching Point for the explanation and takeaway.
+                  </div>
+                )}
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Clue 1
+                    {level === 'attending' ? 'Choice A' : 'Clue 1'}
                     <textarea
                       value={clue1}
                       onChange={e => updateClueAt(0, e.target.value)}
@@ -3367,7 +3378,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Clue 2
+                    {level === 'attending' ? 'Choice B' : 'Clue 2'}
                     <textarea
                       value={clue2}
                       onChange={e => updateClueAt(1, e.target.value)}
@@ -3378,7 +3389,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Clue 3
+                    {level === 'attending' ? 'Choice C' : 'Clue 3'}
                     <textarea
                       value={clue3}
                       onChange={e => updateClueAt(2, e.target.value)}
@@ -3389,7 +3400,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Clue 4
+                    {level === 'attending' ? 'Choice D' : 'Clue 4'}
                     <textarea
                       value={clue4}
                       onChange={e => updateClueAt(3, e.target.value)}
@@ -3400,7 +3411,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Clue 5
+                    {level === 'attending' ? 'Extra note 1' : 'Clue 5'}
                     <textarea
                       value={clue5}
                       onChange={e => updateClueAt(4, e.target.value)}
@@ -3412,7 +3423,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    Clue 6
+                    {level === 'attending' ? 'Extra note 2' : 'Clue 6'}
                     <textarea
                       value={clue6}
                       onChange={e => updateClueAt(5, e.target.value)}

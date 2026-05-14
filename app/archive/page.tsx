@@ -30,6 +30,7 @@ type FeedbackLite = {
 
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const LAUNCH_DATE = '2026-04-27'
+const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-15'
 
 export default function ArchivePage() {
   const today = todayISO()
@@ -143,10 +144,14 @@ export default function ArchivePage() {
     })
   }
 
-  function formatLevel(level: Level) {
+  function isSurgicalAnatomyDate(dateText: string) {
+    return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
+  }
+
+  function formatLevel(level: Level, dateText = today) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    return 'Attending'
+    return isSurgicalAnatomyDate(dateText) ? 'Surgical Anatomy' : 'Attending'
   }
 
   const hasActiveFilters =
@@ -253,7 +258,7 @@ export default function ArchivePage() {
                     ['all', 'All levels'],
                     ['med_student', 'Med Student'],
                     ['resident', 'Resident'],
-                    ['attending', 'Attending'],
+                    ['attending', 'Surgical Anatomy'],
                   ].map(([value, label]) => (
                     <button
                       key={value}
@@ -366,7 +371,7 @@ export default function ArchivePage() {
                           className="rounded-xl border border-[#ded7ca] bg-white px-2.5 py-1.5 transition hover:bg-[#f8fbf9]"
                         >
                           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                            {formatLevel(level)}
+                            {formatLevel(level, item.case_date)}
                           </div>
                           <div className="mt-0.5 font-serif text-[13px] font-bold leading-tight text-[#102018]">
                             {item.category || 'Case'}
@@ -381,7 +386,7 @@ export default function ArchivePage() {
                           className="rounded-xl border border-dashed border-[#ded7ca] bg-white px-2.5 py-1.5 text-[#9aa39c]"
                         >
                           <div className="text-[10px] font-bold uppercase tracking-[0.16em]">
-                            {formatLevel(level)}
+                            {formatLevel(level, group.date)}
                           </div>
                           <div className="mt-0.5 text-[11px]">No case saved</div>
                         </div>

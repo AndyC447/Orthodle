@@ -107,6 +107,8 @@ const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
 
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
+const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-15'
+const SURGICAL_ANATOMY_SUBTITLE = 'QUIZ'
 
 const levels = [
   { key: 'med_student' as Level, label: 'Med Student' },
@@ -114,7 +116,7 @@ const levels = [
   { key: 'attending' as Level, label: 'Attending' },
 ]
 
-const homeTabs = [
+const baseHomeTabs = [
   { type: 'level' as const, key: 'med_student' as const, label: 'Med Student' },
   { type: 'level' as const, key: 'resident' as const, label: 'Resident' },
   { type: 'level' as const, key: 'attending' as const, label: 'Attending' },
@@ -257,6 +259,14 @@ function getBrowserTheme() {
   }
 
   return 'light'
+}
+
+function stripChoicePrefix(value: string) {
+  return value.replace(/^[A-D][\).\:\-]\s*/i, '').trim()
+}
+
+function isSurgicalAnatomyDate(dateText: string) {
+  return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
 }
 
 function getInitialLevelFromParams(value: string | null): Level {
@@ -707,6 +717,15 @@ function PlayPageContent() {
           setSelectedLevel(data.level)
         }
 
+        const loadedQuizChoices = [data.clue_1, data.clue_2, data.clue_3, data.clue_4].filter(
+          (item): item is string => Boolean(item && item.trim())
+        )
+        const useQuizMode =
+          data.level === 'attending' &&
+          isSurgicalAnatomyDate(data.case_date) &&
+          loadedQuizChoices.length >= 2
+        const maxGuessesForLoadedCase = useQuizMode ? 1 : MAX_GUESSES
+
         if (!isLocalhostBrowser() && !isTrackingDisabledForThisBrowser()) {
           void fetch('/api/visit', {
             method: 'POST',
@@ -762,12 +781,16 @@ function PlayPageContent() {
           setMessage(savedProgress.message)
         } else if (serverProgressAvailable) {
           const solvedOnServer = solvedIndex >= 0
-          const gameOverOnServer = solvedOnServer || serverGuesses.length >= MAX_GUESSES
+          const gameOverOnServer = solvedOnServer || serverGuesses.length >= maxGuessesForLoadedCase
           const serverMessage = solvedOnServer
-            ? `Correct — solved in ${solvedIndex + 1} ${solvedIndex + 1 === 1 ? 'guess' : 'guesses'}.`
+            ? useQuizMode
+              ? 'Correct — nice surgical anatomy pull.'
+              : `Correct — solved in ${solvedIndex + 1} ${solvedIndex + 1 === 1 ? 'guess' : 'guesses'}.`
             : gameOverOnServer
-              ? 'Out of guesses.'
-              : `Not quite. ${MAX_GUESSES - serverGuesses.length} guesses remaining.`
+              ? useQuizMode
+                ? 'Incorrect.'
+                : 'Out of guesses.'
+              : `Not quite. ${maxGuessesForLoadedCase - serverGuesses.length} guesses remaining.`
 
           setGuesses(serverGuesses)
           setGameWon(solvedOnServer)
@@ -884,10 +907,10 @@ function PlayPageContent() {
     }
   }, [caseParam, selectedLevel, selectedDate, today])
 
-  function formatLevel(level: Level) {
+  function formatLevel(level: Level, dateText = selectedDate) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    return 'Attending'
+    return isSurgicalAnatomyDate(dateText) ? 'Surgical Anatomy' : 'Attending'
   }
 
   function formatArchiveDate(dateText: string) {
@@ -913,6 +936,18 @@ function PlayPageContent() {
     )
   }, [dailyCase])
 
+  const surgicalAnatomyChoices = useMemo(
+    () =>
+      [dailyCase?.clue_1, dailyCase?.clue_2, dailyCase?.clue_3, dailyCase?.clue_4].filter(
+        (item): item is string => Boolean(item && item.trim())
+      ),
+    [dailyCase]
+  )
+
+  const useSurgicalAnatomyQuiz = selectedLevel === 'attending' && surgicalAnatomyChoices.length >= 2
+    && isSurgicalAnatomyDate(dailyCase?.case_date || selectedDate)
+  const maxGuessesForCurrentCase = useSurgicalAnatomyQuiz ? 1 : MAX_GUESSES
+
   const roundComplete = gameWon || gameOver
 
   const unlockedFindings = roundComplete
@@ -932,10 +967,10 @@ function PlayPageContent() {
       : null
   const firstImageRevealed =
     Boolean(dailyCase?.image_url) &&
-    (roundComplete || imageRevealStep === null || unlockedFindings >= imageRevealStep)
+    (useSurgicalAnatomyQuiz || roundComplete || imageRevealStep === null || unlockedFindings >= imageRevealStep)
   const secondImageRevealed =
     Boolean(dailyCase?.image_url_2) &&
-    (roundComplete || secondImageRevealStep === null || unlockedFindings >= secondImageRevealStep)
+    (useSurgicalAnatomyQuiz || roundComplete || secondImageRevealStep === null || unlockedFindings >= secondImageRevealStep)
   const imageRevealed = firstImageRevealed || secondImageRevealed
   const visibleImages = [
     firstImageRevealed && dailyCase?.image_url
@@ -1007,8 +1042,8 @@ function PlayPageContent() {
   }
 
   function buildShareText() {
-    const score = gameWon ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`
-    const boxes = Array.from({ length: MAX_GUESSES }, (_, index) => {
+    const score = gameWon ? `${guesses.length}/${maxGuessesForCurrentCase}` : `X/${maxGuessesForCurrentCase}`
+    const boxes = Array.from({ length: maxGuessesForCurrentCase }, (_, index) => {
       const item = guesses[index]
 
       if (!item) return '⬜'
@@ -1450,10 +1485,11 @@ function PlayPageContent() {
     )
   }
 
-  async function submitGuess() {
+  async function submitGuess(submittedGuess?: string, displayGuess?: string) {
     if (!dailyCase || gameWon || gameOver) return
 
-    const currentGuess = guess.trim()
+    const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
+    const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
     const sessionId = getSessionId()
 
     const res = await fetch('/api/guess', {
@@ -1470,7 +1506,7 @@ function PlayPageContent() {
     const data = await res.json()
     const nextGuessCount = guesses.length + 1
 
-    const nextGuesses = [...guesses, { text: currentGuess, correct: data.correct }]
+    const nextGuesses = [...guesses, { text: displayedGuess, correct: data.correct }]
 
     setGuesses(nextGuesses)
     setGuess('')
@@ -1478,10 +1514,11 @@ function PlayPageContent() {
     if (data.correct) {
       setGameWon(true)
       setJustCompletedRound(true)
-      const nextMessage =
-        `Correct — solved in ${nextGuessCount} ${
-          nextGuessCount === 1 ? 'guess' : 'guesses'
-        }.`
+      const nextMessage = useSurgicalAnatomyQuiz
+        ? 'Correct — nice surgical anatomy pull.'
+        : `Correct — solved in ${nextGuessCount} ${
+            nextGuessCount === 1 ? 'guess' : 'guesses'
+          }.`
       setMessage(nextMessage)
       saveRoundProgress({
         caseId: dailyCase.id,
@@ -1504,10 +1541,10 @@ function PlayPageContent() {
 
     triggerShake()
 
-    if (nextGuessCount >= MAX_GUESSES) {
+    if (nextGuessCount >= maxGuessesForCurrentCase) {
       setGameOver(true)
       setJustCompletedRound(true)
-      const nextMessage = 'Out of guesses.'
+      const nextMessage = useSurgicalAnatomyQuiz ? 'Incorrect.' : 'Out of guesses.'
       setMessage(nextMessage)
       saveRoundProgress({
         caseId: dailyCase.id,
@@ -1522,7 +1559,7 @@ function PlayPageContent() {
       return
     }
 
-    const nextMessage = `Not quite. ${MAX_GUESSES - nextGuessCount} guesses remaining.`
+    const nextMessage = `Not quite. ${maxGuessesForCurrentCase - nextGuessCount} guesses remaining.`
     setMessage(nextMessage)
     saveRoundProgress({
       caseId: dailyCase.id,
@@ -1620,14 +1657,26 @@ function PlayPageContent() {
   )
   const nextLevel = nextLevelMap[selectedLevel]
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
+  const homeTabs = useMemo(
+    () =>
+      baseHomeTabs.map(item =>
+        item.type === 'level' && item.key === 'attending'
+          ? {
+              ...item,
+              label: isSurgicalAnatomyDate(selectedDate) ? 'Surgical Anatomy' : 'Attending',
+            }
+          : item
+      ),
+    [selectedDate]
+  )
   const selectedTaglines = useMemo(
     () =>
       ({
         med_student: levelTaglines.med_student[0] || DEFAULT_LEVEL_TAGLINES.med_student[0],
         resident: levelTaglines.resident[0] || DEFAULT_LEVEL_TAGLINES.resident[0],
-        attending: levelTaglines.attending[0] || DEFAULT_LEVEL_TAGLINES.attending[0],
+        attending: isSurgicalAnatomyDate(selectedDate) ? SURGICAL_ANATOMY_SUBTITLE : '',
       }) as Record<Level, string>,
-    [levelTaglines]
+    [levelTaglines, selectedDate]
   )
   const levelStreak = statsSummary.levelStreaks[selectedLevel]?.current || 0
   const activeExpandedImage = visibleImages[expandedImageIndex] || visibleImages[0] || null
@@ -2190,11 +2239,39 @@ function PlayPageContent() {
                 <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
                   <div />
                   <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                    Clinical findings
+                    {useSurgicalAnatomyQuiz ? 'Choose the best answer' : 'Clinical findings'}
                   </div>
                 </div>
 
-                {visibleFindings.length > 0 ? (
+                {useSurgicalAnatomyQuiz ? (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {surgicalAnatomyChoices.map((choice, index) => {
+                      const letter = String.fromCharCode(65 + index)
+                      return (
+                        <button
+                          key={`${choice}-${index}`}
+                          type="button"
+                          disabled={roundComplete}
+                          onClick={() => void submitGuess(stripChoicePrefix(choice), choice)}
+                          className={`rounded-xl border px-3 py-3 text-left transition ${
+                            roundComplete
+                              ? 'cursor-default border-[#ded7ca] bg-[#fbfaf7] text-[#102018]'
+                              : 'border-[#ded7ca] bg-white text-[#102018] hover:border-[#1f6448] hover:bg-[#f7fbf8]'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#ead9b7] bg-[#fffaf1] text-[11px] font-bold text-[#a35d32]">
+                              {letter}
+                            </div>
+                            <p className="font-serif text-[14px] leading-5 tracking-[-0.01em] sm:text-[15px]">
+                              {choice}
+                            </p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                ) : visibleFindings.length > 0 ? (
                   <div className="mt-2 space-y-2">
                     {visibleFindings.map((finding, index) => (
                       <div
@@ -2220,7 +2297,7 @@ function PlayPageContent() {
               </div>
 
               <div ref={inputSectionRef} className="mt-3 border-t border-[#ded7ca] pt-2.5">
-                {!roundComplete && (
+                {!roundComplete && !useSurgicalAnatomyQuiz && (
                   <>
                     <div className="relative">
                       <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
@@ -2249,7 +2326,7 @@ function PlayPageContent() {
                         />
 
                         <button
-                          onClick={submitGuess}
+                          onClick={() => void submitGuess()}
                           disabled={!dailyCase}
                           className="min-h-[40px] rounded-lg bg-[#1f6448] px-3 py-2 text-[11px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                         >
@@ -2268,6 +2345,10 @@ function PlayPageContent() {
                       </p>
                     )}
                   </>
+                )}
+
+                {!roundComplete && useSurgicalAnatomyQuiz && message && (
+                  <p className="text-[11.5px] leading-5 text-[#637268]">{message}</p>
                 )}
 
                 {!roundComplete && canAdvanceToNextLevel && nextLevel && (
@@ -2429,7 +2510,7 @@ function PlayPageContent() {
             </div>
 
             <div className="space-y-1.5">
-              {Array.from({ length: MAX_GUESSES }).map((_, i) => {
+              {Array.from({ length: maxGuessesForCurrentCase }).map((_, i) => {
                 const item = guesses[i]
                 const isLatestCorrect = item?.correct && i === guesses.length - 1 && gameWon
 
@@ -2480,7 +2561,7 @@ function PlayPageContent() {
             </div>
 
             <div className="grid grid-cols-6 gap-1">
-              {Array.from({ length: MAX_GUESSES }).map((_, i) => {
+              {Array.from({ length: maxGuessesForCurrentCase }).map((_, i) => {
                 const item = guesses[i]
 
                 return (
