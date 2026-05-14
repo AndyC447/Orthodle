@@ -132,6 +132,20 @@ type GroupAnnouncementRow = {
   created_at: string
 }
 
+type GroupJoinRequestRow = {
+  id: string
+  group_id: string | null
+  group_name: string
+  requester_session_id: string
+  requester_display_name: string
+  requester_icon: string | null
+  contact_text: string | null
+  note: string | null
+  status: string
+  created_at: string
+  handled_at: string | null
+}
+
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
 const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
@@ -271,10 +285,10 @@ function groupMonogram(name: string) {
 function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
   const dimensions =
     size === 'lg'
-      ? 'h-16 w-16 text-[31px]'
+      ? 'h-[82px] w-[82px] text-[40px]'
       : size === 'sm'
-        ? 'h-9 w-9 text-[20px]'
-        : 'h-12 w-12 text-[24px]'
+        ? 'h-11 w-11 text-[24px]'
+        : 'h-14 w-14 text-[29px]'
 
   return (
     <div
@@ -293,18 +307,27 @@ function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'ic
 function MemberAvatar({
   member,
   size = 'md',
+  crowned = false,
 }: {
   member: Pick<GroupMemberRow, 'display_name' | 'icon'>
   size?: 'sm' | 'md'
+  crowned?: boolean
 }) {
-  const dimensions = size === 'sm' ? 'h-7 w-7 text-[14px]' : 'h-8 w-8 text-[16px]'
+  const dimensions = size === 'sm' ? 'h-8 w-8 text-[16px]' : 'h-10 w-10 text-[20px]'
 
   return (
-    <div
-      className={`orthodle-member-avatar flex shrink-0 items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] font-bold text-[#2d7651] ${dimensions}`}
-      aria-hidden="true"
-    >
-      <IconMark value={member.icon} fallback={member.display_name.slice(0, 1).toUpperCase()} />
+    <div className="relative shrink-0">
+      <div
+        className={`orthodle-member-avatar flex items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] font-bold text-[#2d7651] ${dimensions}`}
+        aria-hidden="true"
+      >
+        <IconMark value={member.icon} fallback={member.display_name.slice(0, 1).toUpperCase()} />
+      </div>
+      {crowned ? (
+        <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#fff6df] text-[11px] shadow-[0_6px_12px_rgba(16,32,24,0.14)] sm:h-[18px] sm:w-[18px] sm:text-[12px]">
+          👑
+        </span>
+      ) : null}
     </div>
   )
 }
@@ -394,7 +417,7 @@ function IconSectionGrid({
                 type="button"
                 disabled={disabled}
                 onClick={() => onSelect(icon.value)}
-                className={`flex h-9 w-full items-center justify-center rounded-xl border text-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                className={`flex h-10 w-full items-center justify-center rounded-xl border text-[21px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
                   tone === 'dark'
                     ? selectedIcon === icon.value
                       ? 'border-[#efbf48] bg-white/16'
@@ -1641,6 +1664,14 @@ export default function GroupsPage() {
     )
   }, [allTimeGuessRows, sessionId])
   const selectedGroupChallenge = buildWeeklyChallenge(selectedWeeklyGroupAggregate)
+  const isViewerCurrentMvp = Boolean(
+    mvpEntry?.stats.member.session_id && mvpEntry.stats.member.session_id === sessionId
+  )
+  const isSelectedMemberCurrentMvp = Boolean(
+    mvpEntry?.stats.member.session_id &&
+      selectedMemberStats?.member.session_id &&
+      mvpEntry.stats.member.session_id === selectedMemberStats.member.session_id
+  )
   const selectedGroupRecap = buildWeeklyRecap(
     selectedWeeklyGroupAggregate,
     selectedWeeklyGroupRank,
@@ -1831,6 +1862,20 @@ export default function GroupsPage() {
       return haystack.includes(query)
     })
   }, [activeGroupAggregates, displayLeaderboard, leaderboardSearch])
+
+  function openGroupInspection(groupId: string) {
+    setSelectedMemberStats(null)
+    setSelectedGroupId(groupId)
+    setYourGroupOpen(true)
+    setActiveGroupsTab('my-group')
+  }
+
+  function openMvpInspection() {
+    if (!mvpEntry) return
+    setSelectedGroupId(mvpEntry.group.id)
+    setYourGroupOpen(true)
+    setSelectedMemberStats(mvpEntry.stats)
+  }
 
   async function syncProfileToAccount(nextDisplayName: string, nextIcon: string | null) {
     if (!accountSession?.accountId) return null
@@ -2611,7 +2656,12 @@ export default function GroupsPage() {
         ) : activeGroupsTab === 'home' ? (
           <div className="space-y-2.5 sm:space-y-3.5">
             <div className="grid grid-cols-1 gap-2.5 sm:gap-4 lg:grid-cols-[0.92fr_1.55fr]">
-              <section className="relative overflow-hidden rounded-[18px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.22),transparent_28%),linear-gradient(145deg,#0b4d36,#042f22)] p-3 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.18)] sm:rounded-[20px] sm:p-4">
+              <button
+                type="button"
+                onClick={() => groupOfWeekAggregate && openGroupInspection(groupOfWeekAggregate.group.id)}
+                disabled={!groupOfWeekAggregate}
+                className="relative overflow-hidden rounded-[18px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.22),transparent_28%),linear-gradient(145deg,#0b4d36,#042f22)] p-3 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(4,47,34,0.22)] disabled:cursor-default sm:rounded-[20px] sm:p-4"
+              >
                 <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.5px,transparent_1.5px)] [background-size:34px_34px]" />
                 <div className="relative">
                   <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f0c247]">
@@ -2638,21 +2688,27 @@ export default function GroupsPage() {
                     </div>
                   </div>
                 </div>
-              </section>
+              </button>
 
-              <section className="rounded-[18px] border border-[#e7e1d6] bg-white p-3 shadow-[0_12px_28px_rgba(16,32,24,0.045)] sm:rounded-[20px] sm:p-4">
+              <button
+                type="button"
+                onClick={openMvpInspection}
+                disabled={!mvpEntry}
+                className="relative overflow-hidden rounded-[18px] border border-[#e7d7bf] bg-[radial-gradient(circle_at_14%_16%,rgba(239,191,72,0.18),transparent_22%),radial-gradient(circle_at_86%_22%,rgba(45,118,81,0.09),transparent_26%),linear-gradient(145deg,#fffef9,#f6fbf7_48%,#fff9ef)] p-3 text-left shadow-[0_14px_32px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_40px_rgba(16,32,24,0.1)] disabled:cursor-default sm:rounded-[20px] sm:p-4"
+              >
+                <div className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle,rgba(214,154,40,0.18)_1.2px,transparent_1.2px)] [background-size:30px_30px]" />
                 <div className="text-center text-[9px] font-bold uppercase tracking-[0.18em] text-[#d69a28]">
                   MVP player
                 </div>
                 {mvpEntry ? (
-                  <div className="mt-2.5 grid gap-2 md:grid-cols-[1fr_1px_1fr] md:items-center">
+                  <div className="relative mt-2.5 grid gap-2 md:grid-cols-[1fr_1px_1fr] md:items-center">
                     <div className="text-center">
-                      <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] shadow-[0_9px_20px_rgba(16,32,24,0.06)] sm:h-24 sm:w-24">
+                      <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] shadow-[0_12px_26px_rgba(16,32,24,0.08)] sm:h-24 sm:w-24">
                         <div className="absolute -top-4 text-[23px] sm:-top-5 sm:text-[28px]">👑</div>
                         <IconMark
                           value={mvpEntry.stats.member.icon}
                           fallback={mvpEntry.stats.member.display_name.slice(0, 1).toUpperCase()}
-                          className="text-[28px] sm:text-[44px]"
+                          className="text-[34px] sm:text-[48px]"
                         />
                       </div>
                       <h2 className="mt-2 font-serif text-[18px] font-bold tracking-[-0.05em] text-[#102018] sm:mt-2.5 sm:text-[22px]">
@@ -2694,8 +2750,8 @@ export default function GroupsPage() {
                         const StatIcon = item.Icon
 
                         return (
-                          <div key={item.label} className="flex items-center gap-2 rounded-[14px] bg-[#fcfbf8] px-2 py-1.5 md:bg-transparent md:px-0 md:py-0">
-                            <div className="flex h-7 w-7 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
+                          <div key={item.label} className="flex items-center gap-2 rounded-[16px] border border-[#ece5d8] bg-white/70 px-2.5 py-2 backdrop-blur-sm md:border-transparent md:bg-transparent md:px-0 md:py-0">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
                               <StatIcon size={15} strokeWidth={2.2} />
                             </div>
                             <div>
@@ -2716,7 +2772,7 @@ export default function GroupsPage() {
                     No MVP yet. First correct solves this week will crown one.
                   </div>
                 )}
-              </section>
+              </button>
             </div>
 
             <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -3248,9 +3304,13 @@ export default function GroupsPage() {
                           <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold sm:h-7 sm:w-7 sm:text-xs ${rankCircleClass(index + 1)}`}>
                             {index + 1}
                           </div>
-                          <MemberAvatar member={entry.member} />
+                          <MemberAvatar
+                            member={entry.member}
+                            crowned={mvpEntry?.stats.member.session_id === entry.member.session_id}
+                          />
                           <div className="min-w-0">
                             <div className="truncate font-serif text-[13px] font-bold text-[#102018] sm:text-[17px]">
+                              {mvpEntry?.stats.member.session_id === entry.member.session_id ? '👑 ' : ''}
                               {entry.member.display_name}
                               {entry.member.session_id === sessionId ? (
                                 <span className="ml-2 rounded-full bg-[#eef7f1] px-2 py-0.5 align-middle text-[10px] font-bold text-[#2d7651]">
@@ -3400,6 +3460,7 @@ export default function GroupsPage() {
                         onClick={() => setIsEditingProfileName(true)}
                         className="mx-auto block max-w-full break-words text-center font-serif text-[28px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[36px]"
                       >
+                        {isViewerCurrentMvp ? '👑 ' : ''}
                         {profileDisplayName}
                       </button>
                     )}
@@ -3612,6 +3673,11 @@ export default function GroupsPage() {
                     fallback={selectedMemberStats.member.display_name.slice(0, 1).toUpperCase()}
                   />
                 </div>
+                {isSelectedMemberCurrentMvp ? (
+                  <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#edd39b] bg-[#fff7df] px-2.5 py-1 text-[11px] font-bold text-[#7d5a12]">
+                    👑 MVP this week
+                  </div>
+                ) : null}
 
                 <div className="mt-4 grid w-full grid-cols-4 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-2.5">
                   {[
@@ -4015,9 +4081,14 @@ export default function GroupsPage() {
                             className="grid grid-cols-[20px_28px_1fr_auto] items-center gap-2 py-1.5"
                           >
                             <div className="text-[11px] font-semibold text-[#102018]">{index + 1}</div>
-                            <MemberAvatar member={entry.member} size="sm" />
+                            <MemberAvatar
+                              member={entry.member}
+                              size="sm"
+                              crowned={mvpEntry?.stats.member.session_id === entry.member.session_id}
+                            />
                             <div className="min-w-0">
                               <div className="truncate text-[11px] font-semibold text-[#102018]">
+                                {mvpEntry?.stats.member.session_id === entry.member.session_id ? '👑 ' : ''}
                                 {entry.member.display_name}
                                 {entry.member.session_id === sessionId ? (
                                   <span className="ml-1 rounded-full bg-[#eef7f1] px-1.5 py-0.5 text-[9px] font-semibold text-[#2d7651]">

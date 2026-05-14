@@ -120,10 +120,10 @@ function groupAvatarLabel(group: Pick<GroupRow, 'name' | 'icon'>) {
 function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
   const dimensions =
     size === 'lg'
-      ? 'h-[74px] w-[74px] text-[36px]'
+      ? 'h-[82px] w-[82px] text-[40px]'
       : size === 'sm'
-        ? 'h-12 w-12 text-[25px]'
-        : 'h-14 w-14 text-[28px]'
+        ? 'h-11 w-11 text-[24px]'
+        : 'h-14 w-14 text-[29px]'
 
   return (
     <div
@@ -146,7 +146,7 @@ function memberAvatarLabel(member: Pick<GroupMemberRow, 'display_name' | 'icon'>
 function MemberAvatar({ member }: { member: Pick<GroupMemberRow, 'display_name' | 'icon'> }) {
   return (
     <div
-      className="orthodle-member-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] text-[16px] font-bold text-[#2d7651]"
+      className="orthodle-member-avatar flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#e0d7c8] bg-[#fbf7ef] text-[20px] font-bold text-[#2d7651]"
       aria-hidden="true"
     >
       <GroupIconMark
@@ -210,7 +210,7 @@ function IconPicker({
                       type="button"
                       disabled={disabled}
                       onClick={() => onSelect(icon.value)}
-                      className={`flex h-9 w-full items-center justify-center rounded-xl border text-[18px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
+                      className={`flex h-10 w-full items-center justify-center rounded-xl border text-[21px] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 ${
                         currentIcon === icon.value
                           ? 'border-[#2d7651] bg-[linear-gradient(145deg,#eef7f1,#ffffff)]'
                           : 'border-[#e6dfd3] bg-white'
