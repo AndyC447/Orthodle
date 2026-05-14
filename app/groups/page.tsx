@@ -1191,6 +1191,7 @@ export default function GroupsPage() {
     icon: DEFAULT_MEMBER_ICON,
   })
   const [accountSession, setAccountSessionState] = useState<AccountSession | null>(null)
+  const [accountRepairKey, setAccountRepairKey] = useState('')
   const [identityVersion, setIdentityVersion] = useState(0)
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup')
   const [authUsername, setAuthUsername] = useState('')
@@ -1356,6 +1357,10 @@ export default function GroupsPage() {
     setCreateMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
     setAuthUsername(savedAccountSession?.username || '')
   }, [])
+
+  useEffect(() => {
+    void repairLinkedAccountIfNeeded()
+  }, [accountSession?.accountId])
 
   useEffect(() => {
     const knownUserMemberships = members.filter(
@@ -1763,6 +1768,34 @@ export default function GroupsPage() {
     setAccountSession(nextSession)
     setAccountSessionState(nextSession)
     return nextSession
+  }
+
+  async function repairLinkedAccountIfNeeded() {
+    if (!accountSession?.accountId) return
+
+    const anonymousSessionId = getAnonymousSessionId()
+    const repairKey = `${accountSession.accountId}:${anonymousSessionId}`
+
+    if (!anonymousSessionId || anonymousSessionId === accountSession.accountId) {
+      setAccountRepairKey(repairKey)
+      return
+    }
+
+    if (accountRepairKey === repairKey) return
+
+    const response = await fetch('/api/account/repair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accountId: accountSession.accountId,
+        anonymousSessionId,
+      }),
+    })
+
+    if (response.ok) {
+      setAccountRepairKey(repairKey)
+      await loadGroupsData()
+    }
   }
 
   async function submitAccountAuth() {
