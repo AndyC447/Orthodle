@@ -4015,8 +4015,8 @@ export default function GroupsPage() {
         ) : null}
 
         {showNotificationsPanel ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
-            <div className="w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
+            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -4069,8 +4069,8 @@ export default function GroupsPage() {
         ) : null}
 
         {showProfileStatGuide ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
-            <div className="w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
+            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -4128,8 +4128,8 @@ export default function GroupsPage() {
         ) : null}
 
         {selectedMemberStats ? (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
-            <div className="w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
+            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
