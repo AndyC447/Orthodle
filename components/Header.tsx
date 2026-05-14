@@ -2,11 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const closeTimerRef = useRef<number | null>(null)
+  const pathname = usePathname()
   const today = new Date()
   const THEME_STORAGE_KEY = 'orthodle_theme'
 
@@ -51,10 +53,22 @@ export function Header() {
     }, 180)
   }
 
+  function handleHomeClick() {
+    if (typeof window === 'undefined') return
+    window.dispatchEvent(new CustomEvent('orthodle:go-home'))
+    if (pathname === '/') {
+      setMenuOpen(false)
+    }
+  }
+
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
       <div className="relative mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-        <Link href="/" className="font-serif text-xl font-semibold text-[#102018]">
+        <Link
+          href="/"
+          onClick={handleHomeClick}
+          className="font-serif text-xl font-semibold text-[#102018]"
+        >
           <span className="flex items-center gap-2">
             <span className="text-[#c96b37] text-lg">●</span>
             Orthodle

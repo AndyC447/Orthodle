@@ -2052,6 +2052,33 @@ function PlayPageContent() {
   }, [isMobileInputFocused])
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleGoHome = () => {
+      if (selectedDate === today && !caseParam) return
+      setSelectedDate(today)
+      setMessage('')
+      setJustCompletedRound(false)
+      setGuess('')
+    }
+
+    window.addEventListener('orthodle:go-home', handleGoHome)
+    return () => window.removeEventListener('orthodle:go-home', handleGoHome)
+  }, [caseParam, selectedDate, today])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (!caseParam && selectedDate === today) return
+
+    const params = new URLSearchParams()
+    if (selectedLevel !== 'med_student') {
+      params.set('level', selectedLevel)
+    }
+    const nextUrl = params.toString() ? `/?${params.toString()}` : '/'
+    window.history.replaceState({}, '', nextUrl)
+  }, [caseParam, selectedDate, selectedLevel, today])
+
+  useEffect(() => {
     if (!dailyCase || !roundComplete || guesses.length === 0) return
 
     recordGameResult({
@@ -2673,6 +2700,34 @@ function PlayPageContent() {
 
       <div className={`mx-auto w-full max-w-[700px] px-4 py-1 pb-3 sm:px-0 sm:pb-8 ${hasMobileInteraction ? 'pt-1.5' : 'pt-1'}`}>
         <section className="space-y-4">
+          {!onTodayCard && (
+            <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:px-4">
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a24d24]">
+                    Archive case
+                  </div>
+                  <p className="mt-1 text-[12px] leading-5 text-[#6d665d] sm:text-[13px]">
+                    You’re viewing the {formatLevel(selectedLevel)} case from {formatArchiveDate(selectedDate)}.
+                    Refresh the page or tap Orthodle to jump back to today.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDate(today)
+                    setMessage('')
+                    setJustCompletedRound(false)
+                    setGuess('')
+                  }}
+                  className="inline-flex h-9 items-center justify-center rounded-full border border-[#1f6448] bg-white px-3.5 text-[11px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:text-[12px]"
+                >
+                  Return to today
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className={`orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-3.5 sm:py-4 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'}`}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
