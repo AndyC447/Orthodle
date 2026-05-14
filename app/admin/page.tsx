@@ -187,8 +187,8 @@ type HomepageSurveyRow = {
 }
 
 type AdminSidebarSectionId =
-  | 'case_generator'
   | 'button_subtitles'
+  | 'case_stats'
   | 'analytics'
   | 'homepage_notes'
   | 'surveys'
@@ -214,8 +214,8 @@ const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
 const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
-  'case_generator',
   'button_subtitles',
+  'case_stats',
   'analytics',
   'homepage_notes',
   'surveys',
@@ -2094,21 +2094,19 @@ export default function AdminPage() {
   }
 
   const sidebarSections: Record<AdminSidebarSectionId, ReactNode> = {
-    case_generator: (
-      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <Link href="/admin/case-generator" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
-          Case Generator
-        </Link>
-        <p className="mt-2 text-sm text-[#8a948d]">
-          Build scheduled case drafts across med student, resident, and attending.
-        </p>
-      </section>
-    ),
     button_subtitles: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <Link href="/admin/taglines" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
           Button Subtitles
         </Link>
+      </section>
+    ),
+    case_stats: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <Link href="/admin/case-stats" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
+          Case Stats
+        </Link>
+        <p className="mt-2 text-sm text-[#8a948d]">Cumulative level trends and case performance</p>
       </section>
     ),
     homepage_notes: (
