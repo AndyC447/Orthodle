@@ -721,7 +721,7 @@ export default function AdminPage() {
       issues.push('Image reveal is set, but no image is attached.')
     }
 
-    if (imageUrl && imageRevealClue !== 'none') {
+    if (imageUrl && imageRevealClue !== 'none' && imageRevealClue !== 'after') {
       const revealIndex = Number(imageRevealClue)
       const clueAtReveal = [clue1, clue2, clue3, clue4, clue5, clue6][revealIndex - 1]
 
@@ -734,7 +734,7 @@ export default function AdminPage() {
       issues.push('Second image reveal is set, but no second image is attached.')
     }
 
-    if (imageUrl2 && imageRevealClue2 !== 'none') {
+    if (imageUrl2 && imageRevealClue2 !== 'none' && imageRevealClue2 !== 'after') {
       const revealIndex = Number(imageRevealClue2)
       const clueAtReveal = [clue1, clue2, clue3, clue4, clue5, clue6][revealIndex - 1]
 
@@ -869,6 +869,8 @@ export default function AdminPage() {
     nextClues: string[],
     options?: { hasImage1?: boolean; hasImage2?: boolean }
   ) {
+    if (level === 'attending') return
+
     const firstIndex = firstShownAboveClueIndex(nextClues)
     const secondIndex = secondShownAboveClueIndex(nextClues)
     const hasImage1 = options?.hasImage1 ?? Boolean(imageUrl)
@@ -898,6 +900,22 @@ export default function AdminPage() {
     setClue6(nextClues[5])
 
     syncImageRevealFromClues(nextClues)
+  }
+
+  function normalizeImageRevealValueForEditor(value: number | null | undefined) {
+    if (value === 0) return 'after'
+    if (value && value >= 1 && value <= 6) return String(value)
+    return 'none'
+  }
+
+  function formatImageRevealSummary(value: string, imageNumber: 1 | 2) {
+    if (value === 'after') return `Image ${imageNumber} reveals after the answer as a teaching moment.`
+    if (value === 'none') {
+      return level === 'attending'
+        ? `Image ${imageNumber} shows before the answer choices.`
+        : `Image ${imageNumber} shows immediately.`
+    }
+    return `Image ${imageNumber} reveals with clue ${value}.`
   }
 
   function wrapTeachingPointSelection(format: 'bold' | 'italic' | 'underline') {
@@ -1053,18 +1071,10 @@ export default function AdminPage() {
     setSynonyms((c.synonyms || []).join(', '))
     setImageUrl(c.image_url || '')
     setImageCredit(c.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
-    setImageRevealClue(
-      c.image_reveal_clue && c.image_reveal_clue >= 1 && c.image_reveal_clue <= 6
-        ? String(c.image_reveal_clue)
-        : 'none'
-    )
+    setImageRevealClue(normalizeImageRevealValueForEditor(c.image_reveal_clue))
     setImageUrl2(c.image_url_2 || '')
     setImageCredit2(c.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
-    setImageRevealClue2(
-      c.image_reveal_clue_2 && c.image_reveal_clue_2 >= 1 && c.image_reveal_clue_2 <= 6
-        ? String(c.image_reveal_clue_2)
-        : 'none'
-    )
+    setImageRevealClue2(normalizeImageRevealValueForEditor(c.image_reveal_clue_2))
     setClue1(c.clue_1 || '')
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
@@ -1087,18 +1097,10 @@ export default function AdminPage() {
     setSynonyms((submission.synonyms || []).join(', '))
     setImageUrl(submission.image_url || '')
     setImageCredit(submission.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
-    setImageRevealClue(
-      submission.image_reveal_clue && submission.image_reveal_clue >= 1 && submission.image_reveal_clue <= 6
-        ? String(submission.image_reveal_clue)
-        : 'none'
-    )
+    setImageRevealClue(normalizeImageRevealValueForEditor(submission.image_reveal_clue))
     setImageUrl2(submission.image_url_2 || '')
     setImageCredit2(submission.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
-    setImageRevealClue2(
-      submission.image_reveal_clue_2 && submission.image_reveal_clue_2 >= 1 && submission.image_reveal_clue_2 <= 6
-        ? String(submission.image_reveal_clue_2)
-        : 'none'
-    )
+    setImageRevealClue2(normalizeImageRevealValueForEditor(submission.image_reveal_clue_2))
     setClue1(submission.clue_1 || '')
     setClue2(submission.clue_2 || '')
     setClue3(submission.clue_3 || '')
@@ -1974,9 +1976,17 @@ export default function AdminPage() {
     const savedImageCredit2 = normalizeCreditValue(imageCredit2)
 
     const parsedImageRevealClue =
-      imageUrl && imageRevealClue !== 'none' ? Number(imageRevealClue) : null
+      imageUrl && imageRevealClue !== 'none'
+        ? imageRevealClue === 'after'
+          ? 0
+          : Number(imageRevealClue)
+        : null
     const parsedImageRevealClue2 =
-      imageUrl2 && imageRevealClue2 !== 'none' ? Number(imageRevealClue2) : null
+      imageUrl2 && imageRevealClue2 !== 'none'
+        ? imageRevealClue2 === 'after'
+          ? 0
+          : Number(imageRevealClue2)
+        : null
 
     const { error } = await supabase.from('cases').upsert(
       {
@@ -3221,19 +3231,28 @@ export default function AdminPage() {
                       />
                     </label>
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      Image 1 Reveal
+                      {level === 'attending' ? 'Image 1 Timing' : 'Image 1 Reveal'}
                       <select
                         value={imageRevealClue}
                         onChange={e => setImageRevealClue(e.target.value)}
                         className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       >
-                        <option value="none">Show immediately</option>
-                        <option value="1">Reveal with Clue 1</option>
-                        <option value="2">Reveal with Clue 2</option>
-                        <option value="3">Reveal with Clue 3</option>
-                        <option value="4">Reveal with Clue 4</option>
-                        <option value="5">Reveal with Clue 5</option>
-                        <option value="6">Reveal with Clue 6</option>
+                        {level === 'attending' ? (
+                          <>
+                            <option value="none">Show before answer</option>
+                            <option value="after">Reveal after answer</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="none">Show immediately</option>
+                            <option value="1">Reveal with Clue 1</option>
+                            <option value="2">Reveal with Clue 2</option>
+                            <option value="3">Reveal with Clue 3</option>
+                            <option value="4">Reveal with Clue 4</option>
+                            <option value="5">Reveal with Clue 5</option>
+                            <option value="6">Reveal with Clue 6</option>
+                          </>
+                        )}
                       </select>
                     </label>
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -3285,19 +3304,28 @@ export default function AdminPage() {
                       />
                     </label>
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      Image 2 Reveal
+                      {level === 'attending' ? 'Image 2 Timing' : 'Image 2 Reveal'}
                       <select
                         value={imageRevealClue2}
                         onChange={e => setImageRevealClue2(e.target.value)}
                         className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       >
-                        <option value="none">Show immediately</option>
-                        <option value="1">Reveal with Clue 1</option>
-                        <option value="2">Reveal with Clue 2</option>
-                        <option value="3">Reveal with Clue 3</option>
-                        <option value="4">Reveal with Clue 4</option>
-                        <option value="5">Reveal with Clue 5</option>
-                        <option value="6">Reveal with Clue 6</option>
+                        {level === 'attending' ? (
+                          <>
+                            <option value="none">Show before answer</option>
+                            <option value="after">Reveal after answer</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="none">Show immediately</option>
+                            <option value="1">Reveal with Clue 1</option>
+                            <option value="2">Reveal with Clue 2</option>
+                            <option value="3">Reveal with Clue 3</option>
+                            <option value="4">Reveal with Clue 4</option>
+                            <option value="5">Reveal with Clue 5</option>
+                            <option value="6">Reveal with Clue 6</option>
+                          </>
+                        )}
                       </select>
                     </label>
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -3362,7 +3390,7 @@ export default function AdminPage() {
               <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
                 {level === 'attending' && (
                   <div className="mb-3 rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-xs text-[#8a5a2b]">
-                    This mode now plays as a surgical anatomy multiple-choice quiz. Use Clues 1–4 as answer choices, keep the correct answer in the Answer field, and use the Teaching Point for the explanation and takeaway.
+                    This mode now plays as a surgical anatomy multiple-choice quiz. Use Choices A–D as the options, keep the correct answer in the Answer field, and use the Teaching Point for the explanation and takeaway. Images can show before the click or reveal afterward as the teaching moment.
                   </div>
                 )}
                 <div className="grid gap-2.5 sm:grid-cols-2">
@@ -3733,9 +3761,7 @@ export default function AdminPage() {
                                   <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit)}</p>
                                 )}
                                 <p className="mt-1 text-[11px] text-[#637268]">
-                                  {imageRevealClue === 'none'
-                                    ? 'Image 1 shows immediately.'
-                                    : `Image 1 reveals with clue ${imageRevealClue}.`}
+                                  {formatImageRevealSummary(imageRevealClue, 1)}
                                 </p>
                               </div>
                             )}
@@ -3750,9 +3776,7 @@ export default function AdminPage() {
                                   <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit2)}</p>
                                 )}
                                 <p className="mt-1 text-[11px] text-[#637268]">
-                                  {imageRevealClue2 === 'none'
-                                    ? 'Image 2 shows immediately.'
-                                    : `Image 2 reveals with clue ${imageRevealClue2}.`}
+                                  {formatImageRevealSummary(imageRevealClue2, 2)}
                                 </p>
                               </div>
                             )}
@@ -3761,7 +3785,7 @@ export default function AdminPage() {
 
                         <div className="night-soft-surface rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
                           <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-                            Clinical findings
+                            {level === 'attending' ? 'Click your answer' : 'Clinical findings'}
                           </div>
                           {previewClues.length > 0 ? (
                             <ul className="mt-2 space-y-2">
