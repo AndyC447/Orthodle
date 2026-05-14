@@ -98,17 +98,27 @@ type HomepageSurveyRow = {
   end_date: string | null
 }
 
+type AnatomySurveyRow = {
+  id: string
+  question: string
+  option_1: string
+  option_2: string
+  option_3: string
+  start_date: string
+  end_date: string | null
+}
+
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
 const HOMEPAGE_SURVEY_DISMISS_KEY = 'orthodle_dismissed_homepage_survey'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
+const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
 const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
 
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-15'
-const SURGICAL_ANATOMY_SUBTITLE = 'QUIZ'
 
 const levels = [
   { key: 'med_student' as Level, label: 'Med Student' },
@@ -336,6 +346,10 @@ function PlayPageContent() {
   const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
   const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
   const [homepageSurveyStatus, setHomepageSurveyStatus] = useState('')
+  const [anatomySurvey, setAnatomySurvey] = useState<AnatomySurveyRow | null>(null)
+  const [submittedAnatomySurveyChoice, setSubmittedAnatomySurveyChoice] = useState<string | null>(null)
+  const [isSubmittingAnatomySurvey, setIsSubmittingAnatomySurvey] = useState(false)
+  const [anatomySurveyStatus, setAnatomySurveyStatus] = useState('')
   const [showTutorial, setShowTutorial] = useState(false)
   const [resumeRound, setResumeRound] = useState<ReturnType<typeof getLatestUnfinishedRoundProgress>>(null)
   const [dailySummary, setDailySummary] = useState({
@@ -606,6 +620,36 @@ function PlayPageContent() {
     }
   }
 
+  async function submitAnatomySurvey(choice: string) {
+    if (!anatomySurvey?.id || submittedAnatomySurveyChoice || isSubmittingAnatomySurvey) return
+
+    setIsSubmittingAnatomySurvey(true)
+    setAnatomySurveyStatus('')
+    const trackingDisabled = isTrackingDisabledForThisBrowser()
+
+    try {
+      if (!isLocalhostBrowser() && !trackingDisabled) {
+        await supabase.from('anatomy_case_survey_responses').insert({
+          survey_id: anatomySurvey.id,
+          response: choice,
+          session_id: getSessionId() || null,
+          case_id: dailyCase?.id || null,
+          case_date: dailyCase?.case_date || selectedDate,
+          level: dailyCase?.level || selectedLevel,
+        })
+      }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(`${ANATOMY_SURVEY_STORAGE_PREFIX}:${anatomySurvey.id}`, choice)
+      }
+
+      setSubmittedAnatomySurveyChoice(choice)
+      setAnatomySurveyStatus('Thanks for the feedback.')
+    } finally {
+      setIsSubmittingAnatomySurvey(false)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
 
@@ -648,6 +692,59 @@ function PlayPageContent() {
     }
 
     void loadHomepageSurvey()
+
+    return () => {
+      cancelled = true
+    }
+  }, [today])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadAnatomySurvey() {
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+      const { data, error } = await supabase
+        .from('anatomy_case_surveys')
+        .select('id, question, option_1, option_2, option_3, start_date, end_date')
+        .lte('start_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order('start_date', { ascending: false })
+        .limit(1)
+
+      if (cancelled) return
+
+      if (error) {
+        setAnatomySurvey(null)
+        return
+      }
+
+      const activeSurvey = (data as AnatomySurveyRow[] | null)?.[0] || null
+      if (activeSurvey?.question?.trim()) {
+        setAnatomySurvey(activeSurvey)
+        return
+      }
+
+      if (!isLocalhost) {
+        setAnatomySurvey(null)
+        return
+      }
+
+      const { data: upcomingData } = await supabase
+        .from('anatomy_case_surveys')
+        .select('id, question, option_1, option_2, option_3, start_date, end_date')
+        .gte('start_date', today)
+        .order('start_date', { ascending: true })
+        .limit(1)
+
+      if (cancelled) return
+
+      setAnatomySurvey((upcomingData as AnatomySurveyRow[] | null)?.[0] || null)
+    }
+
+    void loadAnatomySurvey()
 
     return () => {
       cancelled = true
@@ -1704,9 +1801,9 @@ function PlayPageContent() {
       ({
         med_student: levelTaglines.med_student[0] || DEFAULT_LEVEL_TAGLINES.med_student[0],
         resident: levelTaglines.resident[0] || DEFAULT_LEVEL_TAGLINES.resident[0],
-        attending: isSurgicalAnatomyDate(selectedDate) ? SURGICAL_ANATOMY_SUBTITLE : '',
+        attending: levelTaglines.attending[0] || DEFAULT_LEVEL_TAGLINES.attending[0],
       }) as Record<Level, string>,
-    [levelTaglines, selectedDate]
+    [levelTaglines]
   )
   const levelStreak = statsSummary.levelStreaks[selectedLevel]?.current || 0
   const activeExpandedImage = visibleImages[expandedImageIndex] || visibleImages[0] || null
@@ -1759,6 +1856,12 @@ function PlayPageContent() {
     Boolean(homepageSurvey) &&
     homepageSurveyKey !== dismissedHomepageSurveyKey &&
     !submittedHomepageSurveyChoice
+  const anatomySurveyStorageKey = anatomySurvey?.id ? `${ANATOMY_SURVEY_STORAGE_PREFIX}:${anatomySurvey.id}` : null
+  const shouldShowAnatomySurvey =
+    roundComplete &&
+    useSurgicalAnatomyQuiz &&
+    Boolean(anatomySurvey) &&
+    !submittedAnatomySurveyChoice
   const topBannerCount = Number(showHomepageAnnouncement) + Number(showHomepageSurvey)
 
   function dismissHomepageAnnouncement() {
@@ -1778,6 +1881,16 @@ function PlayPageContent() {
     window.localStorage.setItem(TUTORIAL_DISMISS_KEY, 'true')
     setShowTutorial(false)
   }
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !anatomySurveyStorageKey) {
+      setSubmittedAnatomySurveyChoice(null)
+      return
+    }
+
+    const savedChoice = window.localStorage.getItem(anatomySurveyStorageKey)
+    setSubmittedAnatomySurveyChoice(savedChoice)
+  }, [anatomySurveyStorageKey])
 
   return (
     <main className="app-surface min-h-screen">
@@ -2847,12 +2960,50 @@ function PlayPageContent() {
                       ))}
                     </div>
                   )}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {shouldShowAnatomySurvey && anatomySurvey && (
+                  <div className="night-soft-surface rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-2.5 sm:p-3">
+                    <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                      Anatomy survey
+                    </div>
+                    <div className="mx-auto max-w-[560px]">
+                      <div className="text-center text-[12px] leading-5 text-[#102018] sm:text-[13px]">
+                        {anatomySurvey.question}
+                      </div>
+                      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                        {[anatomySurvey.option_1, anatomySurvey.option_2, anatomySurvey.option_3].map(option => {
+                          const isSelected = submittedAnatomySurveyChoice === option
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() => void submitAnatomySurvey(option)}
+                              disabled={Boolean(submittedAnatomySurveyChoice) || isSubmittingAnatomySurvey}
+                              className={`min-w-0 rounded-lg border px-2 py-1.5 text-[10px] font-semibold leading-tight transition sm:px-2.5 sm:py-2 ${
+                                isSelected
+                                  ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                              } disabled:cursor-not-allowed disabled:opacity-80`}
+                            >
+                              {option}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {anatomySurveyStatus && (
+                        <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
+                          {anatomySurveyStatus}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
     </main>
   )
 }

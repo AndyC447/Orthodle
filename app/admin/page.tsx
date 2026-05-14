@@ -186,6 +186,18 @@ type HomepageSurveyRow = {
   response_counts?: Record<string, number>
 }
 
+type AnatomySurveyRow = {
+  id: string
+  question: string
+  option_1: string
+  option_2: string
+  option_3: string
+  start_date: string
+  end_date: string | null
+  created_at: string
+  response_counts?: Record<string, number>
+}
+
 type AdminSidebarSectionId =
   | 'button_subtitles'
   | 'case_stats'
@@ -343,6 +355,16 @@ export default function AdminPage() {
   const [surveyStartDate, setSurveyStartDate] = useState(shiftISODate(today, 1))
   const [surveyEndDate, setSurveyEndDate] = useState(shiftISODate(today, 1))
   const [editingSurveyId, setEditingSurveyId] = useState<string | null>(null)
+  const [anatomySurveys, setAnatomySurveys] = useState<AnatomySurveyRow[]>([])
+  const [anatomySurveyQuestion, setAnatomySurveyQuestion] = useState(
+    'Do you like the new anatomy quiz format, or would you rather have a third case?'
+  )
+  const [anatomySurveyOption1, setAnatomySurveyOption1] = useState('I like the anatomy quiz')
+  const [anatomySurveyOption2, setAnatomySurveyOption2] = useState('I prefer a third case')
+  const [anatomySurveyOption3, setAnatomySurveyOption3] = useState('I like both')
+  const [anatomySurveyStartDate, setAnatomySurveyStartDate] = useState(shiftISODate(today, 1))
+  const [anatomySurveyEndDate, setAnatomySurveyEndDate] = useState(shiftISODate(today, 1))
+  const [editingAnatomySurveyId, setEditingAnatomySurveyId] = useState<string | null>(null)
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showAnalytics, setShowAnalytics] = useState(true)
@@ -426,6 +448,7 @@ export default function AdminPage() {
     loadHomepageAnnouncements()
     loadGroupAnnouncements()
     loadHomepageSurveys()
+    loadAnatomySurveys()
 
     if (typeof window !== 'undefined') {
       try {
@@ -1628,6 +1651,58 @@ export default function AdminPage() {
     )
   }
 
+  async function loadAnatomySurveys() {
+    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
+    const { data, error } = await supabase
+      .from('anatomy_case_surveys')
+      .select('id, question, option_1, option_2, option_3, start_date, end_date, created_at')
+      .order('start_date', { ascending: false })
+
+    if (error) {
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Anatomy surveys are not set up yet. Run the new SQL once, then try again.'
+          : `Could not load anatomy surveys: ${error.message}`
+      )
+      return
+    }
+
+    const surveys = (data as AnatomySurveyRow[] | null) || []
+    if (surveys.length === 0) {
+      setAnatomySurveys([])
+      return
+    }
+
+    const surveyIds = surveys.map(item => item.id)
+    const { data: responseData } = await supabase
+      .from('anatomy_case_survey_responses')
+      .select('survey_id, response, session_id')
+      .in('survey_id', surveyIds)
+
+    const countsBySurvey = new Map<string, Record<string, number>>()
+
+    for (const survey of surveys) {
+      countsBySurvey.set(survey.id, {
+        [survey.option_1]: 0,
+        [survey.option_2]: 0,
+        [survey.option_3]: 0,
+      })
+    }
+
+    for (const row of filterExcludedSessionRows(responseData || [], excludedSessionIdSet)) {
+      const existing = countsBySurvey.get(row.survey_id)
+      if (!existing) continue
+      existing[row.response] = (existing[row.response] || 0) + 1
+    }
+
+    setAnatomySurveys(
+      surveys.map(item => ({
+        ...item,
+        response_counts: countsBySurvey.get(item.id) || {},
+      }))
+    )
+  }
+
   function resetAnnouncementForm() {
     setEditingAnnouncementId(null)
     setAnnouncementMessage('')
@@ -1764,6 +1839,16 @@ export default function AdminPage() {
     setSurveyEndDate(tomorrow)
   }
 
+  function resetAnatomySurveyForm() {
+    setEditingAnatomySurveyId(null)
+    setAnatomySurveyQuestion('Do you like the new anatomy quiz format, or would you rather have a third case?')
+    setAnatomySurveyOption1('I like the anatomy quiz')
+    setAnatomySurveyOption2('I prefer a third case')
+    setAnatomySurveyOption3('I like both')
+    setAnatomySurveyStartDate(tomorrow)
+    setAnatomySurveyEndDate(tomorrow)
+  }
+
   async function saveHomepageSurvey() {
     const question = surveyQuestion.trim()
     const option1 = surveyOption1.trim()
@@ -1798,6 +1883,44 @@ export default function AdminPage() {
     await loadHomepageSurveys()
   }
 
+  async function saveAnatomySurvey() {
+    const question = anatomySurveyQuestion.trim()
+    const option1 = anatomySurveyOption1.trim()
+    const option2 = anatomySurveyOption2.trim()
+    const option3 = anatomySurveyOption3.trim()
+
+    if (!question || !option1 || !option2 || !option3) {
+      setStatus('Add an anatomy survey question and all three answer choices before saving.')
+      return
+    }
+
+    const payload = {
+      question,
+      option_1: option1,
+      option_2: option2,
+      option_3: option3,
+      start_date: anatomySurveyStartDate,
+      end_date: anatomySurveyEndDate || null,
+    }
+
+    const result = editingAnatomySurveyId
+      ? await supabase.from('anatomy_case_surveys').update(payload).eq('id', editingAnatomySurveyId)
+      : await supabase.from('anatomy_case_surveys').insert(payload)
+
+    if (result.error) {
+      setStatus(
+        result.error.message.includes('relation') || result.error.message.includes('does not exist')
+          ? 'Anatomy surveys are not set up yet. Run the new SQL once, then try again.'
+          : `Could not save the anatomy survey: ${result.error.message}`
+      )
+      return
+    }
+
+    setStatus(editingAnatomySurveyId ? 'Anatomy survey updated.' : 'Anatomy survey scheduled.')
+    resetAnatomySurveyForm()
+    await loadAnatomySurveys()
+  }
+
   function editHomepageSurvey(item: HomepageSurveyRow) {
     setEditingSurveyId(item.id)
     setSurveyQuestion(item.question)
@@ -1806,6 +1929,17 @@ export default function AdminPage() {
     setSurveyOption3(item.option_3)
     setSurveyStartDate(item.start_date)
     setSurveyEndDate(item.end_date || item.start_date)
+    setStatus('')
+  }
+
+  function editAnatomySurvey(item: AnatomySurveyRow) {
+    setEditingAnatomySurveyId(item.id)
+    setAnatomySurveyQuestion(item.question)
+    setAnatomySurveyOption1(item.option_1)
+    setAnatomySurveyOption2(item.option_2)
+    setAnatomySurveyOption3(item.option_3)
+    setAnatomySurveyStartDate(item.start_date)
+    setAnatomySurveyEndDate(item.end_date || item.start_date)
     setStatus('')
   }
 
@@ -1823,6 +1957,26 @@ export default function AdminPage() {
 
     setStatus('Homepage survey deleted.')
     setHomepageSurveys(prev => prev.filter(item => item.id !== id))
+  }
+
+  async function deleteAnatomySurvey(id: string) {
+    const { error } = await supabase.from('anatomy_case_surveys').delete().eq('id', id)
+
+    if (error) {
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Anatomy surveys are not set up yet. Run the new SQL once, then try again.'
+          : `Could not delete the anatomy survey: ${error.message}`
+      )
+      return
+    }
+
+    if (editingAnatomySurveyId === id) {
+      resetAnatomySurveyForm()
+    }
+
+    setStatus('Anatomy survey deleted.')
+    setAnatomySurveys(prev => prev.filter(item => item.id !== id))
   }
 
   async function loadCaseCommunityStats() {
@@ -2424,6 +2578,161 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-5 border-t border-[#ebe5db] pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Anatomy post-solve survey
+                </div>
+                <p className="mt-1 text-[12px] leading-5 text-[#637268]">
+                  Shows at the bottom of the anatomy case after someone answers it.
+                </p>
+              </div>
+              <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                {anatomySurveys.length} scheduled
+              </div>
+            </div>
+
+            <div className="mt-3 space-y-2.5">
+              <textarea
+                value={anatomySurveyQuestion}
+                onChange={e => setAnatomySurveyQuestion(e.target.value)}
+                rows={2}
+                placeholder="Ask whether people like anatomy mode or prefer a third case"
+                className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+
+              <div className="grid gap-2 sm:grid-cols-3">
+                <input
+                  type="text"
+                  value={anatomySurveyOption1}
+                  onChange={e => setAnatomySurveyOption1(e.target.value)}
+                  placeholder="Option 1"
+                  className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+                <input
+                  type="text"
+                  value={anatomySurveyOption2}
+                  onChange={e => setAnatomySurveyOption2(e.target.value)}
+                  placeholder="Option 2"
+                  className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+                <input
+                  type="text"
+                  value={anatomySurveyOption3}
+                  onChange={e => setAnatomySurveyOption3(e.target.value)}
+                  placeholder="Option 3"
+                  className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                  Start
+                  <input
+                    type="date"
+                    value={anatomySurveyStartDate}
+                    onChange={e => setAnatomySurveyStartDate(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                </label>
+
+                <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                  End
+                  <input
+                    type="date"
+                    value={anatomySurveyEndDate}
+                    onChange={e => setAnatomySurveyEndDate(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                </label>
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => void saveAnatomySurvey()}
+                  className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
+                >
+                  {editingAnatomySurveyId ? 'Update anatomy survey' : 'Schedule anatomy survey'}
+                </button>
+                {editingAnatomySurveyId && (
+                  <button
+                    type="button"
+                    onClick={resetAnatomySurveyForm}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Anatomy survey preview
+                </div>
+                <div className="mt-2 text-[13px] leading-5 text-[#102018]">
+                  {anatomySurveyQuestion.trim() || 'Your anatomy survey will preview here.'}
+                </div>
+                <div className="mt-3 flex flex-wrap justify-center gap-2">
+                  {[anatomySurveyOption1, anatomySurveyOption2, anatomySurveyOption3].map((option, index) => (
+                    <div
+                      key={`${option}-${index}`}
+                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[11px] font-semibold text-[#102018]"
+                    >
+                      {option.trim() || `Option ${index + 1}`}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {anatomySurveys.map(item => (
+                  <div
+                    key={item.id}
+                    className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-2.5"
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <div className="text-[12px] font-semibold text-[#102018]">{item.question}</div>
+                        <div className="mt-1 flex flex-wrap gap-1.5">
+                          {[item.option_1, item.option_2, item.option_3].map(option => (
+                            <span
+                              key={option}
+                              className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#637268]"
+                            >
+                              {option} · {item.response_counts?.[option] || 0}
+                            </span>
+                          ))}
+                        </div>
+                        <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#8a948d]">
+                          {item.start_date}
+                          {item.end_date ? ` → ${item.end_date}` : ''}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => editAnatomySurvey(item)}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void deleteAnatomySurvey(item.id)}
+                          className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
         )}
