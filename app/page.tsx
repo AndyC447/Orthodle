@@ -1889,7 +1889,7 @@ function PlayPageContent() {
 
       <section className={`mx-auto max-w-5xl px-4 text-center sm:px-6 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {onTodayCard && todayComplete && (
-          <div className="orthodle-panel-shell mx-auto mt-3 max-w-lg rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)] sm:max-w-[560px] sm:px-5 sm:py-3.5">
+          <div className="orthodle-panel-shell mx-auto mt-3 w-full max-w-[700px] rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)] sm:px-5 sm:py-3.5">
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
               Daily card complete
             </div>
@@ -1940,7 +1940,7 @@ function PlayPageContent() {
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (
-          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-2.5">
+          <div className="orthodle-fade-up mx-auto mt-2 w-full max-w-[700px] rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-2.5">
             <div className="flex items-start justify-between gap-3">
               <p className="flex-1 text-[11.5px] leading-4.5 text-[#102018] sm:text-[13px] sm:leading-5">
                 {homepageAnnouncement.message}
@@ -1958,8 +1958,8 @@ function PlayPageContent() {
         )}
 
         {showHomepageSurvey && homepageSurvey && (
-          <div className="orthodle-fade-up mx-auto mt-2 max-w-lg rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="mx-auto max-w-[430px]">
+          <div className="orthodle-fade-up mx-auto mt-2 w-full max-w-[700px] rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="mx-auto max-w-[560px]">
               <div className="text-center text-[8.5px] font-medium leading-[1.2] text-[#102018] sm:text-[12px]">
                 {homepageSurvey.question}
               </div>
@@ -1992,7 +1992,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`mx-auto w-full max-w-[668px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`mx-auto w-full max-w-[700px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
             {homeTabs.map(item => {
               if (item.type === 'link') {
