@@ -140,7 +140,7 @@ export default function AdminTaglinesPage() {
   function formatLevel(level: Level) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    return 'Attending'
+    return 'Anatomy'
   }
 
   if (!authReady) {

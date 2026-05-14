@@ -66,7 +66,7 @@ export default function OpenGraphImage() {
             >
               <div>Med Student</div>
               <div>Resident</div>
-              <div>Attending</div>
+              <div>Anatomy</div>
             </div>
           </div>
 

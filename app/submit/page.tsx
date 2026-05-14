@@ -295,7 +295,7 @@ export default function SubmitCasePage() {
                   <option value="any">Any level</option>
                   <option value="med_student">Med Student</option>
                   <option value="resident">Resident</option>
-                  <option value="attending">Attending</option>
+                  <option value="attending">Anatomy</option>
                 </select>
               </label>
             </div>
@@ -378,7 +378,7 @@ export default function SubmitCasePage() {
               >
                 <option value="med_student">Med Student</option>
                 <option value="resident">Resident</option>
-                <option value="attending">Attending</option>
+                <option value="attending">Anatomy</option>
               </select>
             </label>
 

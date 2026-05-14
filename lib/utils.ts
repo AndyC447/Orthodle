@@ -488,7 +488,7 @@ export function clearStatsSummary() {
 export function getStatsLevelLabel(level: StatsLevel) {
   if (level === 'med_student') return 'Med Student'
   if (level === 'resident') return 'Resident'
-  return 'Attending'
+  return 'Anatomy'
 }
 
 export function recordGameResult(result: Omit<StoredGameResult, 'key' | 'completedAt'>) {

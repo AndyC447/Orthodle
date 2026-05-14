@@ -781,7 +781,7 @@ export default function AdminPage() {
   function formatLevel(levelValue: Level) {
     if (levelValue === 'med_student') return 'Med Student'
     if (levelValue === 'resident') return 'Resident'
-    return 'Attending'
+    return 'Anatomy'
   }
 
   function formatPercent(value: number) {
@@ -797,11 +797,12 @@ export default function AdminPage() {
 
   function renderFormattedPreviewLine(line: string, keyPrefix = 'preview'): React.ReactNode[] {
     const matches = [
+      { type: 'link' as const, match: line.match(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/) },
       { type: 'underline' as const, match: line.match(/<u>(.*?)<\/u>/) },
       { type: 'bold' as const, match: line.match(/\*\*(.+?)\*\*/) },
       { type: 'italic' as const, match: line.match(/\*(?!\*)(.+?)\*(?!\*)/) },
     ]
-      .filter((entry): entry is { type: 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } => Boolean(entry.match))
+      .filter((entry): entry is { type: 'link' | 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } => Boolean(entry.match))
       .sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0))
 
     const firstMatch = matches[0]
@@ -812,6 +813,7 @@ export default function AdminPage() {
     const matchIndex = firstMatch.match.index ?? 0
     const fullMatch = firstMatch.match[0]
     const innerText = firstMatch.match[1] ?? ''
+    const linkHref = firstMatch.type === 'link' ? firstMatch.match[2] ?? '' : ''
     const before = line.slice(0, matchIndex)
     const after = line.slice(matchIndex + fullMatch.length)
     const nodes: React.ReactNode[] = []
@@ -821,7 +823,19 @@ export default function AdminPage() {
     }
 
     const innerNodes = renderFormattedPreviewLine(innerText, `${keyPrefix}-${firstMatch.type}`)
-    if (firstMatch.type === 'underline') {
+    if (firstMatch.type === 'link') {
+      nodes.push(
+        <a
+          key={`${keyPrefix}-link`}
+          href={linkHref}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="font-semibold text-[#1f6ad8] underline decoration-[#1f6ad8]/50 underline-offset-2 transition hover:text-[#174c9c]"
+        >
+          {innerNodes}
+        </a>
+      )
+    } else if (firstMatch.type === 'underline') {
       nodes.push(<u key={`${keyPrefix}-underline`}>{innerNodes}</u>)
     } else if (firstMatch.type === 'bold') {
       nodes.push(<strong key={`${keyPrefix}-bold`}>{innerNodes}</strong>)
@@ -945,6 +959,38 @@ export default function AdminPage() {
       const start = selectionStart + markers.open.length
       const end = start + (selectedText || 'text').length
       textarea.setSelectionRange(start, end)
+    })
+  }
+
+  function insertTeachingPointLink() {
+    const textarea = teachingPointRef.current
+    if (!textarea) return
+
+    const url = window.prompt('Paste the reference URL')
+    if (!url) return
+
+    const trimmedUrl = url.trim()
+    if (!/^https?:\/\//i.test(trimmedUrl)) {
+      setStatus('Links need to start with http:// or https://')
+      return
+    }
+
+    const selectionStart = textarea.selectionStart
+    const selectionEnd = textarea.selectionEnd
+    const selectedText = teachingPoint.slice(selectionStart, selectionEnd).trim() || 'Link to reference'
+    const inserted = `[${selectedText}](${trimmedUrl})`
+    const nextValue =
+      teachingPoint.slice(0, selectionStart) +
+      inserted +
+      teachingPoint.slice(selectionEnd)
+
+    setTeachingPoint(nextValue)
+    setStatus('Reference link inserted.')
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const nextCaret = selectionStart + inserted.length
+      textarea.setSelectionRange(nextCaret, nextCaret)
     })
   }
 
@@ -3133,7 +3179,7 @@ export default function AdminPage() {
                 >
                   <option value="med_student">Med Student</option>
                   <option value="resident">Resident</option>
-                  <option value="attending">Surgical Anatomy (attending slot)</option>
+                  <option value="attending">Anatomy (attending slot)</option>
                 </select>
               </label>
               </div>
@@ -3488,6 +3534,13 @@ export default function AdminPage() {
                   >
                     Underline
                   </button>
+                  <button
+                    type="button"
+                    onClick={insertTeachingPointLink}
+                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Link
+                  </button>
                 </div>
                 <textarea
                   ref={teachingPointRef}
@@ -3507,7 +3560,7 @@ export default function AdminPage() {
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
                 <span className="text-xs font-normal text-[#8a948d]">
-                  Line breaks are preserved. Use Ctrl/Cmd + B for bold, Ctrl/Cmd + I for italics, and Ctrl/Cmd + U for underline. Orthodle Insight is added automatically when case stats exist.
+                  Line breaks are preserved. Use Ctrl/Cmd + B for bold, Ctrl/Cmd + I for italics, Ctrl/Cmd + U for underline, or add a blue hyperlink with the Link button. Orthodle Insight is added automatically when case stats exist.
                 </span>
               </label>
 

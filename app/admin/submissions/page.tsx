@@ -93,7 +93,7 @@ export default function AdminSubmissionsPage() {
   function formatLevel(level: Level) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    return 'Attending'
+    return 'Anatomy'
   }
 
   function formatStatusLabel(value: string) {

@@ -151,7 +151,7 @@ export default function ArchivePage() {
   function formatLevel(level: Level, dateText = today) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    return isSurgicalAnatomyDate(dateText) ? 'Surgical Anatomy' : 'Attending'
+    return 'Anatomy'
   }
 
   const hasActiveFilters =
@@ -258,7 +258,7 @@ export default function ArchivePage() {
                     ['all', 'All levels'],
                     ['med_student', 'Med Student'],
                     ['resident', 'Resident'],
-                    ['attending', 'Surgical Anatomy'],
+                    ['attending', 'Anatomy'],
                   ].map(([value, label]) => (
                     <button
                       key={value}

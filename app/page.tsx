@@ -113,13 +113,13 @@ const SURGICAL_ANATOMY_SUBTITLE = 'QUIZ'
 const levels = [
   { key: 'med_student' as Level, label: 'Med Student' },
   { key: 'resident' as Level, label: 'Resident' },
-  { key: 'attending' as Level, label: 'Attending' },
+  { key: 'attending' as Level, label: 'Anatomy' },
 ]
 
 const baseHomeTabs = [
   { type: 'level' as const, key: 'med_student' as const, label: 'Med Student' },
   { type: 'level' as const, key: 'resident' as const, label: 'Resident' },
-  { type: 'level' as const, key: 'attending' as const, label: 'Attending' },
+  { type: 'level' as const, key: 'attending' as const, label: 'Anatomy' },
   { type: 'link' as const, href: '/groups', label: 'Groups', subtitle: 'COMPETE' },
 ]
 
@@ -914,7 +914,7 @@ function PlayPageContent() {
   function formatLevel(level: Level, dateText = selectedDate) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    return isSurgicalAnatomyDate(dateText) ? 'Surgical Anatomy' : 'Attending'
+    return isSurgicalAnatomyDate(dateText) ? 'Anatomy' : 'Anatomy'
   }
 
   function formatArchiveDate(dateText: string) {
@@ -1261,11 +1261,12 @@ function PlayPageContent() {
 
   function renderFormattedLine(line: string, keyPrefix = 'inline'): React.ReactNode[] {
     const matches = [
+      { type: 'link' as const, match: line.match(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/) },
       { type: 'underline' as const, match: line.match(/<u>(.*?)<\/u>/) },
       { type: 'bold' as const, match: line.match(/\*\*(.+?)\*\*/) },
       { type: 'italic' as const, match: line.match(/\*(?!\*)(.+?)\*(?!\*)/) },
     ]
-      .filter((entry): entry is { type: 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } => Boolean(entry.match))
+      .filter((entry): entry is { type: 'link' | 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } => Boolean(entry.match))
       .sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0))
 
     const firstMatch = matches[0]
@@ -1276,6 +1277,7 @@ function PlayPageContent() {
     const matchIndex = firstMatch.match.index ?? 0
     const fullMatch = firstMatch.match[0]
     const innerText = firstMatch.match[1] ?? ''
+    const linkHref = firstMatch.type === 'link' ? firstMatch.match[2] ?? '' : ''
     const before = line.slice(0, matchIndex)
     const after = line.slice(matchIndex + fullMatch.length)
     const nodes: React.ReactNode[] = []
@@ -1285,7 +1287,19 @@ function PlayPageContent() {
     }
 
     const innerNodes = renderFormattedLine(innerText, `${keyPrefix}-${firstMatch.type}`)
-    if (firstMatch.type === 'underline') {
+    if (firstMatch.type === 'link') {
+      nodes.push(
+        <a
+          key={`${keyPrefix}-link`}
+          href={linkHref}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="font-semibold text-[#1f6ad8] underline decoration-[#1f6ad8]/50 underline-offset-2 transition hover:text-[#174c9c]"
+        >
+          {innerNodes}
+        </a>
+      )
+    } else if (firstMatch.type === 'underline') {
       nodes.push(<u key={`${keyPrefix}-underline`}>{innerNodes}</u>)
     } else if (firstMatch.type === 'bold') {
       nodes.push(<strong key={`${keyPrefix}-bold`}>{innerNodes}</strong>)
@@ -1679,7 +1693,7 @@ function PlayPageContent() {
         item.type === 'level' && item.key === 'attending'
           ? {
               ...item,
-              label: isSurgicalAnatomyDate(selectedDate) ? 'Surgical Anatomy' : 'Attending',
+              label: 'Anatomy',
             }
           : item
       ),

@@ -141,7 +141,7 @@ export default function AdminFeedbackPage() {
   function formatLevel(level: FeedbackRow['level']) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    if (level === 'attending') return 'Attending'
+    if (level === 'attending') return 'Anatomy'
     return 'Unknown'
   }
 

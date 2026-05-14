@@ -82,7 +82,7 @@ type CaseStatsPayload = {
 const LEVEL_LABELS: Record<Level, string> = {
   med_student: 'Med Student',
   resident: 'Resident',
-  attending: 'Attending',
+  attending: 'Anatomy',
 }
 
 const PACIFIC_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
