@@ -8,7 +8,6 @@ import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
 import { DEFAULT_MEMBER_ICON, getIconsForSection, GROUP_ICON_SECTIONS } from '@/lib/group-icons'
 import { supabase } from '@/lib/supabase'
-import { fetchExcludedStatsSessionIds } from '@/lib/stats-exclusions'
 import {
   clearAccountSession,
   getAccountSession,
@@ -1200,7 +1199,6 @@ export default function GroupsPage() {
   const [isEditingProfileName, setIsEditingProfileName] = useState(false)
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
-  const [excludedSessionIds, setExcludedSessionIds] = useState<string[]>([])
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
 
@@ -1222,7 +1220,6 @@ export default function GroupsPage() {
   }
 
   async function loadGroupsData() {
-    const nextExcludedSessionIds = await fetchExcludedStatsSessionIds()
     const { data: groupData, error: groupError } = await supabase
       .from('groups')
       .select('*')
@@ -1250,7 +1247,6 @@ export default function GroupsPage() {
 
     const allMembers = (memberData || []) as GroupMemberRow[]
     setMembers(allMembers)
-    setExcludedSessionIds(nextExcludedSessionIds)
 
     const memberSessionIds = Array.from(new Set(allMembers.map(member => member.session_id)))
 
@@ -1411,11 +1407,6 @@ export default function GroupsPage() {
   }, [groupActionMode, showJoinPanel])
 
   const selectedGroup = groups.find(group => group.id === selectedGroupId) || null
-  const excludedSessionIdSet = useMemo(() => new Set(excludedSessionIds), [excludedSessionIds])
-  const statEligibleMembers = useMemo(
-    () => members.filter(member => !excludedSessionIdSet.has(member.session_id)),
-    [excludedSessionIdSet, members]
-  )
   const selectedMembers = useMemo(
     () => members.filter(member => member.group_id === selectedGroupId),
     [members, selectedGroupId]
@@ -1432,15 +1423,14 @@ export default function GroupsPage() {
     () =>
       guessRows.filter(
         row =>
-          !excludedSessionIdSet.has(row.session_id) &&
           row.created_at >= weekRange.startIso &&
           row.created_at <= weekRange.endIso
       ),
-    [excludedSessionIdSet, guessRows, weekRange.endIso, weekRange.startIso]
+    [guessRows, weekRange.endIso, weekRange.startIso]
   )
   const allTimeGuessRows = useMemo(
-    () => guessRows.filter(row => Boolean(row.case_id) && !excludedSessionIdSet.has(row.session_id)),
-    [excludedSessionIdSet, guessRows]
+    () => guessRows.filter(row => Boolean(row.case_id)),
+    [guessRows]
   )
   const viewerAllTimeGuessRows = useMemo(
     () => guessRows.filter(row => Boolean(row.case_id)),
@@ -1448,12 +1438,12 @@ export default function GroupsPage() {
   )
 
   const groupAggregates = useMemo<GroupAggregate[]>(() => {
-    return buildGroupAggregatesFromRows(groups, statEligibleMembers, visibleGuessRows, caseLookup)
-  }, [groups, visibleGuessRows, statEligibleMembers, caseLookup])
+    return buildGroupAggregatesFromRows(groups, members, visibleGuessRows, caseLookup)
+  }, [groups, visibleGuessRows, members, caseLookup])
 
   const allTimeGroupAggregates = useMemo<GroupAggregate[]>(() => {
-    return buildGroupAggregatesFromRows(groups, statEligibleMembers, allTimeGuessRows, caseLookup)
-  }, [allTimeGuessRows, caseLookup, groups, statEligibleMembers])
+    return buildGroupAggregatesFromRows(groups, members, allTimeGuessRows, caseLookup)
+  }, [allTimeGuessRows, caseLookup, groups, members])
 
   const activeGroupAggregates =
     leaderboardWindow === 'week' ? groupAggregates : allTimeGroupAggregates
