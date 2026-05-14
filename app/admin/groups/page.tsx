@@ -28,6 +28,20 @@ type GroupWithMembers = GroupRow & {
   members: GroupMemberRow[]
 }
 
+type GroupJoinRequestRow = {
+  id: string
+  group_id: string | null
+  group_name: string
+  requester_session_id: string
+  requester_display_name: string
+  requester_icon: string | null
+  contact_text: string | null
+  note: string | null
+  status: string
+  created_at: string
+  handled_at: string | null
+}
+
 function formatMemberCount(count: number) {
   return `${count} member${count === 1 ? '' : 's'}`
 }
@@ -49,6 +63,8 @@ export default function AdminGroupsPage() {
   const [status, setStatus] = useState('')
   const [search, setSearch] = useState('')
   const [removingGroupId, setRemovingGroupId] = useState('')
+  const [requests, setRequests] = useState<GroupJoinRequestRow[]>([])
+  const [updatingRequestId, setUpdatingRequestId] = useState('')
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -66,9 +82,10 @@ export default function AdminGroupsPage() {
     setLoading(true)
     setStatus('')
 
-    const [groupResult, memberResult] = await Promise.all([
+    const [groupResult, memberResult, requestResult] = await Promise.all([
       supabase.from('groups').select('*').order('created_at', { ascending: false }),
       supabase.from('group_members').select('*').order('created_at', { ascending: true }),
+      supabase.from('group_join_requests').select('*').order('created_at', { ascending: false }),
     ])
 
     if (groupResult.error) {
@@ -83,8 +100,15 @@ export default function AdminGroupsPage() {
       return
     }
 
+    if (requestResult.error && !requestResult.error.message.toLowerCase().includes('does not exist')) {
+      setStatus(`Could not load invite requests: ${requestResult.error.message}`)
+      setLoading(false)
+      return
+    }
+
     setGroups((groupResult.data || []) as GroupRow[])
     setMembers((memberResult.data || []) as GroupMemberRow[])
+    setRequests(((requestResult.data || []) as GroupJoinRequestRow[]) || [])
     setLoading(false)
   }
 
@@ -123,6 +147,52 @@ export default function AdminGroupsPage() {
     setStatus(`Removed ${group.name}.`)
   }
 
+  async function markRequestHandled(request: GroupJoinRequestRow) {
+    setUpdatingRequestId(request.id)
+    setStatus('')
+
+    const { error } = await supabase
+      .from('group_join_requests')
+      .update({ status: 'handled', handled_at: new Date().toISOString() })
+      .eq('id', request.id)
+
+    if (error) {
+      setUpdatingRequestId('')
+      setStatus(error.message)
+      return
+    }
+
+    setRequests(prev =>
+      prev.map(entry =>
+        entry.id === request.id
+          ? { ...entry, status: 'handled', handled_at: new Date().toISOString() }
+          : entry
+      )
+    )
+    setUpdatingRequestId('')
+    setStatus(`Marked ${request.requester_display_name}'s request as handled.`)
+  }
+
+  async function removeRequest(request: GroupJoinRequestRow) {
+    const confirmed = window.confirm(`Remove invite request for ${request.group_name}?`)
+    if (!confirmed) return
+
+    setUpdatingRequestId(request.id)
+    setStatus('')
+
+    const { error } = await supabase.from('group_join_requests').delete().eq('id', request.id)
+
+    if (error) {
+      setUpdatingRequestId('')
+      setStatus(error.message)
+      return
+    }
+
+    setRequests(prev => prev.filter(entry => entry.id !== request.id))
+    setUpdatingRequestId('')
+    setStatus(`Removed the request for ${request.group_name}.`)
+  }
+
   const groupsWithMembers = useMemo<GroupWithMembers[]>(() => {
     return groups.map(group => ({
       ...group,
@@ -146,6 +216,18 @@ export default function AdminGroupsPage() {
       return haystack.includes(normalizedSearch)
     })
   }, [groupsWithMembers, search])
+
+  const filteredRequests = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+    if (!normalizedSearch) return requests
+
+    return requests.filter(request =>
+      [request.group_name, request.requester_display_name, request.contact_text || '', request.note || '']
+        .join(' ')
+        .toLowerCase()
+        .includes(normalizedSearch)
+    )
+  }, [requests, search])
 
   const totalMembers = members.length
   const averageMembers = groups.length > 0 ? totalMembers / groups.length : 0
@@ -248,6 +330,99 @@ export default function AdminGroupsPage() {
               <div className="mt-1 font-serif text-2xl font-bold text-[#102018]">
                 {averageMembers.toFixed(1)}
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="night-surface mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-serif text-xl font-bold text-[#102018]">
+                Invite requests
+              </h2>
+              <p className="mt-1 text-sm text-[#637268]">
+                Review people asking to join a group when they do not have a code yet.
+              </p>
+            </div>
+            <div className="rounded-lg border border-[#ded7ca] bg-[#fcfbf8] px-3 py-1.5 text-sm font-semibold text-[#102018]">
+              {requests.filter(request => request.status !== 'handled').length} open
+            </div>
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-xl border border-[#e7e1d6]">
+            <div className="hidden grid-cols-[130px_minmax(0,1fr)_150px_160px_180px] gap-3 border-b border-[#e7e1d6] bg-[#fbfaf7] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268] md:grid">
+              <div>Group</div>
+              <div>Requester</div>
+              <div>Contact</div>
+              <div>Requested</div>
+              <div className="text-right">Action</div>
+            </div>
+
+            <div>
+              {loading ? (
+                <div className="px-3 py-5 text-sm text-[#637268]">Loading requests...</div>
+              ) : filteredRequests.length === 0 ? (
+                <div className="px-3 py-5 text-sm text-[#637268]">
+                  No invite requests yet.
+                </div>
+              ) : (
+                filteredRequests.map(request => (
+                  <div
+                    key={request.id}
+                    className="grid gap-3 border-b border-[#f1ece2] px-3 py-3 last:border-b-0 md:grid-cols-[130px_minmax(0,1fr)_150px_160px_180px] md:items-center"
+                  >
+                    <div className="text-sm font-semibold text-[#102018]">
+                      {request.group_name}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#fcfbf8] text-xl">
+                          {request.requester_icon || '🦴'}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-semibold text-[#102018]">
+                            {request.requester_display_name}
+                          </div>
+                          {request.note ? (
+                            <div className="mt-0.5 text-[12px] text-[#637268]">
+                              {request.note}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-sm text-[#637268]">
+                      {request.contact_text || 'No contact added'}
+                    </div>
+                    <div className="text-sm text-[#637268]">
+                      {formatDate(request.created_at)}
+                      <div className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8a9389]">
+                        {request.status}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap justify-start gap-2 md:justify-end">
+                      {request.status !== 'handled' ? (
+                        <button
+                          type="button"
+                          onClick={() => void markRequestHandled(request)}
+                          disabled={updatingRequestId === request.id}
+                          className="rounded-lg border border-[#d8e6dd] bg-[#f7fbf8] px-3 py-1.5 text-sm font-semibold text-[#1f6448] transition hover:bg-white disabled:opacity-50"
+                        >
+                          {updatingRequestId === request.id ? 'Saving...' : 'Mark handled'}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void removeRequest(request)}
+                        disabled={updatingRequestId === request.id}
+                        className="rounded-lg border border-[#f0d7c8] bg-[#fff8ef] px-3 py-1.5 text-sm font-semibold text-[#a24d24] transition hover:bg-[#fff1e8] disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </section>

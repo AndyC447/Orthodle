@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Share2 } from 'lucide-react'
@@ -687,7 +688,14 @@ export default function GroupDetailPage() {
                         <Share2 size={15} strokeWidth={2} />
                         {copied ? 'Invite copied' : 'Text invite'}
                       </button>
-                    ) : null}
+                    ) : (
+                      <Link
+                        href={`/groups?request=${group.id}`}
+                        className="inline-flex h-10 items-center justify-center rounded-full border border-[#d9c9a6] bg-[#fff9ef] px-4 text-[12px] font-semibold text-[#7b5a12] shadow-[0_8px_18px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:bg-white"
+                      >
+                        Request invite
+                      </Link>
+                    )}
                   </div>
 
                   <div className="mt-4 grid grid-cols-4 gap-0 border-t border-[#ece6db] pt-4">

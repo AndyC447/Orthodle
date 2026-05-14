@@ -1212,17 +1212,24 @@ export default function GroupsPage() {
   const [urlJoinCode, setUrlJoinCode] = useState('')
   const [leaderboardSearch, setLeaderboardSearch] = useState('')
   const [showJoinPanel, setShowJoinPanel] = useState(false)
-  const [groupActionMode, setGroupActionMode] = useState<'join' | 'create'>('join')
+  const [groupActionMode, setGroupActionMode] = useState<'join' | 'create' | 'request'>('join')
   const [yourGroupOpen, setYourGroupOpen] = useState(false)
   const [memberPreviewOpen, setMemberPreviewOpen] = useState(false)
   const [showSelectedGroupIconPicker, setShowSelectedGroupIconPicker] = useState(false)
   const [showSelectedMemberIconPicker, setShowSelectedMemberIconPicker] = useState(false)
   const [showJoinMemberIconPicker, setShowJoinMemberIconPicker] = useState(false)
+  const [showRequestMemberIconPicker, setShowRequestMemberIconPicker] = useState(false)
   const [showCreateGroupIconPicker, setShowCreateGroupIconPicker] = useState(false)
   const [showCreateMemberIconPicker, setShowCreateMemberIconPicker] = useState(false)
   const [showGroupsExplainer, setShowGroupsExplainer] = useState(false)
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
+  const [requestGroupId, setRequestGroupId] = useState('')
+  const [requestDisplayName, setRequestDisplayName] = useState('')
+  const [requestContact, setRequestContact] = useState('')
+  const [requestNote, setRequestNote] = useState('')
+  const [requestMemberIcon, setRequestMemberIcon] = useState(DEFAULT_MEMBER_ICON)
+  const [requestingInvite, setRequestingInvite] = useState(false)
   const [editMemberIcon, setEditMemberIcon] = useState<string>(DEFAULT_MEMBER_ICON)
   const [localProfile, setLocalProfile] = useState<LocalProfile>({
     displayName: '',
@@ -1431,10 +1438,16 @@ export default function GroupsPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const codeFromUrl = normalizeJoinCode(new URLSearchParams(window.location.search).get('code') || '')
+    const requestGroupFromUrl = new URLSearchParams(window.location.search).get('request') || ''
     setUrlJoinCode(codeFromUrl)
     if (codeFromUrl) {
       setJoinCode(codeFromUrl)
       setGroupActionMode('join')
+      setShowJoinPanel(true)
+    }
+    if (requestGroupFromUrl) {
+      setRequestGroupId(requestGroupFromUrl)
+      setGroupActionMode('request')
       setShowJoinPanel(true)
     }
   }, [])
@@ -1459,8 +1472,10 @@ export default function GroupsPage() {
     setEditMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
     setJoinDisplayName(savedAccountSession?.displayName || savedProfile.displayName)
     setCreateDisplayName(savedAccountSession?.displayName || savedProfile.displayName)
+    setRequestDisplayName(savedAccountSession?.displayName || savedProfile.displayName)
     setJoinMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
     setCreateMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
+    setRequestMemberIcon(savedAccountSession?.profileIcon || savedProfile.icon)
     setAuthUsername(savedAccountSession?.username || '')
   }, [])
 
@@ -1513,6 +1528,7 @@ export default function GroupsPage() {
 
   useEffect(() => {
     setShowJoinMemberIconPicker(false)
+    setShowRequestMemberIconPicker(false)
     setShowCreateGroupIconPicker(false)
     setShowCreateMemberIconPicker(false)
   }, [groupActionMode, showJoinPanel])
@@ -1529,6 +1545,9 @@ export default function GroupsPage() {
   const alreadyInJoinTarget = joinTargetGroup
     ? members.some(member => member.group_id === joinTargetGroup.id && member.session_id === sessionId)
     : false
+  const requestTargetGroup = requestGroupId
+    ? groups.find(group => group.id === requestGroupId) || null
+    : null
   const weekRange = useMemo(() => getCurrentWeekRange(), [])
   const visibleGuessRows = useMemo(
     () =>
@@ -2213,6 +2232,79 @@ export default function GroupsPage() {
     router.push(`/groups/${targetGroup.id}`)
   }
 
+  async function requestInviteToGroup() {
+    const targetGroup = groups.find(group => group.id === requestGroupId) || null
+    const displayName = requestDisplayName.trim()
+    const contactText = requestContact.trim()
+    const noteText = requestNote.trim()
+
+    if (!targetGroup || !displayName) {
+      setMessage('Choose a group and add your display name first.')
+      return
+    }
+
+    if (members.some(member => member.group_id === targetGroup.id && member.session_id === sessionId)) {
+      setMessage(`You are already in ${targetGroup.name}.`)
+      return
+    }
+
+    setRequestingInvite(true)
+    setMessage('')
+
+    const { data: existingRequest, error: existingRequestError } = await supabase
+      .from('group_join_requests')
+      .select('id')
+      .eq('group_id', targetGroup.id)
+      .eq('requester_session_id', sessionId)
+      .eq('status', 'open')
+      .maybeSingle()
+
+    if (existingRequestError && !existingRequestError.message.toLowerCase().includes('does not exist')) {
+      setRequestingInvite(false)
+      setMessage(existingRequestError.message)
+      return
+    }
+
+    if (existingRequest) {
+      setRequestingInvite(false)
+      setMessage(`You already requested an invite to ${targetGroup.name}.`)
+      return
+    }
+
+    const { error } = await supabase.from('group_join_requests').insert({
+      group_id: targetGroup.id,
+      group_name: targetGroup.name,
+      requester_session_id: sessionId,
+      requester_display_name: displayName,
+      requester_icon: requestMemberIcon,
+      contact_text: contactText || null,
+      note: noteText || null,
+      status: 'open',
+    })
+
+    if (error) {
+      setRequestingInvite(false)
+      setMessage(
+        error.message.toLowerCase().includes('does not exist')
+          ? 'Invite requests are not set up yet. Run the groups request SQL, then try again.'
+          : error.message
+      )
+      return
+    }
+
+    if (typeof window !== 'undefined') {
+      storeLocalProfile({ displayName, icon: requestMemberIcon })
+    }
+    setLocalProfile({ displayName, icon: requestMemberIcon })
+    setRequestDisplayName('')
+    setRequestContact('')
+    setRequestNote('')
+    setRequestMemberIcon(DEFAULT_MEMBER_ICON)
+    setShowJoinPanel(false)
+    setRequestingInvite(false)
+    setMessage(`Invite request sent for ${targetGroup.name}.`)
+  }
+
   async function updateSelectedGroupName() {
     const nextName = editGroupName.trim()
 
@@ -2501,6 +2593,11 @@ export default function GroupsPage() {
   async function submitGroupForm() {
     if (groupActionMode === 'join') {
       await joinGroup()
+      return
+    }
+
+    if (groupActionMode === 'request') {
+      await requestInviteToGroup()
       return
     }
 
@@ -3151,29 +3248,39 @@ export default function GroupsPage() {
                         </div>
                       </div>
 
-                      <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:self-auto">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
-                          }
+                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
+                        }
                           className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
                         >
                           {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
-                        </button>
-                        {isViewingOwnGroup ? (
-                          <button
-                            type="button"
-                            onClick={() => void shareInviteLink(selectedGroup)}
+                      </button>
+                      {isViewingOwnGroup ? (
+                        <button
+                          type="button"
+                          onClick={() => void shareInviteLink(selectedGroup)}
                             className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
                           >
                             <Share2 size={13} strokeWidth={2} />
-                            {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
-                          </button>
-                        ) : (
-                          <div className="hidden sm:block" />
-                        )}
-                      </div>
+                          {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRequestGroupId(selectedGroup.id)
+                            setGroupActionMode('request')
+                            setShowJoinPanel(true)
+                          }}
+                          className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
+                        >
+                          Request invite
+                        </button>
+                      )}
+                    </div>
                     </div>
                   </div>
 
@@ -4258,7 +4365,7 @@ export default function GroupsPage() {
               </div>
             </section>
 
-            <section className={`grid gap-1.5 ${selectedGroup ? 'grid-cols-2' : ''}`}>
+            <section className={`grid gap-1.5 ${selectedGroup ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <button
                 type="button"
                 onClick={() => {
@@ -4270,9 +4377,26 @@ export default function GroupsPage() {
                 <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-[#fcfbf8] text-[15px]">
                   <UserPlus size={15} strokeWidth={2} />
                 </div>
+                  <div>
+                    <div className="text-[11px] font-semibold text-[#102018]">Join or create</div>
+                    <div className="text-[10px] text-[#637268]">Use a group code</div>
+                  </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setRequestGroupId('')
+                  setGroupActionMode('request')
+                  setShowJoinPanel(prev => (groupActionMode === 'request' ? !prev : true))
+                }}
+                className="orthodle-group-action-tile flex items-center gap-2 rounded-[13px] border border-[#e6dfd3] bg-white px-2.5 py-1.5 text-left transition hover:-translate-y-0.5"
+              >
+                <div className="flex h-7 w-7 items-center justify-center rounded-[10px] bg-[#fcfbf8] text-[15px]">
+                  <UserPlus size={15} strokeWidth={2} />
+                </div>
                 <div>
-                  <div className="text-[11px] font-semibold text-[#102018]">Join or create</div>
-                  <div className="text-[10px] text-[#637268]">Use a group code</div>
+                  <div className="text-[11px] font-semibold text-[#102018]">Request invite</div>
+                  <div className="text-[10px] text-[#637268]">Ask to join a team</div>
                 </div>
               </button>
               {selectedGroup ? (
@@ -4301,16 +4425,22 @@ export default function GroupsPage() {
                 <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                      {groupActionMode === 'join' ? 'Join a group' : 'Create a group'}
+                      {groupActionMode === 'join'
+                        ? 'Join a group'
+                        : groupActionMode === 'request'
+                          ? 'Request an invite'
+                          : 'Create a group'}
                     </div>
                     <div className="mt-1 text-[12px] text-[#637268]">
                       {groupActionMode === 'join'
                         ? 'Use a group code from a teammate.'
-                        : 'Start a private leaderboard for your team.'}
+                        : groupActionMode === 'request'
+                          ? 'Ask to join a group if you do not have their code yet.'
+                          : 'Start a private leaderboard for your team.'}
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
+                    <div className="grid grid-cols-3 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
                       <button
                         type="button"
                         onClick={() => setGroupActionMode('join')}
@@ -4321,6 +4451,17 @@ export default function GroupsPage() {
                         }`}
                       >
                         Join
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGroupActionMode('request')}
+                        className={`rounded-full px-2.5 py-1 transition ${
+                          groupActionMode === 'request'
+                            ? 'bg-[#2d7651] text-white'
+                            : 'text-[#637268] hover:text-[#102018]'
+                        }`}
+                      >
+                        Request
                       </button>
                       <button
                         type="button"
@@ -4399,6 +4540,74 @@ export default function GroupsPage() {
                       ) : (
                         'Paste a code from an invite link or ask a teammate for their group code.'
                       )}
+                    </div>
+                  </>
+                ) : groupActionMode === 'request' ? (
+                  <>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <IconPicker
+                        label="Your icon"
+                        selectedIcon={requestMemberIcon}
+                        isOpen={showRequestMemberIconPicker}
+                        onToggle={() => setShowRequestMemberIconPicker(prev => !prev)}
+                        onSelect={icon => {
+                          setRequestMemberIcon(icon)
+                          setShowRequestMemberIconPicker(false)
+                        }}
+                        ariaLabelPrefix="Use your icon"
+                      />
+                      <div className="space-y-1.5">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Group
+                        </div>
+                        <select
+                          value={requestGroupId}
+                          onChange={event => setRequestGroupId(event.target.value)}
+                          className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                        >
+                          <option value="">Choose a group</option>
+                          {groups.map(group => (
+                            <option key={group.id} value={group.id}>
+                              {group.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr]">
+                      <input
+                        value={requestDisplayName}
+                        onChange={event => setRequestDisplayName(event.target.value)}
+                        placeholder="Your display name"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                      <input
+                        value={requestContact}
+                        onChange={event => setRequestContact(event.target.value)}
+                        placeholder="Contact info (optional)"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                    </div>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto]">
+                      <input
+                        value={requestNote}
+                        onChange={event => setRequestNote(event.target.value)}
+                        placeholder="Short note (optional)"
+                        className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                      />
+                      <button
+                        type="button"
+                        disabled={requestingInvite || !requestGroupId || !requestDisplayName.trim()}
+                        onClick={() => void submitGroupForm()}
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {requestingInvite ? 'Sending...' : 'Request invite'}
+                      </button>
+                    </div>
+                    <div className="mt-2 rounded-[14px] bg-[#fcfbf8] px-3 py-2 text-[11px] leading-5 text-[#637268]">
+                      {requestTargetGroup
+                        ? `We’ll log your request for ${requestTargetGroup.name}. Add contact info if you want a follow-up outside the app.`
+                        : 'Choose the group you want to join, then send a short request.'}
                     </div>
                   </>
                 ) : (
