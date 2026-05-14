@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
+import { Bell, BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
 import { DEFAULT_MEMBER_ICON, getIconsForSection, GROUP_ICON_SECTIONS } from '@/lib/group-icons'
@@ -109,10 +109,17 @@ type LeaderboardWindow = 'week' | 'all-time'
 
 type ActivityFeedItem = {
   id: string
-  icon: 'solve' | 'mvp' | 'streak' | 'rank'
+  icon: 'solve' | 'mvp' | 'streak' | 'rank' | 'announcement' | 'info'
   title: string
   detail: string
   createdAt: string
+}
+
+type GroupNotificationItem = {
+  id: string
+  icon: ActivityFeedItem['icon']
+  title: string
+  detail: string
 }
 
 type WeeklyChallenge = {
@@ -155,6 +162,7 @@ const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
 const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
 const GROUP_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_group_announcement'
+const GROUP_NOTIFICATIONS_SEEN_KEY = 'orthodle_groups_notifications_seen_v1'
 function normalizeJoinCode(value: string) {
   return value
     .toUpperCase()
@@ -1002,6 +1010,8 @@ function buildWeeklyRecap(
 }
 
 function getActivityIcon(item: ActivityFeedItem['icon']) {
+  if (item === 'announcement') return '📣'
+  if (item === 'info') return '💡'
   if (item === 'solve') return '🏆'
   if (item === 'mvp') return '👑'
   if (item === 'streak') return '🔥'
@@ -1228,6 +1238,9 @@ export default function GroupsPage() {
   const [showCreateGroupIconPicker, setShowCreateGroupIconPicker] = useState(false)
   const [showCreateMemberIconPicker, setShowCreateMemberIconPicker] = useState(false)
   const [showGroupsExplainer, setShowGroupsExplainer] = useState(false)
+  const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
+  const [showProfileStatGuide, setShowProfileStatGuide] = useState(false)
+  const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([])
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
   const [requestGroupId, setRequestGroupId] = useState('')
@@ -1258,6 +1271,17 @@ export default function GroupsPage() {
     if (typeof window === 'undefined') return
     const nextTab = normalizeGroupsTab(new URLSearchParams(window.location.search).get('tab'))
     setActiveGroupsTab(current => (current === nextTab ? current : nextTab))
+    try {
+      const savedSeen = window.localStorage.getItem(GROUP_NOTIFICATIONS_SEEN_KEY)
+      if (savedSeen) {
+        const parsed = JSON.parse(savedSeen) as string[]
+        if (Array.isArray(parsed)) {
+          setSeenNotificationIds(parsed)
+        }
+      }
+    } catch {
+      window.localStorage.removeItem(GROUP_NOTIFICATIONS_SEEN_KEY)
+    }
   }, [])
 
   useEffect(() => {
@@ -1861,6 +1885,84 @@ export default function GroupsPage() {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
   }, [activeGroupAggregates, caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupRank, solvedCaseIdsByViewer, visibleGuessRows])
+
+  const groupNotifications = useMemo<GroupNotificationItem[]>(() => {
+    const items: GroupNotificationItem[] = []
+
+    if (groupAnnouncement && groupAnnouncementKey !== dismissedGroupAnnouncementKey) {
+      items.push({
+        id: `announcement:${groupAnnouncement.id}`,
+        icon: 'announcement',
+        title: 'New groups announcement',
+        detail: groupAnnouncement.message,
+      })
+    }
+
+    if (viewerGroup && viewerGroupAggregate) {
+      items.push({
+        id: `viewer-rank:${viewerGroup.id}:${leaderboardWindow}`,
+        icon: 'rank',
+        title: viewerGroupRank === 1 ? 'Your group is leading' : 'Your group race update',
+        detail: viewerGroupMomentum || 'Every solve can move the board.',
+      })
+
+      if (viewerGroupAggregate.currentStreak > 0) {
+        items.push({
+          id: `viewer-streak:${viewerGroup.id}:${viewerGroupAggregate.currentStreak}`,
+          icon: 'streak',
+          title: `${viewerGroup.name} is on a streak`,
+          detail: `${viewerGroupAggregate.currentStreak}-day group streak with ${viewerGroupAggregate.activeTodayCount} active today.`,
+        })
+      }
+
+      if (viewerGroupTodaySolvers.length > 0) {
+        items.push({
+          id: `viewer-activity:${viewerGroup.id}:${today}:${viewerGroupTodaySolvers.join('|')}`,
+          icon: 'solve',
+          title: 'Your group checked in today',
+          detail: viewerGroupTodaySolvers.join(' · '),
+        })
+      }
+    }
+
+    if (mvpEntry) {
+      items.push({
+        id: `mvp:${mvpEntry.group.id}:${mvpEntry.stats.member.session_id}:${leaderboardWindow}`,
+        icon: 'mvp',
+        title: `${mvpEntry.stats.member.display_name} is this week’s MVP`,
+        detail: `${formatScore(mvpEntry.stats.score)} pts for ${mvpEntry.group.name}.`,
+      })
+    }
+
+    if (groupActivityFeed.length > 0) {
+      const firstLiveItem = groupActivityFeed[0]
+      items.push({
+        id: `feed:${firstLiveItem.id}`,
+        icon: firstLiveItem.icon,
+        title: firstLiveItem.title,
+        detail: firstLiveItem.detail,
+      })
+    }
+
+    return items
+  }, [
+    dismissedGroupAnnouncementKey,
+    groupActivityFeed,
+    groupAnnouncement,
+    groupAnnouncementKey,
+    leaderboardWindow,
+    mvpEntry,
+    today,
+    viewerGroup,
+    viewerGroupAggregate,
+    viewerGroupMomentum,
+    viewerGroupRank,
+    viewerGroupTodaySolvers,
+  ])
+
+  const unreadNotificationCount = groupNotifications.filter(
+    item => !seenNotificationIds.includes(item.id)
+  ).length
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
@@ -2751,6 +2853,15 @@ export default function GroupsPage() {
     window.setTimeout(() => setCopiedCode(''), 1800)
   }
 
+  function openNotificationsPanel() {
+    setShowNotificationsPanel(true)
+    if (typeof window === 'undefined' || groupNotifications.length === 0) return
+
+    const nextSeenIds = Array.from(new Set([...seenNotificationIds, ...groupNotifications.map(item => item.id)]))
+    setSeenNotificationIds(nextSeenIds)
+    window.localStorage.setItem(GROUP_NOTIFICATIONS_SEEN_KEY, JSON.stringify(nextSeenIds))
+  }
+
   return (
     <main className="app-surface min-h-screen">
       <GroupsTopBanner
@@ -2853,6 +2964,30 @@ export default function GroupsPage() {
             {message}
           </div>
         ) : null}
+
+        <div className="mb-3 flex items-center justify-end gap-2 sm:mb-4">
+          <button
+            type="button"
+            onClick={() => setShowGroupsExplainer(true)}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+          >
+            <Info size={14} strokeWidth={2.2} />
+            How it works
+          </button>
+          <button
+            type="button"
+            onClick={openNotificationsPanel}
+            className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+          >
+            <Bell size={14} strokeWidth={2.2} />
+            Updates
+            {unreadNotificationCount > 0 ? (
+              <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+                {unreadNotificationCount}
+              </span>
+            ) : null}
+          </button>
+        </div>
 
         {loading ? (
           <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-4 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
@@ -3716,6 +3851,14 @@ export default function GroupsPage() {
                     <div className="mt-1 text-[10px] font-medium leading-4 text-[#d6e7df] sm:text-[11px]">
                       Next title: {nextProfileTitle} · {formatScore(Math.max(0, profileLevel.nextXp - profileXp))} XP to go
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileStatGuide(true)}
+                      className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/16 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-white/90 transition hover:bg-white/14"
+                    >
+                      <Info size={12} strokeWidth={2.2} />
+                      What these stats mean
+                    </button>
                   </div>
                 </div>
 
@@ -3868,6 +4011,119 @@ export default function GroupsPage() {
             </section>
 
             <TrophyCase trophies={trophyCaseItems} />
+          </div>
+        ) : null}
+
+        {showNotificationsPanel ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+            <div className="w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Groups updates
+                  </div>
+                  <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
+                    Your inbox
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNotificationsPanel(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                  aria-label="Close updates"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="mt-4 space-y-2">
+                {groupNotifications.length > 0 ? (
+                  groupNotifications.map(item => (
+                    <div
+                      key={item.id}
+                      className="rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[17px]">
+                          {getActivityIcon(item.icon)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-semibold text-[#102018]">
+                            {item.title}
+                          </div>
+                          <div className="mt-0.5 text-[12px] leading-5 text-[#637268]">
+                            {item.detail}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#637268]">
+                    No updates yet. Once your group gets moving, you’ll see streaks, MVP shifts, and race updates here.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showProfileStatGuide ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+            <div className="w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Profile guide
+                  </div>
+                  <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
+                    What the stats mean
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileStatGuide(false)}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                  aria-label="Close stat guide"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                {[
+                  {
+                    title: 'XP',
+                    detail: 'You earn XP from solving cases, first-try solves, and keeping momentum. Higher XP raises your level.',
+                  },
+                  {
+                    title: 'Level title',
+                    detail: 'Your title changes as your XP climbs. It is your current progression tag, like Chief Resident.',
+                  },
+                  {
+                    title: 'Accuracy',
+                    detail: 'Accuracy is the share of your total guesses that were correct across group play.',
+                  },
+                  {
+                    title: 'First try solves',
+                    detail: 'This counts how many cases you solved on your very first guess.',
+                  },
+                  {
+                    title: 'Day streak',
+                    detail: 'Your streak tracks consecutive days with at least one correct solve.',
+                  },
+                  {
+                    title: 'Trophies',
+                    detail: 'Trophies are milestone badges you unlock for streaks, categories, group performance, and special achievements.',
+                  },
+                ].map(item => (
+                  <div key={item.title} className="rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
+                    <div className="text-[13px] font-semibold text-[#102018]">{item.title}</div>
+                    <div className="mt-1 text-[12px] leading-5 text-[#637268]">{item.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : null}
 

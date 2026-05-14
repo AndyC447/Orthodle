@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
   getStatsSummary,
+  getLatestUnfinishedRoundProgress,
   normalizeAnswer,
   ORTHO_DIAGNOSIS_BANK,
   getRoundProgress,
@@ -322,6 +323,7 @@ function PlayPageContent() {
   const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
   const [homepageSurveyStatus, setHomepageSurveyStatus] = useState('')
   const [showTutorial, setShowTutorial] = useState(false)
+  const [resumeRound, setResumeRound] = useState<ReturnType<typeof getLatestUnfinishedRoundProgress>>(null)
   const [dailySummary, setDailySummary] = useState({
     date: today,
     played: 0,
@@ -368,6 +370,7 @@ function PlayPageContent() {
       window.localStorage.getItem(HOMEPAGE_SURVEY_DISMISS_KEY)
     )
     setShowTutorial(!window.localStorage.getItem(TUTORIAL_DISMISS_KEY))
+    setResumeRound(getLatestUnfinishedRoundProgress())
   }, [])
 
   useEffect(() => {
@@ -974,6 +977,15 @@ function PlayPageContent() {
     })
   }
 
+  function resumeSavedRound() {
+    if (!resumeRound) return
+    setSelectedDate(resumeRound.caseDate)
+    setSelectedLevel(resumeRound.level)
+    setMessage(
+      `Resumed your ${resumeRound.isArchive ? 'archive' : 'daily'} ${formatLevel(resumeRound.level)} case with ${resumeRound.guesses.length} guess${resumeRound.guesses.length === 1 ? '' : 'es'} saved.`
+    )
+  }
+
   function resetExpandedImageView() {
     setImageScale(1)
     setImageOffset({ x: 0, y: 0 })
@@ -1563,7 +1575,13 @@ function PlayPageContent() {
       category: dailyCase.category,
     })
     setDailySummary(getStatsSummary().today)
+    setResumeRound(getLatestUnfinishedRoundProgress())
   }, [dailyCase, roundComplete, gameWon, guesses])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setResumeRound(getLatestUnfinishedRoundProgress())
+  }, [selectedDate, selectedLevel, dailyCase?.id, guesses.length, gameWon, gameOver])
 
   useEffect(() => {
     if (!roundComplete || !justCompletedRound) return
@@ -1594,6 +1612,12 @@ function PlayPageContent() {
 
   const todayComplete = todayCompletedLevels === 3
   const onTodayCard = selectedDate === todayISO()
+  const resumeRoundIsCurrent = Boolean(
+    resumeRound &&
+      resumeRound.caseDate === selectedDate &&
+      resumeRound.level === selectedLevel &&
+      resumeRound.isArchive === (selectedDate !== todayISO())
+  )
   const nextLevel = nextLevelMap[selectedLevel]
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
   const selectedTaglines = useMemo(
@@ -1993,6 +2017,28 @@ function PlayPageContent() {
                   {homepageSurveyStatus}
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {resumeRound && !resumeRoundIsCurrent && (
+          <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-2.5 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                  Continue where you left off
+                </div>
+                <p className="mt-1 text-[11.5px] leading-4.5 text-[#355542] sm:text-[13px] sm:leading-5">
+                  {formatLevel(resumeRound.level)} · {formatArchiveDate(resumeRound.caseDate)} · {resumeRound.guesses.length} saved guess{resumeRound.guesses.length === 1 ? '' : 'es'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={resumeSavedRound}
+                className="inline-flex h-9 items-center justify-center rounded-full border border-[#1f6448] bg-[#1f6448] px-3.5 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:text-[12px]"
+              >
+                Resume case
+              </button>
             </div>
           </div>
         )}

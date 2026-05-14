@@ -545,6 +545,14 @@ export function getRoundProgress(
   return getStoredRoundProgress().find(entry => entry.key === key) || null
 }
 
+export function getLatestUnfinishedRoundProgress() {
+  return (
+    getStoredRoundProgress().find(
+      entry => !entry.gameWon && !entry.gameOver && entry.guesses.length > 0
+    ) || null
+  )
+}
+
 export function getCompletedCaseKeys(isArchive?: boolean) {
   const results = getStoredResults()
 

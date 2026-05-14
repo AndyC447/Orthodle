@@ -212,6 +212,7 @@ const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
+const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'case_generator',
   'button_subtitles',
@@ -234,6 +235,31 @@ const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Who</u>**
 **<u>Tx</u>**
 
 **<u>Classic Pitfall</u>**`
+
+type AdminCaseDraft = {
+  caseDate: string
+  level: Level
+  contributorName: string
+  category: string
+  prompt: string
+  answer: string
+  synonyms: string
+  imageUrl: string
+  imageCredit: string
+  imageRevealClue: string
+  imageUrl2: string
+  imageCredit2: string
+  imageRevealClue2: string
+  clue1: string
+  clue2: string
+  clue3: string
+  clue4: string
+  clue5: string
+  clue6: string
+  teachingPoint: string
+  activeSubmissionId: string | null
+  savedAt: string
+}
 
 function shiftISODate(dateText: string, days: number) {
   const baseDate = new Date(`${dateText}T12:00:00`)
@@ -277,6 +303,7 @@ export default function AdminPage() {
   const [clue6, setClue6] = useState('')
   const [teachingPoint, setTeachingPoint] = useState(DEFAULT_TEACHING_POINT_TEMPLATE)
   const [status, setStatus] = useState('')
+  const [draftStatus, setDraftStatus] = useState('')
   const [cases, setCases] = useState<CaseRow[]>([])
   const [analytics, setAnalytics] = useState<AnalyticsRow[]>([])
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null)
@@ -399,7 +426,126 @@ export default function AdminPage() {
     loadHomepageAnnouncements()
     loadGroupAnnouncements()
     loadHomepageSurveys()
+
+    if (typeof window !== 'undefined') {
+      try {
+        const rawDraft = window.localStorage.getItem(ADMIN_DRAFT_STORAGE_KEY)
+        if (rawDraft) {
+          const draft = JSON.parse(rawDraft) as Partial<AdminCaseDraft>
+          if (draft.caseDate) setCaseDate(draft.caseDate)
+          if (draft.level === 'med_student' || draft.level === 'resident' || draft.level === 'attending') {
+            setLevel(draft.level)
+          }
+          setContributorName(draft.contributorName || '')
+          setCategory(draft.category || '')
+          setPrompt(draft.prompt || '')
+          setAnswer(draft.answer || '')
+          setSynonyms(draft.synonyms || '')
+          setImageUrl(draft.imageUrl || '')
+          setImageCredit(draft.imageCredit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+          setImageRevealClue(draft.imageRevealClue || 'none')
+          setImageUrl2(draft.imageUrl2 || '')
+          setImageCredit2(draft.imageCredit2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+          setImageRevealClue2(draft.imageRevealClue2 || 'none')
+          setClue1(draft.clue1 || '')
+          setClue2(draft.clue2 || '')
+          setClue3(draft.clue3 || '')
+          setClue4(draft.clue4 || '')
+          setClue5(draft.clue5 || '')
+          setClue6(draft.clue6 || '')
+          setTeachingPoint(draft.teachingPoint || DEFAULT_TEACHING_POINT_TEMPLATE)
+          setActiveSubmissionId(draft.activeSubmissionId || null)
+          setDraftStatus(
+            draft.savedAt
+              ? `Draft restored from ${new Date(draft.savedAt).toLocaleString()}`
+              : 'Draft restored.'
+          )
+        }
+      } catch {
+        window.localStorage.removeItem(ADMIN_DRAFT_STORAGE_KEY)
+      }
+    }
   }, [isUnlocked])
+
+  useEffect(() => {
+    if (!isUnlocked || typeof window === 'undefined') return
+
+    const hasMeaningfulDraftContent = Boolean(
+      contributorName.trim() ||
+        category.trim() ||
+        prompt.trim() ||
+        answer.trim() ||
+        synonyms.trim() ||
+        imageUrl.trim() ||
+        normalizeCreditValue(imageCredit) ||
+        imageUrl2.trim() ||
+        normalizeCreditValue(imageCredit2) ||
+        clue1.trim() ||
+        clue2.trim() ||
+        clue3.trim() ||
+        clue4.trim() ||
+        clue5.trim() ||
+        clue6.trim() ||
+        teachingPoint.trim() !== DEFAULT_TEACHING_POINT_TEMPLATE.trim() ||
+        activeSubmissionId
+    )
+
+    if (!hasMeaningfulDraftContent) {
+      window.localStorage.removeItem(ADMIN_DRAFT_STORAGE_KEY)
+      return
+    }
+
+    const draft: AdminCaseDraft = {
+      caseDate,
+      level,
+      contributorName,
+      category,
+      prompt,
+      answer,
+      synonyms,
+      imageUrl,
+      imageCredit,
+      imageRevealClue,
+      imageUrl2,
+      imageCredit2,
+      imageRevealClue2,
+      clue1,
+      clue2,
+      clue3,
+      clue4,
+      clue5,
+      clue6,
+      teachingPoint,
+      activeSubmissionId,
+      savedAt: new Date().toISOString(),
+    }
+
+    window.localStorage.setItem(ADMIN_DRAFT_STORAGE_KEY, JSON.stringify(draft))
+    setDraftStatus(`Draft autosaved at ${new Date(draft.savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`)
+  }, [
+    isUnlocked,
+    caseDate,
+    level,
+    contributorName,
+    category,
+    prompt,
+    answer,
+    synonyms,
+    imageUrl,
+    imageCredit,
+    imageRevealClue,
+    imageUrl2,
+    imageCredit2,
+    imageRevealClue2,
+    clue1,
+    clue2,
+    clue3,
+    clue4,
+    clue5,
+    clue6,
+    teachingPoint,
+    activeSubmissionId,
+  ])
 
   function moveSidebarSection(
     order: AdminSidebarSectionId[],
@@ -891,6 +1037,10 @@ export default function AdminPage() {
     setTeachingPoint(DEFAULT_TEACHING_POINT_TEMPLATE)
     setActiveSubmissionId(null)
     setStatus('')
+    setDraftStatus('Draft cleared.')
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(ADMIN_DRAFT_STORAGE_KEY)
+    }
   }
 
   function editCase(c: CaseRow) {
@@ -1880,6 +2030,10 @@ export default function AdminPage() {
         .eq('id', activeSubmissionId)
     }
 
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(ADMIN_DRAFT_STORAGE_KEY)
+    }
+    setDraftStatus('Draft cleared after save.')
     clearForm()
     await loadCases()
   }
@@ -3367,7 +3521,12 @@ export default function AdminPage() {
                 Delete current slot
               </button>
 
-              {status && <p className="text-sm text-[#637268]">{status}</p>}
+              {(status || draftStatus) && (
+                <div className="space-y-1">
+                  {status ? <p className="text-sm text-[#637268]">{status}</p> : null}
+                  {draftStatus ? <p className="text-xs text-[#8a948d]">{draftStatus}</p> : null}
+                </div>
+              )}
 
               <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
                 <div className="flex items-center justify-between gap-3">
