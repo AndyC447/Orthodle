@@ -248,6 +248,15 @@ function calculateMemberScore(
   return Math.round(solves * 10 + firstTrySolves * 3 + longestStreak * 2 + efficiencyBonus)
 }
 
+function getLocalDateFromTimestamp(value: string | null | undefined) {
+  if (!value) return ''
+  const date = new Date(value)
+  const year = date.getFullYear()
+  const month = `${date.getMonth() + 1}`.padStart(2, '0')
+  const day = `${date.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function buildMemberStats(
   member: GroupMemberRow,
   guessRows: GuessRow[],
@@ -273,7 +282,6 @@ function buildMemberStats(
 
   for (const [caseId, rows] of guessesByCase.entries()) {
     const caseInfo = caseLookup[caseId]
-    if (!caseInfo) continue
     totalGuesses += rows.length
     correctGuesses += rows.filter(row => row.is_correct).length
     const firstCorrectIndex = rows.findIndex(row => row.is_correct)
@@ -283,7 +291,11 @@ function buildMemberStats(
     if (firstCorrectIndex === 0) {
       firstTrySolves += 1
     }
-    solvedDates.push(caseInfo.case_date)
+    const correctGuess = rows[firstCorrectIndex]
+    const solvedDate = caseInfo?.case_date || getLocalDateFromTimestamp(correctGuess?.created_at)
+    if (solvedDate) {
+      solvedDates.push(solvedDate)
+    }
   }
 
   const uniqueSortedDates = Array.from(new Set(solvedDates)).sort()
