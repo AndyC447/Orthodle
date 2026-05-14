@@ -1389,6 +1389,11 @@ function PlayPageContent() {
     )
   }
 
+  function formatGuessDisplayText(value: string | undefined) {
+    if (typeof value !== 'string') return '—'
+    return value.trim().length > 0 ? value : 'blank'
+  }
+
   const filteredAnswerOptions = useMemo(() => {
     const query = normalizeAnswer(guess)
     if (!query || query.length < 2 || isTooGenericSuggestionQuery(query)) return []
@@ -1434,7 +1439,7 @@ function PlayPageContent() {
   }
 
   async function submitGuess() {
-    if (!dailyCase || !guess.trim() || gameWon || gameOver) return
+    if (!dailyCase || gameWon || gameOver) return
 
     const currentGuess = guess.trim()
     const sessionId = getSessionId()
@@ -2186,6 +2191,12 @@ function PlayPageContent() {
                           onBlurCapture={() => setIsMobileInputFocused(false)}
                           onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
                           onKeyDown={e => e.key === 'Enter' && submitGuess()}
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          autoComplete="off"
+                          spellCheck={false}
+                          enterKeyHint="done"
+                          inputMode="text"
                           placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                           disabled={!dailyCase}
                           className="min-h-[40px] flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12.5px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
@@ -2406,7 +2417,7 @@ function PlayPageContent() {
                     </span>
 
                     <span className="truncate font-serif text-[13px] font-bold leading-none">
-                      {item?.text || '—'}
+                      {item ? formatGuessDisplayText(item.text) : '—'}
                     </span>
                   </div>
                 )

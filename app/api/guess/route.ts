@@ -4,6 +4,7 @@ import { isAcceptedGuess } from '@/lib/utils'
 
 export async function POST(req: Request) {
   const { caseId, guess, sessionId, doNotTrack } = await req.json()
+  const normalizedGuess = typeof guess === 'string' ? guess.trim() : ''
   const requestUrl = new URL(req.url)
   const host = req.headers.get('host') || requestUrl.host || ''
   const isLocalRequest =
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
   if (error || !caseRow) return NextResponse.json({ error: 'Case not found' }, { status: 404 })
 
   const accepted = [caseRow.answer, ...(caseRow.synonyms || [])]
-  const correct = isAcceptedGuess(guess, accepted)
+  const correct = isAcceptedGuess(normalizedGuess, accepted)
 
   if (isLocalRequest) {
     return NextResponse.json({ correct, remaining: 6 })
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
   await supabase.from('guesses').insert({
     case_id: caseId,
     session_id: sessionId,
-    guess_text: guess,
+    guess_text: normalizedGuess,
     is_correct: correct,
   })
 
