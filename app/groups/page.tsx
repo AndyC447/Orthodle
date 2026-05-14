@@ -741,7 +741,7 @@ function TrophyCase({
   return (
     <>
       <section className="mt-3 rounded-[20px] border border-[#e7e1d6] bg-white p-3 text-left shadow-[0_10px_26px_rgba(16,32,24,0.04)] sm:p-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2.5 sm:gap-3">
           <div>
             <h2 className="font-serif text-[21px] font-bold tracking-[-0.05em] text-[#102018] sm:text-[23px]">
               <span className="mr-1.5 text-[19px]">🏆</span>
@@ -751,18 +751,18 @@ function TrophyCase({
               Tap any trophy to see how it is earned.
             </p>
           </div>
-          <div className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+          <div className="shrink-0 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:px-2.5">
             {earnedCount}/{trophies.length}
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {trophies.map(trophy => (
             <button
               key={trophy.title}
               type="button"
               onClick={() => setSelectedTrophy(trophy)}
-              className={`rounded-[14px] border px-1.5 py-2 text-center transition hover:-translate-y-0.5 ${
+              className={`flex min-h-[122px] flex-col rounded-[14px] border px-2 py-2.5 text-center transition hover:-translate-y-0.5 sm:min-h-[138px] sm:px-2.5 ${
                 trophy.earned
                   ? 'border-[#ead9b7] bg-[radial-gradient(circle_at_50%_0%,rgba(231,184,63,0.16),transparent_42%),#fffdf8] shadow-[0_8px_18px_rgba(16,32,24,0.04)]'
                   : 'border-[#ece6db] bg-[#fcfbf8] opacity-55'
@@ -778,12 +778,12 @@ function TrophyCase({
               >
                 {trophy.icon}
               </div>
-              <div className="mt-1.5 font-serif text-[11px] font-bold leading-tight text-[#102018] sm:text-[12px]">
+              <div className="mt-1.5 min-h-[2.7rem] break-words font-serif text-[11px] font-bold leading-tight text-[#102018] sm:min-h-[3rem] sm:text-[12px]">
                 {trophy.title}
               </div>
-              <p className="mt-0.5 hidden text-[9.5px] leading-3 text-[#637268] sm:block">
-                {trophy.description}
-              </p>
+              <div className="mt-auto pt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-[#637268]">
+                Details
+              </div>
             </button>
           ))}
         </div>
@@ -1209,6 +1209,7 @@ export default function GroupsPage() {
   const [savingDisplayName, setSavingDisplayName] = useState(false)
   const [savingMemberIcon, setSavingMemberIcon] = useState(false)
   const [copiedCode, setCopiedCode] = useState('')
+  const [leavingGroup, setLeavingGroup] = useState(false)
   const [urlJoinCode, setUrlJoinCode] = useState('')
   const [leaderboardSearch, setLeaderboardSearch] = useState('')
   const [showJoinPanel, setShowJoinPanel] = useState(false)
@@ -2038,6 +2039,11 @@ export default function GroupsPage() {
       return
     }
 
+    if (viewerMembership) {
+      setMessage('Leave your current group first, then create a new one.')
+      return
+    }
+
     setCreating(true)
     setMessage('')
 
@@ -2157,6 +2163,12 @@ export default function GroupsPage() {
     if (!targetGroup) {
       setJoining(false)
       setMessage('That group code does not exist.')
+      return
+    }
+
+    if (viewerMembership && viewerMembership.group_id !== targetGroup.id) {
+      setJoining(false)
+      setMessage('Leave your current group first, then join a new one.')
       return
     }
 
@@ -2590,6 +2602,61 @@ export default function GroupsPage() {
     setMessage(`${member.display_name} removed from ${selectedGroup.name}.`)
   }
 
+  async function leaveCurrentGroup() {
+    if (!viewerMembership || !viewerGroup) {
+      setMessage('You are not in a group right now.')
+      return
+    }
+
+    const isCreator = viewerGroup.creator_session_id === sessionId
+    const memberCount = members.filter(member => member.group_id === viewerGroup.id).length
+    const confirmationMessage = isCreator
+      ? memberCount <= 1
+        ? `Leave ${viewerGroup.name}? Since you are the only member, the group will be deleted.`
+        : `Leave ${viewerGroup.name}? Group ownership will transfer to the next member.`
+      : `Leave ${viewerGroup.name}? You can join another group afterward.`
+
+    const confirmed = window.confirm(confirmationMessage)
+    if (!confirmed) return
+
+    setLeavingGroup(true)
+    setMessage('')
+
+    const response = await fetch('/api/groups/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        groupId: viewerGroup.id,
+        sessionId,
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      setLeavingGroup(false)
+      setMessage(payload.error || 'Could not leave the group.')
+      return
+    }
+
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(membershipKey(viewerGroup.id))
+    }
+
+    setSelectedGroupId('')
+    setYourGroupOpen(false)
+    setShowSelectedGroupIconPicker(false)
+    setShowSelectedMemberIconPicker(false)
+    setSelectedMemberStats(null)
+    setLeavingGroup(false)
+    setMessage(
+      payload.deletedGroup
+        ? `${viewerGroup.name} was removed after you left.`
+        : `You left ${viewerGroup.name}.`
+    )
+    await loadGroupsData()
+  }
+
   async function submitGroupForm() {
     if (groupActionMode === 'join') {
       await joinGroup()
@@ -2791,7 +2858,7 @@ export default function GroupsPage() {
                 type="button"
                 onClick={openMvpInspection}
                 disabled={!mvpEntry}
-                className="relative overflow-hidden rounded-[18px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_16%_18%,rgba(240,194,71,0.22),transparent_22%),radial-gradient(circle_at_84%_16%,rgba(255,255,255,0.18),transparent_18%),radial-gradient(circle_at_52%_78%,rgba(45,118,81,0.09),transparent_26%),linear-gradient(145deg,#fffaf0,#f5fbf5_46%,#fff7eb)] p-3 text-left shadow-[0_16px_34px_rgba(16,32,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_42px_rgba(16,32,24,0.12)] disabled:cursor-default sm:rounded-[20px] sm:p-4"
+                className="orthodle-mvp-card relative overflow-hidden rounded-[18px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_16%_18%,rgba(240,194,71,0.22),transparent_22%),radial-gradient(circle_at_84%_16%,rgba(255,255,255,0.18),transparent_18%),radial-gradient(circle_at_52%_78%,rgba(45,118,81,0.09),transparent_26%),linear-gradient(145deg,#fffaf0,#f5fbf5_46%,#fff7eb)] p-3 text-left shadow-[0_16px_34px_rgba(16,32,24,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_42px_rgba(16,32,24,0.12)] disabled:cursor-default sm:rounded-[20px] sm:p-4"
               >
                 <div className="absolute inset-0 opacity-45 [background-image:radial-gradient(circle,rgba(214,154,40,0.16)_1.2px,transparent_1.2px)] [background-size:30px_30px]" />
                 <div className="absolute left-4 top-4 h-24 w-24 rounded-full border border-[#efdfb4]/70 bg-[radial-gradient(circle,rgba(255,255,255,0.42),rgba(255,255,255,0.04)_72%)] opacity-70 blur-[1px] sm:h-32 sm:w-32" />
@@ -2802,7 +2869,7 @@ export default function GroupsPage() {
                 {mvpEntry ? (
                   <div className="relative mt-2.5 grid gap-2 md:grid-cols-[1fr_1px_1fr] md:items-center">
                     <div className="text-center">
-                      <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] shadow-[0_12px_26px_rgba(16,32,24,0.08)] sm:h-24 sm:w-24">
+                      <div className="orthodle-mvp-avatar relative mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#e4b64b] bg-[#fbf7ef] shadow-[0_12px_26px_rgba(16,32,24,0.08)] sm:h-24 sm:w-24">
                         <div className="absolute -top-4 text-[23px] sm:-top-5 sm:text-[28px]">👑</div>
                         <IconMark
                           value={mvpEntry.stats.member.icon}
@@ -2818,7 +2885,7 @@ export default function GroupsPage() {
                       </p>
                     </div>
 
-                    <div className="hidden h-full bg-[#ece6db] md:block" />
+                    <div className="orthodle-mvp-divider hidden h-full bg-[#ece6db] md:block" />
 
                     <div className="grid grid-cols-2 gap-2 md:block md:space-y-2">
                       {[
@@ -2849,8 +2916,8 @@ export default function GroupsPage() {
                         const StatIcon = item.Icon
 
                         return (
-                          <div key={item.label} className="flex items-center gap-2 rounded-[16px] border border-[#eadfca] bg-white/76 px-2.5 py-2 backdrop-blur-sm md:border-[#efe4cf] md:bg-white/58 md:px-2.5 md:py-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
+                          <div key={item.label} className="orthodle-mvp-stat flex items-center gap-2 rounded-[16px] border border-[#eadfca] bg-white/76 px-2.5 py-2 backdrop-blur-sm md:border-[#efe4cf] md:bg-white/58 md:px-2.5 md:py-2">
+                            <div className="orthodle-mvp-stat-icon flex h-8 w-8 items-center justify-center rounded-full border border-[#d9eadf] bg-[linear-gradient(145deg,#edf8f1,#fffaf1)] text-[#1f6448] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] sm:h-9 sm:w-9">
                               <StatIcon size={15} strokeWidth={2.2} />
                             </div>
                             <div>
@@ -2875,35 +2942,35 @@ export default function GroupsPage() {
             </div>
 
             <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)]">
+              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Groups live
                 </div>
-                <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                   {leaderboardSummary.groupsLive}
                 </div>
               </div>
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)]">
+              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Members competing
                 </div>
-                <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                   {leaderboardSummary.membersCompeting}
                 </div>
               </div>
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)]">
+              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Active today
                 </div>
-                <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                   {leaderboardSummary.activeToday}
                 </div>
               </div>
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)]">
+              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                   Solves on board
                 </div>
-                <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                   {leaderboardSummary.totalSolves}
                 </div>
               </div>
@@ -3238,13 +3305,13 @@ export default function GroupsPage() {
                           </div>
                         </button>
                         <div className="min-w-0 flex-1 pt-0.5">
-                          <h1 className="break-words font-serif text-[22px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[31px] sm:leading-none">
+                          <h1 className="break-words font-serif text-[21px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[31px] sm:leading-none">
                             {selectedGroup.name}
                           </h1>
                           <p className="mt-0.5 text-[13px] text-[#e3efe8] sm:mt-1 sm:text-sm">
                             {formatMemberCount(selectedGroupAggregate.members.length)}
                           </p>
-                          <p className="mt-1.5 max-w-[15rem] text-[12px] font-medium leading-[1.28] text-[#f6efe0] sm:mt-2 sm:max-w-none sm:text-sm">
+                          <p className="mt-1.5 max-w-[16rem] text-[12px] font-medium leading-[1.35] text-[#f6efe0] sm:mt-2 sm:max-w-none sm:text-sm">
                             "{getGroupTagline(selectedGroupRank)}"
                           </p>
                         </div>
@@ -3260,16 +3327,26 @@ export default function GroupsPage() {
                         >
                           {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                       </button>
-                      {isViewingOwnGroup ? (
+                    {isViewingOwnGroup ? (
+                      <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
                         <button
                           type="button"
                           onClick={() => void shareInviteLink(selectedGroup)}
-                            className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
-                          >
-                            <Share2 size={13} strokeWidth={2} />
+                          className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
+                        >
+                          <Share2 size={13} strokeWidth={2} />
                           {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
                         </button>
-                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => void leaveCurrentGroup()}
+                          disabled={leavingGroup}
+                          className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#f2d4c2]/70 bg-white/10 px-3 text-[11px] font-bold text-[#fff2ea] transition hover:bg-white/16 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
+                        >
+                          {leavingGroup ? 'Leaving...' : 'Leave'}
+                        </button>
+                      </div>
+                    ) : (
                         <button
                           type="button"
                           onClick={() => {
@@ -3567,7 +3644,7 @@ export default function GroupsPage() {
                       <button
                         type="button"
                         onClick={() => setIsEditingProfileName(true)}
-                        className="mx-auto block max-w-full break-words text-center font-serif text-[28px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[36px]"
+                        className="mx-auto block max-w-full break-words text-center font-serif text-[26px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[36px]"
                       >
                         {isViewerCurrentMvp ? '👑 ' : ''}
                         {profileDisplayName}
@@ -3606,7 +3683,7 @@ export default function GroupsPage() {
                     <div className="mt-1.5 font-serif text-[19px] font-bold leading-none text-white md:mt-2 md:text-[24px]">
                       {viewerMemberStats?.longestStreak || 0}
                     </div>
-                    <div className="mt-1 text-[7px] font-bold uppercase tracking-[0.1em] text-[#dfece5] md:text-[9px] md:tracking-[0.14em]">
+                    <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-[#dfece5] md:text-[9px] md:tracking-[0.14em]">
                       day streak
                     </div>
                   </div>
@@ -3617,7 +3694,7 @@ export default function GroupsPage() {
                     <div className="mt-1.5 font-serif text-[19px] font-bold leading-none text-white md:mt-2 md:text-[24px]">
                       {viewerMemberStats?.solves || 0}
                     </div>
-                    <div className="mt-1 text-[7px] font-bold uppercase tracking-[0.1em] text-[#dfece5] md:text-[9px] md:tracking-[0.14em]">
+                    <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-[#dfece5] md:text-[9px] md:tracking-[0.14em]">
                       total cases solved
                     </div>
                   </div>
@@ -3628,7 +3705,7 @@ export default function GroupsPage() {
                     <div className="mt-1.5 font-serif text-[19px] font-bold leading-none text-white md:mt-2 md:text-[24px]">
                       {viewerMemberStats?.firstTrySolves || 0}
                     </div>
-                    <div className="mt-1 text-[7px] font-bold uppercase tracking-[0.1em] text-[#dfece5] md:text-[9px] md:tracking-[0.14em]">
+                    <div className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-[#dfece5] md:text-[9px] md:tracking-[0.14em]">
                       first try solves
                     </div>
                   </div>

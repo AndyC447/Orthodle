@@ -385,6 +385,7 @@ export default function GroupDetailPage() {
   const [showGroupIconPicker, setShowGroupIconPicker] = useState(false)
   const [showMemberIconPicker, setShowMemberIconPicker] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [leavingGroup, setLeavingGroup] = useState(false)
 
   async function fetchAllGroupGuessRows(memberSessionIds: string[]) {
     const pageSize = 1000
@@ -633,6 +634,47 @@ export default function GroupDetailPage() {
     setMessage(`Group code: ${group.join_code}`)
   }
 
+  async function leaveGroup() {
+    if (!group || !membership) {
+      setMessage('Join this group first.')
+      return
+    }
+
+    const isCreator = group.creator_session_id === sessionId
+    const memberCount = members.filter(member => member.group_id === group.id).length
+    const confirmationMessage = isCreator
+      ? memberCount <= 1
+        ? `Leave ${group.name}? Since you are the only member, the group will be deleted.`
+        : `Leave ${group.name}? Group ownership will transfer to the next member.`
+      : `Leave ${group.name}? You can join a different group afterward.`
+
+    const confirmed = window.confirm(confirmationMessage)
+    if (!confirmed) return
+
+    setLeavingGroup(true)
+    setMessage('')
+
+    const response = await fetch('/api/groups/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        groupId: group.id,
+        sessionId,
+      }),
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      setLeavingGroup(false)
+      setMessage(payload.error || 'Could not leave the group.')
+      return
+    }
+
+    setLeavingGroup(false)
+    router.push('/groups')
+  }
+
   return (
     <main className="app-surface min-h-screen">
       <Header />
@@ -680,14 +722,26 @@ export default function GroupDetailPage() {
                     </div>
 
                     {membership || canEditGroup ? (
-                      <button
-                        type="button"
-                        onClick={() => void shareInvite()}
-                        className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.14)] transition hover:-translate-y-0.5 hover:bg-[#255e42]"
-                      >
-                        <Share2 size={15} strokeWidth={2} />
-                        {copied ? 'Invite copied' : 'Text invite'}
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void shareInvite()}
+                          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.14)] transition hover:-translate-y-0.5 hover:bg-[#255e42]"
+                        >
+                          <Share2 size={15} strokeWidth={2} />
+                          {copied ? 'Invite copied' : 'Text invite'}
+                        </button>
+                        {membership ? (
+                          <button
+                            type="button"
+                            onClick={() => void leaveGroup()}
+                            disabled={leavingGroup}
+                            className="inline-flex h-10 items-center justify-center rounded-full border border-[#e6dfd3] bg-white px-4 text-[12px] font-semibold text-[#102018] shadow-[0_8px_18px_rgba(16,32,24,0.06)] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {leavingGroup ? 'Leaving...' : 'Leave group'}
+                          </button>
+                        ) : null}
+                      </div>
                     ) : (
                       <Link
                         href={`/groups?request=${group.id}`}

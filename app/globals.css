@@ -391,6 +391,38 @@ body {
   border-color: rgba(250, 245, 236, 0.44) !important;
 }
 
+:root[data-theme="dark"] .orthodle-mvp-card {
+  background:
+    radial-gradient(circle at 16% 18%, rgba(231, 184, 63, 0.16), transparent 24%),
+    radial-gradient(circle at 84% 16%, rgba(255, 255, 255, 0.08), transparent 20%),
+    radial-gradient(circle at 52% 78%, rgba(94, 168, 132, 0.1), transparent 28%),
+    linear-gradient(145deg, #18231f, #111915 58%, #1a241f) !important;
+  border-color: rgba(250, 245, 236, 0.44) !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="dark"] .orthodle-mvp-avatar {
+  background:
+    radial-gradient(circle at 28% 20%, rgba(255, 255, 255, 0.12), transparent 34%),
+    linear-gradient(145deg, #223029, #16211c) !important;
+  border-color: #e4b64b !important;
+}
+
+:root[data-theme="dark"] .orthodle-mvp-divider {
+  background: rgba(250, 245, 236, 0.14) !important;
+}
+
+:root[data-theme="dark"] .orthodle-mvp-stat {
+  background: rgba(17, 25, 21, 0.56) !important;
+  border-color: rgba(250, 245, 236, 0.18) !important;
+}
+
+:root[data-theme="dark"] .orthodle-mvp-stat-icon {
+  background: linear-gradient(145deg, rgba(44, 127, 89, 0.24), rgba(18, 27, 23, 0.9)) !important;
+  border-color: rgba(176, 221, 195, 0.22) !important;
+  color: #dff0e7 !important;
+}
+
 :root[data-theme="dark"] .orthodle-groups-cta {
   background:
     linear-gradient(135deg, rgba(94, 168, 132, 0.16), rgba(227, 151, 100, 0.08)),
