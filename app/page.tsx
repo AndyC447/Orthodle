@@ -6,6 +6,14 @@ import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
+import {
+  getSurveyLevelScopeLabel,
+  normalizeSurveyOptions,
+  SITE_SURVEY_STORAGE_PREFIX,
+  type SiteSurveyRow,
+  type SurveyLevelScope,
+  type SurveyPlacement,
+} from '@/lib/site-surveys'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
   getStatsSummary,
@@ -106,6 +114,13 @@ type AnatomySurveyRow = {
   option_3: string
   start_date: string
   end_date: string | null
+}
+
+type ActiveSurveyState = {
+  survey: SiteSurveyRow | null
+  submittedChoice: string | null
+  isSubmitting: boolean
+  status: string
 }
 
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
@@ -293,6 +308,14 @@ function getInitialDateFromParams(value: string | null, fallback: string) {
   return fallback
 }
 
+function getSiteSurveyStorageKey(surveyId: string) {
+  return `${SITE_SURVEY_STORAGE_PREFIX}:${surveyId}`
+}
+
+function doesSurveyApplyToLevel(levelScope: SurveyLevelScope | null | undefined, level: Level) {
+  return !levelScope || levelScope === 'all' || levelScope === level
+}
+
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
@@ -346,10 +369,22 @@ function PlayPageContent() {
   const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
   const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
   const [homepageSurveyStatus, setHomepageSurveyStatus] = useState('')
+  const [sharedHomepageSurvey, setSharedHomepageSurvey] = useState<ActiveSurveyState>({
+    survey: null,
+    submittedChoice: null,
+    isSubmitting: false,
+    status: '',
+  })
   const [anatomySurvey, setAnatomySurvey] = useState<AnatomySurveyRow | null>(null)
   const [submittedAnatomySurveyChoice, setSubmittedAnatomySurveyChoice] = useState<string | null>(null)
   const [isSubmittingAnatomySurvey, setIsSubmittingAnatomySurvey] = useState(false)
   const [anatomySurveyStatus, setAnatomySurveyStatus] = useState('')
+  const [sharedPostCaseSurvey, setSharedPostCaseSurvey] = useState<ActiveSurveyState>({
+    survey: null,
+    submittedChoice: null,
+    isSubmitting: false,
+    status: '',
+  })
   const [showTutorial, setShowTutorial] = useState(false)
   const [resumeRound, setResumeRound] = useState<ReturnType<typeof getLatestUnfinishedRoundProgress>>(null)
   const [dailySummary, setDailySummary] = useState({
@@ -441,6 +476,30 @@ function PlayPageContent() {
     )
     setSubmittedHomepageSurveyChoice(saved || null)
   }, [homepageSurvey])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !sharedHomepageSurvey.survey?.id) {
+      setSharedHomepageSurvey(prev => ({ ...prev, submittedChoice: null, status: '' }))
+      return
+    }
+
+    const saved = window.localStorage.getItem(
+      getSiteSurveyStorageKey(sharedHomepageSurvey.survey.id)
+    )
+    setSharedHomepageSurvey(prev => ({ ...prev, submittedChoice: saved || null, status: '' }))
+  }, [sharedHomepageSurvey.survey?.id])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !sharedPostCaseSurvey.survey?.id) {
+      setSharedPostCaseSurvey(prev => ({ ...prev, submittedChoice: null, status: '' }))
+      return
+    }
+
+    const saved = window.localStorage.getItem(
+      getSiteSurveyStorageKey(sharedPostCaseSurvey.survey.id)
+    )
+    setSharedPostCaseSurvey(prev => ({ ...prev, submittedChoice: saved || null, status: '' }))
+  }, [sharedPostCaseSurvey.survey?.id])
 
   useEffect(() => {
     let cancelled = false
@@ -620,6 +679,47 @@ function PlayPageContent() {
     }
   }
 
+  async function submitSharedHomepageSurvey(choice: string) {
+    if (
+      !sharedHomepageSurvey.survey?.id ||
+      sharedHomepageSurvey.submittedChoice ||
+      sharedHomepageSurvey.isSubmitting
+    ) {
+      return
+    }
+
+    setSharedHomepageSurvey(prev => ({ ...prev, isSubmitting: true, status: '' }))
+    const trackingDisabled = isTrackingDisabledForThisBrowser()
+
+    try {
+      if (!isLocalhostBrowser() && !trackingDisabled) {
+        await supabase.from('site_survey_responses').insert({
+          survey_id: sharedHomepageSurvey.survey.id,
+          response: choice,
+          session_id: getSessionId() || null,
+          placement: 'homepage_header',
+        })
+      }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(getSiteSurveyStorageKey(sharedHomepageSurvey.survey.id), choice)
+      }
+
+      setSharedHomepageSurvey(prev => ({
+        ...prev,
+        submittedChoice: choice,
+        isSubmitting: false,
+        status: 'Thanks for responding!',
+      }))
+    } catch {
+      setSharedHomepageSurvey(prev => ({
+        ...prev,
+        isSubmitting: false,
+        status: 'Could not save that response.',
+      }))
+    }
+  }
+
   async function submitAnatomySurvey(choice: string) {
     if (!anatomySurvey?.id || submittedAnatomySurveyChoice || isSubmittingAnatomySurvey) return
 
@@ -650,8 +750,108 @@ function PlayPageContent() {
     }
   }
 
+  async function submitSharedPostCaseSurvey(choice: string) {
+    if (
+      !sharedPostCaseSurvey.survey?.id ||
+      sharedPostCaseSurvey.submittedChoice ||
+      sharedPostCaseSurvey.isSubmitting
+    ) {
+      return
+    }
+
+    setSharedPostCaseSurvey(prev => ({ ...prev, isSubmitting: true, status: '' }))
+    const trackingDisabled = isTrackingDisabledForThisBrowser()
+
+    try {
+      if (!isLocalhostBrowser() && !trackingDisabled) {
+        await supabase.from('site_survey_responses').insert({
+          survey_id: sharedPostCaseSurvey.survey.id,
+          response: choice,
+          session_id: getSessionId() || null,
+          placement: 'after_case',
+          case_id: dailyCase?.id || null,
+          case_date: dailyCase?.case_date || selectedDate,
+          level: dailyCase?.level || selectedLevel,
+        })
+      }
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(getSiteSurveyStorageKey(sharedPostCaseSurvey.survey.id), choice)
+      }
+
+      setSharedPostCaseSurvey(prev => ({
+        ...prev,
+        submittedChoice: choice,
+        isSubmitting: false,
+        status: 'Thanks for the feedback.',
+      }))
+    } catch {
+      setSharedPostCaseSurvey(prev => ({
+        ...prev,
+        isSubmitting: false,
+        status: 'Could not save that response.',
+      }))
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
+
+    async function loadSharedHomepageSurvey() {
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+      const { data, error } = await supabase
+        .from('site_surveys')
+        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
+        .eq('placement', 'homepage_header')
+        .lte('start_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order('start_date', { ascending: false })
+
+      if (cancelled) return
+
+      if (!error) {
+        const activeSurvey = ((data as SiteSurveyRow[] | null) || []).find(
+          item => item.question?.trim() && normalizeSurveyOptions(item.options || []).length >= 2
+        ) || null
+
+        if (activeSurvey) {
+          setSharedHomepageSurvey(prev => ({
+            ...prev,
+            survey: { ...activeSurvey, options: normalizeSurveyOptions(activeSurvey.options || []) },
+          }))
+          return
+        }
+      }
+
+      if (!isLocalhost) {
+        setSharedHomepageSurvey(prev => ({ ...prev, survey: null }))
+        return
+      }
+
+      const { data: upcomingData } = await supabase
+        .from('site_surveys')
+        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
+        .eq('placement', 'homepage_header')
+        .gte('start_date', today)
+        .order('start_date', { ascending: true })
+        .limit(1)
+
+      if (cancelled) return
+
+      const upcomingSurvey = ((upcomingData as SiteSurveyRow[] | null) || []).find(
+        item => item.question?.trim() && normalizeSurveyOptions(item.options || []).length >= 2
+      ) || null
+
+      setSharedHomepageSurvey(prev => ({
+        ...prev,
+        survey: upcomingSurvey
+          ? { ...upcomingSurvey, options: normalizeSurveyOptions(upcomingSurvey.options || []) }
+          : null,
+      }))
+    }
 
     async function loadHomepageSurvey() {
       const isLocalhost =
@@ -691,6 +891,7 @@ function PlayPageContent() {
       setHomepageSurvey((upcomingData as HomepageSurveyRow[] | null)?.[0] || null)
     }
 
+    void loadSharedHomepageSurvey()
     void loadHomepageSurvey()
 
     return () => {
@@ -700,6 +901,67 @@ function PlayPageContent() {
 
   useEffect(() => {
     let cancelled = false
+
+    async function loadSharedPostCaseSurvey() {
+      const isLocalhost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+      const { data, error } = await supabase
+        .from('site_surveys')
+        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
+        .eq('placement', 'after_case')
+        .lte('start_date', today)
+        .or(`end_date.is.null,end_date.gte.${today}`)
+        .order('start_date', { ascending: false })
+
+      if (cancelled) return
+
+      if (!error) {
+        const activeSurvey = ((data as SiteSurveyRow[] | null) || []).find(
+          item =>
+            item.question?.trim() &&
+            normalizeSurveyOptions(item.options || []).length >= 2 &&
+            doesSurveyApplyToLevel(item.level_scope, selectedLevel)
+        ) || null
+
+        if (activeSurvey) {
+          setSharedPostCaseSurvey(prev => ({
+            ...prev,
+            survey: { ...activeSurvey, options: normalizeSurveyOptions(activeSurvey.options || []) },
+          }))
+          return
+        }
+      }
+
+      if (!isLocalhost) {
+        setSharedPostCaseSurvey(prev => ({ ...prev, survey: null }))
+        return
+      }
+
+      const { data: upcomingData } = await supabase
+        .from('site_surveys')
+        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
+        .eq('placement', 'after_case')
+        .gte('start_date', today)
+        .order('start_date', { ascending: true })
+
+      if (cancelled) return
+
+      const upcomingSurvey = ((upcomingData as SiteSurveyRow[] | null) || []).find(
+        item =>
+          item.question?.trim() &&
+          normalizeSurveyOptions(item.options || []).length >= 2 &&
+          doesSurveyApplyToLevel(item.level_scope, selectedLevel)
+      ) || null
+
+      setSharedPostCaseSurvey(prev => ({
+        ...prev,
+        survey: upcomingSurvey
+          ? { ...upcomingSurvey, options: normalizeSurveyOptions(upcomingSurvey.options || []) }
+          : null,
+      }))
+    }
 
     async function loadAnatomySurvey() {
       const isLocalhost =
@@ -744,12 +1006,13 @@ function PlayPageContent() {
       setAnatomySurvey((upcomingData as AnatomySurveyRow[] | null)?.[0] || null)
     }
 
+    void loadSharedPostCaseSurvey()
     void loadAnatomySurvey()
 
     return () => {
       cancelled = true
     }
-  }, [today])
+  }, [today, selectedLevel])
 
   useEffect(() => {
     let cancelled = false
@@ -1847,22 +2110,37 @@ function PlayPageContent() {
   const homepageSurveyKey = homepageSurvey
     ? `${homepageSurvey.id}:${homepageSurvey.question}`
     : null
+  const sharedHomepageSurveyKey = sharedHomepageSurvey.survey
+    ? `${sharedHomepageSurvey.survey.id}:${sharedHomepageSurvey.survey.question}`
+    : null
   const showHomepageAnnouncement =
     onTodayCard &&
     Boolean(homepageAnnouncement) &&
     homepageAnnouncementKey !== dismissedHomepageAnnouncementKey
+  const showSharedHomepageSurvey =
+    onTodayCard &&
+    Boolean(sharedHomepageSurvey.survey) &&
+    sharedHomepageSurveyKey !== dismissedHomepageSurveyKey &&
+    !sharedHomepageSurvey.submittedChoice
   const showHomepageSurvey =
+    !showSharedHomepageSurvey &&
     onTodayCard &&
     Boolean(homepageSurvey) &&
     homepageSurveyKey !== dismissedHomepageSurveyKey &&
     !submittedHomepageSurveyChoice
   const anatomySurveyStorageKey = anatomySurvey?.id ? `${ANATOMY_SURVEY_STORAGE_PREFIX}:${anatomySurvey.id}` : null
+  const shouldShowSharedPostCaseSurvey =
+    roundComplete &&
+    Boolean(sharedPostCaseSurvey.survey) &&
+    !sharedPostCaseSurvey.submittedChoice &&
+    doesSurveyApplyToLevel(sharedPostCaseSurvey.survey.level_scope, selectedLevel)
   const shouldShowAnatomySurvey =
+    !shouldShowSharedPostCaseSurvey &&
     roundComplete &&
     useSurgicalAnatomyQuiz &&
     Boolean(anatomySurvey) &&
     !submittedAnatomySurveyChoice
-  const topBannerCount = Number(showHomepageAnnouncement) + Number(showHomepageSurvey)
+  const topBannerCount = Number(showHomepageAnnouncement) + Number(showHomepageSurvey) + Number(showSharedHomepageSurvey)
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
@@ -1871,9 +2149,11 @@ function PlayPageContent() {
   }
 
   function dismissHomepageSurvey() {
-    if (!homepageSurveyKey || typeof window === 'undefined') return
-    window.localStorage.setItem(HOMEPAGE_SURVEY_DISMISS_KEY, homepageSurveyKey)
-    setDismissedHomepageSurveyKey(homepageSurveyKey)
+    if (typeof window === 'undefined') return
+    const keyToDismiss = sharedHomepageSurveyKey || homepageSurveyKey
+    if (!keyToDismiss) return
+    window.localStorage.setItem(HOMEPAGE_SURVEY_DISMISS_KEY, keyToDismiss)
+    setDismissedHomepageSurveyKey(keyToDismiss)
   }
 
   function dismissTutorial() {
@@ -2174,6 +2454,47 @@ function PlayPageContent() {
               >
                 <span className="-mt-px">×</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {showSharedHomepageSurvey && sharedHomepageSurvey.survey && (
+          <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="mx-auto max-w-[560px]">
+              <div className="text-center text-[8.5px] font-medium leading-[1.2] text-[#102018] sm:text-[12px]">
+                {sharedHomepageSurvey.survey.question}
+              </div>
+              <div
+                className={`mt-1.5 grid gap-1 ${
+                  (sharedHomepageSurvey.survey.options || []).length > 3
+                    ? 'grid-cols-2 sm:grid-cols-3'
+                    : 'grid-cols-3'
+                }`}
+              >
+                {(sharedHomepageSurvey.survey.options || []).map(option => {
+                  const isSelected = sharedHomepageSurvey.submittedChoice === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => void submitSharedHomepageSurvey(option)}
+                      disabled={Boolean(sharedHomepageSurvey.submittedChoice) || sharedHomepageSurvey.isSubmitting}
+                      className={`min-w-0 rounded-lg border px-1 py-1 text-[6.5px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
+                        isSelected
+                          ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                          : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                      } disabled:cursor-not-allowed disabled:opacity-80`}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+              {sharedHomepageSurvey.status && (
+                <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
+                  {sharedHomepageSurvey.status}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -2963,6 +3284,55 @@ function PlayPageContent() {
                     </div>
                   )}
                 </div>
+
+                {shouldShowSharedPostCaseSurvey && sharedPostCaseSurvey.survey && (
+                  <div className="night-soft-surface rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-2.5 sm:p-3">
+                    <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                      Quick survey
+                    </div>
+                    <div className="mx-auto max-w-[560px]">
+                      <div className="text-center text-[12px] leading-5 text-[#102018] sm:text-[13px]">
+                        {sharedPostCaseSurvey.survey.question}
+                      </div>
+                      {sharedPostCaseSurvey.survey.level_scope && sharedPostCaseSurvey.survey.level_scope !== 'all' && (
+                        <p className="mt-1 text-center text-[9.5px] uppercase tracking-[0.16em] text-[#8a948d]">
+                          {getSurveyLevelScopeLabel(sharedPostCaseSurvey.survey.level_scope)}
+                        </p>
+                      )}
+                      <div
+                        className={`mt-2 grid gap-1.5 ${
+                          (sharedPostCaseSurvey.survey.options || []).length > 3
+                            ? 'grid-cols-1 sm:grid-cols-2'
+                            : 'grid-cols-1 sm:grid-cols-3'
+                        }`}
+                      >
+                        {(sharedPostCaseSurvey.survey.options || []).map(option => {
+                          const isSelected = sharedPostCaseSurvey.submittedChoice === option
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() => void submitSharedPostCaseSurvey(option)}
+                              disabled={Boolean(sharedPostCaseSurvey.submittedChoice) || sharedPostCaseSurvey.isSubmitting}
+                              className={`min-w-0 rounded-lg border px-2 py-1.5 text-[10px] font-semibold leading-tight transition sm:px-2.5 sm:py-2 ${
+                                isSelected
+                                  ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                              } disabled:cursor-not-allowed disabled:opacity-80`}
+                            >
+                              {option}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {sharedPostCaseSurvey.status && (
+                        <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
+                          {sharedPostCaseSurvey.status}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {shouldShowAnatomySurvey && anatomySurvey && (
                   <div className="night-soft-surface rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-2.5 sm:p-3">

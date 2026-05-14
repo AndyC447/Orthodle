@@ -7,6 +7,7 @@ import { Bell, BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, 
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
 import { DEFAULT_MEMBER_ICON, getIconsForSection, GROUP_ICON_SECTIONS } from '@/lib/group-icons'
+import { normalizeSurveyOptions, SITE_SURVEY_STORAGE_PREFIX, type SiteSurveyRow } from '@/lib/site-surveys'
 import { supabase } from '@/lib/supabase'
 import {
   clearAccountSession,
@@ -158,12 +159,24 @@ type GroupJoinRequestRow = {
   handled_at: string | null
 }
 
+type GroupHeaderSurveyState = {
+  survey: SiteSurveyRow | null
+  submittedChoice: string | null
+  isSubmitting: boolean
+  status: string
+}
+
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
 const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
 const GROUP_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_group_announcement'
 const GROUP_NOTIFICATIONS_SEEN_KEY = 'orthodle_groups_notifications_seen_v1'
 const GROUP_DISMISSED_MESSAGES_KEY = 'orthodle_groups_dismissed_messages_v1'
+
+function getGroupSurveyStorageKey(surveyId: string) {
+  return `${SITE_SURVEY_STORAGE_PREFIX}:${surveyId}`
+}
+
 function normalizeJoinCode(value: string) {
   return value
     .toUpperCase()
@@ -1207,6 +1220,12 @@ export default function GroupsPage() {
   const [allTimeServerAggregates, setAllTimeServerAggregates] = useState<GroupAggregate[] | null>(null)
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
   const [groupAnnouncement, setGroupAnnouncement] = useState<GroupAnnouncementRow | null>(null)
+  const [groupHeaderSurvey, setGroupHeaderSurvey] = useState<GroupHeaderSurveyState>({
+    survey: null,
+    submittedChoice: null,
+    isSubmitting: false,
+    status: '',
+  })
   const [dismissedGroupAnnouncementKey, setDismissedGroupAnnouncementKey] = useState('')
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [createName, setCreateName] = useState('')
@@ -1332,6 +1351,92 @@ export default function GroupsPage() {
 
     const activeAnnouncement = (data as GroupAnnouncementRow[] | null)?.[0] || null
     setGroupAnnouncement(activeAnnouncement?.message?.trim() ? activeAnnouncement : null)
+  }
+
+  async function loadGroupHeaderSurvey() {
+    const isLocalhost =
+      typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+
+    const { data, error } = await supabase
+      .from('site_surveys')
+      .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
+      .eq('placement', 'group_header')
+      .lte('start_date', today)
+      .or(`end_date.is.null,end_date.gte.${today}`)
+      .order('start_date', { ascending: false })
+
+    if (!error) {
+      const activeSurvey = ((data as SiteSurveyRow[] | null) || []).find(
+        item => item.question?.trim() && normalizeSurveyOptions(item.options || []).length >= 2
+      ) || null
+
+      if (activeSurvey) {
+        setGroupHeaderSurvey(prev => ({
+          ...prev,
+          survey: { ...activeSurvey, options: normalizeSurveyOptions(activeSurvey.options || []) },
+        }))
+        return
+      }
+    }
+
+    if (!isLocalhost) {
+      setGroupHeaderSurvey(prev => ({ ...prev, survey: null }))
+      return
+    }
+
+    const { data: upcomingData } = await supabase
+      .from('site_surveys')
+      .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
+      .eq('placement', 'group_header')
+      .gte('start_date', today)
+      .order('start_date', { ascending: true })
+      .limit(1)
+
+    const upcomingSurvey = ((upcomingData as SiteSurveyRow[] | null) || []).find(
+      item => item.question?.trim() && normalizeSurveyOptions(item.options || []).length >= 2
+    ) || null
+
+    setGroupHeaderSurvey(prev => ({
+      ...prev,
+      survey: upcomingSurvey
+        ? { ...upcomingSurvey, options: normalizeSurveyOptions(upcomingSurvey.options || []) }
+        : null,
+    }))
+  }
+
+  async function submitGroupHeaderSurvey(choice: string) {
+    if (!groupHeaderSurvey.survey?.id || groupHeaderSurvey.submittedChoice || groupHeaderSurvey.isSubmitting) {
+      return
+    }
+
+    setGroupHeaderSurvey(prev => ({ ...prev, isSubmitting: true, status: '' }))
+
+    try {
+      await supabase.from('site_survey_responses').insert({
+        survey_id: groupHeaderSurvey.survey.id,
+        response: choice,
+        session_id: getSessionId() || null,
+        placement: 'group_header',
+      })
+
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(getGroupSurveyStorageKey(groupHeaderSurvey.survey.id), choice)
+      }
+
+      setGroupHeaderSurvey(prev => ({
+        ...prev,
+        submittedChoice: choice,
+        isSubmitting: false,
+        status: 'Thanks for responding!',
+      }))
+    } catch {
+      setGroupHeaderSurvey(prev => ({
+        ...prev,
+        isSubmitting: false,
+        status: 'Could not save that response.',
+      }))
+    }
   }
 
   async function loadServerLeaderboardData(windowMode: LeaderboardWindow, force = false) {
@@ -1475,8 +1580,21 @@ export default function GroupsPage() {
   useEffect(() => {
     void loadGroupsData()
     void loadGroupAnnouncement()
+    void loadGroupHeaderSurvey()
     void loadServerLeaderboardData('week', true)
   }, [sessionId, today])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !groupHeaderSurvey.survey?.id) {
+      setGroupHeaderSurvey(prev => ({ ...prev, submittedChoice: null, status: '' }))
+      return
+    }
+
+    const savedChoice = window.localStorage.getItem(
+      getGroupSurveyStorageKey(groupHeaderSurvey.survey.id)
+    )
+    setGroupHeaderSurvey(prev => ({ ...prev, submittedChoice: savedChoice || null, status: '' }))
+  }, [groupHeaderSurvey.survey?.id])
 
   useEffect(() => {
     const refresh = () => {
@@ -3000,6 +3118,46 @@ export default function GroupsPage() {
               >
                 <X size={14} />
               </button>
+            </div>
+          </div>
+        ) : null}
+
+        {groupHeaderSurvey.survey && !groupHeaderSurvey.submittedChoice ? (
+          <div className="mb-3 rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mb-4 sm:px-4">
+            <div className="mx-auto max-w-[620px]">
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                Groups survey
+              </div>
+              <p className="mt-1.5 text-[12px] leading-5 text-[#102018] sm:text-[13px]">
+                {groupHeaderSurvey.survey.question}
+              </p>
+              <div
+                className={`mt-3 grid gap-2 ${
+                  (groupHeaderSurvey.survey.options || []).length > 3 ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-3'
+                }`}
+              >
+                {(groupHeaderSurvey.survey.options || []).map(option => {
+                  const isSelected = groupHeaderSurvey.submittedChoice === option
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => void submitGroupHeaderSurvey(option)}
+                      disabled={Boolean(groupHeaderSurvey.submittedChoice) || groupHeaderSurvey.isSubmitting}
+                      className={`rounded-xl border px-3 py-2 text-[11px] font-semibold transition ${
+                        isSelected
+                          ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                          : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                      } disabled:cursor-not-allowed disabled:opacity-80`}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+              {groupHeaderSurvey.status ? (
+                <p className="mt-2 text-[11px] font-medium text-[#1f6448]">{groupHeaderSurvey.status}</p>
+              ) : null}
             </div>
           </div>
         ) : null}
