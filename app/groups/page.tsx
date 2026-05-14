@@ -2961,15 +2961,25 @@ export default function GroupsPage() {
       <section className="mx-auto max-w-[760px] px-2.5 py-2.5 sm:px-5 sm:py-5">
         {message ? (
           <div className="mb-3 rounded-2xl border border-[#e7e1d6] bg-white px-3 py-2.5 text-[13px] text-[#355542] shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
-            {message}
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">{message}</div>
+              <button
+                type="button"
+                onClick={() => setMessage('')}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-[#fbfaf7] text-[#637268] transition hover:bg-white"
+                aria-label="Dismiss message"
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
         ) : null}
 
-        <div className="mb-3 flex items-center justify-end gap-2 sm:mb-4">
+        <div className="mb-3 flex flex-wrap items-center justify-end gap-2 sm:mb-4">
           <button
             type="button"
             onClick={() => setShowGroupsExplainer(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+            className="inline-flex h-9 min-w-[112px] items-center justify-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
           >
             <Info size={14} strokeWidth={2.2} />
             How it works
@@ -2977,7 +2987,7 @@ export default function GroupsPage() {
           <button
             type="button"
             onClick={openNotificationsPanel}
-            className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+            className="relative inline-flex h-9 min-w-[112px] items-center justify-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
           >
             <Bell size={14} strokeWidth={2.2} />
             Updates
@@ -3777,7 +3787,9 @@ export default function GroupsPage() {
 
         {!loading && activeGroupsTab === 'profile' ? (
           <div className="mx-auto w-full">
-            <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
+            <section className="relative overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3.5 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
+              <div className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.4px,transparent_1.4px)] [background-size:34px_34px]" />
+              <div className="relative">
               <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,1fr)_260px] md:items-center md:gap-5">
                 <div className="flex min-w-0 flex-col items-center gap-3 text-center md:pr-2">
                   <button
@@ -3913,19 +3925,7 @@ export default function GroupsPage() {
                   />
                 </div>
               ) : null}
-
-              {!viewerMembership ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowJoinPanel(true)
-                    setGroupActionMode('join')
-                  }}
-                  className="mt-3 rounded-full border border-[#e6dfd3] px-3 py-1.5 text-[11px] font-bold text-[#1f6448] transition hover:bg-[#fbfaf7]"
-                >
-                  Join or create a group
-                </button>
-              ) : null}
+              </div>
             </section>
 
             <section className="mt-3 rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
