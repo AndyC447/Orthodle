@@ -52,6 +52,10 @@ type Case = {
   clue_5: string | null
   clue_6: string | null
   teaching_point?: string | null
+  learning_image_url?: string | null
+  learning_image_credit?: string | null
+  learning_image_url_2?: string | null
+  learning_image_credit_2?: string | null
 }
 
 type Guess = {
@@ -1832,6 +1836,58 @@ function PlayPageContent() {
     )
   }
 
+  function renderAnatomyLearningImages(caseItem: Case) {
+    if (!useSurgicalAnatomyQuiz) return null
+
+    const learningImages = [
+      caseItem.learning_image_url
+        ? {
+            url: caseItem.learning_image_url,
+            credit: caseItem.learning_image_credit,
+            alt: 'Anatomy teaching image 1',
+          }
+        : null,
+      caseItem.learning_image_url_2
+        ? {
+            url: caseItem.learning_image_url_2,
+            credit: caseItem.learning_image_credit_2,
+            alt: 'Anatomy teaching image 2',
+          }
+        : null,
+    ].filter(Boolean) as Array<{ url: string; credit: string | null | undefined; alt: string }>
+
+    if (learningImages.length === 0) return null
+
+    return (
+      <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
+        <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+          Teaching Images
+        </div>
+        <div className={`grid gap-2 ${learningImages.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+          {learningImages.map((image, index) => (
+            <div
+              key={`${image.url}-${index}`}
+              className="overflow-hidden rounded-xl border border-[#ded7ca] bg-white"
+            >
+              <div className="flex min-h-[170px] items-center justify-center bg-[#f8f5ee] p-2">
+                <img
+                  src={image.url}
+                  alt={image.alt}
+                  className="max-h-[320px] w-full rounded-lg object-contain"
+                />
+              </div>
+              {image.credit?.trim() ? (
+                <p className="px-2.5 pb-2.5 pt-1.5 text-[11px] text-[#8a948d]">
+                  {image.credit}
+                </p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   function formatGuessDisplayText(value: string | undefined) {
     if (typeof value !== 'string') return '—'
     return value.trim().length > 0 ? value : 'blank'
@@ -2926,6 +2982,8 @@ function PlayPageContent() {
                     </div>
                   )}
                 </div>
+
+                {renderAnatomyLearningImages(dailyCase)}
 
                 {roundComplete && (
                   <div className="mx-auto mt-2 w-full max-w-[460px]">

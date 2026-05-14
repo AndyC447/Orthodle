@@ -36,6 +36,10 @@ type CaseRow = {
   clue_5: string | null
   clue_6: string | null
   teaching_point: string | null
+  learning_image_url: string | null
+  learning_image_credit: string | null
+  learning_image_url_2: string | null
+  learning_image_credit_2: string | null
 }
 
 type SubmissionRow = {
@@ -62,6 +66,10 @@ type SubmissionRow = {
   clue_5: string | null
   clue_6: string | null
   teaching_point: string | null
+  learning_image_url: string | null
+  learning_image_credit: string | null
+  learning_image_url_2: string | null
+  learning_image_credit_2: string | null
   created_at: string
 }
 
@@ -262,6 +270,10 @@ type AdminCaseDraft = {
   imageUrl2: string
   imageCredit2: string
   imageRevealClue2: string
+  learningImageUrl: string
+  learningImageCredit: string
+  learningImageUrl2: string
+  learningImageCredit2: string
   clue1: string
   clue2: string
   clue3: string
@@ -307,6 +319,10 @@ export default function AdminPage() {
   const [imageUrl2, setImageUrl2] = useState('')
   const [imageCredit2, setImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imageRevealClue2, setImageRevealClue2] = useState('none')
+  const [learningImageUrl, setLearningImageUrl] = useState('')
+  const [learningImageCredit, setLearningImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+  const [learningImageUrl2, setLearningImageUrl2] = useState('')
+  const [learningImageCredit2, setLearningImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
@@ -470,6 +486,10 @@ export default function AdminPage() {
           setImageUrl2(draft.imageUrl2 || '')
           setImageCredit2(draft.imageCredit2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
           setImageRevealClue2(draft.imageRevealClue2 || 'none')
+          setLearningImageUrl(draft.learningImageUrl || '')
+          setLearningImageCredit(draft.learningImageCredit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+          setLearningImageUrl2(draft.learningImageUrl2 || '')
+          setLearningImageCredit2(draft.learningImageCredit2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
           setClue1(draft.clue1 || '')
           setClue2(draft.clue2 || '')
           setClue3(draft.clue3 || '')
@@ -503,6 +523,10 @@ export default function AdminPage() {
         normalizeCreditValue(imageCredit) ||
         imageUrl2.trim() ||
         normalizeCreditValue(imageCredit2) ||
+        learningImageUrl.trim() ||
+        normalizeCreditValue(learningImageCredit) ||
+        learningImageUrl2.trim() ||
+        normalizeCreditValue(learningImageCredit2) ||
         clue1.trim() ||
         clue2.trim() ||
         clue3.trim() ||
@@ -532,6 +556,10 @@ export default function AdminPage() {
       imageUrl2,
       imageCredit2,
       imageRevealClue2,
+      learningImageUrl,
+      learningImageCredit,
+      learningImageUrl2,
+      learningImageCredit2,
       clue1,
       clue2,
       clue3,
@@ -560,6 +588,10 @@ export default function AdminPage() {
     imageUrl2,
     imageCredit2,
     imageRevealClue2,
+    learningImageUrl,
+    learningImageCredit,
+    learningImageUrl2,
+    learningImageCredit2,
     clue1,
     clue2,
     clue3,
@@ -1090,6 +1122,10 @@ export default function AdminPage() {
     setImageUrl2('')
     setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
+    setLearningImageUrl('')
+    setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageUrl2('')
+    setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setClue1('')
     setClue2('')
     setClue3('')
@@ -1115,6 +1151,10 @@ export default function AdminPage() {
     setImageUrl2('')
     setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
+    setLearningImageUrl('')
+    setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageUrl2('')
+    setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setClue1('')
     setClue2('')
     setClue3('')
@@ -1144,6 +1184,10 @@ export default function AdminPage() {
     setImageUrl2(c.image_url_2 || '')
     setImageCredit2(c.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(normalizeImageRevealValueForEditor(c.image_reveal_clue_2))
+    setLearningImageUrl(c.learning_image_url || '')
+    setLearningImageCredit(c.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageUrl2(c.learning_image_url_2 || '')
+    setLearningImageCredit(c.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setClue1(c.clue_1 || '')
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
@@ -1170,6 +1214,10 @@ export default function AdminPage() {
     setImageUrl2(submission.image_url_2 || '')
     setImageCredit2(submission.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(normalizeImageRevealValueForEditor(submission.image_reveal_clue_2))
+    setLearningImageUrl(submission.learning_image_url || '')
+    setLearningImageCredit(submission.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageUrl2(submission.learning_image_url_2 || '')
+    setLearningImageCredit2(submission.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setClue1(submission.clue_1 || '')
     setClue2(submission.clue_2 || '')
     setClue3(submission.clue_3 || '')
@@ -2174,6 +2222,8 @@ export default function AdminPage() {
 
     const savedImageCredit = normalizeCreditValue(imageCredit)
     const savedImageCredit2 = normalizeCreditValue(imageCredit2)
+    const savedLearningImageCredit = normalizeCreditValue(learningImageCredit)
+    const savedLearningImageCredit2 = normalizeCreditValue(learningImageCredit2)
 
     const parsedImageRevealClue =
       imageUrl && imageRevealClue !== 'none'
@@ -2203,6 +2253,10 @@ export default function AdminPage() {
         image_url_2: imageUrl2 || null,
         image_credit_2: savedImageCredit2,
         image_reveal_clue_2: parsedImageRevealClue2,
+        learning_image_url: learningImageUrl || null,
+        learning_image_credit: savedLearningImageCredit,
+        learning_image_url_2: learningImageUrl2 || null,
+        learning_image_credit_2: savedLearningImageCredit2,
         clue_1: clue1 || null,
         clue_2: clue2 || null,
         clue_3: clue3 || null,
@@ -3407,6 +3461,77 @@ export default function AdminPage() {
                 </div>
               </div>
 
+              {level === 'attending' && (
+                <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                  <div className="mb-3 rounded-lg border border-[#dfe8e0] bg-white px-3 py-2 text-xs text-[#637268]">
+                    These teaching images show in the solved learning section below the explanation and above the archive/stats buttons.
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2.5">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        Teaching Image 1
+                      </div>
+                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                        Teaching Image 1 URL
+                        <input
+                          value={learningImageUrl}
+                          onChange={e => setLearningImageUrl(e.target.value)}
+                          placeholder="Optional hosted anatomy reference image"
+                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                      </label>
+                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                        Teaching Image 1 Credit
+                        <input
+                          value={learningImageCredit}
+                          onChange={e => setLearningImageCredit(e.target.value)}
+                          placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="grid gap-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                          Teaching Image 2
+                        </div>
+                        {learningImageUrl2 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setLearningImageUrl2('')
+                              setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                            }}
+                            className="rounded-lg border border-[#ead9b7] px-2.5 py-1 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                        Teaching Image 2 URL
+                        <input
+                          value={learningImageUrl2}
+                          onChange={e => setLearningImageUrl2(e.target.value)}
+                          placeholder="Optional second teaching image"
+                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                      </label>
+                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                        Teaching Image 2 Credit
+                        <input
+                          value={learningImageCredit2}
+                          onChange={e => setLearningImageCredit2(e.target.value)}
+                          placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {imageUrl && (
                 <div className="rounded-lg border border-[#ded7ca] p-2.5">
                   <img
@@ -3449,6 +3574,50 @@ export default function AdminPage() {
                     className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
                   >
                     Remove second image
+                  </button>
+                </div>
+              )}
+
+              {level === 'attending' && learningImageUrl && (
+                <div className="rounded-lg border border-[#ded7ca] p-2.5">
+                  <img
+                    src={learningImageUrl}
+                    alt="Teaching image"
+                    className="max-h-48 rounded-lg object-contain"
+                  />
+                  {normalizeCreditValue(learningImageCredit) && (
+                    <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit)}</p>
+                  )}
+                  <button
+                    onClick={() => {
+                      setLearningImageUrl('')
+                      setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                    }}
+                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                  >
+                    Remove teaching image
+                  </button>
+                </div>
+              )}
+
+              {level === 'attending' && learningImageUrl2 && (
+                <div className="rounded-lg border border-[#ded7ca] p-2.5">
+                  <img
+                    src={learningImageUrl2}
+                    alt="Second teaching image"
+                    className="max-h-48 rounded-lg object-contain"
+                  />
+                  {normalizeCreditValue(learningImageCredit2) && (
+                    <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit2)}</p>
+                  )}
+                  <button
+                    onClick={() => {
+                      setLearningImageUrl2('')
+                      setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                    }}
+                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                  >
+                    Remove second teaching image
                   </button>
                 </div>
               )}
@@ -3897,6 +4066,41 @@ export default function AdminPage() {
                             </p>
                           )}
                         </div>
+
+                        {level === 'attending' && (learningImageUrl || learningImageUrl2) && (
+                          <div className={`grid gap-2 ${learningImageUrl && learningImageUrl2 ? (previewMode === 'mobile' ? 'grid-cols-1' : 'md:grid-cols-2') : 'grid-cols-1'}`}>
+                            {learningImageUrl && (
+                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                                  Teaching image
+                                </div>
+                                <img
+                                  src={learningImageUrl}
+                                  alt="Teaching image preview"
+                                  className="max-h-56 rounded-lg object-contain"
+                                />
+                                {normalizeCreditValue(learningImageCredit) && (
+                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit)}</p>
+                                )}
+                              </div>
+                            )}
+                            {learningImageUrl2 && (
+                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+                                  Teaching image 2
+                                </div>
+                                <img
+                                  src={learningImageUrl2}
+                                  alt="Second teaching image preview"
+                                  className="max-h-56 rounded-lg object-contain"
+                                />
+                                {normalizeCreditValue(learningImageCredit2) && (
+                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit2)}</p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
