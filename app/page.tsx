@@ -1859,7 +1859,7 @@ function PlayPageContent() {
     if (learningImages.length === 0) return null
 
     return (
-      <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
+      <div className="orthodle-anatomy-teaching-shell rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
         <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
           Teaching Images
         </div>
@@ -1867,9 +1867,9 @@ function PlayPageContent() {
           {learningImages.map((image, index) => (
             <div
               key={`${image.url}-${index}`}
-              className="overflow-hidden rounded-xl border border-[#ded7ca] bg-white"
+              className="orthodle-anatomy-teaching-tile overflow-hidden rounded-xl border border-[#ded7ca] bg-white"
             >
-              <div className="flex min-h-[170px] items-center justify-center bg-[#f8f5ee] p-2">
+              <div className="orthodle-anatomy-teaching-frame flex min-h-[170px] items-center justify-center bg-[#f8f5ee] p-2">
                 <img
                   src={image.url}
                   alt={image.alt}
@@ -2818,7 +2818,7 @@ function PlayPageContent() {
 
               <div ref={findingsRef} className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
                 {useSurgicalAnatomyQuiz ? (
-                  <div className="rounded-[20px] border border-[#d9cfbf] bg-[linear-gradient(180deg,#fffdf7_0%,#fbf7ef_100%)] p-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:p-4">
+                  <div className="orthodle-anatomy-quiz-shell rounded-[20px] border border-[#d9cfbf] bg-[linear-gradient(180deg,#fffdf7_0%,#fbf7ef_100%)] p-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:p-4">
                     <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                       Click your answer
                     </div>
@@ -2846,24 +2846,24 @@ function PlayPageContent() {
                             type="button"
                             disabled={roundComplete}
                             onClick={() => void submitGuess(stripChoicePrefix(choice), choice)}
-                            className={`rounded-2xl border px-3 py-3 text-left transition ${
+                            className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
                               choiceState === 'correct'
-                                ? 'cursor-default border-[#1f7a4d] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
+                                ? 'orthodle-anatomy-choice-correct cursor-default border-[#1f7a4d] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                 : choiceState === 'incorrect'
-                                  ? 'cursor-default border-[#c76b3a] bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
+                                  ? 'orthodle-anatomy-choice-incorrect cursor-default border-[#c76b3a] bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
                                   : roundComplete
-                                    ? 'cursor-default border-[#ded7ca] bg-[#fbfaf7] text-[#102018]'
-                                    : 'border-[#ded7ca] bg-white text-[#102018] hover:border-[#1f6448] hover:bg-[#f7fbf8]'
+                                    ? 'orthodle-anatomy-choice-idle cursor-default border-[#ded7ca] bg-[#fbfaf7] text-[#102018]'
+                                    : 'orthodle-anatomy-choice-idle border-[#ded7ca] bg-white text-[#102018] hover:border-[#1f6448] hover:bg-[#f7fbf8]'
                             }`}
                           >
                             <div className="flex items-start gap-3">
                               <div
-                                className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold ${
+                                className={`orthodle-anatomy-choice-badge mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold ${
                                   choiceState === 'correct'
-                                    ? 'border-[#1f7a4d] bg-[#dff0e4] text-[#1f7a4d]'
+                                    ? 'orthodle-anatomy-choice-badge-correct border-[#1f7a4d] bg-[#dff0e4] text-[#1f7a4d]'
                                     : choiceState === 'incorrect'
-                                      ? 'border-[#c76b3a] bg-[#fde1d2] text-[#b95426]'
-                                      : 'border-[#ead9b7] bg-[#fffaf1] text-[#a35d32]'
+                                      ? 'orthodle-anatomy-choice-badge-incorrect border-[#c76b3a] bg-[#fde1d2] text-[#b95426]'
+                                      : 'orthodle-anatomy-choice-badge-idle border-[#ead9b7] bg-[#fffaf1] text-[#a35d32]'
                                 }`}
                               >
                                 {letter}
