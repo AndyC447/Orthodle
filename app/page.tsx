@@ -387,8 +387,12 @@ function getInitialDateFromParams(value: string | null, fallback: string) {
   return fallback
 }
 
-function getSiteSurveyStorageKey(surveyId: string) {
-  return `${SITE_SURVEY_STORAGE_PREFIX}:${surveyId}`
+function getSiteSurveyDismissKey(survey: Pick<SiteSurveyRow, 'id' | 'question' | 'start_date' | 'options'>) {
+  return `${SITE_SURVEY_STORAGE_PREFIX}:${survey.id}:${survey.start_date}:${survey.question}:${normalizeSurveyOptions(survey.options || []).join('|')}`
+}
+
+function getAnatomySurveyStorageKey(survey: Pick<AnatomySurveyRow, 'id' | 'question' | 'start_date' | 'option_1' | 'option_2' | 'option_3'>) {
+  return `${ANATOMY_SURVEY_STORAGE_PREFIX}:${survey.id}:${survey.start_date}:${survey.question}:${[survey.option_1, survey.option_2, survey.option_3].map(option => option?.trim() || '').filter(Boolean).join('|')}`
 }
 
 function doesSurveyApplyToLevel(levelScope: SurveyLevelScope | null | undefined, level: Level) {
@@ -563,7 +567,7 @@ function PlayPageContent() {
     }
 
     const saved = window.localStorage.getItem(
-      getSiteSurveyStorageKey(sharedHomepageSurvey.survey.id)
+      getSiteSurveyDismissKey(sharedHomepageSurvey.survey)
     )
     setSharedHomepageSurvey(prev => ({ ...prev, submittedChoice: saved || null, status: '' }))
   }, [sharedHomepageSurvey.survey?.id])
@@ -575,7 +579,7 @@ function PlayPageContent() {
     }
 
     const saved = window.localStorage.getItem(
-      getSiteSurveyStorageKey(sharedPostCaseSurvey.survey.id)
+      getSiteSurveyDismissKey(sharedPostCaseSurvey.survey)
     )
     setSharedPostCaseSurvey(prev => ({ ...prev, submittedChoice: saved || null, status: '' }))
   }, [sharedPostCaseSurvey.survey?.id])
@@ -781,7 +785,7 @@ function PlayPageContent() {
       }
 
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(getSiteSurveyStorageKey(sharedHomepageSurvey.survey.id), choice)
+        window.localStorage.setItem(getSiteSurveyDismissKey(sharedHomepageSurvey.survey), choice)
       }
 
       setSharedHomepageSurvey(prev => ({
@@ -819,7 +823,7 @@ function PlayPageContent() {
       }
 
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(`${ANATOMY_SURVEY_STORAGE_PREFIX}:${anatomySurvey.id}`, choice)
+        window.localStorage.setItem(getAnatomySurveyStorageKey(anatomySurvey), choice)
       }
 
       setSubmittedAnatomySurveyChoice(choice)
@@ -855,7 +859,7 @@ function PlayPageContent() {
       }
 
       if (typeof window !== 'undefined') {
-        window.localStorage.setItem(getSiteSurveyStorageKey(sharedPostCaseSurvey.survey.id), choice)
+        window.localStorage.setItem(getSiteSurveyDismissKey(sharedPostCaseSurvey.survey), choice)
       }
 
       setSharedPostCaseSurvey(prev => ({
@@ -1840,7 +1844,7 @@ function PlayPageContent() {
     if (useSurgicalAnatomyQuiz) {
       if (communityStats.anatomyChoiceBreakdown.length === 0) return []
       return [
-        `Responses logged: **${communityStats.anatomyResponseCount}**`,
+        `Answer distribution: **${communityStats.anatomyResponseCount} responses**`,
         ...communityStats.anatomyChoiceBreakdown.map(
           choice => `${choice.letter}. ${choice.label}: **${Math.round(choice.rate)}%**`
         ),
@@ -2320,7 +2324,7 @@ function PlayPageContent() {
     Boolean(homepageSurvey) &&
     homepageSurveyKey !== dismissedHomepageSurveyKey &&
     !submittedHomepageSurveyChoice
-  const anatomySurveyStorageKey = anatomySurvey?.id ? `${ANATOMY_SURVEY_STORAGE_PREFIX}:${anatomySurvey.id}` : null
+  const anatomySurveyStorageKey = anatomySurvey ? getAnatomySurveyStorageKey(anatomySurvey) : null
   const shouldShowSharedPostCaseSurvey =
     roundComplete &&
     Boolean(sharedPostCaseSurvey.survey) &&
