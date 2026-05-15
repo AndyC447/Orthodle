@@ -1844,7 +1844,7 @@ function PlayPageContent() {
     if (useSurgicalAnatomyQuiz) {
       if (communityStats.anatomyChoiceBreakdown.length === 0) return []
       return [
-        `Answer distribution: **${communityStats.anatomyResponseCount} responses**`,
+        'Answer distribution:',
         ...communityStats.anatomyChoiceBreakdown.map(
           choice => `${choice.letter}. ${choice.label}: **${Math.round(choice.rate)}%**`
         ),
