@@ -69,6 +69,14 @@ type CommunityCaseStats = {
   averageGuessesToSolve: number | null
   firstTrySolveRate: number | null
   mostCommonIncorrectGuess: string | null
+  anatomyResponseCount: number
+  anatomyChoiceBreakdown: Array<{
+    letter: string
+    label: string
+    count: number
+    rate: number
+    isCorrect: boolean
+  }>
 }
 
 type TeachingPointSection = {
@@ -292,6 +300,69 @@ function getBrowserTheme() {
 
 function stripChoicePrefix(value: string) {
   return value.replace(/^[A-D][\).\:\-]\s*/i, '').trim()
+}
+
+function buildAnatomyChoiceBreakdown(
+  choiceSource: Array<string | null | undefined>,
+  guessRows: Array<{ session_id: string; guess_text?: string | null }>,
+  acceptedAnswers: string[]
+) {
+  const choices = choiceSource
+    .map(choice => (typeof choice === 'string' ? choice.trim() : ''))
+    .filter(Boolean)
+    .slice(0, 4)
+
+  if (choices.length < 2) {
+    return {
+      responseCount: 0,
+      breakdown: [] as Array<{
+        letter: string
+        label: string
+        count: number
+        rate: number
+        isCorrect: boolean
+      }>,
+    }
+  }
+
+  const normalizedChoices = choices.map(choice => normalizeAnswer(stripChoicePrefix(choice)))
+  const normalizedAcceptedAnswers = new Set(
+    acceptedAnswers.map(answer => normalizeAnswer(answer)).filter(Boolean)
+  )
+  const firstGuessBySession = new Map<string, string>()
+
+  for (const row of guessRows) {
+    if (!firstGuessBySession.has(row.session_id)) {
+      const guessText = typeof row.guess_text === 'string' ? row.guess_text.trim() : ''
+      firstGuessBySession.set(row.session_id, guessText)
+    }
+  }
+
+  const counts = normalizedChoices.map(() => 0)
+  let responseCount = 0
+
+  for (const guessText of firstGuessBySession.values()) {
+    const normalizedGuess = normalizeAnswer(stripChoicePrefix(guessText))
+    if (!normalizedGuess) continue
+    const matchIndex = normalizedChoices.findIndex(choice => choice === normalizedGuess)
+    if (matchIndex === -1) continue
+    counts[matchIndex] += 1
+    responseCount += 1
+  }
+
+  return {
+    responseCount,
+    breakdown: choices.map((choice, index) => {
+      const label = stripChoicePrefix(choice)
+      return {
+        letter: String.fromCharCode(65 + index),
+        label,
+        count: counts[index] || 0,
+        rate: responseCount > 0 ? ((counts[index] || 0) / responseCount) * 100 : 0,
+        isCorrect: normalizedAcceptedAnswers.has(normalizeAnswer(label)),
+      }
+    }),
+  }
 }
 
 function isPostAnswerImageReveal(revealStep: number | null | undefined) {
@@ -1092,11 +1163,10 @@ function PlayPageContent() {
         const loadedQuizChoices = [data.clue_1, data.clue_2, data.clue_3, data.clue_4].filter(
           (item): item is string => Boolean(item && item.trim())
         )
-        const useQuizMode =
-          data.level === 'attending' &&
-          canUseSurgicalAnatomyQuiz(data.case_date) &&
-          loadedQuizChoices.length >= 2
-        const maxGuessesForLoadedCase = useQuizMode ? 1 : MAX_GUESSES
+        const isAnatomyModeForLoadedCase =
+          data.level === 'attending' && canUseSurgicalAnatomyQuiz(data.case_date)
+        const useQuizMode = isAnatomyModeForLoadedCase && loadedQuizChoices.length >= 2
+        const maxGuessesForLoadedCase = isAnatomyModeForLoadedCase ? 1 : MAX_GUESSES
 
         if (!isLocalhostBrowser() && !isTrackingDisabledForThisBrowser()) {
           void fetch('/api/visit', {
@@ -1250,6 +1320,15 @@ function PlayPageContent() {
               })[0].label
             : null
 
+        const anatomyChoiceStats =
+          data.level === 'attending' && canUseSurgicalAnatomyQuiz(data.case_date)
+            ? buildAnatomyChoiceBreakdown(
+                [data.clue_1, data.clue_2, data.clue_3, data.clue_4],
+                publicGuessRows,
+                [data.answer, ...(data.synonyms || [])]
+              )
+            : { responseCount: 0, breakdown: [] }
+
         setCommunityStats({
           solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
           averageGuessesPerPlayer:
@@ -1259,6 +1338,8 @@ function PlayPageContent() {
           firstTrySolveRate:
             solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
           mostCommonIncorrectGuess,
+          anatomyResponseCount: anatomyChoiceStats.responseCount,
+          anatomyChoiceBreakdown: anatomyChoiceStats.breakdown,
         })
       } catch {
         if (cancelled) return
@@ -1316,11 +1397,11 @@ function PlayPageContent() {
     [dailyCase]
   )
 
-  const useSurgicalAnatomyQuiz =
-    selectedLevel === 'attending' &&
-    surgicalAnatomyChoices.length >= 2 &&
-    canUseSurgicalAnatomyQuiz(dailyCase?.case_date || selectedDate)
-  const maxGuessesForCurrentCase = useSurgicalAnatomyQuiz ? 1 : MAX_GUESSES
+  const isSurgicalAnatomyMode =
+    selectedLevel === 'attending' && canUseSurgicalAnatomyQuiz(dailyCase?.case_date || selectedDate)
+  const hasValidSurgicalAnatomyChoices = surgicalAnatomyChoices.length >= 2
+  const useSurgicalAnatomyQuiz = isSurgicalAnatomyMode && hasValidSurgicalAnatomyChoices
+  const maxGuessesForCurrentCase = isSurgicalAnatomyMode ? 1 : MAX_GUESSES
   const selectedQuizGuess = useSurgicalAnatomyQuiz && guesses.length > 0 ? guesses[guesses.length - 1] : null
   const normalizedCorrectAnswers = useMemo(() => {
     const pool = [dailyCase?.answer || '', ...(dailyCase?.synonyms || [])]
@@ -1714,7 +1795,19 @@ function PlayPageContent() {
           .replace(/[’']/g, "'")
           .replace(/[^a-z' ]/g, '')
           .replace(/\s+/g, ' ')
-        const canonicalLabel = TEACHING_POINT_LABELS.get(normalizedLabel) || headingMatch[1].trim()
+        const canonicalLabel = TEACHING_POINT_LABELS.get(normalizedLabel)
+        if (!canonicalLabel) {
+          if (!currentSection) {
+            currentSection = {
+              label: 'Quick takeaway',
+              body: [line],
+            }
+            sections.push(currentSection)
+          } else {
+            currentSection.body.push(line)
+          }
+          continue
+        }
         const displayLabel = rawLabel.includes(headingMatch[1].trim())
           ? rawLabel.replace(headingMatch[1].trim(), canonicalLabel)
           : canonicalLabel
@@ -1742,7 +1835,17 @@ function PlayPageContent() {
   }
 
   function getOrthodleInsightLines() {
-    if (!communityStats || useSurgicalAnatomyQuiz) return []
+    if (!communityStats) return []
+
+    if (useSurgicalAnatomyQuiz) {
+      if (communityStats.anatomyChoiceBreakdown.length === 0) return []
+      return [
+        `Responses logged: **${communityStats.anatomyResponseCount}**`,
+        ...communityStats.anatomyChoiceBreakdown.map(
+          choice => `${choice.letter}. ${choice.label}: **${Math.round(choice.rate)}%**`
+        ),
+      ]
+    }
 
     const solveRate =
       communityStats.solveRate !== null ? `${Math.round(communityStats.solveRate)}%` : '—'
@@ -2817,76 +2920,86 @@ function PlayPageContent() {
               )}
 
               <div ref={findingsRef} className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
-                {useSurgicalAnatomyQuiz ? (
+                {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] border border-[#d9cfbf] bg-[linear-gradient(180deg,#fffdf7_0%,#fbf7ef_100%)] p-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:p-4">
                     <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                       Click your answer
                     </div>
-                    <p className="mt-1 text-center text-[12px] leading-5 text-[#6d766f]">
-                      Pick the best answer choice below.
-                    </p>
+                    {hasValidSurgicalAnatomyChoices ? (
+                      <>
+                        <p className="mt-1 text-center text-[12px] leading-5 text-[#6d766f]">
+                          Pick the best answer choice below.
+                        </p>
 
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      {surgicalAnatomyChoices.map((choice, index) => {
-                        const letter = String.fromCharCode(65 + index)
-                        const normalizedChoice = normalizeAnswer(stripChoicePrefix(choice))
-                        const isCorrectChoice = normalizedCorrectAnswers.has(normalizedChoice)
-                        const isChosenChoice = selectedQuizAnswerNormalized === normalizedChoice
-                        const choiceState = roundComplete
-                          ? isCorrectChoice
-                            ? 'correct'
-                            : isChosenChoice
-                              ? 'incorrect'
+                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                          {surgicalAnatomyChoices.map((choice, index) => {
+                            const letter = String.fromCharCode(65 + index)
+                            const normalizedChoice = normalizeAnswer(stripChoicePrefix(choice))
+                            const isCorrectChoice = normalizedCorrectAnswers.has(normalizedChoice)
+                            const isChosenChoice = selectedQuizAnswerNormalized === normalizedChoice
+                            const choiceState = roundComplete
+                              ? isCorrectChoice
+                                ? 'correct'
+                                : isChosenChoice
+                                  ? 'incorrect'
+                                  : 'idle'
                               : 'idle'
-                          : 'idle'
 
-                        return (
-                          <button
-                            key={`${choice}-${index}`}
-                            type="button"
-                            disabled={roundComplete}
-                            onClick={() => void submitGuess(stripChoicePrefix(choice), choice)}
-                            className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
-                              choiceState === 'correct'
-                                ? 'orthodle-anatomy-choice-correct cursor-default border-[#1f7a4d] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
-                                : choiceState === 'incorrect'
-                                  ? 'orthodle-anatomy-choice-incorrect cursor-default border-[#c76b3a] bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
-                                  : roundComplete
-                                    ? 'orthodle-anatomy-choice-idle cursor-default border-[#ded7ca] bg-[#fbfaf7] text-[#102018]'
-                                    : 'orthodle-anatomy-choice-idle border-[#ded7ca] bg-white text-[#102018] hover:border-[#1f6448] hover:bg-[#f7fbf8]'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <div
-                                className={`orthodle-anatomy-choice-badge mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold ${
+                            return (
+                              <button
+                                key={`${choice}-${index}`}
+                                type="button"
+                                disabled={roundComplete}
+                                onClick={() => void submitGuess(stripChoicePrefix(choice), choice)}
+                                className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
                                   choiceState === 'correct'
-                                    ? 'orthodle-anatomy-choice-badge-correct border-[#1f7a4d] bg-[#dff0e4] text-[#1f7a4d]'
+                                    ? 'orthodle-anatomy-choice-correct cursor-default border-[#1f7a4d] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
-                                      ? 'orthodle-anatomy-choice-badge-incorrect border-[#c76b3a] bg-[#fde1d2] text-[#b95426]'
-                                      : 'orthodle-anatomy-choice-badge-idle border-[#ead9b7] bg-[#fffaf1] text-[#a35d32]'
+                                      ? 'orthodle-anatomy-choice-incorrect cursor-default border-[#c76b3a] bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
+                                      : roundComplete
+                                        ? 'orthodle-anatomy-choice-idle cursor-default border-[#ded7ca] bg-[#fbfaf7] text-[#102018]'
+                                        : 'orthodle-anatomy-choice-idle border-[#ded7ca] bg-white text-[#102018] hover:border-[#1f6448] hover:bg-[#f7fbf8]'
                                 }`}
                               >
-                                {letter}
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-serif text-[14px] leading-5 tracking-[-0.01em] sm:text-[15px]">
-                                  {choice}
-                                </p>
-                                {roundComplete && (
-                                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6d766f]">
-                                    {choiceState === 'correct'
-                                      ? 'Correct answer'
-                                      : choiceState === 'incorrect'
-                                        ? 'Your pick'
-                                        : ''}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
+                                <div className="flex items-start gap-3">
+                                  <div
+                                    className={`orthodle-anatomy-choice-badge mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold ${
+                                      choiceState === 'correct'
+                                        ? 'orthodle-anatomy-choice-badge-correct border-[#1f7a4d] bg-[#dff0e4] text-[#1f7a4d]'
+                                        : choiceState === 'incorrect'
+                                          ? 'orthodle-anatomy-choice-badge-incorrect border-[#c76b3a] bg-[#fde1d2] text-[#b95426]'
+                                          : 'orthodle-anatomy-choice-badge-idle border-[#ead9b7] bg-[#fffaf1] text-[#a35d32]'
+                                    }`}
+                                  >
+                                    {letter}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="font-serif text-[14px] leading-5 tracking-[-0.01em] sm:text-[15px]">
+                                      {choice}
+                                    </p>
+                                    {roundComplete && (
+                                      <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6d766f]">
+                                        {choiceState === 'correct'
+                                          ? 'Correct answer'
+                                          : choiceState === 'incorrect'
+                                            ? 'Your pick'
+                                            : ''}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="mt-3 rounded-2xl border border-dashed border-[#d9cfbf] bg-[#fbfaf7] px-4 py-4 text-center">
+                        <p className="text-[12px] leading-5 text-[#6d766f]">
+                          This anatomy case needs at least two answer choices saved in Choice A–D before it can run as a quiz.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ) : visibleFindings.length > 0 ? (
                   <>
@@ -2930,7 +3043,7 @@ function PlayPageContent() {
               </div>
 
               <div ref={inputSectionRef} className="mt-3 border-t border-[#ded7ca] pt-2.5">
-                {!roundComplete && !useSurgicalAnatomyQuiz && (
+                {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     <div className="relative">
                       <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
@@ -2980,7 +3093,7 @@ function PlayPageContent() {
                   </>
                 )}
 
-                {!roundComplete && useSurgicalAnatomyQuiz && message && (
+                {!roundComplete && isSurgicalAnatomyMode && message && (
                   <p className="text-[11.5px] leading-5 text-[#637268]">{message}</p>
                 )}
 
@@ -3139,7 +3252,7 @@ function PlayPageContent() {
             </div>
           )}
 
-          {!useSurgicalAnatomyQuiz && (
+          {!isSurgicalAnatomyMode && (
           <div className="orthodle-panel-shell hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
             <div className="mb-3 flex justify-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
               <span>Your guesses</span>
@@ -3191,7 +3304,7 @@ function PlayPageContent() {
         </section>
 
         <aside className="space-y-3">
-          {!roundComplete && !useSurgicalAnatomyQuiz && (
+          {!roundComplete && !isSurgicalAnatomyMode && (
           <div className="orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
             <div className="mb-1.5 flex justify-center text-[10px] font-bold uppercase tracking-[0.22em] text-[#102018]">
               <span>Your guesses</span>

@@ -164,6 +164,14 @@ type CaseCommunityStats = {
   firstTrySolveRate: number | null
   mostCommonSolveClue: number | null
   mostCommonIncorrectGuesses: Array<{ label: string; count: number }>
+  anatomyResponseCount: number
+  anatomyChoiceBreakdown: Array<{
+    letter: string
+    label: string
+    count: number
+    rate: number
+    isCorrect: boolean
+  }>
 }
 
 type HomepageAnnouncementRow = {
@@ -227,6 +235,73 @@ type AdminCollapsedSectionId =
   | 'homepage_notes'
   | 'surveys'
   | 'cases_by_date'
+
+function stripAnatomyChoicePrefix(value: string) {
+  return value.replace(/^[A-D][\).\:\-]\s*/i, '').trim()
+}
+
+function buildAnatomyChoiceBreakdown(
+  choiceSource: Array<string | null | undefined>,
+  guessRows: Array<{ session_id: string; guess_text?: string | null }>,
+  acceptedAnswers: string[]
+) {
+  const choices = choiceSource
+    .map(choice => (typeof choice === 'string' ? choice.trim() : ''))
+    .filter(Boolean)
+    .slice(0, 4)
+
+  if (choices.length < 2) {
+    return {
+      responseCount: 0,
+      breakdown: [] as Array<{
+        letter: string
+        label: string
+        count: number
+        rate: number
+        isCorrect: boolean
+      }>,
+    }
+  }
+
+  const normalizedChoices = choices.map(choice => normalizeAnswer(stripAnatomyChoicePrefix(choice)))
+  const normalizedAcceptedAnswers = new Set(
+    acceptedAnswers.map(answer => normalizeAnswer(answer)).filter(Boolean)
+  )
+  const firstGuessBySession = new Map<string, string>()
+
+  for (const row of guessRows) {
+    if (!firstGuessBySession.has(row.session_id)) {
+      const guessText = typeof row.guess_text === 'string' ? row.guess_text.trim() : ''
+      firstGuessBySession.set(row.session_id, guessText)
+    }
+  }
+
+  const counts = normalizedChoices.map(() => 0)
+  let responseCount = 0
+
+  for (const guessText of firstGuessBySession.values()) {
+    const normalizedGuess = normalizeAnswer(stripAnatomyChoicePrefix(guessText))
+    if (!normalizedGuess) continue
+    const matchIndex = normalizedChoices.findIndex(choice => choice === normalizedGuess)
+    if (matchIndex === -1) continue
+    counts[matchIndex] += 1
+    responseCount += 1
+  }
+
+  return {
+    responseCount,
+    breakdown: choices.map((choice, index) => {
+      const label = stripAnatomyChoicePrefix(choice)
+      return {
+        letter: String.fromCharCode(65 + index),
+        label,
+        count: counts[index] || 0,
+        rate: responseCount > 0 ? ((counts[index] || 0) / responseCount) * 100 : 0,
+        isCorrect: normalizedAcceptedAnswers.has(normalizeAnswer(label)),
+      }
+    }),
+  }
+}
 
 const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
@@ -2133,6 +2208,15 @@ export default function AdminPage() {
             .slice(0, 3)
         : []
 
+    const anatomyChoiceStats =
+      matchingCase.level === 'attending'
+        ? buildAnatomyChoiceBreakdown(
+            [matchingCase.clue_1, matchingCase.clue_2, matchingCase.clue_3, matchingCase.clue_4],
+            publicGuessRows,
+            [matchingCase.answer, ...(matchingCase.synonyms || [])]
+          )
+        : { responseCount: 0, breakdown: [] }
+
     setCaseCommunityStats({
       players: players.size,
       totalGuesses: publicGuessRows.length,
@@ -2146,6 +2230,8 @@ export default function AdminPage() {
         solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
       mostCommonSolveClue,
       mostCommonIncorrectGuesses,
+      anatomyResponseCount: anatomyChoiceStats.responseCount,
+      anatomyChoiceBreakdown: anatomyChoiceStats.breakdown,
     })
   }
 
@@ -3871,51 +3957,102 @@ export default function AdminPage() {
                           : '—'}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                        Most common solve clue
-                      </div>
-                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                        {caseCommunityStats.mostCommonSolveClue !== null
-                          ? `Clue ${caseCommunityStats.mostCommonSolveClue}`
-                          : '—'}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleCollapsedSection('case_stats_incorrect_guesses')}
-                      className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-left transition hover:bg-[#fcfbf8]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                    {level === 'attending' ? (
+                      <>
+                        <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                            Top incorrect guesses
+                            Answer responses
                           </div>
                           <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                            {caseCommunityStats.mostCommonIncorrectGuesses[0]?.label || '—'}
+                            {caseCommunityStats.anatomyResponseCount}
                           </div>
                         </div>
-                        <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                          {collapsedSections.case_stats_incorrect_guesses ? 'Show' : 'Hide'}
-                        </span>
-                      </div>
-
-                      {!collapsedSections.case_stats_incorrect_guesses &&
-                        caseCommunityStats.mostCommonIncorrectGuesses.length > 0 && (
-                          <div className="mt-2 space-y-1.5 border-t border-[#ebe5db] pt-2 text-sm text-[#102018]">
-                            {caseCommunityStats.mostCommonIncorrectGuesses.map((guess, index) => (
-                              <div key={`${guess.label}-${index}`} className="flex items-center justify-between gap-3">
-                                <span className="min-w-0 truncate">
-                                  {index + 1}. {guess.label}
-                                </span>
-                                <span className="shrink-0 text-[11px] font-semibold text-[#637268]">
-                                  {guess.count}
-                                </span>
-                              </div>
-                            ))}
+                        <div className="sm:col-span-2 rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                            Choice breakdown
                           </div>
-                        )}
-                    </button>
+                          {caseCommunityStats.anatomyChoiceBreakdown.length > 0 ? (
+                            <div className="mt-2 space-y-1.5">
+                              {caseCommunityStats.anatomyChoiceBreakdown.map(choice => (
+                                <div
+                                  key={`${choice.letter}-${choice.label}`}
+                                  className="flex items-center justify-between gap-3 rounded-lg border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2"
+                                >
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-semibold text-[#102018]">
+                                      {choice.letter}. {choice.label}
+                                    </div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                                      {choice.isCorrect ? 'Correct answer' : 'Distractor'}
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 text-right">
+                                    <div className="font-serif text-lg font-bold text-[#102018]">
+                                      {Math.round(choice.rate)}%
+                                    </div>
+                                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                                      {choice.count} pick{choice.count === 1 ? '' : 's'}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-2 rounded-lg border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-3 py-3 text-sm text-[#8a948d]">
+                              Anatomy answer percentages will appear after people start selecting choices.
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                            Most common solve clue
+                          </div>
+                          <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                            {caseCommunityStats.mostCommonSolveClue !== null
+                              ? `Clue ${caseCommunityStats.mostCommonSolveClue}`
+                              : '—'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleCollapsedSection('case_stats_incorrect_guesses')}
+                          className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-left transition hover:bg-[#fcfbf8]"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                                Top incorrect guesses
+                              </div>
+                              <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                                {caseCommunityStats.mostCommonIncorrectGuesses[0]?.label || '—'}
+                              </div>
+                            </div>
+                            <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                              {collapsedSections.case_stats_incorrect_guesses ? 'Show' : 'Hide'}
+                            </span>
+                          </div>
+
+                          {!collapsedSections.case_stats_incorrect_guesses &&
+                            caseCommunityStats.mostCommonIncorrectGuesses.length > 0 && (
+                              <div className="mt-2 space-y-1.5 border-t border-[#ebe5db] pt-2 text-sm text-[#102018]">
+                                {caseCommunityStats.mostCommonIncorrectGuesses.map((guess, index) => (
+                                  <div key={`${guess.label}-${index}`} className="flex items-center justify-between gap-3">
+                                    <span className="min-w-0 truncate">
+                                      {index + 1}. {guess.label}
+                                    </span>
+                                    <span className="shrink-0 text-[11px] font-semibold text-[#637268]">
+                                      {guess.count}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                        </button>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <p className="mt-3 text-sm text-[#637268]">
