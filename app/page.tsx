@@ -137,7 +137,7 @@ const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
 
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
-const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-15'
+const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
 
 const levels = [
   { key: 'med_student' as Level, label: 'Med Student' },

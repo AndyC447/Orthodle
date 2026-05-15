@@ -30,7 +30,7 @@ type FeedbackLite = {
 
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const LAUNCH_DATE = '2026-04-27'
-const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-15'
+const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
 
 export default function ArchivePage() {
   const today = todayISO()
