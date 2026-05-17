@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
+import { formatFeedbackLevel, type FeedbackMessageRow } from '@/lib/feedback-messages'
 import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 
@@ -24,6 +25,9 @@ export default function AdminFeedbackPage() {
   const [authReady, setAuthReady] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [feedbackRows, setFeedbackRows] = useState<FeedbackRow[]>([])
+  const [messageRows, setMessageRows] = useState<FeedbackMessageRow[]>([])
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [sendingReplyId, setSendingReplyId] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [showAllReactionCases, setShowAllReactionCases] = useState(false)
   const [showReactionsByCase, setShowReactionsByCase] = useState(false)
@@ -113,17 +117,31 @@ export default function AdminFeedbackPage() {
 
   async function loadFeedback() {
     const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
-    const { data, error } = await supabase
-      .from('case_feedback')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const [{ data, error }, { data: messageData, error: messageError }] = await Promise.all([
+      supabase
+        .from('case_feedback')
+        .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('feedback_messages')
+        .select(
+          'id, feedback_id, recipient_session_id, sender_role, case_date, level, answer, message_text, is_read, read_at, created_at'
+        )
+        .order('created_at', { ascending: true }),
+    ])
 
     if (error) {
       setStatus(`Could not load feedback: ${error.message}`)
       return
     }
 
+    if (messageError) {
+      setStatus(`Could not load messages: ${messageError.message}`)
+      return
+    }
+
     setFeedbackRows(filterExcludedSessionRows((data || []) as FeedbackRow[], excludedSessionIdSet))
+    setMessageRows((messageData || []) as FeedbackMessageRow[])
   }
 
   async function deleteFeedback(id: string) {
@@ -135,14 +153,122 @@ export default function AdminFeedbackPage() {
     }
 
     setFeedbackRows(prev => prev.filter(item => item.id !== id))
+    setMessageRows(prev => prev.filter(item => item.feedback_id !== id))
     setStatus('Feedback removed.')
   }
 
   function formatLevel(level: FeedbackRow['level']) {
-    if (level === 'med_student') return 'Med Student'
-    if (level === 'resident') return 'Resident'
-    if (level === 'attending') return 'Anatomy'
-    return 'Unknown'
+    return formatFeedbackLevel(level)
+  }
+
+  function getRepliesForFeedback(feedbackId: string) {
+    return messageRows.filter(item => item.feedback_id === feedbackId && item.sender_role === 'admin')
+  }
+
+  async function sendReply(row: FeedbackRow) {
+    const draft = (replyDrafts[row.id] || '').trim()
+    if (!draft) {
+      setStatus('Write a message before sending.')
+      return
+    }
+
+    if (!row.session_id) {
+      setStatus('This feedback does not have a player session attached, so a reply cannot be delivered.')
+      return
+    }
+
+    setSendingReplyId(row.id)
+    setStatus('')
+
+    const { data, error } = await supabase
+      .from('feedback_messages')
+      .insert({
+        feedback_id: row.id,
+        recipient_session_id: row.session_id,
+        sender_role: 'admin',
+        case_date: row.case_date,
+        level: row.level,
+        answer: row.answer,
+        message_text: draft,
+        is_read: false,
+      })
+      .select(
+        'id, feedback_id, recipient_session_id, sender_role, case_date, level, answer, message_text, is_read, read_at, created_at'
+      )
+      .single()
+
+    setSendingReplyId(null)
+
+    if (error || !data) {
+      setStatus(`Could not send message: ${error?.message || 'Unknown error'}`)
+      return
+    }
+
+    setMessageRows(prev => [...prev, data as FeedbackMessageRow])
+    setReplyDrafts(prev => ({ ...prev, [row.id]: '' }))
+    setStatus('Reply sent to the player inbox.')
+  }
+
+  function renderReplyComposer(row: FeedbackRow) {
+    const replies = getRepliesForFeedback(row.id)
+    const canReply = Boolean(row.session_id)
+
+    return (
+      <div className="mt-3 rounded-xl border border-[#e7e1d6] bg-white/80 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+            Player reply
+          </div>
+          <div className="text-[10px] text-[#637268]">
+            {canReply ? `${replies.length} sent` : 'Unavailable'}
+          </div>
+        </div>
+
+        {replies.length > 0 && (
+          <div className="mt-2 space-y-2">
+            {replies.map(reply => (
+              <div key={reply.id} className="rounded-lg border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]">
+                  Sent {reply.created_at.slice(0, 16).replace('T', ' ')}
+                </div>
+                <p className="mt-1 text-sm leading-6 text-[#102018]">{reply.message_text}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!canReply ? (
+          <p className="mt-2 text-sm text-[#637268]">
+            This feedback was submitted without a player session, so it cannot receive a reply.
+          </p>
+        ) : (
+          <>
+            <textarea
+              value={replyDrafts[row.id] || ''}
+              onChange={event =>
+                setReplyDrafts(prev => ({
+                  ...prev,
+                  [row.id]: event.target.value,
+                }))
+              }
+              rows={3}
+              placeholder="Send a follow-up note to this player..."
+              className="mt-2 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018] outline-none transition placeholder:text-[#8a968d] focus:border-[#1f6448] focus:ring-2 focus:ring-[#d9eadf]"
+            />
+            <div className="mt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => void sendReply(row)}
+                disabled={sendingReplyId === row.id}
+                className="rounded-lg bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {sendingReplyId === row.id ? 'Sending...' : 'Send message'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    )
   }
 
   if (!authReady) {
@@ -225,7 +351,7 @@ export default function AdminFeedbackPage() {
               <div>Date</div>
               <div>Level</div>
               <div>Answer</div>
-              <div>Feedback</div>
+              <div>Feedback and reply</div>
               <div className="text-center">Remove</div>
             </div>
 
@@ -263,6 +389,7 @@ export default function AdminFeedbackPage() {
                         </div>
                       )}
                       {item.feedback_text}
+                      {renderReplyComposer(item)}
                     </div>
                     <button
                       type="button"
@@ -327,6 +454,8 @@ export default function AdminFeedbackPage() {
                   <p className="mt-2 text-sm leading-6 text-[#102018]">
                     {item.feedback_text}
                   </p>
+
+                  {renderReplyComposer(item)}
                 </article>
               ))
             )}

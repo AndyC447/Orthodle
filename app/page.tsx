@@ -138,6 +138,7 @@ type ActiveSurveyState = {
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
 const HOMEPAGE_SURVEY_DISMISS_KEY = 'orthodle_dismissed_homepage_survey'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
+const RESUME_ROUND_DISMISS_KEY = 'orthodle_dismissed_resume_round'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -447,6 +448,7 @@ function PlayPageContent() {
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
+  const [dismissedResumeRoundToken, setDismissedResumeRoundToken] = useState<string | null>(null)
   const [homepageSurvey, setHomepageSurvey] = useState<HomepageSurveyRow | null>(null)
   const [dismissedHomepageSurveyKey, setDismissedHomepageSurveyKey] = useState<string | null>(null)
   const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
@@ -470,6 +472,7 @@ function PlayPageContent() {
   })
   const [showTutorial, setShowTutorial] = useState(false)
   const [resumeRound, setResumeRound] = useState<ReturnType<typeof getLatestUnfinishedRoundProgress>>(null)
+  const [pendingResumeKey, setPendingResumeKey] = useState<string | null>(null)
   const [dailySummary, setDailySummary] = useState({
     date: today,
     played: 0,
@@ -511,6 +514,9 @@ function PlayPageContent() {
     if (typeof window === 'undefined') return
     setDismissedHomepageAnnouncementKey(
       window.localStorage.getItem(HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY)
+    )
+    setDismissedResumeRoundToken(
+      window.localStorage.getItem(RESUME_ROUND_DISMISS_KEY)
     )
     setDismissedHomepageSurveyKey(
       window.localStorage.getItem(HOMEPAGE_SURVEY_DISMISS_KEY)
@@ -1217,7 +1223,7 @@ function PlayPageContent() {
         const solvedIndex = viewerGuessRows.findIndex(row => Boolean(row.is_correct))
         const serverProgressAvailable = serverGuesses.length > 0
         const shouldUseSavedProgress =
-          Boolean(savedProgress && savedProgress.caseId === data.id) &&
+          Boolean(savedProgress && (savedProgress.caseId === data.id || savedProgress.key === pendingResumeKey)) &&
           (!serverProgressAvailable || (savedProgress?.guesses.length || 0) >= serverGuesses.length)
 
         if (shouldUseSavedProgress && savedProgress) {
@@ -1257,6 +1263,10 @@ function PlayPageContent() {
           setGameWon(false)
           setGameOver(false)
           setMessage('')
+        }
+
+        if (pendingResumeKey && savedProgress?.key === pendingResumeKey) {
+          setPendingResumeKey(null)
         }
 
         const players = new Set<string>([
@@ -1485,11 +1495,19 @@ function PlayPageContent() {
 
   function resumeSavedRound() {
     if (!resumeRound) return
+    setPendingResumeKey(resumeRound.key)
     setSelectedDate(resumeRound.caseDate)
     setSelectedLevel(resumeRound.level)
     setMessage(
       `Resumed your ${resumeRound.isArchive ? 'archive' : 'daily'} ${formatLevel(resumeRound.level)} case with ${resumeRound.guesses.length} guess${resumeRound.guesses.length === 1 ? '' : 'es'} saved.`
     )
+  }
+
+  function dismissResumeRound() {
+    if (!resumeRound || typeof window === 'undefined') return
+    const nextToken = `${resumeRound.key}:${resumeRound.updatedAt}`
+    window.localStorage.setItem(RESUME_ROUND_DISMISS_KEY, nextToken)
+    setDismissedResumeRoundToken(nextToken)
   }
 
   function resetExpandedImageView() {
@@ -2241,6 +2259,11 @@ function PlayPageContent() {
       resumeRound.level === selectedLevel &&
       resumeRound.isArchive === (selectedDate !== todayISO())
   )
+  const resumeRoundDismissToken = resumeRound ? `${resumeRound.key}:${resumeRound.updatedAt}` : null
+  const showResumeRound =
+    Boolean(resumeRound) &&
+    !resumeRoundIsCurrent &&
+    resumeRoundDismissToken !== dismissedResumeRoundToken
   const nextLevel = nextLevelMap[selectedLevel]
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
   const homeTabs = useMemo(
@@ -2336,7 +2359,11 @@ function PlayPageContent() {
     useSurgicalAnatomyQuiz &&
     Boolean(anatomySurvey) &&
     !submittedAnatomySurveyChoice
-  const topBannerCount = Number(showHomepageAnnouncement) + Number(showHomepageSurvey) + Number(showSharedHomepageSurvey)
+  const topBannerCount =
+    Number(showHomepageAnnouncement) +
+    Number(showHomepageSurvey) +
+    Number(showSharedHomepageSurvey) +
+    Number(showResumeRound)
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
@@ -2730,10 +2757,10 @@ function PlayPageContent() {
           </div>
         )}
 
-        {resumeRound && !resumeRoundIsCurrent && (
+        {showResumeRound && resumeRound && (
           <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-2.5 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                   Continue where you left off
                 </div>
@@ -2741,6 +2768,16 @@ function PlayPageContent() {
                   {formatLevel(resumeRound.level)} · {formatArchiveDate(resumeRound.caseDate)} · {resumeRound.guesses.length} saved guess{resumeRound.guesses.length === 1 ? '' : 'es'}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={dismissResumeRound}
+                aria-label="Dismiss continue playing suggestion"
+                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#cfded4] bg-white text-sm font-semibold text-[#637268] transition hover:bg-[#f1f7f3] hover:text-[#102018]"
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-2 flex justify-start sm:justify-end">
               <button
                 type="button"
                 onClick={resumeSavedRound}

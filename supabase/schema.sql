@@ -140,6 +140,26 @@ create table if not exists case_feedback (
 
 alter table case_feedback add column if not exists feedback_tags text[] default '{}';
 
+create table if not exists feedback_messages (
+  id uuid primary key default uuid_generate_v4(),
+  feedback_id uuid references case_feedback(id) on delete cascade,
+  recipient_session_id text not null,
+  sender_role text not null default 'admin',
+  case_date date,
+  level text,
+  answer text,
+  message_text text not null,
+  is_read boolean not null default false,
+  read_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create index if not exists feedback_messages_recipient_idx
+on feedback_messages (recipient_session_id, created_at desc);
+
+create index if not exists feedback_messages_feedback_idx
+on feedback_messages (feedback_id, created_at asc);
+
 create table if not exists difficulty_taglines (
   id uuid primary key default uuid_generate_v4(),
   level text not null,
@@ -226,6 +246,7 @@ alter table case_ideas enable row level security;
 alter table email_reminders enable row level security;
 alter table diagnosis_choices enable row level security;
 alter table case_feedback enable row level security;
+alter table feedback_messages enable row level security;
 alter table difficulty_taglines enable row level security;
 alter table homepage_announcements enable row level security;
 alter table homepage_announcement_responses enable row level security;
@@ -252,6 +273,9 @@ create policy "public delete diagnosis choices" on diagnosis_choices for delete 
 create policy "public read case feedback" on case_feedback for select using (true);
 create policy "public insert case feedback" on case_feedback for insert with check (true);
 create policy "public delete case feedback" on case_feedback for delete using (true);
+create policy "public read feedback messages" on feedback_messages for select using (true);
+create policy "public insert feedback messages" on feedback_messages for insert with check (true);
+create policy "public update feedback messages" on feedback_messages for update using (true) with check (true);
 create policy "public read difficulty taglines" on difficulty_taglines for select using (true);
 create policy "public insert difficulty taglines" on difficulty_taglines for insert with check (true);
 create policy "public update difficulty taglines" on difficulty_taglines for update using (true) with check (true);
