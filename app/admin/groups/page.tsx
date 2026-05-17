@@ -3,6 +3,11 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
+import {
+  DEFAULT_GROUP_SCORING_SETTINGS,
+  normalizeGroupScoringSettings,
+  type GroupScoringSettings,
+} from '@/lib/group-scoring'
 import { supabase } from '@/lib/supabase'
 import { setTrackingDisabledForThisBrowser } from '@/lib/utils'
 
@@ -42,6 +47,32 @@ type GroupJoinRequestRow = {
   handled_at: string | null
 }
 
+type GroupAnnouncementRow = {
+  id: string
+  message: string
+  start_date: string
+  end_date: string | null
+  created_at: string
+}
+
+type GroupScoringSettingsRow = {
+  solve_points: number
+  first_try_points: number
+  streak_points: number
+  efficiency_baseline: number
+  efficiency_points_per_guess: number
+  teamwork_bonus_per_member: number
+  teamwork_bonus_max: number
+}
+
+function todayISO() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = `${now.getMonth() + 1}`.padStart(2, '0')
+  const day = `${now.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function formatMemberCount(count: number) {
   return `${count} member${count === 1 ? '' : 's'}`
 }
@@ -65,6 +96,17 @@ export default function AdminGroupsPage() {
   const [removingGroupId, setRemovingGroupId] = useState('')
   const [requests, setRequests] = useState<GroupJoinRequestRow[]>([])
   const [updatingRequestId, setUpdatingRequestId] = useState('')
+  const [groupAnnouncements, setGroupAnnouncements] = useState<GroupAnnouncementRow[]>([])
+  const [groupAnnouncementMessage, setGroupAnnouncementMessage] = useState('')
+  const today = useMemo(() => todayISO(), [])
+  const [groupAnnouncementStartDate, setGroupAnnouncementStartDate] = useState(today)
+  const [groupAnnouncementEndDate, setGroupAnnouncementEndDate] = useState(today)
+  const [editingGroupAnnouncementId, setEditingGroupAnnouncementId] = useState<string | null>(null)
+  const [groupScoringSettings, setGroupScoringSettings] = useState<GroupScoringSettings>(
+    DEFAULT_GROUP_SCORING_SETTINGS
+  )
+  const [groupScoringStatus, setGroupScoringStatus] = useState('')
+  const [savingGroupScoring, setSavingGroupScoring] = useState(false)
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -76,6 +118,8 @@ export default function AdminGroupsPage() {
     if (!isUnlocked) return
     setTrackingDisabledForThisBrowser(true)
     void loadGroups()
+    void loadGroupAnnouncements()
+    void loadGroupScoringSettings()
   }, [isUnlocked])
 
   async function loadGroups() {
@@ -110,6 +154,159 @@ export default function AdminGroupsPage() {
     setMembers((memberResult.data || []) as GroupMemberRow[])
     setRequests(((requestResult.data || []) as GroupJoinRequestRow[]) || [])
     setLoading(false)
+  }
+
+  async function loadGroupAnnouncements() {
+    const { data, error } = await supabase
+      .from('group_announcements')
+      .select('id, message, start_date, end_date, created_at')
+      .order('start_date', { ascending: false })
+
+    if (error) {
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Groups announcements are not set up yet. Run the SQL for the groups admin tables, then try again.'
+          : `Could not load groups notes: ${error.message}`
+      )
+      return
+    }
+
+    setGroupAnnouncements((data as GroupAnnouncementRow[] | null) || [])
+  }
+
+  async function loadGroupScoringSettings() {
+    const { data, error } = await supabase
+      .from('group_scoring_settings')
+      .select(
+        'solve_points, first_try_points, streak_points, efficiency_baseline, efficiency_points_per_guess, teamwork_bonus_per_member, teamwork_bonus_max'
+      )
+      .eq('id', 'default')
+      .maybeSingle()
+
+    if (error) {
+      setGroupScoringStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Group scoring settings are not set up yet. Run the SQL for the groups admin tables, then try again.'
+          : `Could not load group scoring: ${error.message}`
+      )
+      return
+    }
+
+    const row = (data as GroupScoringSettingsRow | null) || null
+    setGroupScoringSettings(
+      normalizeGroupScoringSettings(
+        row
+          ? {
+              solvePoints: row.solve_points,
+              firstTryPoints: row.first_try_points,
+              streakPoints: row.streak_points,
+              efficiencyBaseline: row.efficiency_baseline,
+              efficiencyPointsPerGuess: row.efficiency_points_per_guess,
+              teamworkBonusPerMember: row.teamwork_bonus_per_member,
+              teamworkBonusMax: row.teamwork_bonus_max,
+            }
+          : DEFAULT_GROUP_SCORING_SETTINGS
+      )
+    )
+    setGroupScoringStatus('')
+  }
+
+  function resetGroupAnnouncementForm() {
+    setGroupAnnouncementMessage('')
+    setGroupAnnouncementStartDate(today)
+    setGroupAnnouncementEndDate(today)
+    setEditingGroupAnnouncementId(null)
+  }
+
+  function editGroupAnnouncement(item: GroupAnnouncementRow) {
+    setEditingGroupAnnouncementId(item.id)
+    setGroupAnnouncementMessage(item.message)
+    setGroupAnnouncementStartDate(item.start_date)
+    setGroupAnnouncementEndDate(item.end_date || item.start_date)
+  }
+
+  async function saveGroupAnnouncement() {
+    const trimmedMessage = groupAnnouncementMessage.trim()
+    if (!trimmedMessage) {
+      setStatus('Add a groups announcement before saving.')
+      return
+    }
+
+    const payload = {
+      message: trimmedMessage,
+      start_date: groupAnnouncementStartDate,
+      end_date: groupAnnouncementEndDate || null,
+    }
+
+    const { error } = editingGroupAnnouncementId
+      ? await supabase.from('group_announcements').update(payload).eq('id', editingGroupAnnouncementId)
+      : await supabase.from('group_announcements').insert(payload)
+
+    if (error) {
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Groups announcements are not set up yet. Run the SQL for the groups admin tables, then try again.'
+          : error.message
+      )
+      return
+    }
+
+    resetGroupAnnouncementForm()
+    await loadGroupAnnouncements()
+    setStatus(editingGroupAnnouncementId ? 'Groups announcement updated.' : 'Groups announcement scheduled.')
+  }
+
+  async function deleteGroupAnnouncement(id: string) {
+    const { error } = await supabase.from('group_announcements').delete().eq('id', id)
+
+    if (error) {
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Groups announcements are not set up yet. Run the SQL for the groups admin tables, then try again.'
+          : error.message
+      )
+      return
+    }
+
+    setGroupAnnouncements(prev => prev.filter(item => item.id !== id))
+    if (editingGroupAnnouncementId === id) {
+      resetGroupAnnouncementForm()
+    }
+    setStatus('Groups announcement deleted.')
+  }
+
+  async function saveGroupScoringSettings() {
+    setSavingGroupScoring(true)
+    setGroupScoringStatus('')
+
+    const payload = {
+      id: 'default',
+      solve_points: groupScoringSettings.solvePoints,
+      first_try_points: groupScoringSettings.firstTryPoints,
+      streak_points: groupScoringSettings.streakPoints,
+      efficiency_baseline: groupScoringSettings.efficiencyBaseline,
+      efficiency_points_per_guess: groupScoringSettings.efficiencyPointsPerGuess,
+      teamwork_bonus_per_member: groupScoringSettings.teamworkBonusPerMember,
+      teamwork_bonus_max: groupScoringSettings.teamworkBonusMax,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.from('group_scoring_settings').upsert(payload, {
+      onConflict: 'id',
+    })
+
+    if (error) {
+      setGroupScoringStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Group scoring settings are not set up yet. Run the SQL for the groups admin tables, then try again.'
+          : `Could not save group scoring: ${error.message}`
+      )
+      setSavingGroupScoring(false)
+      return
+    }
+
+    setGroupScoringStatus('Group scoring formula saved.')
+    setSavingGroupScoring(false)
   }
 
   async function removeGroup(group: GroupRow) {
@@ -336,6 +533,180 @@ export default function AdminGroupsPage() {
               <div className="mt-1 font-serif text-2xl font-bold text-[#102018]">
                 {averageMembers.toFixed(1)}
               </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="night-surface mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-serif text-xl font-bold text-[#102018]">
+                Group scoring formula
+              </h2>
+              <p className="mt-1 text-sm text-[#637268]">
+                Edit the exact scoring model used across group leaderboards.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void saveGroupScoringSettings()}
+              disabled={savingGroupScoring}
+              className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37] disabled:opacity-50"
+            >
+              {savingGroupScoring ? 'Saving...' : 'Save formula'}
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ['Solve points', 'solvePoints'],
+              ['First-try bonus', 'firstTryPoints'],
+              ['Streak points', 'streakPoints'],
+              ['Efficiency baseline', 'efficiencyBaseline'],
+              ['Efficiency points', 'efficiencyPointsPerGuess'],
+              ['Team bonus / member', 'teamworkBonusPerMember'],
+              ['Team bonus cap', 'teamworkBonusMax'],
+            ].map(([label, key]) => (
+              <label
+                key={key}
+                className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]"
+              >
+                {label}
+                <input
+                  type="number"
+                  value={groupScoringSettings[key as keyof GroupScoringSettings]}
+                  onChange={event =>
+                    setGroupScoringSettings(prev => ({
+                      ...prev,
+                      [key]: Math.max(0, Number(event.target.value) || 0),
+                    }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]"
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              Formula preview
+            </div>
+            <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+              Member score = solves x {groupScoringSettings.solvePoints} + first-try solves x {groupScoringSettings.firstTryPoints} + longest streak x {groupScoringSettings.streakPoints} + max(0, {groupScoringSettings.efficiencyBaseline} - avg guesses) x {groupScoringSettings.efficiencyPointsPerGuess}
+            </p>
+            <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+              Group score = average active-member score + min({groupScoringSettings.teamworkBonusMax}, (active members - 1) x {groupScoringSettings.teamworkBonusPerMember})
+            </p>
+          </div>
+
+          {groupScoringStatus ? (
+            <p className="mt-2 text-xs font-medium text-[#1f6448]">{groupScoringStatus}</p>
+          ) : null}
+        </section>
+
+        <section className="night-surface mt-4 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-serif text-xl font-bold text-[#102018]">
+                Groups announcements
+              </h2>
+              <p className="mt-1 text-sm text-[#637268]">
+                Schedule notes that appear on the groups page.
+              </p>
+            </div>
+            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              {groupAnnouncements.length} scheduled
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-2.5">
+            <textarea
+              value={groupAnnouncementMessage}
+              onChange={e => setGroupAnnouncementMessage(e.target.value)}
+              rows={3}
+              placeholder="Add a short note just for the groups page"
+              className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018]"
+            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                Start
+                <input
+                  type="date"
+                  value={groupAnnouncementStartDate}
+                  onChange={e => setGroupAnnouncementStartDate(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018]"
+                />
+              </label>
+
+              <label className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                End
+                <input
+                  type="date"
+                  value={groupAnnouncementEndDate}
+                  onChange={e => setGroupAnnouncementEndDate(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018]"
+                />
+              </label>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void saveGroupAnnouncement()}
+                className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37]"
+              >
+                {editingGroupAnnouncementId ? 'Update note' : 'Schedule note'}
+              </button>
+              {editingGroupAnnouncementId ? (
+                <button
+                  type="button"
+                  onClick={resetGroupAnnouncementForm}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-white"
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3">
+              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                Groups page preview
+              </div>
+              <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+                {groupAnnouncementMessage.trim() || 'Your scheduled groups note will preview here.'}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {groupAnnouncements.map(item => (
+                <div
+                  key={item.id}
+                  className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3"
+                >
+                  <p className="text-sm leading-5 text-[#102018]">{item.message}</p>
+                  <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[#637268]">
+                    {item.start_date}
+                    {item.end_date && item.end_date !== item.start_date ? ` to ${item.end_date}` : ''}
+                  </p>
+                  <div className="mt-2 flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => editGroupAnnouncement(item)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-white"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteGroupAnnouncement(item.id)}
+                      className="rounded-lg border border-[#ead9b7] px-3 py-1.5 text-xs font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </section>
