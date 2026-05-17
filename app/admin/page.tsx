@@ -228,6 +228,10 @@ type AdminCollapsedSectionId =
   | 'surveys'
   | 'cases_by_date'
 
+type PlayModeSettingsRow = {
+  no_resident_mode: boolean
+}
+
 function stripAnatomyChoicePrefix(value: string) {
   return value.replace(/^[A-F][\).\:\-]\s*/i, '').trim()
 }
@@ -420,6 +424,8 @@ export default function AdminPage() {
     hasNew: false,
     latestCreatedAt: null as string | null,
   })
+  const [noResidentMode, setNoResidentMode] = useState(false)
+  const [savingNoResidentMode, setSavingNoResidentMode] = useState(false)
   const [homepageAnnouncements, setHomepageAnnouncements] = useState<HomepageAnnouncementRow[]>([])
   const [announcementMessage, setAnnouncementMessage] = useState('')
   const [announcementStartDate, setAnnouncementStartDate] = useState(shiftISODate(today, 1))
@@ -469,6 +475,12 @@ export default function AdminPage() {
     setIsUnlocked(savedUnlock === 'true')
     setAuthReady(true)
   }, [])
+
+  useEffect(() => {
+    if (noResidentMode && level === 'resident') {
+      setLevel('med_student')
+    }
+  }, [level, noResidentMode])
 
   useEffect(() => {
     const savedOrder = window.localStorage.getItem(ADMIN_SIDEBAR_ORDER_STORAGE_KEY)
@@ -524,6 +536,7 @@ export default function AdminPage() {
     loadSubmissionSummary()
     loadFeedbackSummary()
     loadHomepageAnnouncements()
+    loadPlayModeSettings()
     loadHomepageSurveys()
     loadAnatomySurveys()
 
@@ -771,6 +784,10 @@ export default function AdminPage() {
     () => groupedCases.find(group => group.date === tomorrow)?.items || [],
     [groupedCases, tomorrow]
   )
+  const activeLevelOrder = useMemo<Level[]>(
+    () => (noResidentMode ? ['med_student', 'attending'] : levelOrder),
+    [noResidentMode]
+  )
 
   const browsedCases = useMemo(
     () => groupedCases.find(group => group.date === browseDate)?.items || [],
@@ -886,12 +903,15 @@ export default function AdminPage() {
   const incompleteDates = useMemo(
     () =>
       groupedCases
-        .filter(group => group.items.length < 3)
         .map(group => ({
           date: group.date,
-          ready: group.items.length,
-        })),
-    [groupedCases]
+          ready: activeLevelOrder.filter(levelValue =>
+            group.items.some(item => item.level === levelValue)
+          ).length,
+        }))
+        .filter(group => group.ready < activeLevelOrder.length)
+        ,
+    [activeLevelOrder, groupedCases]
   )
 
   function formatLevel(levelValue: Level) {
@@ -1132,7 +1152,7 @@ export default function AdminPage() {
 
   function nextMissingLevelForDate(dateText: string): Level | null {
     const items = groupedCases.find(group => group.date === dateText)?.items || []
-    return levelOrder.find(levelValue => !items.some(item => item.level === levelValue)) || null
+    return activeLevelOrder.find(levelValue => !items.some(item => item.level === levelValue)) || null
   }
 
   async function unlockAdmin() {
@@ -1697,6 +1717,48 @@ export default function AdminPage() {
       .select('id, message, start_date, end_date, created_at')
       .order('start_date', { ascending: false })
     setHomepageAnnouncements((data as HomepageAnnouncementRow[] | null) || [])
+  }
+
+  async function loadPlayModeSettings() {
+    const { data } = await supabase
+      .from('play_mode_settings')
+      .select('no_resident_mode')
+      .eq('id', 'default')
+      .maybeSingle()
+
+    const row = (data as PlayModeSettingsRow | null) || null
+    setNoResidentMode(Boolean(row?.no_resident_mode))
+  }
+
+  async function toggleNoResidentMode() {
+    const nextValue = !noResidentMode
+    setSavingNoResidentMode(true)
+
+    const { error } = await supabase.from('play_mode_settings').upsert(
+      {
+        id: 'default',
+        no_resident_mode: nextValue,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'id' }
+    )
+
+    if (error) {
+      setStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Play mode settings are not set up yet. Run the SQL once, then try again.'
+          : `Could not save play mode: ${error.message}`
+      )
+      setSavingNoResidentMode(false)
+      return
+    }
+
+    setNoResidentMode(nextValue)
+    if (nextValue && level === 'resident') {
+      setLevel('med_student')
+    }
+    setStatus(nextValue ? 'No resident mode turned on.' : 'Resident case mode restored.')
+    setSavingNoResidentMode(false)
   }
 
   async function loadHomepageSurveys() {
@@ -2893,12 +2955,12 @@ export default function AdminPage() {
                       {browseDate} overview
                     </div>
                     <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                      {browsedCases.length}/3 ready
+                      {activeLevelOrder.filter(levelValue => browsedCases.some(item => item.level === levelValue)).length}/{activeLevelOrder.length} ready
                     </div>
                   </div>
 
                   <div className="mt-3 grid gap-2">
-                    {levelOrder.map(levelValue => {
+                    {activeLevelOrder.map(levelValue => {
                       const item = browsedCases.find(entry => entry.level === levelValue)
                       const nextMissing = nextMissingLevelForDate(browseDate)
 
@@ -2968,7 +3030,7 @@ export default function AdminPage() {
 
             {incompleteDates.length > 0 && (
               <div className="mt-2.5 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm leading-5 text-[#8a5a2b]">
-                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/3)`).join(', ')}
+                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${activeLevelOrder.length})`).join(', ')}
               </div>
             )}
           </div>
@@ -2991,12 +3053,12 @@ export default function AdminPage() {
             </div>
 
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {todaysCases.length}/3 ready
+              {activeLevelOrder.filter(levelValue => todaysCases.some(item => item.level === levelValue)).length}/{activeLevelOrder.length} ready
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {levelOrder.map(levelValue => {
+            {activeLevelOrder.map(levelValue => {
               const item = todaysCases.find(entry => entry.level === levelValue)
               const nextMissing = nextMissingLevelForDate(today)
 
@@ -3055,12 +3117,12 @@ export default function AdminPage() {
             </div>
 
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {tomorrowsCases.length}/3 ready
+              {activeLevelOrder.filter(levelValue => tomorrowsCases.some(item => item.level === levelValue)).length}/{activeLevelOrder.length} ready
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {levelOrder.map(levelValue => {
+            {activeLevelOrder.map(levelValue => {
               const item = tomorrowsCases.find(entry => entry.level === levelValue)
               const nextMissing = nextMissingLevelForDate(tomorrow)
 
@@ -3107,6 +3169,39 @@ export default function AdminPage() {
                 </div>
               )
             })}
+          </div>
+        </section>
+
+        <section className="night-surface mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                Home Play Mode
+              </div>
+              <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+                No resident mode
+              </div>
+              <p className="mt-1 text-sm text-[#637268]">
+                Switch the home play layout and daily scheduling expectations from three cases to just Med Student and Anatomy.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void toggleNoResidentMode()}
+              disabled={savingNoResidentMode}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                noResidentMode
+                  ? 'border border-[#1f6448] bg-[#1f6448] text-white hover:bg-[#174c37]'
+                  : 'border border-[#ded7ca] bg-[#fbfaf7] text-[#102018] hover:bg-white'
+              } disabled:opacity-60`}
+            >
+              {savingNoResidentMode
+                ? 'Saving...'
+                : noResidentMode
+                  ? 'No resident mode is on'
+                  : 'Turn on no resident mode'}
+            </button>
           </div>
         </section>
 
@@ -3162,7 +3257,7 @@ export default function AdminPage() {
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 >
                   <option value="med_student">Med Student</option>
-                  <option value="resident">Resident</option>
+                  {!noResidentMode ? <option value="resident">Resident</option> : null}
                   <option value="attending">Anatomy (attending slot)</option>
                 </select>
               </label>

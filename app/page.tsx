@@ -128,6 +128,10 @@ type AnatomySurveyRow = {
   end_date: string | null
 }
 
+type PlayModeSettingsRow = {
+  no_resident_mode: boolean
+}
+
 type ActiveSurveyState = {
   survey: SiteSurveyRow | null
   submittedChoice: string | null
@@ -160,11 +164,6 @@ const baseHomeTabs = [
   { type: 'level' as const, key: 'attending' as const, label: 'Anatomy' },
   { type: 'link' as const, href: '/groups', label: 'Groups', subtitle: 'COMPETE' },
 ]
-
-const nextLevelMap: Partial<Record<Level, Level>> = {
-  med_student: 'resident',
-  resident: 'attending',
-}
 
 const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
   id: index,
@@ -414,6 +413,7 @@ function PlayPageContent() {
   const initialLevel = getInitialLevelFromParams(searchParams.get('level'))
   const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
   const [selectedLevel, setSelectedLevel] = useState<Level>(initialLevel)
+  const [noResidentMode, setNoResidentMode] = useState(false)
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
@@ -589,6 +589,34 @@ function PlayPageContent() {
     )
     setSharedPostCaseSurvey(prev => ({ ...prev, submittedChoice: saved || null, status: '' }))
   }, [sharedPostCaseSurvey.survey?.id])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPlayModeSettings() {
+      const { data } = await supabase
+        .from('play_mode_settings')
+        .select('no_resident_mode')
+        .eq('id', 'default')
+        .maybeSingle()
+
+      if (cancelled) return
+      const row = (data as PlayModeSettingsRow | null) || null
+      setNoResidentMode(Boolean(row?.no_resident_mode))
+    }
+
+    void loadPlayModeSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (noResidentMode && selectedLevel === 'resident') {
+      setSelectedLevel('med_student')
+    }
+  }, [noResidentMode, selectedLevel])
 
   useEffect(() => {
     let cancelled = false
@@ -2251,7 +2279,27 @@ function PlayPageContent() {
       .map(item => item.level)
   ).size
 
-  const todayComplete = todayCompletedLevels === 3
+  const homeTabs = useMemo(
+    () =>
+      noResidentMode
+        ? baseHomeTabs.filter(item => !(item.type === 'level' && item.key === 'resident'))
+        : baseHomeTabs,
+    [noResidentMode]
+  )
+  const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
+    () =>
+      noResidentMode
+        ? {
+            med_student: 'attending',
+          }
+        : {
+            med_student: 'resident',
+            resident: 'attending',
+          },
+    [noResidentMode]
+  )
+  const requiredDailyLevels = noResidentMode ? 2 : 3
+  const todayComplete = todayCompletedLevels === requiredDailyLevels
   const onTodayCard = selectedDate === todayISO()
   const resumeRoundIsCurrent = Boolean(
     resumeRound &&
@@ -2266,18 +2314,6 @@ function PlayPageContent() {
     resumeRoundDismissToken !== dismissedResumeRoundToken
   const nextLevel = nextLevelMap[selectedLevel]
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
-  const homeTabs = useMemo(
-    () =>
-      baseHomeTabs.map(item =>
-        item.type === 'level' && item.key === 'attending'
-          ? {
-              ...item,
-              label: 'Anatomy',
-            }
-          : item
-      ),
-    [selectedDate]
-  )
   const selectedTaglines = useMemo(
     () =>
       ({
@@ -2790,7 +2826,10 @@ function PlayPageContent() {
         )}
 
         <div className={`w-full rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
-          <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5">
+          <div
+            className="grid gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5"
+            style={{ gridTemplateColumns: `repeat(${homeTabs.length}, minmax(0, 1fr))` }}
+          >
             {homeTabs.map(item => {
               if (item.type === 'link') {
                 return (

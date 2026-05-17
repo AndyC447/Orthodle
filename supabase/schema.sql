@@ -274,6 +274,12 @@ create table if not exists group_scoring_settings (
   updated_at timestamptz default now()
 );
 
+create table if not exists play_mode_settings (
+  id text primary key default 'default',
+  no_resident_mode boolean not null default false,
+  updated_at timestamptz default now()
+);
+
 create or replace view daily_analytics as
 select
   c.case_date,
@@ -305,6 +311,7 @@ alter table groups enable row level security;
 alter table group_members enable row level security;
 alter table group_weekly_honors enable row level security;
 alter table group_scoring_settings enable row level security;
+alter table play_mode_settings enable row level security;
 
 create policy "public read cases" on cases for select using (true);
 create policy "public insert cases" on cases for insert with check (true);
@@ -358,8 +365,15 @@ create policy "public update group weekly honors" on group_weekly_honors for upd
 create policy "public read group scoring settings" on group_scoring_settings for select using (true);
 create policy "public insert group scoring settings" on group_scoring_settings for insert with check (true);
 create policy "public update group scoring settings" on group_scoring_settings for update using (true) with check (true);
+create policy "public read play mode settings" on play_mode_settings for select using (true);
+create policy "public insert play mode settings" on play_mode_settings for insert with check (true);
+create policy "public update play mode settings" on play_mode_settings for update using (true) with check (true);
 
 insert into group_scoring_settings (id)
+values ('default')
+on conflict (id) do nothing;
+
+insert into play_mode_settings (id)
 values ('default')
 on conflict (id) do nothing;
 
