@@ -160,6 +160,21 @@ on feedback_messages (recipient_session_id, created_at desc);
 create index if not exists feedback_messages_feedback_idx
 on feedback_messages (feedback_id, created_at asc);
 
+create table if not exists direct_messages (
+  id uuid primary key default uuid_generate_v4(),
+  sender_account_id text not null,
+  recipient_account_id text not null,
+  message_text text not null,
+  read_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create index if not exists direct_messages_sender_idx
+on direct_messages (sender_account_id, created_at desc);
+
+create index if not exists direct_messages_recipient_idx
+on direct_messages (recipient_account_id, created_at desc);
+
 create table if not exists difficulty_taglines (
   id uuid primary key default uuid_generate_v4(),
   level text not null,
@@ -247,6 +262,7 @@ alter table email_reminders enable row level security;
 alter table diagnosis_choices enable row level security;
 alter table case_feedback enable row level security;
 alter table feedback_messages enable row level security;
+alter table direct_messages enable row level security;
 alter table difficulty_taglines enable row level security;
 alter table homepage_announcements enable row level security;
 alter table homepage_announcement_responses enable row level security;
@@ -276,6 +292,9 @@ create policy "public delete case feedback" on case_feedback for delete using (t
 create policy "public read feedback messages" on feedback_messages for select using (true);
 create policy "public insert feedback messages" on feedback_messages for insert with check (true);
 create policy "public update feedback messages" on feedback_messages for update using (true) with check (true);
+create policy "public read direct messages" on direct_messages for select using (true);
+create policy "public insert direct messages" on direct_messages for insert with check (true);
+create policy "public update direct messages" on direct_messages for update using (true) with check (true);
 create policy "public read difficulty taglines" on difficulty_taglines for select using (true);
 create policy "public insert difficulty taglines" on difficulty_taglines for insert with check (true);
 create policy "public update difficulty taglines" on difficulty_taglines for update using (true) with check (true);

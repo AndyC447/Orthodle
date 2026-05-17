@@ -237,7 +237,7 @@ type AdminCollapsedSectionId =
   | 'cases_by_date'
 
 function stripAnatomyChoicePrefix(value: string) {
-  return value.replace(/^[A-D][\).\:\-]\s*/i, '').trim()
+  return value.replace(/^[A-F][\).\:\-]\s*/i, '').trim()
 }
 
 function buildAnatomyChoiceBreakdown(
@@ -248,7 +248,7 @@ function buildAnatomyChoiceBreakdown(
   const choices = choiceSource
     .map(choice => (typeof choice === 'string' ? choice.trim() : ''))
     .filter(Boolean)
-    .slice(0, 4)
+    .slice(0, 6)
 
   if (choices.length < 2) {
     return {
@@ -3711,12 +3711,12 @@ export default function AdminPage() {
               <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
                 {level === 'attending' && (
                   <div className="mb-3 rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-xs text-[#8a5a2b]">
-                    This mode now plays as a surgical anatomy multiple-choice quiz. Use Choices A–D as the options, keep the correct answer in the Answer field, and use the Teaching Point for the explanation and takeaway. Images can show before the click or reveal afterward as the teaching moment.
+                    This mode now plays as a surgical anatomy multiple-choice quiz. Use up to six choices, keep the correct answer in the Answer field, and use the Teaching Point for the explanation and takeaway. Images can show before the click or reveal afterward as the teaching moment.
                   </div>
                 )}
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'Choice A' : 'Clue 1'}
+                    {level === 'attending' ? 'A' : 'Clue 1'}
                     <textarea
                       value={clue1}
                       onChange={e => updateClueAt(0, e.target.value)}
@@ -3727,7 +3727,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'Choice B' : 'Clue 2'}
+                    {level === 'attending' ? 'B' : 'Clue 2'}
                     <textarea
                       value={clue2}
                       onChange={e => updateClueAt(1, e.target.value)}
@@ -3738,7 +3738,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'Choice C' : 'Clue 3'}
+                    {level === 'attending' ? 'C' : 'Clue 3'}
                     <textarea
                       value={clue3}
                       onChange={e => updateClueAt(2, e.target.value)}
@@ -3749,7 +3749,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'Choice D' : 'Clue 4'}
+                    {level === 'attending' ? 'D' : 'Clue 4'}
                     <textarea
                       value={clue4}
                       onChange={e => updateClueAt(3, e.target.value)}
@@ -3760,7 +3760,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'Extra note 1' : 'Clue 5'}
+                    {level === 'attending' ? 'E' : 'Clue 5'}
                     <textarea
                       value={clue5}
                       onChange={e => updateClueAt(4, e.target.value)}
@@ -3772,7 +3772,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'Extra note 2' : 'Clue 6'}
+                    {level === 'attending' ? 'F' : 'Clue 6'}
                     <textarea
                       value={clue6}
                       onChange={e => updateClueAt(5, e.target.value)}
@@ -3982,9 +3982,6 @@ export default function AdminPage() {
                                     <div className="truncate text-sm font-semibold text-[#102018]">
                                       {choice.letter}. {choice.label}
                                     </div>
-                                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                                      {choice.isCorrect ? 'Correct answer' : 'Distractor'}
-                                    </div>
                                   </div>
                                   <div className="shrink-0 text-right">
                                     <div className="font-serif text-lg font-bold text-[#102018]">
@@ -4163,11 +4160,8 @@ export default function AdminPage() {
                         )}
 
                         <div className="night-soft-surface rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
-                          <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-                            {level === 'attending' ? 'Click your answer' : 'Clinical findings'}
-                          </div>
                           {previewClues.length > 0 ? (
-                            <ul className="mt-2 space-y-2">
+                            <ul className="space-y-2">
                               {previewClues.map((clue, index) => (
                                 <li
                                   key={`${clue}-${index}`}

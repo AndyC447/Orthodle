@@ -609,9 +609,15 @@ function buildTrophyCase({
 function GroupsTopBanner({
   activeTab,
   onTabChange,
+  onOpenHowItWorks,
+  onOpenUpdates,
+  unreadNotificationCount,
 }: {
   activeTab: GroupsTab
   onTabChange: (tab: GroupsTab) => void
+  onOpenHowItWorks: () => void
+  onOpenUpdates: () => void
+  unreadNotificationCount: number
 }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const tabs: Array<{ id: GroupsTab; label: string }> = [
@@ -679,6 +685,29 @@ function GroupsTopBanner({
             </div>
           </div>
         </nav>
+
+        <button
+          type="button"
+          onClick={onOpenHowItWorks}
+          aria-label="How it works"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3]"
+        >
+          <Info size={16} strokeWidth={2.2} />
+        </button>
+
+        <button
+          type="button"
+          onClick={onOpenUpdates}
+          aria-label="Updates"
+          className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3]"
+        >
+          <Bell size={16} strokeWidth={2.2} />
+          {unreadNotificationCount > 0 ? (
+            <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+              {unreadNotificationCount}
+            </span>
+          ) : null}
+        </button>
 
         <button
           type="button"
@@ -3013,6 +3042,9 @@ export default function GroupsPage() {
     <main className="app-surface min-h-screen">
       <GroupsTopBanner
         activeTab={activeGroupsTab}
+        onOpenHowItWorks={() => setShowGroupsExplainer(true)}
+        onOpenUpdates={openNotificationsPanel}
+        unreadNotificationCount={unreadNotificationCount}
         onTabChange={tab => {
           if (tab === 'my-group') {
             if (viewerGroup?.id) {
@@ -3162,24 +3194,24 @@ export default function GroupsPage() {
           </div>
         ) : null}
 
-        <div className="mb-3 flex flex-wrap items-center justify-end gap-2 sm:mb-4">
+        <div className="mb-3 flex flex-wrap items-center justify-end gap-2 sm:mb-4 sm:hidden">
           <button
             type="button"
             onClick={() => setShowGroupsExplainer(true)}
-            className="inline-flex h-9 min-w-[112px] items-center justify-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+            aria-label="How it works"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
           >
             <Info size={14} strokeWidth={2.2} />
-            How it works
           </button>
           <button
             type="button"
             onClick={openNotificationsPanel}
-            className="relative inline-flex h-9 min-w-[112px] items-center justify-center gap-1.5 rounded-full border border-[#e6dfd3] bg-white px-3 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+            aria-label="Updates"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
           >
             <Bell size={14} strokeWidth={2.2} />
-            Updates
             {unreadNotificationCount > 0 ? (
-              <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+              <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
                 {unreadNotificationCount}
               </span>
             ) : null}

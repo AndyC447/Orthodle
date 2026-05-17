@@ -300,7 +300,7 @@ function getBrowserTheme() {
 }
 
 function stripChoicePrefix(value: string) {
-  return value.replace(/^[A-D][\).\:\-]\s*/i, '').trim()
+  return value.replace(/^[A-F][\).\:\-]\s*/i, '').trim()
 }
 
 function buildAnatomyChoiceBreakdown(
@@ -311,7 +311,7 @@ function buildAnatomyChoiceBreakdown(
   const choices = choiceSource
     .map(choice => (typeof choice === 'string' ? choice.trim() : ''))
     .filter(Boolean)
-    .slice(0, 4)
+    .slice(0, 6)
 
   if (choices.length < 2) {
     return {
@@ -1170,7 +1170,7 @@ function PlayPageContent() {
           setSelectedLevel(data.level)
         }
 
-        const loadedQuizChoices = [data.clue_1, data.clue_2, data.clue_3, data.clue_4].filter(
+        const loadedQuizChoices = [data.clue_1, data.clue_2, data.clue_3, data.clue_4, data.clue_5, data.clue_6].filter(
           (item): item is string => Boolean(item && item.trim())
         )
         const isAnatomyModeForLoadedCase =
@@ -1405,7 +1405,7 @@ function PlayPageContent() {
 
   const surgicalAnatomyChoices = useMemo(
     () =>
-      [dailyCase?.clue_1, dailyCase?.clue_2, dailyCase?.clue_3, dailyCase?.clue_4].filter(
+      [dailyCase?.clue_1, dailyCase?.clue_2, dailyCase?.clue_3, dailyCase?.clue_4, dailyCase?.clue_5, dailyCase?.clue_6].filter(
         (item): item is string => Boolean(item && item.trim())
       ),
     [dailyCase]
@@ -2963,16 +2963,9 @@ function PlayPageContent() {
               <div ref={findingsRef} className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
                 {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] border border-[#d9cfbf] bg-[linear-gradient(180deg,#fffdf7_0%,#fbf7ef_100%)] p-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:p-4">
-                    <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                      Click your answer
-                    </div>
                     {hasValidSurgicalAnatomyChoices ? (
                       <>
-                        <p className="mt-1 text-center text-[12px] leading-5 text-[#6d766f]">
-                          Pick the best answer choice below.
-                        </p>
-
-                        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                        <div className="grid gap-2 sm:grid-cols-2">
                           {surgicalAnatomyChoices.map((choice, index) => {
                             const letter = String.fromCharCode(65 + index)
                             const normalizedChoice = normalizeAnswer(stripChoicePrefix(choice))
@@ -3018,15 +3011,6 @@ function PlayPageContent() {
                                     <p className="font-serif text-[14px] leading-5 tracking-[-0.01em] sm:text-[15px]">
                                       {choice}
                                     </p>
-                                    {roundComplete && (
-                                      <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6d766f]">
-                                        {choiceState === 'correct'
-                                          ? 'Correct answer'
-                                          : choiceState === 'incorrect'
-                                            ? 'Your pick'
-                                            : ''}
-                                      </p>
-                                    )}
                                   </div>
                                 </div>
                               </button>
@@ -3037,7 +3021,7 @@ function PlayPageContent() {
                     ) : (
                       <div className="mt-3 rounded-2xl border border-dashed border-[#d9cfbf] bg-[#fbfaf7] px-4 py-4 text-center">
                         <p className="text-[12px] leading-5 text-[#6d766f]">
-                          This anatomy case needs at least two answer choices saved in Choice A–D before it can run as a quiz.
+                          This anatomy case needs at least two saved answer choices before it can run as a quiz.
                         </p>
                       </div>
                     )}
