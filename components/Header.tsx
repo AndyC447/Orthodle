@@ -21,6 +21,7 @@ export function Header() {
   const today = new Date()
   const THEME_STORAGE_KEY = 'orthodle_theme'
   const showNotifications = pathname === '/'
+  const showPlayLink = pathname !== '/'
 
   const dateStr = today.toLocaleDateString('en-US', {
     weekday: 'long',
@@ -352,17 +353,19 @@ export function Header() {
               </div>
 
               <div className="p-2">
-                <Link
-                  href="/"
-                  onClick={() => setMenuOpen(false)}
-                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
-                    theme === 'dark'
-                      ? 'text-[#f4efe6] hover:bg-[#213129]'
-                      : 'text-[#102018] hover:bg-[#fbfaf7]'
-                  }`}
-                >
-                  Play
-                </Link>
+                {showPlayLink && (
+                  <Link
+                    href="/"
+                    onClick={() => setMenuOpen(false)}
+                    className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                      theme === 'dark'
+                        ? 'text-[#f4efe6] hover:bg-[#213129]'
+                        : 'text-[#102018] hover:bg-[#fbfaf7]'
+                    }`}
+                  >
+                    Play
+                  </Link>
+                )}
                 <Link
                   href="/stats"
                   onClick={() => setMenuOpen(false)}
@@ -373,28 +376,6 @@ export function Header() {
                   }`}
                 >
                   Stats
-                </Link>
-                <Link
-                  href="/groups"
-                  onClick={() => setMenuOpen(false)}
-                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
-                    theme === 'dark'
-                      ? 'text-[#f4efe6] hover:bg-[#213129]'
-                      : 'text-[#102018] hover:bg-[#fbfaf7]'
-                  }`}
-                >
-                  Groups
-                </Link>
-                <Link
-                  href="/submit"
-                  onClick={() => setMenuOpen(false)}
-                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
-                    theme === 'dark'
-                      ? 'text-[#f4efe6] hover:bg-[#213129]'
-                      : 'text-[#102018] hover:bg-[#fbfaf7]'
-                  }`}
-                >
-                  Submit Case
                 </Link>
                 <Link
                   href="/archive"
