@@ -6,6 +6,11 @@ import { useRouter } from 'next/navigation'
 import { Bell, BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
+import {
+  DEFAULT_GROUP_SCORING_SETTINGS,
+  normalizeGroupScoringSettings,
+  type GroupScoringSettings,
+} from '@/lib/group-scoring'
 import { DEFAULT_MEMBER_ICON, getIconsForSection, GROUP_ICON_SECTIONS } from '@/lib/group-icons'
 import { normalizeSurveyOptions, SITE_SURVEY_STORAGE_PREFIX, type SiteSurveyRow } from '@/lib/site-surveys'
 import { supabase } from '@/lib/supabase'
@@ -145,6 +150,19 @@ type GroupAnnouncementRow = {
   created_at: string
 }
 
+type GroupWeeklyHonorRow = {
+  id: string
+  week_start: string
+  week_end: string | null
+  group_id: string | null
+  group_name: string
+  group_icon: string | null
+  mvp_session_id: string | null
+  mvp_display_name: string | null
+  mvp_icon: string | null
+  created_at: string
+}
+
 type GroupJoinRequestRow = {
   id: string
   group_id: string | null
@@ -164,6 +182,16 @@ type GroupHeaderSurveyState = {
   submittedChoice: string | null
   isSubmitting: boolean
   status: string
+}
+
+type GroupScoringSettingsRow = {
+  solve_points: number
+  first_try_points: number
+  streak_points: number
+  efficiency_baseline: number
+  efficiency_points_per_guess: number
+  teamwork_bonus_per_member: number
+  teamwork_bonus_max: number
 }
 
 const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
@@ -278,6 +306,49 @@ function getCurrentWeekRange() {
   }
 }
 
+function getShiftedWeekRange(weeksOffset: number) {
+  const now = new Date()
+  now.setDate(now.getDate() + weeksOffset * 7)
+  const day = now.getDay()
+  const daysFromMonday = day === 0 ? 6 : day - 1
+  const start = new Date(now)
+  start.setDate(now.getDate() - daysFromMonday)
+  start.setHours(0, 0, 0, 0)
+
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  end.setHours(23, 59, 59, 999)
+
+  return {
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+    startDate: getLocalIsoDate(start.toISOString()),
+    endDate: getLocalIsoDate(end.toISOString()),
+    label: formatWeekRangeLabel(getLocalIsoDate(start.toISOString()), getLocalIsoDate(end.toISOString())),
+  }
+}
+
+function formatWeekRangeLabel(weekStart: string, weekEnd?: string | null) {
+  const start = new Date(`${weekStart}T12:00:00`)
+  const end = weekEnd ? new Date(`${weekEnd}T12:00:00`) : new Date(start)
+  const sameMonth = start.getMonth() === end.getMonth()
+  const startLabel = start.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+  const endLabel = end.toLocaleDateString('en-US', {
+    month: sameMonth ? undefined : 'short',
+    day: 'numeric',
+  })
+
+  return `Week of ${startLabel} - ${endLabel}`
+}
+
+function isMissingRelationError(error: { code?: string; message?: string } | null) {
+  if (!error) return false
+  return error.code === '42P01' || error.message?.toLowerCase().includes('does not exist') || false
+}
+
 function computeLongestRun(sortedDates: string[]) {
   if (sortedDates.length === 0) return 0
 
@@ -309,10 +380,18 @@ function groupMonogram(name: string) {
     .join('')
 }
 
-function GroupCrest({ group, size = 'md' }: { group: Pick<GroupRow, 'name' | 'icon'>; size?: 'sm' | 'md' | 'lg' }) {
+function GroupCrest({
+  group,
+  size = 'md',
+}: {
+  group: Pick<GroupRow, 'name' | 'icon'>
+  size?: 'xs' | 'sm' | 'md' | 'lg'
+}) {
   const dimensions =
     size === 'lg'
       ? 'h-[82px] w-[82px] text-[40px]'
+      : size === 'xs'
+        ? 'h-9 w-9 text-[20px]'
       : size === 'sm'
         ? 'h-11 w-11 text-[24px]'
         : 'h-14 w-14 text-[29px]'
@@ -643,7 +722,9 @@ function GroupsTopBanner({
   const navItemClass =
     'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[11.5px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
   const inactiveNavItemClass =
-    `${navItemClass} bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`
+    theme === 'dark'
+      ? `${navItemClass} border-[#2f3b35] bg-[#1a241f] text-[#ecf1eb] hover:bg-[#202b25]`
+      : `${navItemClass} bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`
 
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
@@ -742,36 +823,102 @@ function GroupsTopBanner({
         </button>
       </div>
 
-      <nav className="mx-auto flex max-w-[760px] justify-center px-4 py-2 sm:hidden sm:px-5 sm:pb-2 sm:pt-0">
-        <div className="w-full max-w-[430px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
-          <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
-            <Link
-              href="/"
-              className={inactiveNavItemClass}
-            >
-              Cases
-            </Link>
-            {tabs.map(tab => {
-              const active = activeTab === tab.id
+      <div className="mx-auto max-w-[760px] px-4 py-2 sm:hidden sm:px-5">
+        <div className="flex items-center justify-between gap-3">
+          <Link href="/" className="font-serif text-xl font-semibold text-[#102018]">
+            <span className="flex items-center gap-2">
+              <span className="text-lg text-[#c96b37]">●</span>
+              Orthodle
+            </span>
+          </Link>
 
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => onTabChange(tab.id)}
-                  className={`${
-                    active
-                      ? `${navItemClass} border border-[#1f6448] bg-[#1f6448] text-white shadow-sm`
-                      : inactiveNavItemClass
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onOpenHowItWorks}
+              aria-label="How it works"
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+            >
+              <Info size={16} strokeWidth={2.2} />
+            </button>
+            <button
+              type="button"
+              onClick={onOpenUpdates}
+              aria-label="Updates"
+              className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+            >
+              <Bell size={16} strokeWidth={2.2} />
+              {unreadNotificationCount > 0 ? (
+                <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+                  {unreadNotificationCount}
+                </span>
+              ) : null}
+            </button>
+            <button
+              type="button"
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'}
+              onClick={toggleTheme}
+              className={`group flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+                theme === 'dark'
+                  ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
+                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+              }`}
+            >
+              <span className="relative flex h-5 w-5 items-center justify-center overflow-hidden">
+                <span
+                  className={`absolute text-[15px] leading-none transition-all duration-300 ${
+                    theme === 'dark'
+                      ? 'translate-y-0 scale-100 opacity-100'
+                      : '-translate-y-5 scale-75 opacity-0'
                   }`}
                 >
-                  {tab.label}
-                </button>
-              )
-            })}
+                  ☀
+                </span>
+                <span
+                  className={`absolute text-[15px] leading-none transition-all duration-300 ${
+                    theme === 'dark'
+                      ? 'translate-y-5 scale-75 opacity-0'
+                      : 'translate-y-0 scale-100 opacity-100'
+                  }`}
+                >
+                  ☾
+                </span>
+              </span>
+            </button>
           </div>
         </div>
-      </nav>
+
+        <nav className="mt-2 flex justify-center">
+          <div className="w-full max-w-[430px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
+            <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
+              <Link
+                href="/"
+                className={inactiveNavItemClass}
+              >
+                Cases
+              </Link>
+              {tabs.map(tab => {
+                const active = activeTab === tab.id
+
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => onTabChange(tab.id)}
+                    className={`${
+                      active
+                        ? `${navItemClass} border border-[#1f6448] bg-[#1f6448] text-white shadow-sm`
+                        : inactiveNavItemClass
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </nav>
+      </div>
     </header>
   )
 }
@@ -1071,10 +1218,27 @@ function calculateMemberScore(
   solves: number,
   firstTrySolves: number,
   longestStreak: number,
-  avgGuesses: number | null
+  avgGuesses: number | null,
+  settings: GroupScoringSettings
 ) {
-  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) : 0
-  return Math.round(solves * 10 + firstTrySolves * 3 + longestStreak * 2 + efficiencyBonus)
+  const efficiencyBonus =
+    avgGuesses !== null
+      ? Math.max(0, settings.efficiencyBaseline - avgGuesses) * settings.efficiencyPointsPerGuess
+      : 0
+  return Math.round(
+    solves * settings.solvePoints +
+      firstTrySolves * settings.firstTryPoints +
+      longestStreak * settings.streakPoints +
+      efficiencyBonus
+  )
+}
+
+function calculateGroupTeamworkBonus(activeMemberCount: number, settings: GroupScoringSettings) {
+  if (activeMemberCount <= 1) return 0
+  return Math.min(
+    settings.teamworkBonusMax,
+    (activeMemberCount - 1) * settings.teamworkBonusPerMember
+  )
 }
 
 function getLocalDateFromTimestamp(value: string | null | undefined) {
@@ -1090,12 +1254,15 @@ function buildGroupAggregatesFromRows(
   groups: GroupRow[],
   members: GroupMemberRow[],
   guessRows: GuessRow[],
-  caseLookup: Record<string, CaseRow>
+  caseLookup: Record<string, CaseRow>,
+  settings: GroupScoringSettings
 ) {
   return groups
     .map(group => {
       const groupMembers = members.filter(member => member.group_id === group.id)
-      const memberStats = groupMembers.map(member => buildMemberStats(member, guessRows, caseLookup))
+      const memberStats = groupMembers.map(member =>
+        buildMemberStats(member, guessRows, caseLookup, settings)
+      )
 
       const totalCorrectGuesses = memberStats.reduce((sum, entry) => sum + entry.correctGuesses, 0)
       const totalGuessCount = memberStats.reduce((sum, entry) => sum + entry.totalGuesses, 0)
@@ -1120,8 +1287,11 @@ function buildGroupAggregatesFromRows(
       const totalAttendingSolves = memberStats.reduce((sum, entry) => sum + entry.attendingSolves, 0)
       const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
       const totalMemberScore = activeMemberStats.reduce((sum, entry) => sum + entry.score, 0)
+      const teamworkBonus = calculateGroupTeamworkBonus(activeMemberStats.length, settings)
       const score =
-        activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
+        activeMemberStats.length > 0
+          ? Math.round(totalMemberScore / activeMemberStats.length) + teamworkBonus
+          : 0
       const todayKey = getLocalIsoDate()
       const activeTodayCount = memberStats.filter(entry => entry.solvedDates.includes(todayKey)).length
 
@@ -1155,7 +1325,8 @@ function buildGroupAggregatesFromRows(
 function buildMemberStats(
   member: GroupMemberRow,
   guessRows: GuessRow[],
-  caseLookup: Record<string, CaseRow>
+  caseLookup: Record<string, CaseRow>,
+  settings: GroupScoringSettings
 ): MemberStats {
   const memberGuesses = guessRows.filter(row => row.session_id === member.session_id && row.case_id)
   const guessesByCase = new Map<string, GuessRow[]>()
@@ -1217,7 +1388,7 @@ function buildMemberStats(
   const avgGuesses = solves > 0 ? totalGuessesToSolve / solves : null
   const longestStreak = computeLongestRun(uniqueSortedDates)
   const currentStreak = getCurrentRun(uniqueSortedDates)
-  const score = calculateMemberScore(solves, firstTrySolves, longestStreak, avgGuesses)
+  const score = calculateMemberScore(solves, firstTrySolves, longestStreak, avgGuesses, settings)
 
   return {
     member,
@@ -1245,6 +1416,11 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<GroupRow[]>([])
   const [members, setMembers] = useState<GroupMemberRow[]>([])
   const [guessRows, setGuessRows] = useState<GuessRow[]>([])
+  const [groupScoringSettings, setGroupScoringSettings] = useState<GroupScoringSettings>(
+    DEFAULT_GROUP_SCORING_SETTINGS
+  )
+  const [groupWeeklyHonors, setGroupWeeklyHonors] = useState<GroupWeeklyHonorRow[]>([])
+  const [weeklyHonorsEnabled, setWeeklyHonorsEnabled] = useState(true)
   const [weeklyServerAggregates, setWeeklyServerAggregates] = useState<GroupAggregate[] | null>(null)
   const [allTimeServerAggregates, setAllTimeServerAggregates] = useState<GroupAggregate[] | null>(null)
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
@@ -1434,6 +1610,110 @@ export default function GroupsPage() {
     }))
   }
 
+  async function loadWeeklyHonors() {
+    const { data, error } = await supabase
+      .from('group_weekly_honors')
+      .select('*')
+      .order('week_start', { ascending: false })
+      .limit(52)
+
+    if (error) {
+      if (isMissingRelationError(error)) {
+        setWeeklyHonorsEnabled(false)
+        setGroupWeeklyHonors([])
+        return
+      }
+      return
+    }
+
+    setWeeklyHonorsEnabled(true)
+    setGroupWeeklyHonors((data || []) as GroupWeeklyHonorRow[])
+  }
+
+  async function loadGroupScoringSettings() {
+    const { data } = await supabase
+      .from('group_scoring_settings')
+      .select(
+        'solve_points, first_try_points, streak_points, efficiency_baseline, efficiency_points_per_guess, teamwork_bonus_per_member, teamwork_bonus_max'
+      )
+      .eq('id', 'default')
+      .maybeSingle()
+
+    const row = (data as GroupScoringSettingsRow | null) || null
+    setGroupScoringSettings(
+      normalizeGroupScoringSettings(
+        row
+          ? {
+              solvePoints: row.solve_points,
+              firstTryPoints: row.first_try_points,
+              streakPoints: row.streak_points,
+              efficiencyBaseline: row.efficiency_baseline,
+              efficiencyPointsPerGuess: row.efficiency_points_per_guess,
+              teamworkBonusPerMember: row.teamwork_bonus_per_member,
+              teamworkBonusMax: row.teamwork_bonus_max,
+            }
+          : DEFAULT_GROUP_SCORING_SETTINGS
+      )
+    )
+  }
+
+  async function syncCompletedWeeklyHonor() {
+    if (!weeklyHonorsEnabled) return
+
+    const previousWeekRange = getShiftedWeekRange(-1)
+    if (groupWeeklyHonors.some(row => row.week_start === previousWeekRange.startDate)) return
+
+    const params = new URLSearchParams({
+      window: 'week',
+      startIso: previousWeekRange.startIso,
+      endIso: previousWeekRange.endIso,
+    })
+
+    const response = await fetch(`/api/groups/leaderboard?${params.toString()}`, {
+      cache: 'no-store',
+    })
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) return
+
+    const aggregates = Array.isArray(payload.aggregates) ? (payload.aggregates as GroupAggregate[]) : []
+    const winningGroup = aggregates[0]
+    const winningMvp = winningGroup?.memberStats[0]
+
+    if (!winningGroup || !winningMvp) return
+
+    const { data, error } = await supabase
+      .from('group_weekly_honors')
+      .upsert(
+        {
+          week_start: previousWeekRange.startDate,
+          week_end: previousWeekRange.endDate,
+          group_id: winningGroup.group.id,
+          group_name: winningGroup.group.name,
+          group_icon: winningGroup.group.icon || null,
+          mvp_session_id: winningMvp.member.session_id,
+          mvp_display_name: winningMvp.member.display_name,
+          mvp_icon: winningMvp.member.icon || null,
+        },
+        { onConflict: 'week_start' }
+      )
+      .select('*')
+      .single()
+
+    if (error) {
+      if (isMissingRelationError(error)) {
+        setWeeklyHonorsEnabled(false)
+      }
+      return
+    }
+
+    const syncedRow = data as GroupWeeklyHonorRow
+    setGroupWeeklyHonors(previous => {
+      const nextRows = previous.filter(row => row.week_start !== syncedRow.week_start)
+      return [syncedRow, ...nextRows].sort((a, b) => b.week_start.localeCompare(a.week_start))
+    })
+  }
+
   async function submitGroupHeaderSurvey(choice: string) {
     if (!groupHeaderSurvey.survey?.id || groupHeaderSurvey.submittedChoice || groupHeaderSurvey.isSubmitting) {
       return
@@ -1610,8 +1890,15 @@ export default function GroupsPage() {
     void loadGroupsData()
     void loadGroupAnnouncement()
     void loadGroupHeaderSurvey()
+    void loadGroupScoringSettings()
+    void loadWeeklyHonors()
     void loadServerLeaderboardData('week', true)
   }, [sessionId, today])
+
+  useEffect(() => {
+    if (!weeklyHonorsEnabled) return
+    void syncCompletedWeeklyHonor()
+  }, [groupWeeklyHonors, weeklyHonorsEnabled])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !groupHeaderSurvey.survey?.id) {
@@ -1628,6 +1915,7 @@ export default function GroupsPage() {
   useEffect(() => {
     const refresh = () => {
       void loadGroupsData()
+      void loadWeeklyHonors()
       void loadServerLeaderboardData('week', true)
       if (allTimeServerAggregates !== null) {
         void loadServerLeaderboardData('all-time', true)
@@ -1638,6 +1926,7 @@ export default function GroupsPage() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'groups' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'group_members' }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'guesses' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_weekly_honors' }, refresh)
       .subscribe()
 
     return () => {
@@ -1785,12 +2074,12 @@ export default function GroupsPage() {
   )
 
   const computedWeekGroupAggregates = useMemo<GroupAggregate[]>(() => {
-    return buildGroupAggregatesFromRows(groups, members, visibleGuessRows, caseLookup)
-  }, [groups, visibleGuessRows, members, caseLookup])
+    return buildGroupAggregatesFromRows(groups, members, visibleGuessRows, caseLookup, groupScoringSettings)
+  }, [caseLookup, groupScoringSettings, groups, members, visibleGuessRows])
 
   const computedAllTimeGroupAggregates = useMemo<GroupAggregate[]>(() => {
-    return buildGroupAggregatesFromRows(groups, members, allTimeGuessRows, caseLookup)
-  }, [allTimeGuessRows, caseLookup, groups, members])
+    return buildGroupAggregatesFromRows(groups, members, allTimeGuessRows, caseLookup, groupScoringSettings)
+  }, [allTimeGuessRows, caseLookup, groupScoringSettings, groups, members])
 
   const groupAggregates = weeklyServerAggregates ?? computedWeekGroupAggregates
   const allTimeGroupAggregates = allTimeServerAggregates ?? computedAllTimeGroupAggregates
@@ -1834,7 +2123,9 @@ export default function GroupsPage() {
   const myMemberStats =
     selectedGroupAggregate?.memberStats.find(entry => entry.member.session_id === sessionId) || null
   const viewerMemberStats =
-    viewerMembership ? buildMemberStats(viewerMembership, viewerAllTimeGuessRows, caseLookup) : null
+    viewerMembership
+      ? buildMemberStats(viewerMembership, viewerAllTimeGuessRows, caseLookup, groupScoringSettings)
+      : null
   const viewerGroupRank = viewerGroupAggregate
     ? groupAggregates.findIndex(entry => entry.group.id === viewerGroupAggregate.group.id) + 1
     : null
@@ -1852,12 +2143,57 @@ export default function GroupsPage() {
   const canChangeSelectedGroupIcon = Boolean(myMembership && isViewingOwnGroup)
   const canEditSelectedGroup = Boolean(selectedGroup?.creator_session_id === sessionId && isViewingOwnGroup)
   const groupOfWeekAggregate = groupAggregates[0] || null
+  const previousWeekRange = useMemo(() => getShiftedWeekRange(-1), [])
   const mvpEntry = groupOfWeekAggregate?.memberStats[0]
     ? {
         stats: groupOfWeekAggregate.memberStats[0],
         group: groupOfWeekAggregate.group,
       }
     : null
+  const latestCompletedHonor =
+    groupWeeklyHonors.find(row => row.week_start === previousWeekRange.startDate) || null
+  const currentGroupTitleCount = groupOfWeekAggregate
+    ? groupWeeklyHonors.filter(row => row.group_id === groupOfWeekAggregate.group.id).length
+    : 0
+  const currentMvpWinCount = mvpEntry
+    ? groupWeeklyHonors.filter(row => row.mvp_session_id === mvpEntry.stats.member.session_id).length
+    : 0
+  const selectedGroupBannerHistory = selectedGroup
+    ? groupWeeklyHonors.filter(row => row.group_id === selectedGroup.id)
+    : []
+  const selectedGroupTitleCount = selectedGroupBannerHistory.length
+  const selectedMemberMvpWinCount =
+    selectedMemberStats?.member.session_id
+      ? groupWeeklyHonors.filter(row => row.mvp_session_id === selectedMemberStats.member.session_id).length
+      : 0
+  const selectedGroupMvpHistory = useMemo(() => {
+    if (!selectedGroup) return []
+
+    const winners = new Map<
+      string,
+      { sessionId: string; name: string; icon: string | null; wins: number }
+    >()
+
+    for (const honor of groupWeeklyHonors) {
+      if (honor.group_id !== selectedGroup.id || !honor.mvp_session_id || !honor.mvp_display_name) continue
+      const existing = winners.get(honor.mvp_session_id)
+      if (existing) {
+        existing.wins += 1
+      } else {
+        winners.set(honor.mvp_session_id, {
+          sessionId: honor.mvp_session_id,
+          name: honor.mvp_display_name,
+          icon: honor.mvp_icon,
+          wins: 1,
+        })
+      }
+    }
+
+    return [...winners.values()].sort((a, b) => {
+      if (b.wins !== a.wins) return b.wins - a.wins
+      return a.name.localeCompare(b.name)
+    })
+  }, [groupWeeklyHonors, selectedGroup])
   const trophyCaseItems = useMemo(
     () =>
       buildTrophyCase({
@@ -1922,6 +2258,7 @@ export default function GroupsPage() {
       selectedMemberStats?.member.session_id &&
       mvpEntry.stats.member.session_id === selectedMemberStats.member.session_id
   )
+
   const selectedGroupRecap = buildWeeklyRecap(
     selectedWeeklyGroupAggregate,
     selectedWeeklyGroupRank,
@@ -2166,14 +2503,6 @@ export default function GroupsPage() {
           longestStreak: entry.longestStreak,
         }))
       : []
-  const leaderboardSummary = useMemo(() => {
-    return {
-      groupsLive: groups.length,
-      membersCompeting: members.length,
-      activeToday: activeGroupAggregates.reduce((total, entry) => total + entry.activeTodayCount, 0),
-      totalSolves: activeGroupAggregates.reduce((total, entry) => total + entry.totalSolves, 0),
-    }
-  }, [activeGroupAggregates, groups.length, members.length])
   const leaderboardEntries = useMemo(() => {
     const query = leaderboardSearch.trim().toLowerCase()
     if (!query) return displayLeaderboard
@@ -3194,7 +3523,34 @@ export default function GroupsPage() {
           </div>
         ) : null}
 
-        <div className="mb-3 flex flex-wrap items-center justify-end gap-2 sm:mb-4 sm:hidden">
+        {latestCompletedHonor ? (
+          <section className="mb-3 overflow-hidden rounded-[22px] border border-[#e2b670] bg-[radial-gradient(circle,rgba(255,240,214,0.16)_1.4px,transparent_1.4px),linear-gradient(145deg,#d47b2a,#b95f1f_52%,#8f4316)] [background-position:0_0,0_0] [background-size:28px_28px,auto] px-3 py-3 text-white shadow-[0_18px_38px_rgba(143,67,22,0.28)] sm:mb-4 sm:px-4 sm:py-4">
+            <div className="flex flex-col items-center justify-center gap-2 text-center">
+              <div className="min-w-0">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#fff1c9]">
+                  Winners banner
+                </div>
+                <div className="mt-1 font-serif text-[22px] font-bold tracking-[-0.05em] sm:text-[26px]">
+                  {latestCompletedHonor.group_name}
+                </div>
+                <div className="mt-1 text-[12px] text-[#fff0df]">
+                  Group of the Week · {formatWeekRangeLabel(latestCompletedHonor.week_start, latestCompletedHonor.week_end)}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-[12px] text-[#fff6ea]">
+                <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#fff1c9]">
+                  MVP
+                </span>
+                <span className="text-[18px] leading-none">{latestCompletedHonor.mvp_icon || '🏆'}</span>
+                <span className="font-semibold text-white">
+                  {latestCompletedHonor.mvp_display_name || 'No MVP recorded'}
+                </span>
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        <div className="mb-3 hidden flex-wrap items-center justify-end gap-2 sm:mb-4 sm:hidden">
           <button
             type="button"
             onClick={() => setShowGroupsExplainer(true)}
@@ -3247,6 +3603,11 @@ export default function GroupsPage() {
                     {groupOfWeekAggregate?.group.name || 'No champion yet'}
                   </h2>
                   <p className="mt-1 text-[11px] text-[#e4efe9]">{weekRange.label}</p>
+                  {currentGroupTitleCount > 0 ? (
+                    <div className="mt-2 inline-flex rounded-full border border-[#f0c247]/45 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#f7df95]">
+                      {currentGroupTitleCount} title{currentGroupTitleCount === 1 ? '' : 's'} won
+                    </div>
+                  ) : null}
                   <div className="mx-auto mt-3 flex max-w-[138px] items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-2 py-1.5 sm:max-w-[160px] sm:py-2">
                     <span className="flex h-6 w-6 items-center justify-center rounded-xl bg-[#ffffff12] text-sm">
                       ↗
@@ -3256,7 +3617,7 @@ export default function GroupsPage() {
                         {formatScore(groupOfWeekAggregate?.score || 0)}
                       </div>
                       <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#d7e6de] sm:text-[9px]">
-                        avg score
+                        team score
                       </div>
                     </div>
                   </div>
@@ -3291,6 +3652,11 @@ export default function GroupsPage() {
                       <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[10px]">
                         {mvpEntry.group.name}
                       </p>
+                      {currentMvpWinCount > 0 ? (
+                        <div className="mt-2 inline-flex rounded-full border border-[#edd39b] bg-[#fff7df] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#7d5a12]">
+                          {currentMvpWinCount} MVP win{currentMvpWinCount === 1 ? '' : 's'}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="orthodle-mvp-divider hidden h-full bg-[#ece6db] md:block" />
@@ -3349,192 +3715,7 @@ export default function GroupsPage() {
               </button>
             </div>
 
-            <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                  Groups live
-                </div>
-                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
-                  {leaderboardSummary.groupsLive}
-                </div>
-              </div>
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                  Members competing
-                </div>
-                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
-                  {leaderboardSummary.membersCompeting}
-                </div>
-              </div>
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                  Active today
-                </div>
-                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
-                  {leaderboardSummary.activeToday}
-                </div>
-              </div>
-              <div className="rounded-[16px] border border-[#ece6db] bg-white px-2.5 py-2.5 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:px-3 sm:py-3">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                  Solves on board
-                </div>
-                <div className="mt-1 font-serif text-[22px] font-semibold leading-none text-[#102018] sm:text-[24px]">
-                  {leaderboardSummary.totalSolves}
-                </div>
-              </div>
-            </section>
-
-            {viewerGroup && viewerGroupAggregate ? (
-              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
-                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
-                      Your group this week
-                    </div>
-                    <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
-                      {viewerGroup.name}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedGroupId(viewerGroup.id)
-                      setActiveGroupsTab('my-group')
-                    }}
-                    className="w-full rounded-full border border-[#e6dfd3] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7] sm:w-auto"
-                  >
-                    Open group
-                  </button>
-                </div>
-
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedGroupId(viewerGroup.id)
-                      setActiveGroupsTab('my-group')
-                    }}
-                    className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-white"
-                  >
-                    View members
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void shareInviteLink(viewerGroup)}
-                    className="rounded-full border border-[#d9eadf] bg-[#eef8f2] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
-                  >
-                    {copiedCode === viewerGroup.id ? 'Invite copied' : 'Invite teammates'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveGroupsTab('profile')}
-                    className="col-span-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-white sm:col-span-1"
-                  >
-                    Open profile
-                  </button>
-                </div>
-
-                <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
-                  <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                      Group streak
-                    </div>
-                    <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
-                      {viewerGroupAggregate.currentStreak}
-                    </div>
-                    <div className="mt-1 text-[11px] text-[#2d7651]">
-                      {viewerGroupAggregate.activeTodayCount} active today
-                    </div>
-                  </div>
-                  <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3 sm:col-span-2">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                      Momentum
-                    </div>
-                    <div className="mt-1 font-semibold text-[#102018]">
-                      {viewerGroupMomentum || 'Keep stacking solves.'}
-                    </div>
-                    <div className="mt-1 text-[11px] text-[#637268]">
-                      {viewerGroupRecap?.detail || 'Every solve moves the board.'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                      Today's solvers
-                    </div>
-                    <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
-                      {viewerGroupTodaySolvers.length > 0 ? viewerGroupTodaySolvers.join(' · ') : 'Nobody has checked in yet'}
-                    </div>
-                  </div>
-                  <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                      Race status
-                    </div>
-                    <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
-                      {viewerGroupMomentum || 'Keep stacking solves.'}
-                    </div>
-                    <div className="mt-1 text-[11px] text-[#2d7651]">
-                      {viewerGroupRank === 1 ? 'Defend the lead today.' : 'A small run can flip the board.'}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                  {viewerGroupChallenge ? (
-                    <div className="rounded-[16px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
-                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
-                        Weekly challenge
-                      </div>
-                      <div className="mt-1 font-semibold text-[#102018]">
-                        {viewerGroupChallenge.title}
-                      </div>
-                      <div className="mt-1 text-[12px] text-[#637268]">
-                        {viewerGroupChallenge.detail}
-                      </div>
-                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
-                        <div
-                          className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              Math.max(
-                                12,
-                                (viewerGroupChallenge.progress / viewerGroupChallenge.goal) * 100
-                              )
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                      <div className="mt-1 flex items-center justify-between text-[11px]">
-                        <span className="font-semibold text-[#102018]">
-                          {viewerGroupChallenge.progress}/{viewerGroupChallenge.goal}
-                        </span>
-                        <span className="text-[#637268]">{viewerGroupChallenge.reward}</span>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {viewerGroupRecap ? (
-                    <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
-                      <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Weekly recap
-                      </div>
-                      <div className="mt-1 font-semibold text-[#102018]">
-                        {viewerGroupRecap.title}
-                      </div>
-                      <div className="mt-1 text-[12px] text-[#637268]">
-                        {viewerGroupRecap.detail}
-                      </div>
-                      <div className="mt-2 text-[11px] font-semibold text-[#2d7651]">
-                        {viewerGroupRecap.accent}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </section>
-            ) : (
+            {!viewerGroup ? (
               <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -3569,7 +3750,7 @@ export default function GroupsPage() {
                   </div>
                 </div>
               </section>
-            )}
+            ) : null}
 
             <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
               <div className="flex items-center justify-between gap-3">
@@ -3624,7 +3805,7 @@ export default function GroupsPage() {
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${rankCircleClass(rank)}`}>
                           {rank}
                         </div>
-                        <GroupCrest group={group} size="sm" />
+                        <GroupCrest group={group} size="xs" />
                         <div className="min-w-0">
                           <div className="truncate font-serif text-[14px] font-bold text-[#102018] sm:text-[17px]">
                             {group.name}
@@ -3638,7 +3819,7 @@ export default function GroupsPage() {
                             {formatScore(group.score)}
                           </div>
                           <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
-                            avg score
+                            team score
                           </div>
                         </div>
                         <div className="hidden text-center sm:block">
@@ -3828,6 +4009,225 @@ export default function GroupsPage() {
                     </div>
                   </div>
                 </section>
+
+                {weeklyHonorsEnabled ? (
+                  <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                    <div className="grid gap-2.5 lg:grid-cols-[1.1fr_0.9fr]">
+                      <div className="rounded-[18px] border border-[#eadfca] bg-[linear-gradient(135deg,#fffaf0,#fcfbf8)] px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#d69a28]">
+                              MVP spotlight
+                            </div>
+                            <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018]">
+                              MVP winners in {selectedGroup.name}
+                            </div>
+                          </div>
+                          <div className="rounded-full border border-[#edd39b] bg-[#fff7df] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#7d5a12]">
+                            {selectedGroupMvpHistory.length} winner{selectedGroupMvpHistory.length === 1 ? '' : 's'}
+                          </div>
+                        </div>
+
+                        {selectedGroupMvpHistory.length > 0 ? (
+                          <div className="mt-3 grid gap-2">
+                            {selectedGroupMvpHistory.map(winner => (
+                              <div
+                                key={winner.sessionId}
+                                className="flex items-center justify-between gap-3 rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5"
+                              >
+                                <div className="min-w-0 font-semibold text-[#102018]">
+                                  {winner.name}
+                                </div>
+                                <div className="shrink-0 text-[16px]">
+                                  {'🏆'.repeat(Math.min(winner.wins, 6))}
+                                  {winner.wins > 6 ? ` +${winner.wins - 6}` : ''}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-3 rounded-[16px] border border-dashed border-[#ece6db] bg-[#fcfbf8] px-3 py-3 text-[12px] text-[#637268]">
+                            No MVP history yet for this group.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-[18px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
+                              Banner collection
+                            </div>
+                            <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018]">
+                              {selectedGroupTitleCount} group title{selectedGroupTitleCount === 1 ? '' : 's'}
+                            </div>
+                          </div>
+                          <div className="rounded-full border border-[#dfe9e2] bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#2d7651]">
+                            Legacy
+                          </div>
+                        </div>
+
+                        {selectedGroupBannerHistory.length > 0 ? (
+                          <div className="mt-3 grid gap-2">
+                            {selectedGroupBannerHistory.slice(0, 4).map((banner, index) => (
+                              <div
+                                key={banner.id}
+                                className="rounded-[16px] border border-[#dfe9e2] bg-[linear-gradient(90deg,rgba(45,118,81,0.08),rgba(231,184,63,0.12))] px-3 py-2.5"
+                              >
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="min-w-0">
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#2d7651]">
+                                      Title #{selectedGroupTitleCount - index}
+                                    </div>
+                                    <div className="mt-0.5 truncate font-semibold text-[#102018]">
+                                      {formatWeekRangeLabel(banner.week_start, banner.week_end)}
+                                    </div>
+                                  </div>
+                                  <div className="text-[26px] leading-none">{banner.group_icon || selectedGroup.icon || '🏆'}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-3 rounded-[16px] border border-dashed border-[#dfe9e2] bg-white px-3 py-3 text-[12px] text-[#637268]">
+                            Win Group of the Week to unlock your first banner.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+                ) : null}
+
+                {isViewingOwnGroup && viewerGroup && viewerGroupAggregate ? (
+                  <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                    <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
+                          Your group this week
+                        </div>
+                        <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
+                          {viewerGroup.name}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => void shareInviteLink(viewerGroup)}
+                          className="rounded-full border border-[#d9eadf] bg-[#eef8f2] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
+                        >
+                          {copiedCode === viewerGroup.id ? 'Invite copied' : 'Invite teammates'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveGroupsTab('profile')}
+                          className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-white"
+                        >
+                          Open profile
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-2.5 sm:grid-cols-3">
+                      <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Group streak
+                        </div>
+                        <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                          {viewerGroupAggregate.currentStreak}
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#2d7651]">
+                          {viewerGroupAggregate.activeTodayCount} active today
+                        </div>
+                      </div>
+                      <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3 sm:col-span-2">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Momentum
+                        </div>
+                        <div className="mt-1 font-semibold text-[#102018]">
+                          {viewerGroupMomentum || 'Keep stacking solves.'}
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#637268]">
+                          {viewerGroupRecap?.detail || 'Every solve moves the board.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Today's solvers
+                        </div>
+                        <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
+                          {viewerGroupTodaySolvers.length > 0 ? viewerGroupTodaySolvers.join(' · ') : 'Nobody has checked in yet'}
+                        </div>
+                      </div>
+                      <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Race status
+                        </div>
+                        <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
+                          {viewerGroupMomentum || 'Keep stacking solves.'}
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#2d7651]">
+                          {viewerGroupRank === 1 ? 'Defend the lead today.' : 'A small run can flip the board.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                      {viewerGroupChallenge ? (
+                        <div className="rounded-[16px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
+                          <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
+                            Weekly challenge
+                          </div>
+                          <div className="mt-1 font-semibold text-[#102018]">
+                            {viewerGroupChallenge.title}
+                          </div>
+                          <div className="mt-1 text-[12px] text-[#637268]">
+                            {viewerGroupChallenge.detail}
+                          </div>
+                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
+                            <div
+                              className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
+                              style={{
+                                width: `${Math.min(
+                                  100,
+                                  Math.max(
+                                    12,
+                                    (viewerGroupChallenge.progress / viewerGroupChallenge.goal) * 100
+                                  )
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                          <div className="mt-1 flex items-center justify-between text-[11px]">
+                            <span className="font-semibold text-[#102018]">
+                              {viewerGroupChallenge.progress}/{viewerGroupChallenge.goal}
+                            </span>
+                            <span className="text-[#637268]">{viewerGroupChallenge.reward}</span>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {viewerGroupRecap ? (
+                        <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
+                          <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                            Weekly recap
+                          </div>
+                          <div className="mt-1 font-semibold text-[#102018]">
+                            {viewerGroupRecap.title}
+                          </div>
+                          <div className="mt-1 text-[12px] text-[#637268]">
+                            {viewerGroupRecap.detail}
+                          </div>
+                          <div className="mt-2 text-[11px] font-semibold text-[#2d7651]">
+                            {viewerGroupRecap.accent}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  </section>
+                ) : null}
 
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   {selectedGroupChallenge ? (
@@ -4383,6 +4783,9 @@ export default function GroupsPage() {
                     👑 MVP this week
                   </div>
                 ) : null}
+                <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-[#dfe9e2] bg-[#f7fbf8] px-2.5 py-1 text-[11px] font-bold text-[#2d7651]">
+                  🏆 {selectedMemberMvpWinCount} MVP win{selectedMemberMvpWinCount === 1 ? '' : 's'}
+                </div>
 
                 <div className="mt-4 grid w-full grid-cols-4 divide-x divide-[#ece6db] rounded-2xl border border-[#ece6db] bg-[#fcfbf8] py-2.5">
                   {[
@@ -4729,7 +5132,7 @@ export default function GroupsPage() {
                       <div className="mt-1 truncate font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
                         {formatScore(selectedGroupAggregate.score)}
                       </div>
-                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">team avg</div>
+                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">team score</div>
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
@@ -4752,6 +5155,83 @@ export default function GroupsPage() {
                       <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">days</div>
                     </div>
                   </div>
+
+                  {weeklyHonorsEnabled ? (
+                    <div className="grid gap-2">
+                      <div className="rounded-[14px] border border-[#eadfca] bg-[linear-gradient(135deg,#fffaf0,#fcfbf8)] px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#d69a28]">
+                              MVP spotlight
+                            </div>
+                            <div className="mt-1 text-[12px] font-semibold text-[#102018]">
+                              MVP winners in {selectedGroup.name}
+                            </div>
+                          </div>
+                          <div className="rounded-full border border-[#edd39b] bg-[#fff7df] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.12em] text-[#7d5a12]">
+                            {selectedGroupMvpHistory.length} winner{selectedGroupMvpHistory.length === 1 ? '' : 's'}
+                          </div>
+                        </div>
+                        {selectedGroupMvpHistory.length > 0 ? (
+                          <div className="mt-2.5 space-y-2">
+                            {selectedGroupMvpHistory.map(winner => (
+                              <div
+                                key={winner.sessionId}
+                                className="flex items-center justify-between gap-3 rounded-[12px] border border-[#ece6db] bg-white px-3 py-2"
+                              >
+                                <div className="min-w-0 truncate text-[12px] font-semibold text-[#102018]">
+                                  {winner.name}
+                                </div>
+                                <div className="shrink-0 text-[14px]">
+                                  {'🏆'.repeat(Math.min(winner.wins, 5))}
+                                  {winner.wins > 5 ? ` +${winner.wins - 5}` : ''}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-2.5 text-[11px] text-[#637268]">
+                            No MVP history yet for this group.
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="rounded-[14px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
+                              Banner collection
+                            </div>
+                            <div className="mt-1 text-[12px] font-semibold text-[#102018]">
+                              {selectedGroupTitleCount} group title{selectedGroupTitleCount === 1 ? '' : 's'}
+                            </div>
+                          </div>
+                          <div className="text-[20px] leading-none">🏁</div>
+                        </div>
+                        {selectedGroupBannerHistory.length > 0 ? (
+                          <div className="mt-2 space-y-2">
+                            {selectedGroupBannerHistory.slice(0, 3).map((banner, index) => (
+                              <div
+                                key={banner.id}
+                                className="rounded-[12px] border border-[#dfe9e2] bg-white px-3 py-2"
+                              >
+                                <div className="text-[9px] font-bold uppercase tracking-[0.12em] text-[#2d7651]">
+                                  Title #{selectedGroupTitleCount - index}
+                                </div>
+                                <div className="mt-0.5 text-[11px] font-semibold text-[#102018]">
+                                  {formatWeekRangeLabel(banner.week_start, banner.week_end)}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="mt-2.5 text-[11px] text-[#637268]">
+                            Win Group of the Week to unlock your first banner.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
 
                   {selectedGroupAggregate.memberStats.length > 0 ? (
                     <div className="rounded-[14px] border border-[#ece6db] bg-[#fcfbf8] px-2.5 py-2">
@@ -4866,7 +5346,7 @@ export default function GroupsPage() {
                             {rank}
                           </div>
                           <div className="mt-1 sm:mt-2">
-                            <GroupCrest group={group} size="sm" />
+                            <GroupCrest group={group} size="xs" />
                           </div>
                           <div className="mt-1 line-clamp-2 min-h-[28px] font-serif text-[12px] font-semibold leading-tight text-[#102018] sm:mt-2 sm:text-[14px]">
                             {group.name}

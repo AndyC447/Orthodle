@@ -1337,7 +1337,7 @@ function PlayPageContent() {
         const anatomyChoiceStats =
           data.level === 'attending' && canUseSurgicalAnatomyQuiz(data.case_date)
             ? buildAnatomyChoiceBreakdown(
-                [data.clue_1, data.clue_2, data.clue_3, data.clue_4],
+                [data.clue_1, data.clue_2, data.clue_3, data.clue_4, data.clue_5, data.clue_6],
                 publicGuessRows,
                 [data.answer, ...(data.synonyms || [])]
               )

@@ -7,6 +7,11 @@ import { Share2 } from 'lucide-react'
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import {
+  DEFAULT_GROUP_SCORING_SETTINGS,
+  normalizeGroupScoringSettings,
+  type GroupScoringSettings,
+} from '@/lib/group-scoring'
 import { DEFAULT_MEMBER_ICON, getIconsForSection, GROUP_ICON_SECTIONS } from '@/lib/group-icons'
 import { supabase } from '@/lib/supabase'
 import { getSessionId } from '@/lib/utils'
@@ -63,6 +68,16 @@ type GroupAggregate = {
   avgGuesses: number | null
   longestStreak: number
   totalSolves: number
+}
+
+type GroupScoringSettingsRow = {
+  solve_points: number
+  first_try_points: number
+  streak_points: number
+  efficiency_baseline: number
+  efficiency_points_per_guess: number
+  teamwork_bonus_per_member: number
+  teamwork_bonus_max: number
 }
 
 function buildInviteLink(joinCode: string) {
@@ -243,10 +258,27 @@ function calculateMemberScore(
   solves: number,
   firstTrySolves: number,
   longestStreak: number,
-  avgGuesses: number | null
+  avgGuesses: number | null,
+  settings: GroupScoringSettings
 ) {
-  const efficiencyBonus = avgGuesses ? Math.max(0, 7 - avgGuesses) : 0
-  return Math.round(solves * 10 + firstTrySolves * 3 + longestStreak * 2 + efficiencyBonus)
+  const efficiencyBonus =
+    avgGuesses !== null
+      ? Math.max(0, settings.efficiencyBaseline - avgGuesses) * settings.efficiencyPointsPerGuess
+      : 0
+  return Math.round(
+    solves * settings.solvePoints +
+      firstTrySolves * settings.firstTryPoints +
+      longestStreak * settings.streakPoints +
+      efficiencyBonus
+  )
+}
+
+function calculateGroupTeamworkBonus(activeMemberCount: number, settings: GroupScoringSettings) {
+  if (activeMemberCount <= 1) return 0
+  return Math.min(
+    settings.teamworkBonusMax,
+    (activeMemberCount - 1) * settings.teamworkBonusPerMember
+  )
 }
 
 function getLocalDateFromTimestamp(value: string | null | undefined) {
@@ -261,7 +293,8 @@ function getLocalDateFromTimestamp(value: string | null | undefined) {
 function buildMemberStats(
   member: GroupMemberRow,
   guessRows: GuessRow[],
-  caseLookup: Record<string, CaseRow>
+  caseLookup: Record<string, CaseRow>,
+  settings: GroupScoringSettings
 ): MemberStats {
   const memberGuesses = guessRows.filter(row => row.session_id === member.session_id && row.case_id)
   const guessesByCase = new Map<string, GuessRow[]>()
@@ -303,7 +336,7 @@ function buildMemberStats(
 
   const avgGuesses = solves > 0 ? totalGuessesToSolve / solves : null
   const longestStreak = computeLongestRun(uniqueSortedDates)
-  const score = calculateMemberScore(solves, firstTrySolves, longestStreak, avgGuesses)
+  const score = calculateMemberScore(solves, firstTrySolves, longestStreak, avgGuesses, settings)
 
   return {
     member,
@@ -321,12 +354,13 @@ function buildGroupAggregates(
   groups: GroupRow[],
   members: GroupMemberRow[],
   guesses: GuessRow[],
-  caseLookup: Record<string, CaseRow>
+  caseLookup: Record<string, CaseRow>,
+  settings: GroupScoringSettings
 ): GroupAggregate[] {
   return groups
     .map(group => {
       const groupMembers = members.filter(member => member.group_id === group.id)
-      const memberStats = groupMembers.map(member => buildMemberStats(member, guesses, caseLookup))
+      const memberStats = groupMembers.map(member => buildMemberStats(member, guesses, caseLookup, settings))
       const totalCorrectGuesses = memberStats.reduce((sum, entry) => sum + entry.correctGuesses, 0)
       const totalGuessCount = memberStats.reduce((sum, entry) => sum + entry.totalGuesses, 0)
       const avgAccuracy =
@@ -344,8 +378,11 @@ function buildGroupAggregates(
       const totalSolves = memberStats.reduce((sum, entry) => sum + entry.solves, 0)
       const activeMemberStats = memberStats.filter(entry => entry.totalGuesses > 0)
       const totalMemberScore = activeMemberStats.reduce((sum, entry) => sum + entry.score, 0)
+      const teamworkBonus = calculateGroupTeamworkBonus(activeMemberStats.length, settings)
       const score =
-        activeMemberStats.length > 0 ? Math.round(totalMemberScore / activeMemberStats.length) : 0
+        activeMemberStats.length > 0
+          ? Math.round(totalMemberScore / activeMemberStats.length) + teamworkBonus
+          : 0
 
       return {
         group,
@@ -379,6 +416,9 @@ export default function GroupDetailPage() {
   const [groups, setGroups] = useState<GroupRow[]>([])
   const [members, setMembers] = useState<GroupMemberRow[]>([])
   const [guesses, setGuesses] = useState<GuessRow[]>([])
+  const [groupScoringSettings, setGroupScoringSettings] = useState<GroupScoringSettings>(
+    DEFAULT_GROUP_SCORING_SETTINGS
+  )
   const [caseLookup, setCaseLookup] = useState<Record<string, CaseRow>>({})
   const [savingGroupIcon, setSavingGroupIcon] = useState(false)
   const [savingMemberIcon, setSavingMemberIcon] = useState(false)
@@ -495,8 +535,36 @@ export default function GroupDetailPage() {
     setLoading(false)
   }
 
+  async function loadGroupScoringSettings() {
+    const { data } = await supabase
+      .from('group_scoring_settings')
+      .select(
+        'solve_points, first_try_points, streak_points, efficiency_baseline, efficiency_points_per_guess, teamwork_bonus_per_member, teamwork_bonus_max'
+      )
+      .eq('id', 'default')
+      .maybeSingle()
+
+    const row = (data as GroupScoringSettingsRow | null) || null
+    setGroupScoringSettings(
+      normalizeGroupScoringSettings(
+        row
+          ? {
+              solvePoints: row.solve_points,
+              firstTryPoints: row.first_try_points,
+              streakPoints: row.streak_points,
+              efficiencyBaseline: row.efficiency_baseline,
+              efficiencyPointsPerGuess: row.efficiency_points_per_guess,
+              teamworkBonusPerMember: row.teamwork_bonus_per_member,
+              teamworkBonusMax: row.teamwork_bonus_max,
+            }
+          : DEFAULT_GROUP_SCORING_SETTINGS
+      )
+    )
+  }
+
   useEffect(() => {
     void loadGroupPageData()
+    void loadGroupScoringSettings()
     setShowGroupIconPicker(false)
     setShowMemberIconPicker(false)
   }, [groupId])
@@ -521,9 +589,10 @@ export default function GroupDetailPage() {
         groups,
         members,
         guesses,
-        caseLookup
+        caseLookup,
+        groupScoringSettings
       ),
-    [groups, members, guesses, caseLookup]
+    [caseLookup, groupScoringSettings, groups, guesses, members]
   )
   const aggregate = groupAggregates.find(entry => entry.group.id === groupId) || null
   const group = aggregate?.group || groups.find(entry => entry.id === groupId) || null

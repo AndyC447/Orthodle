@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { buildGroupAggregatesFromRows, fetchAllRows } from '@/lib/groups-leaderboard'
+import { DEFAULT_GROUP_SCORING_SETTINGS, normalizeGroupScoringSettings } from '@/lib/group-scoring'
 
 type GroupRow = {
   id: string
@@ -35,6 +36,16 @@ type CaseRow = {
   category: string | null
 }
 
+type GroupScoringSettingsRow = {
+  solve_points: number
+  first_try_points: number
+  streak_points: number
+  efficiency_baseline: number
+  efficiency_points_per_guess: number
+  teamwork_bonus_per_member: number
+  teamwork_bonus_max: number
+}
+
 export async function GET(req: Request) {
   try {
     const supabaseAdmin = getSupabaseAdmin()
@@ -64,6 +75,28 @@ export async function GET(req: Request) {
     }
 
     const members = ((membersData || []) as GroupMemberRow[]) || []
+    const { data: scoringData } = await supabaseAdmin
+      .from('group_scoring_settings')
+      .select(
+        'solve_points, first_try_points, streak_points, efficiency_baseline, efficiency_points_per_guess, teamwork_bonus_per_member, teamwork_bonus_max'
+      )
+      .eq('id', 'default')
+      .maybeSingle()
+
+    const scoringRow = (scoringData as GroupScoringSettingsRow | null) || null
+    const scoringSettings = normalizeGroupScoringSettings(
+      scoringRow
+        ? {
+            solvePoints: scoringRow.solve_points,
+            firstTryPoints: scoringRow.first_try_points,
+            streakPoints: scoringRow.streak_points,
+            efficiencyBaseline: scoringRow.efficiency_baseline,
+            efficiencyPointsPerGuess: scoringRow.efficiency_points_per_guess,
+            teamworkBonusPerMember: scoringRow.teamwork_bonus_per_member,
+            teamworkBonusMax: scoringRow.teamwork_bonus_max,
+          }
+        : DEFAULT_GROUP_SCORING_SETTINGS
+    )
     const memberSessionIds = Array.from(new Set(members.map(member => member.session_id)))
 
     if (memberSessionIds.length === 0) {
@@ -109,7 +142,13 @@ export async function GET(req: Request) {
       }
     }
 
-    const aggregates = buildGroupAggregatesFromRows(groups, members, guessRows, caseLookup)
+    const aggregates = buildGroupAggregatesFromRows(
+      groups,
+      members,
+      guessRows,
+      caseLookup,
+      scoringSettings
+    )
     return NextResponse.json({ aggregates })
   } catch (error) {
     const message =

@@ -295,6 +295,12 @@ export default function AdminGroupsPage() {
               {loading ? 'Refreshing...' : 'Refresh'}
             </button>
             <Link
+              href="/admin/groups-stats"
+              className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+            >
+              Stats
+            </Link>
+            <Link
               href="/admin"
               className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
             >

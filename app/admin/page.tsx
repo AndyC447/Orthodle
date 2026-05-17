@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import {
+  DEFAULT_GROUP_SCORING_SETTINGS,
+  normalizeGroupScoringSettings,
+  type GroupScoringSettings,
+} from '@/lib/group-scoring'
 import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
@@ -188,6 +193,16 @@ type GroupAnnouncementRow = {
   start_date: string
   end_date: string | null
   created_at: string
+}
+
+type GroupScoringSettingsRow = {
+  solve_points: number
+  first_try_points: number
+  streak_points: number
+  efficiency_baseline: number
+  efficiency_points_per_guess: number
+  teamwork_bonus_per_member: number
+  teamwork_bonus_max: number
 }
 
 type HomepageSurveyRow = {
@@ -434,6 +449,11 @@ export default function AdminPage() {
   const [announcementEndDate, setAnnouncementEndDate] = useState(shiftISODate(today, 1))
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
   const [groupAnnouncements, setGroupAnnouncements] = useState<GroupAnnouncementRow[]>([])
+  const [groupScoringSettings, setGroupScoringSettings] = useState<GroupScoringSettings>(
+    DEFAULT_GROUP_SCORING_SETTINGS
+  )
+  const [groupScoringStatus, setGroupScoringStatus] = useState('')
+  const [savingGroupScoring, setSavingGroupScoring] = useState(false)
   const [groupAnnouncementMessage, setGroupAnnouncementMessage] = useState('')
   const [groupAnnouncementStartDate, setGroupAnnouncementStartDate] = useState(shiftISODate(today, 1))
   const [groupAnnouncementEndDate, setGroupAnnouncementEndDate] = useState(shiftISODate(today, 1))
@@ -538,6 +558,7 @@ export default function AdminPage() {
     loadFeedbackSummary()
     loadHomepageAnnouncements()
     loadGroupAnnouncements()
+    loadGroupScoringSettings()
     loadHomepageSurveys()
     loadAnatomySurveys()
 
@@ -1731,6 +1752,77 @@ export default function AdminPage() {
     setGroupAnnouncements((data as GroupAnnouncementRow[] | null) || [])
   }
 
+  async function loadGroupScoringSettings() {
+    const { data, error } = await supabase
+      .from('group_scoring_settings')
+      .select(
+        'solve_points, first_try_points, streak_points, efficiency_baseline, efficiency_points_per_guess, teamwork_bonus_per_member, teamwork_bonus_max'
+      )
+      .eq('id', 'default')
+      .maybeSingle()
+
+    if (error) {
+      setGroupScoringStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Group scoring settings are not set up yet. Run the new SQL once, then try again.'
+          : `Could not load group scoring: ${error.message}`
+      )
+      return
+    }
+
+    const row = (data as GroupScoringSettingsRow | null) || null
+    setGroupScoringSettings(
+      normalizeGroupScoringSettings(
+        row
+          ? {
+              solvePoints: row.solve_points,
+              firstTryPoints: row.first_try_points,
+              streakPoints: row.streak_points,
+              efficiencyBaseline: row.efficiency_baseline,
+              efficiencyPointsPerGuess: row.efficiency_points_per_guess,
+              teamworkBonusPerMember: row.teamwork_bonus_per_member,
+              teamworkBonusMax: row.teamwork_bonus_max,
+            }
+          : DEFAULT_GROUP_SCORING_SETTINGS
+      )
+    )
+    setGroupScoringStatus('')
+  }
+
+  async function saveGroupScoringSettings() {
+    setSavingGroupScoring(true)
+    setGroupScoringStatus('')
+
+    const payload = {
+      id: 'default',
+      solve_points: groupScoringSettings.solvePoints,
+      first_try_points: groupScoringSettings.firstTryPoints,
+      streak_points: groupScoringSettings.streakPoints,
+      efficiency_baseline: groupScoringSettings.efficiencyBaseline,
+      efficiency_points_per_guess: groupScoringSettings.efficiencyPointsPerGuess,
+      teamwork_bonus_per_member: groupScoringSettings.teamworkBonusPerMember,
+      teamwork_bonus_max: groupScoringSettings.teamworkBonusMax,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.from('group_scoring_settings').upsert(payload, {
+      onConflict: 'id',
+    })
+
+    if (error) {
+      setGroupScoringStatus(
+        error.message.includes('relation') || error.message.includes('does not exist')
+          ? 'Group scoring settings are not set up yet. Run the new SQL once, then try again.'
+          : `Could not save group scoring: ${error.message}`
+      )
+      setSavingGroupScoring(false)
+      return
+    }
+
+    setGroupScoringStatus('Group scoring formula saved.')
+    setSavingGroupScoring(false)
+  }
+
   async function loadHomepageSurveys() {
     const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const { data } = await supabase
@@ -2211,7 +2303,14 @@ export default function AdminPage() {
     const anatomyChoiceStats =
       matchingCase.level === 'attending'
         ? buildAnatomyChoiceBreakdown(
-            [matchingCase.clue_1, matchingCase.clue_2, matchingCase.clue_3, matchingCase.clue_4],
+            [
+              matchingCase.clue_1,
+              matchingCase.clue_2,
+              matchingCase.clue_3,
+              matchingCase.clue_4,
+              matchingCase.clue_5,
+              matchingCase.clue_6,
+            ],
             publicGuessRows,
             [matchingCase.answer, ...(matchingCase.synonyms || [])]
           )
@@ -2670,6 +2769,74 @@ export default function AdminPage() {
           </Link>
         </div>
         <p className="mt-2 text-sm text-[#8a948d]">Manage group boards</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/admin/groups-stats"
+            className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+          >
+            View stats
+          </Link>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-serif text-lg font-bold">Scoring Formula</h3>
+            <button
+              type="button"
+              onClick={() => void saveGroupScoringSettings()}
+              disabled={savingGroupScoring}
+              className="rounded-lg bg-[#1f6448] px-3 py-2 text-xs font-bold uppercase tracking-[0.16em] text-white transition hover:bg-[#174c37] disabled:opacity-50"
+            >
+              {savingGroupScoring ? 'Saving...' : 'Save formula'}
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              ['Solve points', 'solvePoints'],
+              ['First-try bonus', 'firstTryPoints'],
+              ['Streak points', 'streakPoints'],
+              ['Efficiency baseline', 'efficiencyBaseline'],
+              ['Efficiency points', 'efficiencyPointsPerGuess'],
+              ['Team bonus / member', 'teamworkBonusPerMember'],
+              ['Team bonus cap', 'teamworkBonusMax'],
+            ].map(([label, key]) => (
+              <label
+                key={key}
+                className="text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]"
+              >
+                {label}
+                <input
+                  type="number"
+                  value={groupScoringSettings[key as keyof GroupScoringSettings]}
+                  onChange={event =>
+                    setGroupScoringSettings(prev => ({
+                      ...prev,
+                      [key]: Math.max(0, Number(event.target.value) || 0),
+                    }))
+                  }
+                  className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="mt-3 rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+              Formula preview
+            </div>
+            <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+              Member score = solves x {groupScoringSettings.solvePoints} + first-try solves x {groupScoringSettings.firstTryPoints} + longest streak x {groupScoringSettings.streakPoints} + max(0, {groupScoringSettings.efficiencyBaseline} - avg guesses) x {groupScoringSettings.efficiencyPointsPerGuess}
+            </p>
+            <p className="mt-2 text-[13px] leading-5 text-[#102018]">
+              Group score = average active-member score + min({groupScoringSettings.teamworkBonusMax}, (active members - 1) x {groupScoringSettings.teamworkBonusPerMember})
+            </p>
+          </div>
+
+          {groupScoringStatus ? (
+            <p className="mt-2 text-xs font-medium text-[#1f6448]">{groupScoringStatus}</p>
+          ) : null}
+        </div>
 
         <div className="mt-4 space-y-2.5">
           <div className="flex items-center justify-between gap-3">
