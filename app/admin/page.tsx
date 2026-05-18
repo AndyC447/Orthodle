@@ -230,6 +230,7 @@ type AdminCollapsedSectionId =
 
 type PlayModeSettingsRow = {
   no_resident_mode: boolean
+  no_resident_mode_start_date: string | null
 }
 
 function stripAnatomyChoicePrefix(value: string) {
@@ -301,6 +302,7 @@ function buildAnatomyChoiceBreakdown(
 
 const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
+const noResidentLevelOrder: Level[] = ['med_student', 'attending']
 const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
 const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
@@ -425,6 +427,7 @@ export default function AdminPage() {
     latestCreatedAt: null as string | null,
   })
   const [noResidentMode, setNoResidentMode] = useState(false)
+  const [noResidentModeStartDate, setNoResidentModeStartDate] = useState(shiftISODate(today, 1))
   const [savingNoResidentMode, setSavingNoResidentMode] = useState(false)
   const [homepageAnnouncements, setHomepageAnnouncements] = useState<HomepageAnnouncementRow[]>([])
   const [announcementMessage, setAnnouncementMessage] = useState('')
@@ -476,11 +479,17 @@ export default function AdminPage() {
     setAuthReady(true)
   }, [])
 
+  function isNoResidentModeActiveOn(dateText: string) {
+    if (!noResidentMode) return false
+    const effectiveStartDate = noResidentModeStartDate || today
+    return dateText >= effectiveStartDate
+  }
+
   useEffect(() => {
-    if (noResidentMode && level === 'resident') {
+    if (isNoResidentModeActiveOn(caseDate) && level === 'resident') {
       setLevel('med_student')
     }
-  }, [level, noResidentMode])
+  }, [caseDate, level, noResidentMode, noResidentModeStartDate])
 
   useEffect(() => {
     const savedOrder = window.localStorage.getItem(ADMIN_SIDEBAR_ORDER_STORAGE_KEY)
@@ -784,14 +793,29 @@ export default function AdminPage() {
     () => groupedCases.find(group => group.date === tomorrow)?.items || [],
     [groupedCases, tomorrow]
   )
-  const activeLevelOrder = useMemo<Level[]>(
-    () => (noResidentMode ? ['med_student', 'attending'] : levelOrder),
-    [noResidentMode]
+  const composerLevelOrder = useMemo<Level[]>(
+    () => (isNoResidentModeActiveOn(caseDate) ? noResidentLevelOrder : levelOrder),
+    [caseDate, noResidentMode, noResidentModeStartDate]
   )
 
   const browsedCases = useMemo(
     () => groupedCases.find(group => group.date === browseDate)?.items || [],
     [browseDate, groupedCases]
+  )
+
+  const browsedLevelOrder = useMemo<Level[]>(
+    () => (browseDate && isNoResidentModeActiveOn(browseDate) ? noResidentLevelOrder : levelOrder),
+    [browseDate, noResidentMode, noResidentModeStartDate]
+  )
+
+  const todaysLevelOrder = useMemo<Level[]>(
+    () => (isNoResidentModeActiveOn(today) ? noResidentLevelOrder : levelOrder),
+    [noResidentMode, noResidentModeStartDate]
+  )
+
+  const tomorrowsLevelOrder = useMemo<Level[]>(
+    () => (isNoResidentModeActiveOn(tomorrow) ? noResidentLevelOrder : levelOrder),
+    [noResidentMode, noResidentModeStartDate, tomorrow]
   )
 
   const previewClues = useMemo(
@@ -905,13 +929,14 @@ export default function AdminPage() {
       groupedCases
         .map(group => ({
           date: group.date,
-          ready: activeLevelOrder.filter(levelValue =>
+          required: isNoResidentModeActiveOn(group.date) ? 2 : 3,
+          ready: (isNoResidentModeActiveOn(group.date) ? noResidentLevelOrder : levelOrder).filter(levelValue =>
             group.items.some(item => item.level === levelValue)
           ).length,
         }))
-        .filter(group => group.ready < activeLevelOrder.length)
+        .filter(group => group.ready < group.required)
         ,
-    [activeLevelOrder, groupedCases]
+    [groupedCases, noResidentMode, noResidentModeStartDate]
   )
 
   function formatLevel(levelValue: Level) {
@@ -1152,7 +1177,8 @@ export default function AdminPage() {
 
   function nextMissingLevelForDate(dateText: string): Level | null {
     const items = groupedCases.find(group => group.date === dateText)?.items || []
-    return activeLevelOrder.find(levelValue => !items.some(item => item.level === levelValue)) || null
+    const requiredLevels = isNoResidentModeActiveOn(dateText) ? noResidentLevelOrder : levelOrder
+    return requiredLevels.find(levelValue => !items.some(item => item.level === levelValue)) || null
   }
 
   async function unlockAdmin() {
@@ -1722,22 +1748,23 @@ export default function AdminPage() {
   async function loadPlayModeSettings() {
     const { data } = await supabase
       .from('play_mode_settings')
-      .select('no_resident_mode')
+      .select('no_resident_mode, no_resident_mode_start_date')
       .eq('id', 'default')
       .maybeSingle()
 
     const row = (data as PlayModeSettingsRow | null) || null
     setNoResidentMode(Boolean(row?.no_resident_mode))
+    setNoResidentModeStartDate(row?.no_resident_mode_start_date || shiftISODate(today, 1))
   }
 
-  async function toggleNoResidentMode() {
-    const nextValue = !noResidentMode
+  async function saveNoResidentModeSchedule(enabled: boolean) {
     setSavingNoResidentMode(true)
 
     const { error } = await supabase.from('play_mode_settings').upsert(
       {
         id: 'default',
-        no_resident_mode: nextValue,
+        no_resident_mode: enabled,
+        no_resident_mode_start_date: enabled ? noResidentModeStartDate : null,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'id' }
@@ -1753,11 +1780,15 @@ export default function AdminPage() {
       return
     }
 
-    setNoResidentMode(nextValue)
-    if (nextValue && level === 'resident') {
+    setNoResidentMode(enabled)
+    if (enabled && isNoResidentModeActiveOn(caseDate) && level === 'resident') {
       setLevel('med_student')
     }
-    setStatus(nextValue ? 'No resident mode turned on.' : 'Resident case mode restored.')
+    setStatus(
+      enabled
+        ? `No resident mode will start on ${noResidentModeStartDate || shiftISODate(today, 1)}.`
+        : 'Resident case mode restored.'
+    )
     setSavingNoResidentMode(false)
   }
 
@@ -2955,12 +2986,12 @@ export default function AdminPage() {
                       {browseDate} overview
                     </div>
                     <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                      {activeLevelOrder.filter(levelValue => browsedCases.some(item => item.level === levelValue)).length}/{activeLevelOrder.length} ready
+                      {browsedLevelOrder.filter(levelValue => browsedCases.some(item => item.level === levelValue)).length}/{browsedLevelOrder.length} ready
                     </div>
                   </div>
 
                   <div className="mt-3 grid gap-2">
-                    {activeLevelOrder.map(levelValue => {
+                    {browsedLevelOrder.map(levelValue => {
                       const item = browsedCases.find(entry => entry.level === levelValue)
                       const nextMissing = nextMissingLevelForDate(browseDate)
 
@@ -3030,7 +3061,7 @@ export default function AdminPage() {
 
             {incompleteDates.length > 0 && (
               <div className="mt-2.5 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm leading-5 text-[#8a5a2b]">
-                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${activeLevelOrder.length})`).join(', ')}
+                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${item.required})`).join(', ')}
               </div>
             )}
           </div>
@@ -3053,12 +3084,12 @@ export default function AdminPage() {
             </div>
 
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {activeLevelOrder.filter(levelValue => todaysCases.some(item => item.level === levelValue)).length}/{activeLevelOrder.length} ready
+              {todaysLevelOrder.filter(levelValue => todaysCases.some(item => item.level === levelValue)).length}/{todaysLevelOrder.length} ready
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {activeLevelOrder.map(levelValue => {
+            {todaysLevelOrder.map(levelValue => {
               const item = todaysCases.find(entry => entry.level === levelValue)
               const nextMissing = nextMissingLevelForDate(today)
 
@@ -3117,12 +3148,12 @@ export default function AdminPage() {
             </div>
 
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {activeLevelOrder.filter(levelValue => tomorrowsCases.some(item => item.level === levelValue)).length}/{activeLevelOrder.length} ready
+              {tomorrowsLevelOrder.filter(levelValue => tomorrowsCases.some(item => item.level === levelValue)).length}/{tomorrowsLevelOrder.length} ready
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {activeLevelOrder.map(levelValue => {
+            {tomorrowsLevelOrder.map(levelValue => {
               const item = tomorrowsCases.find(entry => entry.level === levelValue)
               const nextMissing = nextMissingLevelForDate(tomorrow)
 
@@ -3182,26 +3213,52 @@ export default function AdminPage() {
                 No resident mode
               </div>
               <p className="mt-1 text-sm text-[#637268]">
-                Switch the home play layout and daily scheduling expectations from three cases to just Med Student and Anatomy.
+                Schedule when the home play layout should switch from three cases to just Med Student and Anatomy.
+              </p>
+              <p className="mt-1 text-xs text-[#8a948d]">
+                Tomorrow can switch automatically while you still prep today and tomorrow separately in the editor.
               </p>
             </div>
+          </div>
+
+          <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,220px)_auto_auto] sm:items-end">
+            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              Start date
+              <input
+                type="date"
+                value={noResidentModeStartDate}
+                onChange={event => setNoResidentModeStartDate(event.target.value)}
+                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+              />
+            </label>
 
             <button
               type="button"
-              onClick={() => void toggleNoResidentMode()}
-              disabled={savingNoResidentMode}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                noResidentMode
-                  ? 'border border-[#1f6448] bg-[#1f6448] text-white hover:bg-[#174c37]'
-                  : 'border border-[#ded7ca] bg-[#fbfaf7] text-[#102018] hover:bg-white'
-              } disabled:opacity-60`}
+              onClick={() => void saveNoResidentModeSchedule(true)}
+              disabled={savingNoResidentMode || !noResidentModeStartDate}
+              className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
             >
               {savingNoResidentMode
                 ? 'Saving...'
                 : noResidentMode
-                  ? 'No resident mode is on'
-                  : 'Turn on no resident mode'}
+                  ? 'Update no resident schedule'
+                  : 'Schedule no resident mode'}
             </button>
+
+            <button
+              type="button"
+              onClick={() => void saveNoResidentModeSchedule(false)}
+              disabled={savingNoResidentMode || !noResidentMode}
+              className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white disabled:opacity-60"
+            >
+              Turn off
+            </button>
+          </div>
+
+          <div className="mt-3 rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#637268]">
+            {noResidentMode
+              ? `Scheduled to begin ${noResidentModeStartDate}. Today's home page is ${isNoResidentModeActiveOn(today) ? 'already in no resident mode' : 'still showing resident cases'}, and the editor will follow the publish date you pick.`
+              : 'Resident mode is currently active until you schedule a start date.'}
           </div>
         </section>
 
@@ -3257,7 +3314,7 @@ export default function AdminPage() {
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 >
                   <option value="med_student">Med Student</option>
-                  {!noResidentMode ? <option value="resident">Resident</option> : null}
+                  {!isNoResidentModeActiveOn(caseDate) ? <option value="resident">Resident</option> : null}
                   <option value="attending">Anatomy (attending slot)</option>
                 </select>
               </label>

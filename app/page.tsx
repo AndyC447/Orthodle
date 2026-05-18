@@ -130,6 +130,7 @@ type AnatomySurveyRow = {
 
 type PlayModeSettingsRow = {
   no_resident_mode: boolean
+  no_resident_mode_start_date: string | null
 }
 
 type ActiveSurveyState = {
@@ -414,6 +415,7 @@ function PlayPageContent() {
   const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
   const [selectedLevel, setSelectedLevel] = useState<Level>(initialLevel)
   const [noResidentMode, setNoResidentMode] = useState(false)
+  const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
@@ -596,13 +598,14 @@ function PlayPageContent() {
     async function loadPlayModeSettings() {
       const { data } = await supabase
         .from('play_mode_settings')
-        .select('no_resident_mode')
+        .select('no_resident_mode, no_resident_mode_start_date')
         .eq('id', 'default')
         .maybeSingle()
 
       if (cancelled) return
       const row = (data as PlayModeSettingsRow | null) || null
       setNoResidentMode(Boolean(row?.no_resident_mode))
+      setNoResidentModeStartDate(row?.no_resident_mode_start_date || null)
     }
 
     void loadPlayModeSettings()
@@ -612,11 +615,13 @@ function PlayPageContent() {
     }
   }, [])
 
+  const noResidentModeActiveToday = noResidentMode && (!noResidentModeStartDate || noResidentModeStartDate <= todayISO())
+
   useEffect(() => {
-    if (noResidentMode && selectedLevel === 'resident') {
+    if (noResidentModeActiveToday && selectedLevel === 'resident') {
       setSelectedLevel('med_student')
     }
-  }, [noResidentMode, selectedLevel])
+  }, [noResidentModeActiveToday, selectedLevel])
 
   useEffect(() => {
     let cancelled = false
@@ -2281,14 +2286,14 @@ function PlayPageContent() {
 
   const homeTabs = useMemo(
     () =>
-      noResidentMode
+      noResidentModeActiveToday
         ? baseHomeTabs.filter(item => !(item.type === 'level' && item.key === 'resident'))
         : baseHomeTabs,
-    [noResidentMode]
+    [noResidentModeActiveToday]
   )
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
     () =>
-      noResidentMode
+      noResidentModeActiveToday
         ? {
             med_student: 'attending',
           }
@@ -2296,9 +2301,9 @@ function PlayPageContent() {
             med_student: 'resident',
             resident: 'attending',
           },
-    [noResidentMode]
+    [noResidentModeActiveToday]
   )
-  const requiredDailyLevels = noResidentMode ? 2 : 3
+  const requiredDailyLevels = noResidentModeActiveToday ? 2 : 3
   const todayComplete = todayCompletedLevels === requiredDailyLevels
   const onTodayCard = selectedDate === todayISO()
   const resumeRoundIsCurrent = Boolean(
