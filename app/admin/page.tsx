@@ -3204,21 +3204,8 @@ export default function AdminPage() {
         </section>
 
         <section className="night-surface mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                Home Play Mode
-              </div>
-              <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                No resident mode
-              </div>
-              <p className="mt-1 text-sm text-[#637268]">
-                Schedule when the home play layout should switch from three cases to just Med Student and Anatomy.
-              </p>
-              <p className="mt-1 text-xs text-[#8a948d]">
-                Tomorrow can switch automatically while you still prep today and tomorrow separately in the editor.
-              </p>
-            </div>
+          <div className="font-serif text-xl font-bold text-[#102018]">
+            No resident mode
           </div>
 
           <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,220px)_auto_auto] sm:items-end">
@@ -3253,12 +3240,6 @@ export default function AdminPage() {
             >
               Turn off
             </button>
-          </div>
-
-          <div className="mt-3 rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#637268]">
-            {noResidentMode
-              ? `Scheduled to begin ${noResidentModeStartDate}. Today's home page is ${isNoResidentModeActiveOn(today) ? 'already in no resident mode' : 'still showing resident cases'}, and the editor will follow the publish date you pick.`
-              : 'Resident mode is currently active until you schedule a start date.'}
           </div>
         </section>
 
