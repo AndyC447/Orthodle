@@ -28,6 +28,8 @@ type FeedbackLite = {
   feedback_tags: string[] | null
 }
 
+type ArchiveLevelFilter = 'all' | Level | 'anatomy'
+
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
@@ -38,7 +40,7 @@ export default function ArchivePage() {
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
   const [showCaseList, setShowCaseList] = useState(true)
-  const [selectedLevel, setSelectedLevel] = useState<'all' | Level>('all')
+  const [selectedLevel, setSelectedLevel] = useState<ArchiveLevelFilter>('all')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [imagingOnly, setImagingOnly] = useState(false)
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
@@ -108,7 +110,13 @@ export default function ArchivePage() {
   const filteredCases = useMemo(() => {
     return cases.filter(item => {
       if (item.case_date === today) return false
-      if (selectedLevel !== 'all' && item.level !== selectedLevel) return false
+      if (selectedLevel === 'attending') {
+        if (item.level !== 'attending' || isSurgicalAnatomyDate(item.case_date)) return false
+      } else if (selectedLevel === 'anatomy') {
+        if (item.level !== 'attending' || !isSurgicalAnatomyDate(item.case_date)) return false
+      } else if (selectedLevel !== 'all' && item.level !== selectedLevel) {
+        return false
+      }
       if (selectedCategory !== 'all' && (item.category || '') !== selectedCategory) return false
       if (imagingOnly && !item.image_url) return false
       return true
@@ -258,12 +266,13 @@ export default function ArchivePage() {
                     ['all', 'All levels'],
                     ['med_student', 'Med Student'],
                     ['resident', 'Resident'],
-                    ['attending', 'Attending / Anatomy'],
+                    ['attending', 'Attending'],
+                    ['anatomy', 'Anatomy'],
                   ].map(([value, label]) => (
                     <button
                       key={value}
                       type="button"
-                      onClick={() => setSelectedLevel(value as 'all' | Level)}
+                      onClick={() => setSelectedLevel(value as ArchiveLevelFilter)}
                       className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold transition ${
                         selectedLevel === value
                           ? 'border-[#1f6448] bg-[#1f6448] text-white'
