@@ -3197,46 +3197,6 @@ export default function AdminPage() {
           </div>
         </section>
 
-        <section className="night-surface mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="font-serif text-xl font-bold text-[#102018]">
-            No resident mode
-          </div>
-
-          <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,220px)_auto_auto] sm:items-end">
-            <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-              Start date
-              <input
-                type="date"
-                value={noResidentModeStartDate}
-                onChange={event => setNoResidentModeStartDate(event.target.value)}
-                className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-              />
-            </label>
-
-            <button
-              type="button"
-              onClick={() => void saveNoResidentModeSchedule(true)}
-              disabled={savingNoResidentMode || !noResidentModeStartDate}
-              className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
-            >
-              {savingNoResidentMode
-                ? 'Saving...'
-                : noResidentMode
-                  ? 'Update no resident schedule'
-                  : 'Schedule no resident mode'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => void saveNoResidentModeSchedule(false)}
-              disabled={savingNoResidentMode || !noResidentMode}
-              className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white disabled:opacity-60"
-            >
-              Turn off
-            </button>
-          </div>
-        </section>
-
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_320px]">
           <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-4">
@@ -4025,6 +3985,46 @@ export default function AdminPage() {
           </section>
 
           <aside className="flex flex-col gap-3">
+            <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+              <div className="font-serif text-lg font-bold text-[#102018]">
+                No resident mode
+              </div>
+
+              <div className="mt-3 grid gap-2.5">
+                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                  Start date
+                  <input
+                    type="date"
+                    value={noResidentModeStartDate}
+                    onChange={event => setNoResidentModeStartDate(event.target.value)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => void saveNoResidentModeSchedule(true)}
+                  disabled={savingNoResidentMode || !noResidentModeStartDate}
+                  className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
+                >
+                  {savingNoResidentMode
+                    ? 'Saving...'
+                    : noResidentMode
+                      ? 'Update no resident schedule'
+                      : 'Schedule no resident mode'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void saveNoResidentModeSchedule(false)}
+                  disabled={savingNoResidentMode || !noResidentMode}
+                  className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white disabled:opacity-60"
+                >
+                  Turn off
+                </button>
+              </div>
+            </section>
+
             {sidebarSectionOrder.map(sectionId => (
               <div
                 key={sectionId}
