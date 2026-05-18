@@ -127,23 +127,23 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-2.5 xl:grid-cols-4">
-              <div className="orthodle-stat-tile rounded-2xl border border-[#ded7ca] bg-[#fbfaf7] p-3.5">
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+            <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <div className="orthodle-stat-tile rounded-[24px] border border-[#e7e1d6] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f5ee_100%)] p-4">
+                <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d786f]">
                   Games played
                 </div>
-                <div className="mt-2.5 font-serif text-[25px] font-bold text-[#102018]">
+                <div className="mt-3 font-serif text-[30px] font-bold leading-none tracking-[-0.04em] text-[#102018]">
                   {statsSnapshot?.gamesPlayed || 0}
                 </div>
               </div>
 
-              <div className={`orthodle-stat-tile rounded-2xl border p-3.5 ${getWinRateTheme(
+              <div className={`orthodle-stat-tile rounded-[24px] border p-4 ${getWinRateTheme(
                 statsSnapshot && statsSnapshot.gamesPlayed > 0 ? statsSnapshot.winRate : null
               ).card}`}>
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d786f]">
                   Win rate
                 </div>
-                <div className={`mt-2.5 font-serif text-[25px] font-bold ${getWinRateTheme(
+                <div className={`mt-3 font-serif text-[30px] font-bold leading-none tracking-[-0.04em] ${getWinRateTheme(
                   statsSnapshot && statsSnapshot.gamesPlayed > 0 ? statsSnapshot.winRate : null
                 ).value}`}>
                   {statsSnapshot && statsSnapshot.gamesPlayed > 0
@@ -152,20 +152,20 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className="orthodle-stat-tile rounded-2xl border border-[#cfded4] bg-[#f7fbf8] p-3.5">
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+              <div className="orthodle-stat-tile rounded-[24px] border border-[#cfded4] bg-[linear-gradient(180deg,#fbfffc_0%,#f2faf5_100%)] p-4">
+                <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d786f]">
                   Current streak
                 </div>
-                <div className="mt-2.5 font-serif text-[25px] font-bold text-[#1f6448]">
+                <div className="mt-3 font-serif text-[30px] font-bold leading-none tracking-[-0.04em] text-[#1f6448]">
                   {statsSnapshot?.currentStreak || 0}
                 </div>
               </div>
 
-              <div className="orthodle-stat-tile rounded-2xl border border-[#ded7ca] bg-white p-3.5">
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+              <div className="orthodle-stat-tile rounded-[24px] border border-[#e7e1d6] bg-white p-4">
+                <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d786f]">
                   Longest streak
                 </div>
-                <div className="mt-2.5 font-serif text-[25px] font-bold text-[#102018]">
+                <div className="mt-3 font-serif text-[30px] font-bold leading-none tracking-[-0.04em] text-[#102018]">
                   {statsSnapshot?.longestStreak || 0}
                 </div>
               </div>
@@ -173,16 +173,16 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-5 grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_250px]">
-              <div className="orthodle-stats-shell flex h-full min-h-[350px] flex-col rounded-2xl border border-[#e7e1d6] bg-[#fbfaf7] p-4">
+              <div className="orthodle-stats-shell flex h-full min-h-[350px] flex-col rounded-[24px] border border-[#e7e1d6] bg-[#fbfaf7] p-4">
                 <button
                   type="button"
                   onClick={() => setShowDistribution(prev => !prev)}
                   className="flex w-full items-center justify-between gap-3 text-left"
                 >
-                  <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                     Guess distribution
                   </div>
-                  <div className="text-[11px] text-[#637268]">
+                  <div className="text-[11px] font-medium text-[#637268]">
                     {showDistribution
                       ? 'Hide'
                       : `Avg win ${formatAverage(statsSnapshot?.averageGuessesInWins ?? null)}`}
@@ -200,7 +200,7 @@ export default function StatsPage() {
                         key={guessNumber}
                         className="grid grid-cols-[22px_minmax(0,1fr)_30px] items-center gap-2.5"
                       >
-                        <div className="text-center font-serif text-[16px] font-bold text-[#102018]">
+                        <div className="text-center font-serif text-[17px] font-bold tracking-[-0.03em] text-[#102018]">
                           {guessNumber}
                         </div>
                         <div className="orthodle-stat-track h-6 overflow-hidden rounded-full bg-[#ece8df]">
@@ -221,8 +221,8 @@ export default function StatsPage() {
                 )}
               </div>
 
-              <div className="orthodle-stats-shell rounded-2xl border border-[#e7e1d6] bg-white p-4">
-                <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+              <div className="orthodle-stats-shell rounded-[24px] border border-[#e7e1d6] bg-white p-4">
+                <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
                   Today&apos;s card
                 </div>
 
@@ -236,15 +236,15 @@ export default function StatsPage() {
                         className={
                           entry
                             ? entry.won
-                              ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-3.5'
-                              : 'rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-3.5'
-                            : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] p-3.5'
+                              ? 'rounded-2xl border border-[#cfded4] bg-[#f7fbf8] p-3.5'
+                              : 'rounded-2xl border border-[#ead9b7] bg-[#fffaf1] p-3.5'
+                            : 'rounded-2xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] p-3.5'
                         }
                       >
-                        <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                           {getStatsLevelLabel(level)}
                         </div>
-                        <div className="mt-1.5 font-serif text-[18px] font-bold text-[#102018]">
+                        <div className="mt-2 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#102018]">
                           {entry ? (entry.won ? `${entry.guessesUsed}/6` : 'Missed') : 'Not played'}
                         </div>
                         <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268]">
@@ -257,7 +257,7 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="orthodle-stats-shell mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-4">
+            <div className="orthodle-stats-shell mt-5 rounded-[24px] border border-[#e7e1d6] bg-white p-4">
               <button
                 type="button"
                 onClick={() => setShowDifficulty(prev => !prev)}
