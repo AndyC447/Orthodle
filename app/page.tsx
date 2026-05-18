@@ -84,6 +84,12 @@ type TeachingPointSection = {
   body: string[]
 }
 
+type ExpandableImage = {
+  url: string
+  credit: string | null | undefined
+  alt: string
+}
+
 const TEACHING_POINT_LABELS = new Map<string, string>([
   ['clinical context', 'Clinical Context'],
   ['who', 'Who'],
@@ -433,6 +439,7 @@ function PlayPageContent() {
   const [showConfetti, setShowConfetti] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
   const [expandedImageIndex, setExpandedImageIndex] = useState(0)
+  const [expandedImages, setExpandedImages] = useState<ExpandableImage[]>([])
   const [imageHidden, setImageHidden] = useState(false)
   const [communityStats, setCommunityStats] = useState<CommunityCaseStats | null>(null)
   const [reminderEmail, setReminderEmail] = useState('')
@@ -1495,7 +1502,8 @@ function PlayPageContent() {
     secondImageRevealed && dailyCase?.image_url_2
       ? { url: dailyCase.image_url_2, credit: dailyCase.image_credit_2, alt: 'Case image 2' }
       : null,
-  ].filter(Boolean) as Array<{ url: string; credit: string | null; alt: string }>
+  ].filter(Boolean) as ExpandableImage[]
+  const currentExpandedImages = expandedImages.length > 0 ? expandedImages : visibleImages
   const mobileInputDisabled = !dailyCase || gameWon || gameOver
 
   const teachingPoint =
@@ -1553,8 +1561,10 @@ function PlayPageContent() {
     imageScaleStart.current = 1
   }
 
-  function openExpandedImage(index = 0) {
+  function openExpandedImage(index = 0, images: ExpandableImage[] = visibleImages) {
+    if (images.length === 0) return
     resetExpandedImageView()
+    setExpandedImages(images)
     setExpandedImageIndex(index)
     setImageExpanded(true)
   }
@@ -1562,6 +1572,7 @@ function PlayPageContent() {
   function closeExpandedImage() {
     setImageExpanded(false)
     setExpandedImageIndex(0)
+    setExpandedImages([])
     resetExpandedImageView()
   }
 
@@ -2014,7 +2025,7 @@ function PlayPageContent() {
             alt: 'Anatomy teaching image 2',
           }
         : null,
-    ].filter(Boolean) as Array<{ url: string; credit: string | null | undefined; alt: string }>
+    ].filter(Boolean) as ExpandableImage[]
 
     if (learningImages.length === 0) return null
 
@@ -2029,13 +2040,17 @@ function PlayPageContent() {
               key={`${image.url}-${index}`}
               className="orthodle-anatomy-teaching-tile overflow-hidden rounded-xl border border-[#ded7ca] bg-white"
             >
-              <div className="orthodle-anatomy-teaching-frame flex min-h-[170px] items-center justify-center bg-[#f8f5ee] p-2">
-                <img
-                  src={image.url}
-                  alt={image.alt}
-                  className="max-h-[320px] w-full rounded-lg object-contain"
-                />
-              </div>
+                          <button
+                            type="button"
+                            onClick={() => openExpandedImage(index, learningImages)}
+                            className="orthodle-anatomy-teaching-frame flex min-h-[170px] w-full items-center justify-center bg-[#f8f5ee] p-2 transition hover:bg-[#f4efe4]"
+                          >
+                            <img
+                              src={image.url}
+                              alt={image.alt}
+                              className="max-h-[320px] w-full rounded-lg object-contain"
+                            />
+                          </button>
               {image.credit?.trim() ? (
                 <p className="px-2.5 pb-2.5 pt-1.5 text-[11px] text-[#8a948d]">
                   {image.credit}
@@ -2331,7 +2346,8 @@ function PlayPageContent() {
     [levelTaglines]
   )
   const levelStreak = statsSummary.levelStreaks[selectedLevel]?.current || 0
-  const activeExpandedImage = visibleImages[expandedImageIndex] || visibleImages[0] || null
+  const activeExpandedImage =
+    currentExpandedImages[expandedImageIndex] || currentExpandedImages[0] || null
   const streakBadge =
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
@@ -3414,7 +3430,7 @@ function PlayPageContent() {
 
       <PublicFooter />
 
-      {visibleImages.length > 0 && imageRevealed && imageExpanded && (
+      {currentExpandedImages.length > 0 && imageExpanded && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8"
           onClick={closeExpandedImage}
@@ -3431,9 +3447,9 @@ function PlayPageContent() {
               </div>
 
               <div className="flex items-center gap-2">
-                {visibleImages.length > 1 && (
+                {currentExpandedImages.length > 1 && (
                   <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                    {expandedImageIndex + 1} / {visibleImages.length}
+                    {expandedImageIndex + 1} / {currentExpandedImages.length}
                   </div>
                 )}
                 {imageScale > 1.02 && (
@@ -3513,14 +3529,14 @@ function PlayPageContent() {
               {activeExpandedImage && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3">
-                    {visibleImages.length > 1 ? (
+                    {currentExpandedImages.length > 1 ? (
                       <>
                         <button
                           type="button"
                           onClick={() => {
                             resetExpandedImageView()
                             setExpandedImageIndex(current =>
-                              current === 0 ? visibleImages.length - 1 : current - 1
+                              current === 0 ? currentExpandedImages.length - 1 : current - 1
                             )
                           }}
                           className="rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
@@ -3531,7 +3547,7 @@ function PlayPageContent() {
                           type="button"
                           onClick={() => {
                             resetExpandedImageView()
-                            setExpandedImageIndex(current => (current + 1) % visibleImages.length)
+                            setExpandedImageIndex(current => (current + 1) % currentExpandedImages.length)
                           }}
                           className="rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
                         >
@@ -3561,9 +3577,9 @@ function PlayPageContent() {
                     )}
                   </div>
 
-                  {visibleImages.length > 1 && (
+                  {currentExpandedImages.length > 1 && (
                     <div className="flex flex-wrap justify-center gap-2">
-                      {visibleImages.map((image, index) => (
+                      {currentExpandedImages.map((image, index) => (
                         <button
                           key={`expanded-thumb-${image.url}-${index}`}
                           type="button"
