@@ -3290,7 +3290,7 @@ function PlayPageContent() {
                   {reactionStatus && (
                     <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
                   )}
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
                     <input
                       type="text"
                       value={feedbackText}
@@ -3302,7 +3302,7 @@ function PlayPageContent() {
                       type="button"
                       onClick={() => void submitTypedFeedback()}
                       disabled={isSavingFeedback}
-                      className="min-h-[38px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70"
+                      className="min-h-[38px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                     >
                       {isSavingFeedback ? 'Sending...' : 'Send'}
                     </button>

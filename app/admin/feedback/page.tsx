@@ -27,6 +27,7 @@ export default function AdminFeedbackPage() {
   const [feedbackRows, setFeedbackRows] = useState<FeedbackRow[]>([])
   const [messageRows, setMessageRows] = useState<FeedbackMessageRow[]>([])
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [openReplyId, setOpenReplyId] = useState<string | null>(null)
   const [sendingReplyId, setSendingReplyId] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [showAllReactionCases, setShowAllReactionCases] = useState(false)
@@ -206,12 +207,14 @@ export default function AdminFeedbackPage() {
 
     setMessageRows(prev => [...prev, data as FeedbackMessageRow])
     setReplyDrafts(prev => ({ ...prev, [row.id]: '' }))
+    setOpenReplyId(null)
     setStatus('Reply sent to the player inbox.')
   }
 
   function renderReplyComposer(row: FeedbackRow) {
     const replies = getRepliesForFeedback(row.id)
     const canReply = Boolean(row.session_id)
+    const isOpen = openReplyId === row.id
 
     return (
       <div className="mt-3 rounded-xl border border-[#e7e1d6] bg-white/80 p-3">
@@ -219,8 +222,19 @@ export default function AdminFeedbackPage() {
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
             Player reply
           </div>
-          <div className="text-[10px] text-[#637268]">
-            {canReply ? `${replies.length} sent` : 'Unavailable'}
+          <div className="flex items-center gap-2">
+            <div className="text-[10px] text-[#637268]">
+              {canReply ? `${replies.length} sent` : 'Unavailable'}
+            </div>
+            {canReply ? (
+              <button
+                type="button"
+                onClick={() => setOpenReplyId(current => (current === row.id ? null : row.id))}
+                className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268] transition hover:bg-white"
+              >
+                {isOpen ? 'Close' : replies.length > 0 ? 'Reply again' : 'Reply'}
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -241,7 +255,7 @@ export default function AdminFeedbackPage() {
           <p className="mt-2 text-sm text-[#637268]">
             This feedback was submitted without a player session, so it cannot receive a reply.
           </p>
-        ) : (
+        ) : isOpen ? (
           <>
             <textarea
               value={replyDrafts[row.id] || ''}
@@ -266,7 +280,11 @@ export default function AdminFeedbackPage() {
               </button>
             </div>
           </>
-        )}
+        ) : replies.length === 0 ? (
+          <p className="mt-2 text-sm text-[#637268]">
+            Open reply when you want to send this player a follow-up note.
+          </p>
+        ) : null}
       </div>
     )
   }

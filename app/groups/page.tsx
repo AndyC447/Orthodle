@@ -720,7 +720,7 @@ function GroupsTopBanner({
   }
 
   const navItemClass =
-    'flex h-7 items-center justify-center rounded-[16px] border border-transparent px-2 text-center text-[11.5px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651]'
+    'flex min-w-0 h-8 items-center justify-center rounded-[16px] border border-transparent px-1.5 text-center text-[11px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651] sm:px-2 sm:text-[11.5px]'
   const inactiveNavItemClass =
     theme === 'dark'
       ? `${navItemClass} border-[#2f3b35] bg-[#1a241f] text-[#ecf1eb] hover:bg-[#202b25]`
@@ -3882,7 +3882,7 @@ export default function GroupsPage() {
                           setSelectedGroupId(group.id)
                           setActiveGroupsTab('my-group')
                         }}
-                        className={`grid w-full grid-cols-[30px_34px_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[42px_46px_minmax(0,1fr)_86px_86px_76px] sm:gap-2.5 sm:px-3.5 ${
+                        className={`grid w-full grid-cols-[30px_34px_minmax(0,1fr)] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[42px_46px_minmax(0,1fr)_86px_86px_76px] sm:gap-2.5 sm:px-3.5 ${
                           rank === 1 ? 'border-[#e7b83f] bg-[#fffdf8]' : 'border-[#ece6db] bg-white'
                         }`}
                       >
@@ -3898,11 +3898,14 @@ export default function GroupsPage() {
                             {formatMemberCount(group.members)}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="col-span-2 col-start-2 mt-1 flex items-center justify-between border-t border-[#f1ece2] pt-1.5 sm:col-span-1 sm:col-start-auto sm:mt-0 sm:block sm:border-t-0 sm:pt-0 sm:text-right">
+                          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:hidden">
+                            team score
+                          </div>
                           <div className="font-serif text-[17px] font-bold leading-none text-[#102018] sm:text-[21px]">
                             {formatScore(group.score)}
                           </div>
-                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                          <div className="mt-0.5 hidden text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:block">
                             team score
                           </div>
                         </div>
@@ -5508,7 +5511,7 @@ export default function GroupsPage() {
                         onClick={() => {
                           router.push(`/groups/${group.id}`)
                         }}
-                        className={`orthodle-leaderboard-row grid w-full grid-cols-[22px_1fr_auto] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
+                        className={`orthodle-leaderboard-row grid w-full grid-cols-[22px_1fr] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
                           selectedGroupId === group.id
                             ? 'border-[#2d7651] bg-[#fcfbf8]'
                             : 'border-[#ece6db] bg-white'
@@ -5532,12 +5535,12 @@ export default function GroupsPage() {
                             )}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="col-start-2 mt-1 flex items-center justify-between border-t border-[#f1ece2] pt-1.5 text-right">
+                          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                            score
+                          </div>
                           <div className="font-serif text-[18px] font-semibold leading-none text-[#102018]">
                             {formatScore(group.score)}
-                          </div>
-                          <div className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-[#637268]">
-                            score
                           </div>
                         </div>
                       </button>

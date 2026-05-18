@@ -160,7 +160,7 @@ export function Header() {
 
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
-      <div className="relative mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
+      <div className="relative mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
         <Link
           href="/"
           onClick={handleHomeClick}

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
@@ -19,6 +19,7 @@ function formatMessageTime(value: string) {
 }
 
 function MessagesPageContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const requestedUserId = searchParams.get('user') || ''
   const [accountSession, setAccountSession] = useState<AccountSession | null>(null)
@@ -251,6 +252,14 @@ function MessagesPageContent() {
     setStatus('')
   }
 
+  function closeConversation() {
+    setSelectedConversationId('')
+    setStatus('')
+    if (requestedUserId) {
+      router.replace('/messages')
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#fbfaf7]">
       <Header />
@@ -291,7 +300,7 @@ function MessagesPageContent() {
           </section>
         ) : (
           <div className="mt-5 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <aside className="space-y-4">
+            <aside className={`space-y-4 ${activeParticipant ? 'order-2 lg:order-1' : 'order-1'}`}>
               <section className="rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   Start a conversation
@@ -303,7 +312,7 @@ function MessagesPageContent() {
                   className="mt-3 w-full rounded-xl border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#d9eadf]"
                 />
 
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-2 lg:max-h-[360px] lg:overflow-y-auto lg:pr-1">
                   {searching ? (
                     <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-3 text-sm text-[#637268]">
                       Searching...
@@ -341,7 +350,7 @@ function MessagesPageContent() {
                   </div>
                 </div>
 
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-2 lg:max-h-[420px] lg:overflow-y-auto lg:pr-1">
                   {loading ? (
                     <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-3 text-sm text-[#637268]">
                       Loading conversations...
@@ -396,7 +405,7 @@ function MessagesPageContent() {
                 <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   Feedback replies
                 </div>
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-2 lg:max-h-[320px] lg:overflow-y-auto lg:pr-1">
                   {payload?.systemMessages.length ? (
                     payload.systemMessages.map(item => (
                       <article
@@ -421,11 +430,18 @@ function MessagesPageContent() {
               </section>
             </aside>
 
-            <section className="rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-5">
+            <section className={`rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-5 ${activeParticipant ? 'order-1 lg:order-2' : 'order-2'}`}>
               {activeParticipant ? (
                 <>
                   <div className="flex items-center justify-between gap-3 border-b border-[#eee8dc] pb-4">
                     <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={closeConversation}
+                        className="mb-2 inline-flex rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268] transition hover:bg-white lg:hidden"
+                      >
+                        Back to inbox
+                      </button>
                       <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                         Conversation
                       </div>
@@ -437,7 +453,7 @@ function MessagesPageContent() {
                     <div className="text-2xl">{activeParticipant.profileIcon || '💬'}</div>
                   </div>
 
-                  <div className="mt-4 space-y-3">
+                  <div className="mt-4 max-h-[52vh] space-y-3 overflow-y-auto pr-1 lg:max-h-[640px]">
                     {payload?.activeConversation?.messages.length ? (
                       payload.activeConversation.messages.map(item => (
                         <div
