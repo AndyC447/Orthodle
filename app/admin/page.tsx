@@ -1007,13 +1007,12 @@ export default function AdminPage() {
     if (typeof window === 'undefined') return
 
     const previewCase = buildPreviewCase()
-    window.sessionStorage.setItem(
-      ADMIN_CASE_PREVIEW_CACHE_KEY,
-      JSON.stringify({
-        savedAt: Date.now(),
-        case: previewCase,
-      } satisfies CasePreviewCache)
-    )
+    const payload = JSON.stringify({
+      savedAt: Date.now(),
+      case: previewCase,
+    } satisfies CasePreviewCache)
+    window.localStorage.setItem(ADMIN_CASE_PREVIEW_CACHE_KEY, payload)
+    window.sessionStorage.setItem(ADMIN_CASE_PREVIEW_CACHE_KEY, payload)
     window.open(`/?preview=1&date=${previewCase.case_date}&level=${previewCase.level}`, '_blank', 'noopener,noreferrer')
   }
 

@@ -272,17 +272,21 @@ function readAdminCasePreviewCache() {
   if (typeof window === 'undefined') return null as AdminCasePreviewCache | null
 
   try {
-    const raw = window.sessionStorage.getItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
+    const raw =
+      window.localStorage.getItem(ADMIN_CASE_PREVIEW_CACHE_KEY) ||
+      window.sessionStorage.getItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
     if (!raw) return null
 
     const parsed = JSON.parse(raw) as AdminCasePreviewCache
     if (!parsed?.savedAt || !parsed?.case || Date.now() - parsed.savedAt > ADMIN_CASE_PREVIEW_CACHE_TTL_MS) {
+      window.localStorage.removeItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
       window.sessionStorage.removeItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
       return null
     }
 
     return parsed
   } catch {
+    window.localStorage.removeItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
     window.sessionStorage.removeItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
     return null
   }
