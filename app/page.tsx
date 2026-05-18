@@ -2418,53 +2418,6 @@ function PlayPageContent() {
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
       : null
-  const isFirstTrySolve = gameWon && guesses.length === 1
-  const solvedHeadline = gameWon
-    ? useSurgicalAnatomyQuiz
-      ? isFirstTrySolve
-        ? 'Anatomy ace'
-        : 'Anatomy solved'
-      : isFirstTrySolve
-        ? 'First-try finish'
-        : 'Case cracked'
-    : 'Case review'
-  const solvedEyebrow = gameWon
-    ? useSurgicalAnatomyQuiz
-      ? 'Teaching moment unlocked'
-      : 'Diagnosis locked in'
-    : 'Worth the replay'
-  const solvedSubline = gameWon
-    ? useSurgicalAnatomyQuiz
-      ? isFirstTrySolve
-        ? 'One click, one clean pull.'
-        : `Locked in on choice ${guesses.length}.`
-      : isFirstTrySolve
-        ? 'Straight to the answer.'
-        : `Solved in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}.`
-    : 'Missed this one, but the takeaway below is worth the round.'
-  const solvedHighlights = [
-    {
-      label: 'Result',
-      value: gameWon ? (isFirstTrySolve ? 'First try' : 'Solved') : 'Missed',
-      tone: gameWon ? 'text-[#1f6448]' : 'text-[#a24d24]',
-    },
-    {
-      label: useSurgicalAnatomyQuiz ? 'Choice' : 'Guesses',
-      value: gameWon ? String(guesses.length) : `${guesses.length}/${maxGuessesForCurrentCase}`,
-      tone: 'text-[#102018]',
-    },
-    {
-      label: onTodayCard ? 'Streak' : 'Date',
-      value: onTodayCard ? `${Math.max(levelStreak, 0)}-day` : formatArchiveDate(selectedDate),
-      tone: onTodayCard && levelStreak >= 1 ? 'text-[#a24d24]' : 'text-[#102018]',
-    },
-    {
-      label: 'Crowd',
-      value:
-        communityStats?.solveRate !== null ? `${Math.round(communityStats.solveRate)}% solve` : 'No stats yet',
-      tone: 'text-[#315f4d]',
-    },
-  ]
   const hasMobileInteraction =
     guesses.length > 0 ||
     guess.trim().length > 0 ||
@@ -3314,57 +3267,32 @@ function PlayPageContent() {
               ref={solvedCardRef}
               className={
                 pulseSuccess
-                  ? 'orthodle-panel-shell orthodle-answer-shell orthodle-success-pulse orthodle-win-glow night-surface overflow-hidden rounded-[26px] border border-[#d8e5dd] bg-white shadow-[0_18px_42px_rgba(16,32,24,0.07)]'
-                  : 'orthodle-panel-shell orthodle-answer-shell night-surface overflow-hidden rounded-[26px] border border-[#e7e1d6] bg-white shadow-[0_14px_34px_rgba(16,32,24,0.06)]'
+                  ? 'orthodle-panel-shell orthodle-answer-shell orthodle-success-pulse orthodle-win-glow night-surface rounded-2xl border border-[#d8e5dd] bg-white p-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
+                  : 'orthodle-panel-shell orthodle-answer-shell night-surface rounded-2xl border border-[#e7e1d6] bg-white p-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
               }
             >
-              <div className={`h-1.5 w-full ${gameWon ? 'bg-gradient-to-r from-[#1f6448] via-[#5a8b4e] to-[#ead9b7]' : 'bg-gradient-to-r from-[#c76b3a] via-[#d49b63] to-[#ead9b7]'}`} />
-              <div className="px-3 py-3 sm:px-4 sm:py-4">
+              <div className="mt-1">
                 <div className="text-center">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#637268]">
-                    {solvedEyebrow}
-                  </div>
-                  <h2 className="mt-2 font-serif text-[28px] font-bold leading-none tracking-[-0.05em] text-[#102018] sm:text-[38px]">
-                    {solvedHeadline}
-                  </h2>
-                  <p className="mt-2 text-[12px] leading-5 text-[#5f6d64] sm:text-[13px]">
-                    {solvedSubline}
-                  </p>
-                </div>
-
-                <div className="mt-3 grid gap-2 sm:grid-cols-4">
-                  {solvedHighlights.map(item => (
-                    <div
-                      key={item.label}
-                      className="rounded-2xl border border-[#e7e1d6] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f5ee_100%)] px-3 py-2.5 text-center"
-                    >
-                      <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#7a867f]">
-                        {item.label}
-                      </div>
-                      <div className={`mt-1 font-serif text-[19px] font-bold leading-none tracking-[-0.03em] ${item.tone}`}>
-                        {item.value}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 text-center">
-                  <h3 className="orthodle-answer-pop font-serif text-[24px] font-bold leading-tight tracking-[-0.04em] text-[#1f6448] sm:text-[30px]">
+                  <h3 className="orthodle-answer-pop font-serif text-[21px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448] sm:text-[26px]">
                     {dailyCase.answer}
                   </h3>
                   {onTodayCard && levelStreak >= 1 && (
-                    <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#ead9b7] bg-[#fff7ea] px-3 py-1 text-[10px] font-semibold text-[#a24d24]">
+                    <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold text-[#a24d24]">
                       <span aria-hidden="true">🔥</span>
                       <span>
                         {levelStreak}-day {formatLevel(selectedLevel)} streak
                       </span>
                     </div>
                   )}
+                  {!gameWon && (
+                    <p className="mt-1 text-[12px] leading-5 text-[#637268]">
+                      Missed this one, but the takeaway below is worth the round.
+                    </p>
+                  )}
                 </div>
               </div>
 
-              <div className="border-t border-dashed border-[#ded7ca] px-3 py-3 sm:px-4 sm:py-4">
-                <div className="space-y-2">
+              <div className="mt-3 space-y-2 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-2.5">
                 <div>
                   <div className="space-y-1">
                     {renderTeachingPoint(teachingPoint)}
@@ -3379,34 +3307,34 @@ function PlayPageContent() {
                 {renderAnatomyLearningImages(dailyCase)}
 
                 {roundComplete && (
-                  <div className="mx-auto mt-3 w-full max-w-[520px]">
+                  <div className="mx-auto mt-2 w-full max-w-[460px]">
                     <div className="grid gap-2 sm:grid-cols-2">
                       {canAdvanceToNextLevel && nextLevel ? (
                         <button
                           type="button"
                           onClick={moveToNextLevel}
-                          className="rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-4 py-2.5 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
+                          className="rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
                         >
                           Try the {formatLevel(nextLevel)} case
                         </button>
                       ) : (
                         <Link
                           href="/archive"
-                          className="rounded-xl border border-[#ded7ca] bg-white px-4 py-2.5 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                          className="rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         >
                           Browse archive
                         </Link>
                       )}
                       <Link
                         href="/stats"
-                        className="rounded-xl border border-[#ded7ca] bg-white px-4 py-2.5 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                       >
                         View your stats
                       </Link>
                       <button
                         type="button"
                         onClick={shareResult}
-                        className="w-full rounded-xl border border-[#1f6448] bg-[#1f6448] px-4 py-2.5 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:col-span-2"
+                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:col-span-2"
                       >
                         Share the case
                       </button>
@@ -3414,7 +3342,7 @@ function PlayPageContent() {
                   </div>
                 )}
 
-                <div className="night-soft-surface rounded-2xl border border-[#e7e1d6] bg-[#fbfaf7] p-2.5 sm:p-3">
+                <div className="night-soft-surface rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-2.5 sm:p-3">
                   <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                     How was the case?
                   </div>
@@ -3472,8 +3400,6 @@ function PlayPageContent() {
                     <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
                   )}
                 </div>
-
-              </div>
               </div>
             </div>
           )}
