@@ -1,46 +1,18 @@
 import type { FeedbackMessageRow } from '@/lib/feedback-messages'
 
-export type MessageUser = {
-  accountId: string
-  username: string
-  displayName: string
-  profileIcon: string | null
-}
-
-export type DirectMessageRow = {
-  id: string
-  sender_account_id: string
-  recipient_account_id: string
-  message_text: string
-  read_at: string | null
-  created_at: string
-}
-
-export type DirectMessageView = {
-  id: string
-  senderAccountId: string
-  recipientAccountId: string
-  messageText: string
-  readAt: string | null
+export type FeedbackThread = {
+  feedbackId: string
+  caseDate: string | null
+  level: 'med_student' | 'resident' | 'attending' | null
+  answer: string | null
+  feedbackText: string
   createdAt: string
-  sender: MessageUser | null
-  recipient: MessageUser | null
-  isOutgoing: boolean
-}
-
-export type ConversationSummary = {
-  participant: MessageUser
-  lastMessage: string
-  lastMessageAt: string
-  unreadCount: number
+  messages: FeedbackMessageRow[]
+  latestMessageAt: string
+  hasUnreadAdminReply: boolean
 }
 
 export type MessagingPayload = {
-  conversations: ConversationSummary[]
-  activeConversation: {
-    participant: MessageUser | null
-    messages: DirectMessageView[]
-  } | null
-  systemMessages: FeedbackMessageRow[]
+  threads: FeedbackThread[]
   unreadCount: number
 }

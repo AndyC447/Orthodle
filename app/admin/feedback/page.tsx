@@ -163,7 +163,9 @@ export default function AdminFeedbackPage() {
   }
 
   function getRepliesForFeedback(feedbackId: string) {
-    return messageRows.filter(item => item.feedback_id === feedbackId && item.sender_role === 'admin')
+    return messageRows
+      .filter(item => item.feedback_id === feedbackId)
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
   }
 
   async function sendReply(row: FeedbackRow) {
@@ -220,11 +222,11 @@ export default function AdminFeedbackPage() {
       <div className="mt-3 rounded-xl border border-[#e7e1d6] bg-white/80 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-            Player reply
+            Thread
           </div>
           <div className="flex items-center gap-2">
             <div className="text-[10px] text-[#637268]">
-              {canReply ? `${replies.length} sent` : 'Unavailable'}
+              {canReply ? `${replies.length} message${replies.length === 1 ? '' : 's'}` : 'Unavailable'}
             </div>
             {canReply ? (
               <button
@@ -243,7 +245,7 @@ export default function AdminFeedbackPage() {
             {replies.map(reply => (
               <div key={reply.id} className="rounded-lg border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]">
-                  Sent {reply.created_at.slice(0, 16).replace('T', ' ')}
+                  {reply.sender_role === 'admin' ? 'Orthodle' : 'Player'} · {reply.created_at.slice(0, 16).replace('T', ' ')}
                 </div>
                 <p className="mt-1 text-sm leading-6 text-[#102018]">{reply.message_text}</p>
               </div>

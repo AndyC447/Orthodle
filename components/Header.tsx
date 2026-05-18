@@ -14,6 +14,9 @@ export function Header() {
   const [messagingPayload, setMessagingPayload] = useState<MessagingPayload | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
+  const [openReplyThreadId, setOpenReplyThreadId] = useState<string | null>(null)
+  const [sendingReplyThreadId, setSendingReplyThreadId] = useState<string | null>(null)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const closeTimerRef = useRef<number | null>(null)
   const notificationPanelRef = useRef<HTMLDivElement | null>(null)
@@ -21,9 +24,8 @@ export function Header() {
   const THEME_STORAGE_KEY = 'orthodle_theme'
   const showNotifications = true
   const showPlayLink = pathname !== '/'
-  const previewConversationCount = messagingPayload?.conversations.length || 0
-  const previewSystemCount = messagingPayload?.systemMessages.length || 0
-  const hasAnyMessages = previewConversationCount > 0 || previewSystemCount > 0
+  const threadCount = messagingPayload?.threads.length || 0
+  const hasAnyMessages = threadCount > 0
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -82,7 +84,9 @@ export function Header() {
     if (!notificationsOpen) return
 
     const unreadIds =
-      messagingPayload?.systemMessages.filter(item => !item.is_read).map(item => item.id) || []
+      messagingPayload?.threads.flatMap(thread =>
+        thread.messages.filter(item => item.sender_role === 'admin' && !item.is_read).map(item => item.id)
+      ) || []
     if (unreadIds.length === 0) return
 
     setMessagingPayload(prev =>
@@ -90,11 +94,15 @@ export function Header() {
         ? {
             ...prev,
             unreadCount: Math.max(0, prev.unreadCount - unreadIds.length),
-            systemMessages: prev.systemMessages.map(item =>
-              unreadIds.includes(item.id)
-                ? { ...item, is_read: true, read_at: item.read_at || new Date().toISOString() }
-                : item
-            ),
+            threads: prev.threads.map(thread => ({
+              ...thread,
+              hasUnreadAdminReply: false,
+              messages: thread.messages.map(item =>
+                unreadIds.includes(item.id)
+                  ? { ...item, is_read: true, read_at: item.read_at || new Date().toISOString() }
+                  : item
+              ),
+            })),
           }
         : prev
     )
@@ -158,6 +166,48 @@ export function Header() {
     }
   }
 
+  async function sendThreadReply(feedbackId: string, recipientSessionId: string) {
+    const draft = (replyDrafts[feedbackId] || '').trim()
+    if (!draft) return
+
+    setSendingReplyThreadId(feedbackId)
+    const response = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'reply',
+        feedbackId,
+        recipientSessionId,
+        messageText: draft,
+      }),
+    })
+    const data = await response.json().catch(() => ({}))
+    setSendingReplyThreadId(null)
+
+    if (!response.ok || !data.message) {
+      return
+    }
+
+    setReplyDrafts(prev => ({ ...prev, [feedbackId]: '' }))
+    setOpenReplyThreadId(null)
+    setMessagingPayload(prev =>
+      prev
+        ? {
+            ...prev,
+            threads: prev.threads.map(thread =>
+              thread.feedbackId === feedbackId
+                ? {
+                    ...thread,
+                    latestMessageAt: data.message.created_at,
+                    messages: [...thread.messages, data.message],
+                  }
+                : thread
+            ),
+          }
+        : prev
+    )
+  }
+
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
       <div className="relative mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
@@ -216,10 +266,10 @@ export function Header() {
                         theme === 'dark' ? 'text-[#9fb4a7]' : 'text-[#7a857c]'
                       }`}
                     >
-                      Messages
+                      Feedback inbox
                     </div>
                     <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#dbe5dd]' : 'text-[#637268]'}`}>
-                      People messages and feedback replies live here.
+                      Admin replies to your feedback live here, and you can answer back in the same thread.
                     </p>
                   </div>
 
@@ -242,41 +292,15 @@ export function Header() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {(messagingPayload?.conversations || []).slice(0, 4).map(item => (
-                          <Link
-                            key={item.participant.accountId}
-                            href={`/messages?user=${encodeURIComponent(item.participant.accountId)}`}
-                            onClick={() => setNotificationsOpen(false)}
-                            className={`block rounded-xl border p-3 ${
-                              theme === 'dark'
-                                ? 'border-[#2a3b34] bg-[#1d2a24]'
-                                : 'border-[#e7e1d6] bg-[#fcfbf8]'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <div className={`text-sm font-semibold ${theme === 'dark' ? 'text-[#f4efe6]' : 'text-[#102018]'}`}>
-                                  {item.participant.displayName}
-                                </div>
-                                <div className={`text-[10px] ${theme === 'dark' ? 'text-[#9fb4a7]' : 'text-[#637268]'}`}>
-                                  @{item.participant.username}
-                                </div>
-                              </div>
-                              {item.unreadCount > 0 && (
-                                <span className="inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#c96b37] px-1 text-[10px] font-bold text-white">
-                                  {item.unreadCount}
-                                </span>
-                              )}
-                            </div>
-                            <p className={`mt-2 truncate text-sm ${theme === 'dark' ? 'text-[#dbe5dd]' : 'text-[#355542]'}`}>
-                              {item.lastMessage}
-                            </p>
-                          </Link>
-                        ))}
+                        {(messagingPayload?.threads || []).slice(0, 8).map(thread => {
+                          const latestMessage = thread.messages[thread.messages.length - 1] || null
+                          const isReplyOpen = openReplyThreadId === thread.feedbackId
+                          const recipientSessionId =
+                            latestMessage?.recipient_session_id || getAccountSession()?.accountId || getSessionId()
 
-                        {(messagingPayload?.systemMessages || []).slice(0, 3).map(item => (
+                          return (
                           <article
-                            key={item.id}
+                            key={thread.feedbackId}
                             className={`rounded-xl border p-3 ${
                               theme === 'dark'
                                 ? 'border-[#2a3b34] bg-[#1d2a24]'
@@ -290,36 +314,100 @@ export function Header() {
                                     theme === 'dark' ? 'text-[#9fb4a7]' : 'text-[#637268]'
                                   }`}
                                 >
-                                  {formatFeedbackLevel(item.level)} · {item.case_date || 'Recent case'}
+                                  {formatFeedbackLevel(thread.level)} · {thread.caseDate || 'Recent case'}
                                 </div>
-                                {item.answer && (
+                                {thread.answer && (
                                   <div
                                     className={`mt-1 text-sm font-semibold ${
                                       theme === 'dark' ? 'text-[#f4efe6]' : 'text-[#102018]'
                                     }`}
                                   >
-                                    {item.answer}
+                                    {thread.answer}
                                   </div>
                                 )}
+                                <p className={`mt-2 text-sm leading-6 ${theme === 'dark' ? 'text-[#dbe5dd]' : 'text-[#355542]'}`}>
+                                  {thread.feedbackText}
+                                </p>
                               </div>
+                              {thread.hasUnreadAdminReply ? (
+                                <span className="inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#c96b37] px-1 text-[10px] font-bold text-white">
+                                  New
+                                </span>
+                              ) : null}
                             </div>
-                            <p className={`mt-2 text-sm leading-6 ${theme === 'dark' ? 'text-[#dbe5dd]' : 'text-[#102018]'}`}>
-                              {item.message_text}
-                            </p>
+                            {thread.messages.length > 0 ? (
+                              <div className="mt-3 space-y-2">
+                                {thread.messages.map(message => (
+                                  <div
+                                    key={message.id}
+                                    className={`rounded-lg px-3 py-2 text-sm ${
+                                      theme === 'dark'
+                                        ? message.sender_role === 'admin'
+                                          ? 'bg-[#24342d] text-[#f4efe6]'
+                                          : 'bg-[#213129] text-[#dbe5dd]'
+                                        : message.sender_role === 'admin'
+                                          ? 'bg-white text-[#102018] border border-[#ece6db]'
+                                          : 'bg-[#f7fbf8] text-[#355542] border border-[#d9eadf]'
+                                    }`}
+                                  >
+                                    <div className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${theme === 'dark' ? 'text-[#9fb4a7]' : 'text-[#637268]'}`}>
+                                      {message.sender_role === 'admin' ? 'Orthodle' : 'You'}
+                                    </div>
+                                    <div className="mt-1">{message.message_text}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                            <div className="mt-3">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenReplyThreadId(current =>
+                                    current === thread.feedbackId ? null : thread.feedbackId
+                                  )
+                                }
+                                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                                  theme === 'dark'
+                                    ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
+                                    : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                                }`}
+                              >
+                                {isReplyOpen ? 'Close reply' : 'Reply'}
+                              </button>
+                              {isReplyOpen ? (
+                                <div className="mt-2 space-y-2">
+                                  <textarea
+                                    value={replyDrafts[thread.feedbackId] || ''}
+                                    onChange={event =>
+                                      setReplyDrafts(prev => ({
+                                        ...prev,
+                                        [thread.feedbackId]: event.target.value,
+                                      }))
+                                    }
+                                    rows={3}
+                                    placeholder="Reply to this feedback thread..."
+                                    className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+                                      theme === 'dark'
+                                        ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6]'
+                                        : 'border-[#ded7ca] bg-white text-[#102018]'
+                                    }`}
+                                  />
+                                  <div className="flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() => void sendThreadReply(thread.feedbackId, recipientSessionId)}
+                                      disabled={sendingReplyThreadId === thread.feedbackId}
+                                      className="rounded-lg bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-70"
+                                    >
+                                      {sendingReplyThreadId === thread.feedbackId ? 'Sending...' : 'Send reply'}
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : null}
+                            </div>
                           </article>
-                        ))}
-
-                        <Link
-                          href="/messages"
-                          onClick={() => setNotificationsOpen(false)}
-                          className={`block rounded-xl border px-3 py-2.5 text-center text-sm font-semibold transition ${
-                            theme === 'dark'
-                              ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
-                              : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-                          }`}
-                        >
-                          Open full inbox
-                        </Link>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -409,17 +497,6 @@ export function Header() {
                     Play
                   </Link>
                 )}
-                <Link
-                  href="/messages"
-                  onClick={() => setMenuOpen(false)}
-                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
-                    theme === 'dark'
-                      ? 'text-[#f4efe6] hover:bg-[#213129]'
-                      : 'text-[#102018] hover:bg-[#fbfaf7]'
-                  }`}
-                >
-                  Messages
-                </Link>
                 <Link
                   href="/stats"
                   onClick={() => setMenuOpen(false)}
