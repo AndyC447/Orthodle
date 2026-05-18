@@ -180,7 +180,7 @@ export default function StatsPage() {
                   className="flex w-full items-center justify-between gap-3 text-left"
                 >
                   <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                    Guess distribution
+                    Case guess distribution
                   </div>
                   <div className="text-[11px] font-medium text-[#637268]">
                     {showDistribution
@@ -221,38 +221,83 @@ export default function StatsPage() {
                 )}
               </div>
 
-              <div className="orthodle-stats-shell rounded-[24px] border border-[#e7e1d6] bg-white p-4">
-                <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                  Today&apos;s card
+              <div className="space-y-4">
+                <div className="orthodle-stats-shell rounded-[24px] border border-[#e7e1d6] bg-white p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+                    Anatomy performance
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        Accuracy
+                      </div>
+                      <div className="mt-1.5 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#1f6448]">
+                        {statsSnapshot && statsSnapshot.anatomy.played > 0
+                          ? `${Math.round(statsSnapshot.anatomy.winRate)}%`
+                          : '—'}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-[#e7e1d6] bg-[#fffdf8] px-3 py-3">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        Attempts
+                      </div>
+                      <div className="mt-1.5 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#102018]">
+                        {statsSnapshot?.anatomy.played || 0}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        Correct picks
+                      </div>
+                      <div className="mt-1.5 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#1f6448]">
+                        {statsSnapshot?.anatomy.wins || 0}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        Misses
+                      </div>
+                      <div className="mt-1.5 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#a24d24]">
+                        {statsSnapshot?.anatomy.losses || 0}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-3 space-y-2.5">
-                  {(['med_student', 'resident', 'attending'] as const).map(level => {
-                    const entry = statsSnapshot?.today.levels.find(item => item.level === level)
+                <div className="orthodle-stats-shell rounded-[24px] border border-[#e7e1d6] bg-white p-4">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+                    Today&apos;s card
+                  </div>
 
-                    return (
-                      <div
-                        key={level}
-                        className={
-                          entry
-                            ? entry.won
-                              ? 'rounded-2xl border border-[#cfded4] bg-[#f7fbf8] p-3.5'
-                              : 'rounded-2xl border border-[#ead9b7] bg-[#fffaf1] p-3.5'
-                            : 'rounded-2xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] p-3.5'
-                        }
-                      >
-                        <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                          {getStatsLevelLabel(level)}
+                  <div className="mt-3 space-y-2.5">
+                    {(['med_student', 'resident', 'attending'] as const).map(level => {
+                      const entry = statsSnapshot?.today.levels.find(item => item.level === level)
+
+                      return (
+                        <div
+                          key={level}
+                          className={
+                            entry
+                              ? entry.won
+                                ? 'rounded-2xl border border-[#cfded4] bg-[#f7fbf8] p-3.5'
+                                : 'rounded-2xl border border-[#ead9b7] bg-[#fffaf1] p-3.5'
+                              : 'rounded-2xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] p-3.5'
+                          }
+                        >
+                          <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                            {getStatsLevelLabel(level)}
+                          </div>
+                          <div className="mt-2 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#102018]">
+                            {entry ? (entry.won ? `${entry.guessesUsed}/6` : 'Missed') : 'Not played'}
+                          </div>
+                          <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268]">
+                            {entry ? `${entry.category} · ${entry.answer}` : 'Still open today.'}
+                          </p>
                         </div>
-                        <div className="mt-2 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#102018]">
-                          {entry ? (entry.won ? `${entry.guessesUsed}/6` : 'Missed') : 'Not played'}
-                        </div>
-                        <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268]">
-                          {entry ? `${entry.category} · ${entry.answer}` : 'Still open today.'}
-                        </p>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </div>

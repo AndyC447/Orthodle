@@ -353,6 +353,13 @@ export type StatsSummary = {
   >
   averageGuessesInWins: number | null
   guessDistribution: Record<number, number>
+  anatomy: {
+    played: number
+    wins: number
+    losses: number
+    winRate: number
+    firstTryWins: number
+  }
   today: {
     date: string
     played: number
@@ -400,6 +407,7 @@ export type StatsSummary = {
 
 const STATS_STORAGE_KEY = 'orthodle_stats_v1'
 const ROUND_PROGRESS_STORAGE_KEY = 'orthodle_round_progress_v1'
+const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
 
 let storedResultsCache: StoredGameResult[] | null = null
 let storedRoundProgressCache: StoredRoundProgress[] | null = null
@@ -566,8 +574,16 @@ export function getCompletedCaseKeys(isArchive?: boolean) {
 export function getStatsSummary(): StatsSummary {
   const results = getStoredResults()
   const dailyResults = results.filter(result => !result.isArchive)
+  const anatomyResults = dailyResults.filter(
+    result => result.level === 'attending' && result.caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE
+  )
+  const standardCaseResults = dailyResults.filter(
+    result => !(result.level === 'attending' && result.caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE)
+  )
   const archiveResults = results.filter(result => result.isArchive)
   const wins = dailyResults.filter(result => result.won)
+  const standardCaseWins = standardCaseResults.filter(result => result.won)
+  const anatomyWins = anatomyResults.filter(result => result.won)
   const guessDistribution: Record<number, number> = {
     1: 0,
     2: 0,
@@ -577,7 +593,7 @@ export function getStatsSummary(): StatsSummary {
     6: 0,
   }
 
-  for (const result of wins) {
+  for (const result of standardCaseWins) {
     if (guessDistribution[result.guessesUsed] !== undefined) {
       guessDistribution[result.guessesUsed] += 1
     }
@@ -824,10 +840,17 @@ export function getStatsSummary(): StatsSummary {
     longestStreak,
     levelStreaks,
     averageGuessesInWins:
-      wins.length > 0
-        ? wins.reduce((sum, result) => sum + result.guessesUsed, 0) / wins.length
+      standardCaseWins.length > 0
+        ? standardCaseWins.reduce((sum, result) => sum + result.guessesUsed, 0) / standardCaseWins.length
         : null,
     guessDistribution,
+    anatomy: {
+      played: anatomyResults.length,
+      wins: anatomyWins.length,
+      losses: anatomyResults.length - anatomyWins.length,
+      winRate: anatomyResults.length > 0 ? (anatomyWins.length / anatomyResults.length) * 100 : 0,
+      firstTryWins: anatomyWins.length,
+    },
     today: {
       ...today,
       levelsSolved: today.wins,
