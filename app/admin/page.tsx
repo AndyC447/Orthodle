@@ -216,6 +216,7 @@ type AdminSidebarSectionId =
   | 'answer_choices'
   | 'feedback'
   | 'groups'
+  | 'no_resident_mode'
   | 'cases_by_date'
 
 type AdminCollapsedSectionId =
@@ -316,6 +317,7 @@ const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'answer_choices',
   'feedback',
   'groups',
+  'no_resident_mode',
   'cases_by_date',
 ]
 const DEFAULT_IMAGE_CREDIT_TEMPLATE = 'Credit:'
@@ -2454,6 +2456,45 @@ export default function AdminPage() {
         <p className="mt-2 text-sm text-[#8a948d]">Cumulative level trends and case performance</p>
       </section>
     ),
+    no_resident_mode: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <h2 className="font-serif text-xl font-bold">No resident mode</h2>
+
+        <div className="mt-3 grid gap-2.5">
+          <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+            Start date
+            <input
+              type="date"
+              value={noResidentModeStartDate}
+              onChange={event => setNoResidentModeStartDate(event.target.value)}
+              className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+            />
+          </label>
+
+          <button
+            type="button"
+            onClick={() => void saveNoResidentModeSchedule(true)}
+            disabled={savingNoResidentMode || !noResidentModeStartDate}
+            className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
+          >
+            {savingNoResidentMode
+              ? 'Saving...'
+              : noResidentMode
+                ? 'Update no resident schedule'
+                : 'Schedule no resident mode'}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => void saveNoResidentModeSchedule(false)}
+            disabled={savingNoResidentMode || !noResidentMode}
+            className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white disabled:opacity-60"
+          >
+            Turn off
+          </button>
+        </div>
+      </section>
+    ),
     homepage_notes: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <button
@@ -3985,46 +4026,6 @@ export default function AdminPage() {
           </section>
 
           <aside className="flex flex-col gap-3">
-            <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-              <div className="font-serif text-lg font-bold text-[#102018]">
-                No resident mode
-              </div>
-
-              <div className="mt-3 grid gap-2.5">
-                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                  Start date
-                  <input
-                    type="date"
-                    value={noResidentModeStartDate}
-                    onChange={event => setNoResidentModeStartDate(event.target.value)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={() => void saveNoResidentModeSchedule(true)}
-                  disabled={savingNoResidentMode || !noResidentModeStartDate}
-                  className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
-                >
-                  {savingNoResidentMode
-                    ? 'Saving...'
-                    : noResidentMode
-                      ? 'Update no resident schedule'
-                      : 'Schedule no resident mode'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void saveNoResidentModeSchedule(false)}
-                  disabled={savingNoResidentMode || !noResidentMode}
-                  className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white disabled:opacity-60"
-                >
-                  Turn off
-                </button>
-              </div>
-            </section>
-
             {sidebarSectionOrder.map(sectionId => (
               <div
                 key={sectionId}
