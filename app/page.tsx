@@ -1254,8 +1254,10 @@ function PlayPageContent() {
           correct: Boolean(row.is_correct),
         }))
         const solvedIndex = viewerGuessRows.findIndex(row => Boolean(row.is_correct))
-        const serverProgressAvailable = serverGuesses.length > 0
+        const archiveStartsFresh = isArchiveCase
+        const serverProgressAvailable = !archiveStartsFresh && serverGuesses.length > 0
         const shouldUseSavedProgress =
+          !archiveStartsFresh &&
           Boolean(savedProgress && (savedProgress.caseId === data.id || savedProgress.key === pendingResumeKey)) &&
           (!serverProgressAvailable || (savedProgress?.guesses.length || 0) >= serverGuesses.length)
 
