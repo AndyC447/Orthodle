@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
+import { Bell, BookOpen, Download, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
 import {
@@ -1487,6 +1487,8 @@ export default function GroupsPage() {
   const [authUsername, setAuthUsername] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authSubmitting, setAuthSubmitting] = useState(false)
+  const [backupStatus, setBackupStatus] = useState('')
+  const [backingUp, setBackingUp] = useState(false)
   const [isEditingProfileName, setIsEditingProfileName] = useState(false)
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
@@ -2657,6 +2659,88 @@ export default function GroupsPage() {
     setAuthUsername('')
     setIdentityVersion(version => version + 1)
     setMessage('Signed out. This browser is back on its local profile.')
+  }
+
+  async function downloadProgressBackup() {
+    if (typeof window === 'undefined') return
+
+    setBackingUp(true)
+    setBackupStatus('')
+
+    try {
+      const localStorageSnapshot: Record<string, string> = {}
+
+      for (let index = 0; index < window.localStorage.length; index += 1) {
+        const key = window.localStorage.key(index)
+        if (!key || !key.startsWith('orthodle')) continue
+        const value = window.localStorage.getItem(key)
+        if (value !== null) {
+          localStorageSnapshot[key] = value
+        }
+      }
+
+      const params = new URLSearchParams({
+        sessionId,
+      })
+
+      if (accountSession?.accountId) {
+        params.set('accountId', accountSession.accountId)
+      }
+
+      let serverBackup: Record<string, unknown> | null = null
+      let usedServerData = false
+
+      try {
+        const response = await fetch(`/api/account/backup?${params.toString()}`, {
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => ({}))
+
+        if (response.ok) {
+          serverBackup = payload
+          usedServerData = true
+        }
+      } catch {
+        serverBackup = null
+      }
+
+      const backupPayload = {
+        exportedAt: new Date().toISOString(),
+        source: 'orthodle-progress-backup',
+        identity: {
+          accountSession,
+          currentSessionId: sessionId,
+          anonymousSessionId: getAnonymousSessionId() || null,
+        },
+        browserData: {
+          localStorage: localStorageSnapshot,
+        },
+        serverBackup,
+      }
+
+      const fileDate = new Date().toISOString().slice(0, 10)
+      const blob = new Blob([JSON.stringify(backupPayload, null, 2)], {
+        type: 'application/json',
+      })
+      const url = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `orthodle-backup-${fileDate}.json`
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(url)
+
+      setBackupStatus(
+        usedServerData
+          ? 'Backup downloaded with your browser progress and saved account data.'
+          : 'Backup downloaded with your browser progress. Server data could not be included right now.'
+      )
+    } catch {
+      setBackupStatus('Could not build your backup right now.')
+    } finally {
+      setBackingUp(false)
+    }
   }
 
   function dismissGroupAnnouncement() {
@@ -4627,6 +4711,31 @@ export default function GroupsPage() {
                   </button>
                 </div>
               )}
+
+              <div className="mt-4 rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                      Emergency backup
+                    </div>
+                    <div className="mt-1 text-[13px] leading-5 text-[#637268]">
+                      Download a file with your saved browser progress and any synced Orthodle data tied to this profile.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void downloadProgressBackup()}
+                    disabled={backingUp}
+                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-[#d9eadf] bg-[#eef8f2] px-4 text-[12px] font-bold text-[#1f6448] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Download size={14} strokeWidth={2.2} />
+                    {backingUp ? 'Saving backup...' : 'Download backup'}
+                  </button>
+                </div>
+                {backupStatus ? (
+                  <div className="mt-2 text-[12px] font-medium text-[#2d7651]">{backupStatus}</div>
+                ) : null}
+              </div>
             </section>
 
             <TrophyCase trophies={trophyCaseItems} />
