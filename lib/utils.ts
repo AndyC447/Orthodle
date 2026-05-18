@@ -367,6 +367,9 @@ export type StatsSummary = {
     losses: number
     levelsSolved: number
     averageGuesses: number | null
+    standardCaseAverageGuesses: number | null
+    anatomyPlayed: number
+    anatomyWins: number
     levels: Array<{
       level: StatsLevel
       won: boolean
@@ -381,6 +384,9 @@ export type StatsSummary = {
     wins: number
     losses: number
     averageGuesses: number | null
+    standardCaseAverageGuesses: number | null
+    anatomyPlayed: number
+    anatomyWins: number
     levels: Array<{
       level: StatsLevel
       won: boolean
@@ -607,6 +613,9 @@ export function getStatsSummary(): StatsSummary {
       wins: number
       losses: number
       averageGuesses: number | null
+      standardCaseAverageGuesses: number | null
+      anatomyPlayed: number
+      anatomyWins: number
       levels: Array<{
         level: StatsLevel
         won: boolean
@@ -687,6 +696,9 @@ export function getStatsSummary(): StatsSummary {
       wins: result.won ? 1 : 0,
       losses: result.won ? 0 : 1,
       averageGuesses: null,
+      standardCaseAverageGuesses: null,
+      anatomyPlayed: 0,
+      anatomyWins: 0,
       levels: [
         {
           level: result.level,
@@ -702,10 +714,26 @@ export function getStatsSummary(): StatsSummary {
   const recentDays = Array.from(byDay.values())
     .map(day => {
       const totalGuesses = day.levels.reduce((sum, level) => sum + level.guessesUsed, 0)
+      const anatomyLevels = day.levels.filter(
+        level => level.level === 'attending' && day.date >= SURGICAL_ANATOMY_LAUNCH_DATE
+      )
+      const standardCaseLevels = day.levels.filter(
+        level => !(level.level === 'attending' && day.date >= SURGICAL_ANATOMY_LAUNCH_DATE)
+      )
+      const standardCaseTotalGuesses = standardCaseLevels.reduce(
+        (sum, level) => sum + level.guessesUsed,
+        0
+      )
 
       return {
         ...day,
         averageGuesses: day.played > 0 ? totalGuesses / day.played : null,
+        standardCaseAverageGuesses:
+          standardCaseLevels.length > 0
+            ? standardCaseTotalGuesses / standardCaseLevels.length
+            : null,
+        anatomyPlayed: anatomyLevels.length,
+        anatomyWins: anatomyLevels.filter(level => level.won).length,
         levels: [...day.levels].sort((a, b) => a.level.localeCompare(b.level)),
       }
     })
@@ -825,6 +853,9 @@ export function getStatsSummary(): StatsSummary {
       wins: 0,
       losses: 0,
       averageGuesses: null,
+      standardCaseAverageGuesses: null,
+      anatomyPlayed: 0,
+      anatomyWins: 0,
       levels: [],
     }
 

@@ -222,6 +222,7 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
 
 const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
+const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v1'
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
 const ADMIN_CASE_PREVIEW_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 
@@ -416,8 +417,39 @@ function canUseSurgicalAnatomyQuiz(dateText: string) {
   return isSurgicalAnatomyDate(dateText) || isLocalhostBrowser()
 }
 
-function getInitialLevelFromParams(value: string | null): Level {
-  if (value === 'resident' || value === 'attending') return value
+function isNoResidentModeActive(
+  settings: Pick<PlayModeSettingsRow, 'no_resident_mode' | 'no_resident_mode_start_date'> | null,
+  dateText: string
+) {
+  return Boolean(
+    settings?.no_resident_mode &&
+      (!settings.no_resident_mode_start_date || settings.no_resident_mode_start_date <= dateText)
+  )
+}
+
+function readCachedPlayModeSettings() {
+  if (typeof window === 'undefined') return null as PlayModeSettingsRow | null
+
+  try {
+    const raw = window.localStorage.getItem(PLAY_MODE_SETTINGS_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PlayModeSettingsRow
+    return parsed || null
+  } catch {
+    window.localStorage.removeItem(PLAY_MODE_SETTINGS_CACHE_KEY)
+    return null
+  }
+}
+
+function getInitialLevelFromParams(
+  value: string | null,
+  playModeSettings: Pick<PlayModeSettingsRow, 'no_resident_mode' | 'no_resident_mode_start_date'> | null,
+  today: string
+): Level {
+  if (value === 'resident') {
+    return isNoResidentModeActive(playModeSettings, today) ? 'med_student' : 'resident'
+  }
+  if (value === 'attending') return value
   return 'med_student'
 }
 
@@ -450,11 +482,14 @@ function PlayPageContent() {
   const imagePinchStart = useRef<number | null>(null)
   const imageScaleStart = useRef<number>(1)
   const today = todayISO()
-  const initialLevel = getInitialLevelFromParams(searchParams.get('level'))
+  const initialPlayModeSettings = readCachedPlayModeSettings()
+  const initialLevel = getInitialLevelFromParams(searchParams.get('level'), initialPlayModeSettings, today)
   const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
   const [selectedLevel, setSelectedLevel] = useState<Level>(initialLevel)
-  const [noResidentMode, setNoResidentMode] = useState(false)
-  const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(null)
+  const [noResidentMode, setNoResidentMode] = useState(Boolean(initialPlayModeSettings?.no_resident_mode))
+  const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(
+    initialPlayModeSettings?.no_resident_mode_start_date || null
+  )
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
@@ -522,6 +557,9 @@ function PlayPageContent() {
     losses: 0,
     levelsSolved: 0,
     averageGuesses: null as number | null,
+    standardCaseAverageGuesses: null as number | null,
+    anatomyPlayed: 0,
+    anatomyWins: 0,
     levels: [] as Array<{
       level: Level
       won: boolean
@@ -540,13 +578,18 @@ function PlayPageContent() {
       levelParam === 'resident' ||
       levelParam === 'attending'
     ) {
-      setSelectedLevel(levelParam)
+      setSelectedLevel(
+        getInitialLevelFromParams(levelParam, {
+          no_resident_mode: noResidentMode,
+          no_resident_mode_start_date: noResidentModeStartDate,
+        }, today)
+      )
     }
 
     if (dateParam && dateParam >= LAUNCH_DATE && dateParam <= today) {
       setSelectedDate(dateParam)
     }
-  }, [searchParams, today])
+  }, [searchParams, noResidentMode, noResidentModeStartDate, today])
 
   useEffect(() => {
     setDailySummary(getStatsSummary().today)
@@ -646,6 +689,15 @@ function PlayPageContent() {
       const row = (data as PlayModeSettingsRow | null) || null
       setNoResidentMode(Boolean(row?.no_resident_mode))
       setNoResidentModeStartDate(row?.no_resident_mode_start_date || null)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          PLAY_MODE_SETTINGS_CACHE_KEY,
+          JSON.stringify({
+            no_resident_mode: Boolean(row?.no_resident_mode),
+            no_resident_mode_start_date: row?.no_resident_mode_start_date || null,
+          } satisfies PlayModeSettingsRow)
+        )
+      }
     }
 
     void loadPlayModeSettings()
@@ -655,7 +707,13 @@ function PlayPageContent() {
     }
   }, [])
 
-  const noResidentModeActiveToday = noResidentMode && (!noResidentModeStartDate || noResidentModeStartDate <= todayISO())
+  const noResidentModeActiveToday = isNoResidentModeActive(
+    {
+      no_resident_mode: noResidentMode,
+      no_resident_mode_start_date: noResidentModeStartDate,
+    },
+    today
+  )
 
   useEffect(() => {
     if (noResidentModeActiveToday && selectedLevel === 'resident') {
@@ -2361,12 +2419,6 @@ function PlayPageContent() {
     return () => window.clearTimeout(timeoutId)
   }, [gameWon, justCompletedRound, roundComplete])
 
-  const todayCompletedLevels = new Set(
-    dailySummary.levels
-      .filter(item => item.won || item.guessesUsed === 6)
-      .map(item => item.level)
-  ).size
-
   const homeTabs = useMemo(
     () =>
       noResidentModeActiveToday
@@ -2387,7 +2439,21 @@ function PlayPageContent() {
     [noResidentModeActiveToday]
   )
   const requiredDailyLevels = noResidentModeActiveToday ? 2 : 3
-  const todayComplete = todayCompletedLevels === requiredDailyLevels
+  const visibleTodayLevels: Level[] = noResidentModeActiveToday
+    ? ['med_student', 'attending']
+    : ['med_student', 'resident', 'attending']
+  const todayCompletedLevels = new Set(
+    dailySummary.levels
+      .filter(
+        item =>
+          visibleTodayLevels.includes(item.level) && (item.won || item.guessesUsed === 6)
+      )
+      .map(item => item.level)
+  ).size
+  const todaySolvedCount = dailySummary.levels.filter(
+    item => visibleTodayLevels.includes(item.level) && item.won
+  ).length
+  const todayComplete = todayCompletedLevels >= requiredDailyLevels
   const onTodayCard = selectedDate === todayISO()
   const resumeRoundIsCurrent = Boolean(
     resumeRound &&
@@ -2719,7 +2785,7 @@ function PlayPageContent() {
 
             <div className="mt-3 space-y-2.5 text-[13px] leading-5.5 text-[#102018]">
               <p><strong>1.</strong> Read the case and narrow the diagnosis.</p>
-              <p><strong>2.</strong> There are 3 new cases every day, each with increasing difficulty.</p>
+              <p><strong>2.</strong> There are {requiredDailyLevels} new cases every day, each with increasing difficulty.</p>
               <p><strong>3.</strong> Wrong guesses unlock more clinical findings.</p>
               <p><strong>4.</strong> Imaging may appear later as part of the clues.</p>
               <p><strong>5.</strong> You get 6 guesses total for each case.</p>
@@ -2751,15 +2817,17 @@ function PlayPageContent() {
                   Solved
                 </div>
                 <div className="mt-0.5 font-serif text-[15px] font-bold text-[#1f6448]">
-                  {dailySummary.wins}/3
+                  {todaySolvedCount}/{requiredDailyLevels}
                 </div>
               </div>
               <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                  Avg guesses
+                  Case avg
                 </div>
                 <div className="mt-0.5 font-serif text-[15px] font-bold text-[#102018]">
-                  {dailySummary.averageGuesses !== null ? dailySummary.averageGuesses.toFixed(1) : '—'}
+                  {dailySummary.standardCaseAverageGuesses !== null
+                    ? dailySummary.standardCaseAverageGuesses.toFixed(1)
+                    : '—'}
                 </div>
               </div>
               <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1">

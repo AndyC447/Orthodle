@@ -3,17 +3,26 @@
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import { supabase } from '@/lib/supabase'
 import {
   clearStatsSummary,
   getStatsLevelLabel,
   getStatsSummary,
+  todayISO,
   type StatsSummary,
 } from '@/lib/utils'
+
+type PlayModeSettingsRow = {
+  no_resident_mode: boolean
+  no_resident_mode_start_date: string | null
+}
 
 export default function StatsPage() {
   const [statsSnapshot, setStatsSnapshot] = useState<StatsSummary | null>(null)
   const [showDistribution, setShowDistribution] = useState(true)
   const [showDifficulty, setShowDifficulty] = useState(false)
+  const [noResidentMode, setNoResidentMode] = useState(false)
+  const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(null)
 
   useEffect(() => {
     const refreshStats = () => setStatsSnapshot(getStatsSummary())
@@ -25,6 +34,38 @@ export default function StatsPage() {
       window.removeEventListener('focus', refreshStats)
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadPlayModeSettings() {
+      const { data } = await supabase
+        .from('play_mode_settings')
+        .select('no_resident_mode, no_resident_mode_start_date')
+        .eq('id', 'default')
+        .maybeSingle()
+
+      if (cancelled) return
+      const row = (data as PlayModeSettingsRow | null) || null
+      setNoResidentMode(Boolean(row?.no_resident_mode))
+      setNoResidentModeStartDate(row?.no_resident_mode_start_date || null)
+    }
+
+    void loadPlayModeSettings()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const noResidentModeActiveToday =
+    noResidentMode && (!noResidentModeStartDate || noResidentModeStartDate <= todayISO())
+  const requiredDailyLevels = noResidentModeActiveToday ? 2 : 3
+  const visibleTodayLevels: Array<'med_student' | 'resident' | 'attending'> = noResidentModeActiveToday
+    ? ['med_student', 'attending']
+    : ['med_student', 'resident', 'attending']
+  const todaySolvedCount =
+    statsSnapshot?.today.levels.filter(item => visibleTodayLevels.includes(item.level) && item.won).length || 0
 
   const maxDistribution = Math.max(
     1,
@@ -115,7 +156,7 @@ export default function StatsPage() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <div className="rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3.5 py-1.5 text-[11px] font-semibold text-[#1f6448]">
-                  Today: {statsSnapshot?.today.wins || 0}/3 solved
+                  Today: {todaySolvedCount}/{requiredDailyLevels} solved
                 </div>
 
                 <button
@@ -271,7 +312,7 @@ export default function StatsPage() {
                   </div>
 
                   <div className="mt-3 space-y-2.5">
-                    {(['med_student', 'resident', 'attending'] as const).map(level => {
+                    {visibleTodayLevels.map(level => {
                       const entry = statsSnapshot?.today.levels.find(item => item.level === level)
 
                       return (
