@@ -18,6 +18,7 @@ import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/s
 import {
   getStatsSummary,
   getLatestUnfinishedRoundProgress,
+  isAcceptedGuess,
   normalizeAnswer,
   ORTHO_DIAGNOSIS_BANK,
   getRoundProgress,
@@ -221,11 +222,18 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
 
 const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
+const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
+const ADMIN_CASE_PREVIEW_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 
 type PlayBootstrapCache = {
   savedAt: number
   answerOptions: string[]
   levelTaglines: Record<Level, string[]>
+}
+
+type AdminCasePreviewCache = {
+  savedAt: number
+  case: Case
 }
 
 function readPlayBootstrapCache() {
@@ -258,6 +266,26 @@ function writePlayBootstrapCache(cache: Omit<PlayBootstrapCache, 'savedAt'>) {
       savedAt: Date.now(),
     })
   )
+}
+
+function readAdminCasePreviewCache() {
+  if (typeof window === 'undefined') return null as AdminCasePreviewCache | null
+
+  try {
+    const raw = window.sessionStorage.getItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as AdminCasePreviewCache
+    if (!parsed?.savedAt || !parsed?.case || Date.now() - parsed.savedAt > ADMIN_CASE_PREVIEW_CACHE_TTL_MS) {
+      window.sessionStorage.removeItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
+      return null
+    }
+
+    return parsed
+  } catch {
+    window.sessionStorage.removeItem(ADMIN_CASE_PREVIEW_CACHE_KEY)
+    return null
+  }
 }
 
 function isTooGenericSuggestionQuery(query: string) {
@@ -409,6 +437,7 @@ function doesSurveyApplyToLevel(levelScope: SurveyLevelScope | null | undefined,
 function PlayPageContent() {
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
+  const isAdminPreview = searchParams.get('preview') === '1'
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const inputSectionRef = useRef<HTMLDivElement | null>(null)
@@ -1166,8 +1195,11 @@ function PlayPageContent() {
 
         let data: Case | null = null
         let error: { message?: string } | null = null
+        const previewCase = isAdminPreview ? readAdminCasePreviewCache()?.case || null : null
 
-        if (caseParam) {
+        if (previewCase) {
+          data = previewCase
+        } else if (caseParam) {
           const result = await supabase
             .from('cases')
             .select('*')
@@ -1218,7 +1250,7 @@ function PlayPageContent() {
         const useQuizMode = isAnatomyModeForLoadedCase && loadedQuizChoices.length >= 2
         const maxGuessesForLoadedCase = isAnatomyModeForLoadedCase ? 1 : MAX_GUESSES
 
-        if (!isLocalhostBrowser() && !isTrackingDisabledForThisBrowser()) {
+        if (!previewCase && !isLocalhostBrowser() && !isTrackingDisabledForThisBrowser()) {
           void fetch('/api/visit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1239,6 +1271,15 @@ function PlayPageContent() {
         const isArchiveCase = data.case_date !== today
         const savedProgress = getRoundProgress(data.case_date, data.level, isArchiveCase)
         setJustCompletedRound(false)
+
+        if (previewCase) {
+          setGuesses([])
+          setGameWon(false)
+          setGameOver(false)
+          setMessage('')
+          setCommunityStats(null)
+          return
+        }
 
         const [excludedSessionIds, { data: visitRows }, { data: guessRows }] = await Promise.all([
           fetchExcludedStatsSessionIds(),
@@ -1414,7 +1455,7 @@ function PlayPageContent() {
     return () => {
       cancelled = true
     }
-  }, [caseParam, selectedLevel, selectedDate, today])
+  }, [caseParam, isAdminPreview, selectedLevel, selectedDate, today])
 
   function formatLevel(level: Level, dateText = selectedDate) {
     if (level === 'med_student') return 'Med Student'
@@ -2117,20 +2158,33 @@ function PlayPageContent() {
 
     const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
     const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
-    const sessionId = getSessionId()
+    const data = isAdminPreview
+      ? (() => {
+          const accepted = [dailyCase.answer, ...(dailyCase.synonyms || [])]
+          const isAnatomyPreview = dailyCase.level === 'attending' && surgicalAnatomyChoices.length >= 2
+          const correct = isAnatomyPreview
+            ? accepted
+                .map(answer => normalizeAnswer(answer))
+                .filter(Boolean)
+                .includes(normalizeAnswer(currentGuess))
+            : isAcceptedGuess(currentGuess, accepted)
+          return { correct, remaining: Math.max(0, maxGuessesForCurrentCase - (guesses.length + 1)) }
+        })()
+      : await (async () => {
+          const sessionId = getSessionId()
+          const res = await fetch('/api/guess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              caseId: dailyCase.id,
+              guess: currentGuess,
+              sessionId,
+              doNotTrack: isTrackingDisabledForThisBrowser(),
+            }),
+          })
 
-    const res = await fetch('/api/guess', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        caseId: dailyCase.id,
-        guess: currentGuess,
-        sessionId,
-        doNotTrack: isTrackingDisabledForThisBrowser(),
-      }),
-    })
-
-    const data = await res.json()
+          return res.json()
+        })()
     const nextGuessCount = guesses.length + 1
 
     const nextGuesses = [...guesses, { text: displayedGuess, correct: data.correct }]
@@ -2147,16 +2201,18 @@ function PlayPageContent() {
             nextGuessCount === 1 ? 'guess' : 'guesses'
           }.`
       setMessage(nextMessage)
-      saveRoundProgress({
-        caseId: dailyCase.id,
-        caseDate: dailyCase.case_date,
-        level: dailyCase.level,
-        isArchive: dailyCase.case_date !== todayISO(),
-        guesses: nextGuesses,
-        gameWon: true,
-        gameOver: false,
-        message: nextMessage,
-      })
+      if (!isAdminPreview) {
+        saveRoundProgress({
+          caseId: dailyCase.id,
+          caseDate: dailyCase.case_date,
+          level: dailyCase.level,
+          isArchive: dailyCase.case_date !== todayISO(),
+          guesses: nextGuesses,
+          gameWon: true,
+          gameOver: false,
+          message: nextMessage,
+        })
+      }
       if (typeof window !== 'undefined' && window.innerWidth < 640) {
         triggerSuccessPulse()
       } else {
@@ -2173,6 +2229,24 @@ function PlayPageContent() {
       setJustCompletedRound(true)
       const nextMessage = useSurgicalAnatomyQuiz ? 'Incorrect.' : 'Out of guesses.'
       setMessage(nextMessage)
+      if (!isAdminPreview) {
+        saveRoundProgress({
+          caseId: dailyCase.id,
+          caseDate: dailyCase.case_date,
+          level: dailyCase.level,
+          isArchive: dailyCase.case_date !== todayISO(),
+          guesses: nextGuesses,
+          gameWon: false,
+          gameOver: true,
+          message: nextMessage,
+        })
+      }
+      return
+    }
+
+    const nextMessage = `Not quite. ${maxGuessesForCurrentCase - nextGuessCount} guesses remaining.`
+    setMessage(nextMessage)
+    if (!isAdminPreview) {
       saveRoundProgress({
         caseId: dailyCase.id,
         caseDate: dailyCase.case_date,
@@ -2180,24 +2254,10 @@ function PlayPageContent() {
         isArchive: dailyCase.case_date !== todayISO(),
         guesses: nextGuesses,
         gameWon: false,
-        gameOver: true,
+        gameOver: false,
         message: nextMessage,
       })
-      return
     }
-
-    const nextMessage = `Not quite. ${maxGuessesForCurrentCase - nextGuessCount} guesses remaining.`
-    setMessage(nextMessage)
-    saveRoundProgress({
-      caseId: dailyCase.id,
-      caseDate: dailyCase.case_date,
-      level: dailyCase.level,
-      isArchive: dailyCase.case_date !== todayISO(),
-      guesses: nextGuesses,
-      gameWon: false,
-      gameOver: false,
-      message: nextMessage,
-    })
   }
 
   useEffect(() => {
@@ -2242,6 +2302,7 @@ function PlayPageContent() {
   }, [caseParam, selectedDate, today])
 
   useEffect(() => {
+    if (isAdminPreview) return
     if (typeof window === 'undefined') return
     if (!caseParam && selectedDate === today) return
 
@@ -2251,9 +2312,10 @@ function PlayPageContent() {
     }
     const nextUrl = params.toString() ? `/?${params.toString()}` : '/'
     window.history.replaceState({}, '', nextUrl)
-  }, [caseParam, selectedDate, selectedLevel, today])
+  }, [caseParam, isAdminPreview, selectedDate, selectedLevel, today])
 
   useEffect(() => {
+    if (isAdminPreview) return
     if (!dailyCase || !roundComplete || guesses.length === 0) return
 
     recordGameResult({
@@ -2267,7 +2329,7 @@ function PlayPageContent() {
     })
     setDailySummary(getStatsSummary().today)
     setResumeRound(getLatestUnfinishedRoundProgress())
-  }, [dailyCase, roundComplete, gameWon, guesses])
+  }, [dailyCase, gameWon, guesses, isAdminPreview, roundComplete])
 
   useEffect(() => {
     if (typeof window === 'undefined') return

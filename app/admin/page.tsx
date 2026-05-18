@@ -358,6 +358,13 @@ type AdminCaseDraft = {
   savedAt: string
 }
 
+type CasePreviewCache = {
+  savedAt: number
+  case: CaseRow
+}
+
+const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
+
 function shiftISODate(dateText: string, days: number) {
   const baseDate = new Date(`${dateText}T12:00:00`)
   baseDate.setDate(baseDate.getDate() + days)
@@ -374,7 +381,6 @@ const ANALYTICS_PAGE_SIZE = 1000
 
 export default function AdminPage() {
   const teachingPointRef = useRef<HTMLTextAreaElement | null>(null)
-  const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -396,6 +402,7 @@ export default function AdminPage() {
   const [learningImageCredit, setLearningImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [learningImageUrl2, setLearningImageUrl2] = useState('')
   const [learningImageCredit2, setLearningImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+  const [imagesCollapsed, setImagesCollapsed] = useState(true)
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
@@ -949,73 +956,70 @@ export default function AdminPage() {
     return `${Math.round(value)}%`
   }
 
+  function buildPreviewCase() {
+    const synonymArray = synonyms
+      .split(',')
+      .map(item => item.trim())
+      .filter(Boolean)
+
+    return {
+      id: `preview-${level}-${caseDate}`,
+      case_date: caseDate,
+      level,
+      contributor_name: null,
+      category: category.trim(),
+      prompt: prompt.trim(),
+      answer: answer.trim(),
+      synonyms: synonymArray,
+      image_url: imageUrl.trim() || null,
+      image_credit: normalizeCreditValue(imageCredit),
+      image_reveal_clue:
+        imageUrl.trim() && imageRevealClue !== 'none'
+          ? imageRevealClue === 'after'
+            ? 0
+            : Number(imageRevealClue)
+          : null,
+      image_url_2: imageUrl2.trim() || null,
+      image_credit_2: normalizeCreditValue(imageCredit2),
+      image_reveal_clue_2:
+        imageUrl2.trim() && imageRevealClue2 !== 'none'
+          ? imageRevealClue2 === 'after'
+            ? 0
+            : Number(imageRevealClue2)
+          : null,
+      clue_1: clue1.trim() || null,
+      clue_2: clue2.trim() || null,
+      clue_3: clue3.trim() || null,
+      clue_4: clue4.trim() || null,
+      clue_5: clue5.trim() || null,
+      clue_6: clue6.trim() || null,
+      teaching_point: teachingPoint.trim() || null,
+      learning_image_url: learningImageUrl.trim() || null,
+      learning_image_credit: normalizeCreditValue(learningImageCredit),
+      learning_image_url_2: learningImageUrl2.trim() || null,
+      learning_image_credit_2: normalizeCreditValue(learningImageCredit2),
+    } satisfies CaseRow
+  }
+
+  function openCasePreview() {
+    if (typeof window === 'undefined') return
+
+    const previewCase = buildPreviewCase()
+    window.sessionStorage.setItem(
+      ADMIN_CASE_PREVIEW_CACHE_KEY,
+      JSON.stringify({
+        savedAt: Date.now(),
+        case: previewCase,
+      } satisfies CasePreviewCache)
+    )
+    window.open(`/?preview=1&date=${previewCase.case_date}&level=${previewCase.level}`, '_blank', 'noopener,noreferrer')
+  }
+
   function formatShortDate(dateText: string) {
     return new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     })
-  }
-
-  function renderFormattedPreviewLine(line: string, keyPrefix = 'preview'): React.ReactNode[] {
-    const matches = [
-      { type: 'link' as const, match: line.match(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/) },
-      { type: 'underline' as const, match: line.match(/<u>(.*?)<\/u>/) },
-      { type: 'bold' as const, match: line.match(/\*\*(.+?)\*\*/) },
-      { type: 'italic' as const, match: line.match(/\*(?!\*)(.+?)\*(?!\*)/) },
-    ]
-      .filter((entry): entry is { type: 'link' | 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } => Boolean(entry.match))
-      .sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0))
-
-    const firstMatch = matches[0]
-    if (!firstMatch) {
-      return [<span key={`${keyPrefix}-text`}>{line}</span>]
-    }
-
-    const matchIndex = firstMatch.match.index ?? 0
-    const fullMatch = firstMatch.match[0]
-    const innerText = firstMatch.match[1] ?? ''
-    const linkHref = firstMatch.type === 'link' ? firstMatch.match[2] ?? '' : ''
-    const before = line.slice(0, matchIndex)
-    const after = line.slice(matchIndex + fullMatch.length)
-    const nodes: React.ReactNode[] = []
-
-    if (before) {
-      nodes.push(...renderFormattedPreviewLine(before, `${keyPrefix}-before`))
-    }
-
-    const innerNodes = renderFormattedPreviewLine(innerText, `${keyPrefix}-${firstMatch.type}`)
-    if (firstMatch.type === 'link') {
-      nodes.push(
-        <a
-          key={`${keyPrefix}-link`}
-          href={linkHref}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="font-semibold text-[#1f6ad8] underline decoration-[#1f6ad8]/50 underline-offset-2 transition hover:text-[#174c9c]"
-        >
-          {innerNodes}
-        </a>
-      )
-    } else if (firstMatch.type === 'underline') {
-      nodes.push(<u key={`${keyPrefix}-underline`}>{innerNodes}</u>)
-    } else if (firstMatch.type === 'bold') {
-      nodes.push(<strong key={`${keyPrefix}-bold`}>{innerNodes}</strong>)
-    } else {
-      nodes.push(<em key={`${keyPrefix}-italic`}>{innerNodes}</em>)
-    }
-
-    if (after) {
-      nodes.push(...renderFormattedPreviewLine(after, `${keyPrefix}-after`))
-    }
-
-    return nodes
-  }
-
-  function formatPreviewTeachingPoint(text: string) {
-    return text
-      .split(/\n+/)
-      .map(line => line.trim())
-      .filter(Boolean)
   }
 
   function normalizeCreditValue(value: string) {
@@ -1081,16 +1085,6 @@ export default function AdminPage() {
     if (value === 0) return 'after'
     if (value && value >= 1 && value <= 6) return String(value)
     return 'none'
-  }
-
-  function formatImageRevealSummary(value: string, imageNumber: 1 | 2) {
-    if (value === 'after') return `Image ${imageNumber} reveals after the answer as a teaching moment.`
-    if (value === 'none') {
-      return level === 'attending'
-        ? `Image ${imageNumber} shows before the answer choices.`
-        : `Image ${imageNumber} shows immediately.`
-    }
-    return `Image ${imageNumber} reveals with clue ${value}.`
   }
 
   function wrapTeachingPointSelection(format: 'bold' | 'italic' | 'underline') {
@@ -2329,7 +2323,7 @@ export default function AdminPage() {
       {
         case_date: caseDate,
         level,
-        contributor_name: contributorName || null,
+        contributor_name: null,
         category,
         prompt,
         answer,
@@ -3302,16 +3296,6 @@ export default function AdminPage() {
               </div>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Contributor Credit
-                <input
-                  value={contributorName}
-                  onChange={e => setContributorName(e.target.value)}
-                  placeholder="Optional contributor name shown after solving"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Category
                 <input
                   value={category}
@@ -3370,11 +3354,23 @@ export default function AdminPage() {
               </label>
 
               <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                <button
+                  type="button"
+                  onClick={() => setImagesCollapsed(current => !current)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                    Images
+                  </div>
+                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                    {imagesCollapsed ? 'Expand' : 'Collapse'}
+                  </div>
+                </button>
+
+                {!imagesCollapsed && (
+                  <div className="mt-3 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2.5">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                      Image 1
-                    </div>
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                       Image 1 URL
                       <input
@@ -3431,9 +3427,7 @@ export default function AdminPage() {
 
                   <div className="grid gap-2.5">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                        Image 2
-                      </div>
+                      <div />
                       {imageUrl2 && (
                         <button
                           type="button"
@@ -3502,18 +3496,11 @@ export default function AdminPage() {
                     </label>
                   </div>
                 </div>
-              </div>
 
               {level === 'attending' && (
                 <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                  <div className="mb-3 rounded-lg border border-[#dfe8e0] bg-white px-3 py-2 text-xs text-[#637268]">
-                    These teaching images show in the solved learning section below the explanation and above the archive/stats buttons.
-                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-2.5">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                        Teaching Image 1
-                      </div>
                       <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                         Teaching Image 1 URL
                         <input
@@ -3536,9 +3523,7 @@ export default function AdminPage() {
 
                     <div className="grid gap-2.5">
                       <div className="flex items-center justify-between gap-2">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                          Teaching Image 2
-                        </div>
+                        <div />
                         {learningImageUrl2 && (
                           <button
                             type="button"
@@ -3664,13 +3649,11 @@ export default function AdminPage() {
                   </button>
                 </div>
               )}
-
-              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                {level === 'attending' && (
-                  <div className="mb-3 rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-xs text-[#8a5a2b]">
-                    This mode now plays as a surgical anatomy multiple-choice quiz. Use up to six choices, keep the correct answer in the Answer field, and use the Teaching Point for the explanation and takeaway. Images can show before the click or reveal afterward as the teaching moment.
                   </div>
                 )}
+              </div>
+
+              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'A' : 'Clue 1'}
@@ -3791,9 +3774,6 @@ export default function AdminPage() {
                   rows={7}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
-                <span className="text-xs font-normal text-[#8a948d]">
-                  Line breaks are preserved. Use Ctrl/Cmd + B for bold, Ctrl/Cmd + I for italics, Ctrl/Cmd + U for underline, or add a blue hyperlink with the Link button. Orthodle Insight is added automatically when case stats exist.
-                </span>
               </label>
 
               {composerGuardrails.length > 0 && (
@@ -4021,176 +4001,22 @@ export default function AdminPage() {
                     <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                       Preview
                     </div>
-                    <p className="mt-1 text-[12px] text-[#637268]">
-                      A quick read on how this case will appear to players.
-                    </p>
                   </div>
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <div className="inline-flex rounded-full border border-[#ded7ca] bg-white p-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewMode('mobile')}
-                        className={`rounded-full px-2.5 py-1 transition ${
-                          previewMode === 'mobile'
-                            ? 'bg-[#1f6448] text-white'
-                            : 'text-[#637268] hover:bg-[#fbfaf7]'
-                        }`}
-                      >
-                        Mobile
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPreviewMode('desktop')}
-                        className={`rounded-full px-2.5 py-1 transition ${
-                          previewMode === 'desktop'
-                            ? 'bg-[#1f6448] text-white'
-                            : 'text-[#637268] hover:bg-[#fbfaf7]'
-                        }`}
-                      >
-                        Desktop
-                      </button>
-                    </div>
-                    <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                      {caseDate} · {formatLevel(level)}
-                    </div>
+                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    {caseDate} · {formatLevel(level)}
                   </div>
                 </div>
 
-                <div className={`mt-3 ${previewMode === 'mobile' ? 'mx-auto max-w-[390px]' : ''}`}>
-                  <div className={`overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white ${previewMode === 'mobile' ? 'shadow-[0_18px_36px_rgba(16,32,24,0.10)]' : ''}`}>
-                    <div className="mx-px mt-px h-1.5 rounded-t-[15px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7]" />
-
-                    <div className={previewMode === 'mobile' ? 'px-3 py-4' : 'p-4'}>
-                      <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                        <span className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1">
-                          {category || 'Category'}
-                        </span>
-                        {contributorName && (
-                          <span className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1">
-                            {contributorName}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className={previewMode === 'mobile' ? 'mt-3 space-y-2.5' : 'mt-3 space-y-3'}>
-                        <div className={`font-serif font-bold leading-tight text-[#102018] ${previewMode === 'mobile' ? 'text-[18px]' : 'text-[20px]'}`}>
-                          {answer || 'Diagnosis preview'}
-                        </div>
-
-                        <div className={`font-serif text-[#102018] ${previewMode === 'mobile' ? 'text-[15px] leading-7' : 'text-[16px] leading-7'}`}>
-                          {prompt || 'Your case prompt will show up here.'}
-                        </div>
-
-                        {(imageUrl || imageUrl2) && (
-                          <div className={`grid gap-2 ${imageUrl && imageUrl2 ? (previewMode === 'mobile' ? 'grid-cols-1' : 'md:grid-cols-2') : 'grid-cols-1'}`}>
-                            {imageUrl && (
-                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                                <img
-                                  src={imageUrl}
-                                  alt="Case preview"
-                                  className="max-h-56 rounded-lg object-contain"
-                                />
-                                {normalizeCreditValue(imageCredit) && (
-                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit)}</p>
-                                )}
-                                <p className="mt-1 text-[11px] text-[#637268]">
-                                  {formatImageRevealSummary(imageRevealClue, 1)}
-                                </p>
-                              </div>
-                            )}
-                            {imageUrl2 && (
-                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                                <img
-                                  src={imageUrl2}
-                                  alt="Second case preview"
-                                  className="max-h-56 rounded-lg object-contain"
-                                />
-                                {normalizeCreditValue(imageCredit2) && (
-                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(imageCredit2)}</p>
-                                )}
-                                <p className="mt-1 text-[11px] text-[#637268]">
-                                  {formatImageRevealSummary(imageRevealClue2, 2)}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        <div className="night-soft-surface rounded-xl border border-dashed border-[#d7e5db] bg-[#fdfefe] p-3">
-                          {previewClues.length > 0 ? (
-                            <ul className="space-y-2">
-                              {previewClues.map((clue, index) => (
-                                <li
-                                  key={`${clue}-${index}`}
-                                  className="orthodle-finding-card rounded-lg border border-[#ead9b7] px-3 py-2.5 text-sm leading-6 text-[#102018]"
-                                >
-                                  <span className="mr-2 text-[#637268]">{index + 1}.</span>
-                                  {clue}
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="mt-2 text-sm text-[#8a948d]">
-                              Add clues to preview the reveal sequence.
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                          <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-                            Quick takeaway
-                          </div>
-                          {teachingPoint.trim() ? (
-                            <div className="mt-2 space-y-2">
-                              {formatPreviewTeachingPoint(teachingPoint).map((line, index) => (
-                                <p key={`${line}-${index}`} className="text-sm leading-6 text-[#102018]">
-                                  {renderFormattedPreviewLine(line)}
-                                </p>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="mt-2 text-sm text-[#8a948d]">
-                              Add a short takeaway to show after the solve.
-                            </p>
-                          )}
-                        </div>
-
-                        {level === 'attending' && (learningImageUrl || learningImageUrl2) && (
-                          <div className={`grid gap-2 ${learningImageUrl && learningImageUrl2 ? (previewMode === 'mobile' ? 'grid-cols-1' : 'md:grid-cols-2') : 'grid-cols-1'}`}>
-                            {learningImageUrl && (
-                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-                                  Teaching image
-                                </div>
-                                <img
-                                  src={learningImageUrl}
-                                  alt="Teaching image preview"
-                                  className="max-h-56 rounded-lg object-contain"
-                                />
-                                {normalizeCreditValue(learningImageCredit) && (
-                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit)}</p>
-                                )}
-                              </div>
-                            )}
-                            {learningImageUrl2 && (
-                              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-                                  Teaching image 2
-                                </div>
-                                <img
-                                  src={learningImageUrl2}
-                                  alt="Second teaching image preview"
-                                  className="max-h-56 rounded-lg object-contain"
-                                />
-                                {normalizeCreditValue(learningImageCredit2) && (
-                                  <p className="mt-2 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit2)}</p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={openCasePreview}
+                    className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+                  >
+                    Open full-page preview
+                  </button>
+                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
+                    Uses your current draft
                   </div>
                 </div>
               </div>
