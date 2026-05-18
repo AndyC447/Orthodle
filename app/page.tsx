@@ -1460,7 +1460,7 @@ function PlayPageContent() {
   function formatLevel(level: Level, dateText = selectedDate) {
     if (level === 'med_student') return 'Med Student'
     if (level === 'resident') return 'Resident'
-    return isSurgicalAnatomyDate(dateText) ? 'Anatomy' : 'Anatomy'
+    return isSurgicalAnatomyDate(dateText) ? 'Anatomy' : 'Attending'
   }
 
   function formatArchiveDate(dateText: string) {
