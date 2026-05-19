@@ -1463,6 +1463,7 @@ export default function GroupsPage() {
   const [showCreateGroupIconPicker, setShowCreateGroupIconPicker] = useState(false)
   const [showCreateMemberIconPicker, setShowCreateMemberIconPicker] = useState(false)
   const [showGroupsExplainer, setShowGroupsExplainer] = useState(false)
+  const [showLeaderboardScoringGuide, setShowLeaderboardScoringGuide] = useState(false)
   const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
   const [showProfileStatGuide, setShowProfileStatGuide] = useState(false)
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([])
@@ -3550,6 +3551,80 @@ export default function GroupsPage() {
         </div>
       ) : null}
 
+      {showLeaderboardScoringGuide ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-[430px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                  This week
+                </div>
+                <h2 className="mt-1 font-serif text-[25px] font-semibold tracking-[-0.04em] text-[#102018]">
+                  How group scoring works
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowLeaderboardScoringGuide(false)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                aria-label="Close scoring guide"
+              >
+                <X size={15} strokeWidth={2} />
+              </button>
+            </div>
+            <div className="mt-4 space-y-3 text-[13px] leading-5 text-[#536158]">
+              <p>Each member builds a personal score, then the group leaderboard uses the team average plus a teamwork bonus for active members.</p>
+              <div className="rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] p-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Points per member
+                </div>
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Each solved case</span>
+                    <span className="font-semibold text-[#102018]">+{groupScoringSettings.solvePoints}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>First-try solve bonus</span>
+                    <span className="font-semibold text-[#102018]">+{groupScoringSettings.firstTryPoints}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Daily streak bonus</span>
+                    <span className="font-semibold text-[#102018]">+{groupScoringSettings.streakPoints}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>Efficiency bonus per guess under {groupScoringSettings.efficiencyBaseline}</span>
+                    <span className="font-semibold text-[#102018]">+{groupScoringSettings.efficiencyPointsPerGuess}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] p-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Teamwork boost
+                </div>
+                <p className="mt-2">
+                  After member scores are averaged, the group gets an activity boost of{' '}
+                  <span className="font-semibold text-[#102018]">
+                    +{groupScoringSettings.teamworkBonusPerMember}
+                  </span>{' '}
+                  for each active member, capped at{' '}
+                  <span className="font-semibold text-[#102018]">
+                    +{groupScoringSettings.teamworkBonusMax}
+                  </span>.
+                </p>
+              </div>
+              <p>The goal is to reward both strong individual solving and consistent team participation.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowLeaderboardScoringGuide(false)}
+              className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] text-[13px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#255e42]"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <section className="mx-auto max-w-[760px] px-2.5 py-2.5 sm:px-5 sm:py-5">
         {message && !dismissedMessages.includes(message) ? (
           <div className="mb-3 rounded-2xl border border-[#e7e1d6] bg-white px-3 py-2.5 text-[13px] text-[#355542] shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
@@ -3851,6 +3926,14 @@ export default function GroupsPage() {
                     >
                       {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                     </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowLeaderboardScoringGuide(true)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:bg-[#fbfaf7]"
+                    aria-label="Show leaderboard scoring guide"
+                  >
+                    <Info size={14} />
+                  </button>
                 </div>
               </div>
 
@@ -3993,7 +4076,7 @@ export default function GroupsPage() {
                         </div>
                       </div>
 
-                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:self-auto">
+                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:self-auto">
                       <button
                         type="button"
                         onClick={() =>
@@ -4002,6 +4085,14 @@ export default function GroupsPage() {
                           className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
                         >
                           {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowLeaderboardScoringGuide(true)}
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 text-white transition hover:bg-white/12 sm:h-10 sm:w-10"
+                        aria-label="Show leaderboard scoring guide"
+                      >
+                        <Info size={14} />
                       </button>
                     {isViewingOwnGroup ? (
                       <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">

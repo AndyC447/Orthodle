@@ -3,6 +3,14 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import {
+  buildMultiSelectSynonymMetadata,
+  extractPlainSynonyms,
+  getAnatomyChoiceItems,
+  getCorrectAnatomyChoiceLetters,
+  parseAnatomyGuessLetters,
+  parseChoiceLetterList,
+} from '@/lib/anatomy-quiz'
 import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
@@ -234,19 +242,13 @@ type PlayModeSettingsRow = {
   no_resident_mode_start_date: string | null
 }
 
-function stripAnatomyChoicePrefix(value: string) {
-  return value.replace(/^[A-F][\).\:\-]\s*/i, '').trim()
-}
-
 function buildAnatomyChoiceBreakdown(
   choiceSource: Array<string | null | undefined>,
   guessRows: Array<{ session_id: string; guess_text?: string | null }>,
-  acceptedAnswers: string[]
+  answer: string,
+  synonyms: string[] | null | undefined
 ) {
-  const choices = choiceSource
-    .map(choice => (typeof choice === 'string' ? choice.trim() : ''))
-    .filter(Boolean)
-    .slice(0, 6)
+  const choices = getAnatomyChoiceItems(choiceSource)
 
   if (choices.length < 2) {
     return {
@@ -261,9 +263,8 @@ function buildAnatomyChoiceBreakdown(
     }
   }
 
-  const normalizedChoices = choices.map(choice => normalizeAnswer(stripAnatomyChoicePrefix(choice)))
-  const normalizedAcceptedAnswers = new Set(
-    acceptedAnswers.map(answer => normalizeAnswer(answer)).filter(Boolean)
+  const correctLetters = new Set(
+    getCorrectAnatomyChoiceLetters(choiceSource, answer, synonyms)
   )
   const firstGuessBySession = new Map<string, string>()
 
@@ -274,28 +275,28 @@ function buildAnatomyChoiceBreakdown(
     }
   }
 
-  const counts = normalizedChoices.map(() => 0)
-  let responseCount = 0
+  const counts = choices.map(() => 0)
 
   for (const guessText of firstGuessBySession.values()) {
-    const normalizedGuess = normalizeAnswer(stripAnatomyChoicePrefix(guessText))
-    if (!normalizedGuess) continue
-    const matchIndex = normalizedChoices.findIndex(choice => choice === normalizedGuess)
-    if (matchIndex === -1) continue
-    counts[matchIndex] += 1
-    responseCount += 1
+    const selectedLetters = parseAnatomyGuessLetters(guessText, choiceSource)
+    if (selectedLetters.length === 0) continue
+    for (const letter of selectedLetters) {
+      const matchIndex = choices.findIndex(choice => choice.letter === letter)
+      if (matchIndex !== -1) {
+        counts[matchIndex] += 1
+      }
+    }
   }
 
   return {
-    responseCount,
+    responseCount: firstGuessBySession.size,
     breakdown: choices.map((choice, index) => {
-      const label = stripAnatomyChoicePrefix(choice)
       return {
-        letter: String.fromCharCode(65 + index),
-        label,
+        letter: choice.letter,
+        label: choice.label,
         count: counts[index] || 0,
-        rate: responseCount > 0 ? ((counts[index] || 0) / responseCount) * 100 : 0,
-        isCorrect: normalizedAcceptedAnswers.has(normalizeAnswer(label)),
+        rate: firstGuessBySession.size > 0 ? ((counts[index] || 0) / firstGuessBySession.size) * 100 : 0,
+        isCorrect: correctLetters.has(choice.letter),
       }
     }),
   }
@@ -339,6 +340,7 @@ type AdminCaseDraft = {
   prompt: string
   answer: string
   synonyms: string
+  anatomyCorrectChoices: string
   imageUrl: string
   imageCredit: string
   imageRevealClue: string
@@ -394,6 +396,7 @@ export default function AdminPage() {
   const [prompt, setPrompt] = useState('')
   const [answer, setAnswer] = useState('')
   const [synonyms, setSynonyms] = useState('')
+  const [anatomyCorrectChoices, setAnatomyCorrectChoices] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [imageCredit, setImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imageRevealClue, setImageRevealClue] = useState('none')
@@ -572,6 +575,7 @@ export default function AdminPage() {
           setPrompt(draft.prompt || '')
           setAnswer(draft.answer || '')
           setSynonyms(draft.synonyms || '')
+          setAnatomyCorrectChoices(draft.anatomyCorrectChoices || '')
           setImageUrl(draft.imageUrl || '')
           setImageCredit(draft.imageCredit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
           setImageRevealClue(draft.imageRevealClue || 'none')
@@ -611,6 +615,7 @@ export default function AdminPage() {
         prompt.trim() ||
         answer.trim() ||
         synonyms.trim() ||
+        anatomyCorrectChoices.trim() ||
         imageUrl.trim() ||
         normalizeCreditValue(imageCredit) ||
         imageUrl2.trim() ||
@@ -642,6 +647,7 @@ export default function AdminPage() {
       prompt,
       answer,
       synonyms,
+      anatomyCorrectChoices,
       imageUrl,
       imageCredit,
       imageRevealClue,
@@ -674,6 +680,7 @@ export default function AdminPage() {
     prompt,
     answer,
     synonyms,
+    anatomyCorrectChoices,
     imageUrl,
     imageCredit,
     imageRevealClue,
@@ -831,6 +838,14 @@ export default function AdminPage() {
     () => [clue1, clue2, clue3, clue4, clue5, clue6].map(item => item.trim()).filter(Boolean),
     [clue1, clue2, clue3, clue4, clue5, clue6]
   )
+  const anatomyChoiceItemsForComposer = useMemo(
+    () => getAnatomyChoiceItems([clue1, clue2, clue3, clue4, clue5, clue6]),
+    [clue1, clue2, clue3, clue4, clue5, clue6]
+  )
+  const normalizedAnatomyCorrectChoices = useMemo(
+    () => parseChoiceLetterList(anatomyCorrectChoices),
+    [anatomyCorrectChoices]
+  )
 
   const duplicateAnswerMatches = useMemo(() => {
     const normalizedAnswer = normalizeAnswer(answer)
@@ -963,6 +978,11 @@ export default function AdminPage() {
       .split(',')
       .map(item => item.trim())
       .filter(Boolean)
+    const multiSelectMetadata =
+      level === 'attending'
+        ? buildMultiSelectSynonymMetadata(normalizedAnatomyCorrectChoices)
+        : null
+    const storedSynonyms = multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray
 
     return {
       id: `preview-${level}-${caseDate}`,
@@ -972,7 +992,7 @@ export default function AdminPage() {
       category: category.trim(),
       prompt: prompt.trim(),
       answer: answer.trim(),
-      synonyms: synonymArray,
+      synonyms: storedSynonyms,
       image_url: imageUrl.trim() || null,
       image_credit: normalizeCreditValue(imageCredit),
       image_reveal_clue:
@@ -1218,6 +1238,7 @@ export default function AdminPage() {
     setPrompt('')
     setAnswer('')
     setSynonyms('')
+    setAnatomyCorrectChoices('')
     setImageUrl('')
     setImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue('none')
@@ -1247,6 +1268,7 @@ export default function AdminPage() {
     setPrompt('')
     setAnswer('')
     setSynonyms('')
+    setAnatomyCorrectChoices('')
     setImageUrl('')
     setImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue('none')
@@ -1279,7 +1301,12 @@ export default function AdminPage() {
     setCategory(c.category || '')
     setPrompt(c.prompt || '')
     setAnswer(c.answer || '')
-    setSynonyms((c.synonyms || []).join(', '))
+    setSynonyms(extractPlainSynonyms(c.synonyms || []).join(', '))
+    setAnatomyCorrectChoices(getCorrectAnatomyChoiceLetters(
+      [c.clue_1, c.clue_2, c.clue_3, c.clue_4, c.clue_5, c.clue_6],
+      c.answer || '',
+      c.synonyms || []
+    ).join(', '))
     setImageUrl(c.image_url || '')
     setImageCredit(c.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue(normalizeImageRevealValueForEditor(c.image_reveal_clue))
@@ -1309,7 +1336,12 @@ export default function AdminPage() {
     setCategory(submission.category || '')
     setPrompt(submission.prompt || '')
     setAnswer(submission.answer || '')
-    setSynonyms((submission.synonyms || []).join(', '))
+    setSynonyms(extractPlainSynonyms(submission.synonyms || []).join(', '))
+    setAnatomyCorrectChoices(getCorrectAnatomyChoiceLetters(
+      [submission.clue_1, submission.clue_2, submission.clue_3, submission.clue_4, submission.clue_5, submission.clue_6],
+      submission.answer || '',
+      submission.synonyms || []
+    ).join(', '))
     setImageUrl(submission.image_url || '')
     setImageCredit(submission.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue(normalizeImageRevealValueForEditor(submission.image_reveal_clue))
@@ -2209,7 +2241,8 @@ export default function AdminPage() {
               matchingCase.clue_6,
             ],
             publicGuessRows,
-            [matchingCase.answer, ...(matchingCase.synonyms || [])]
+            matchingCase.answer,
+            matchingCase.synonyms || []
           )
         : { responseCount: 0, breakdown: [] }
 
@@ -2301,6 +2334,20 @@ export default function AdminPage() {
       .split(',')
       .map(s => s.trim())
       .filter(Boolean)
+    const invalidAnatomyLetters = normalizedAnatomyCorrectChoices.filter(
+      letter => !anatomyChoiceItemsForComposer.some(choice => choice.letter === letter)
+    )
+
+    if (level === 'attending' && invalidAnatomyLetters.length > 0) {
+      setStatus(`Correct choices include invalid letters: ${invalidAnatomyLetters.join(', ')}.`)
+      return
+    }
+
+    const multiSelectMetadata =
+      level === 'attending'
+        ? buildMultiSelectSynonymMetadata(normalizedAnatomyCorrectChoices)
+        : null
+    const storedSynonyms = multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray
 
     const savedImageCredit = normalizeCreditValue(imageCredit)
     const savedImageCredit2 = normalizeCreditValue(imageCredit2)
@@ -2328,7 +2375,7 @@ export default function AdminPage() {
         category,
         prompt,
         answer,
-        synonyms: synonymArray,
+        synonyms: storedSynonyms,
         image_url: imageUrl || null,
         image_credit: savedImageCredit,
         image_reveal_clue: parsedImageRevealClue,
@@ -3352,6 +3399,18 @@ export default function AdminPage() {
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
               </label>
+
+              {level === 'attending' ? (
+                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                  Correct Choices
+                  <input
+                    value={anatomyCorrectChoices}
+                    onChange={e => setAnatomyCorrectChoices(e.target.value)}
+                    placeholder="A, B, C"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                  />
+                </label>
+              ) : null}
 
               <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
                 <button

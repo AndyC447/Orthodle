@@ -3,6 +3,13 @@ import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import {
+  getAnatomyChoiceItems,
+  getCorrectAnatomyChoiceLetters,
+  isCorrectAnatomySelection,
+  parseAnatomyGuessLetters,
+  serializeAnatomyGuessLetters,
+} from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
@@ -151,6 +158,7 @@ const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcem
 const HOMEPAGE_SURVEY_DISMISS_KEY = 'orthodle_dismissed_homepage_survey'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
 const RESUME_ROUND_DISMISS_KEY = 'orthodle_dismissed_resume_round'
+const DAILY_COMPLETE_DISMISS_KEY = 'orthodle_dismissed_daily_complete'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -338,19 +346,13 @@ function getBrowserTheme() {
   return 'light'
 }
 
-function stripChoicePrefix(value: string) {
-  return value.replace(/^[A-F][\).\:\-]\s*/i, '').trim()
-}
-
 function buildAnatomyChoiceBreakdown(
   choiceSource: Array<string | null | undefined>,
   guessRows: Array<{ session_id: string; guess_text?: string | null }>,
-  acceptedAnswers: string[]
+  answer: string,
+  synonyms: string[] | null | undefined
 ) {
-  const choices = choiceSource
-    .map(choice => (typeof choice === 'string' ? choice.trim() : ''))
-    .filter(Boolean)
-    .slice(0, 6)
+  const choices = getAnatomyChoiceItems(choiceSource)
 
   if (choices.length < 2) {
     return {
@@ -365,9 +367,12 @@ function buildAnatomyChoiceBreakdown(
     }
   }
 
-  const normalizedChoices = choices.map(choice => normalizeAnswer(stripChoicePrefix(choice)))
-  const normalizedAcceptedAnswers = new Set(
-    acceptedAnswers.map(answer => normalizeAnswer(answer)).filter(Boolean)
+  const correctLetters = new Set(
+    getCorrectAnatomyChoiceLetters(
+      choiceSource,
+      answer,
+      synonyms
+    )
   )
   const firstGuessBySession = new Map<string, string>()
 
@@ -378,28 +383,28 @@ function buildAnatomyChoiceBreakdown(
     }
   }
 
-  const counts = normalizedChoices.map(() => 0)
-  let responseCount = 0
+  const counts = choices.map(() => 0)
 
   for (const guessText of firstGuessBySession.values()) {
-    const normalizedGuess = normalizeAnswer(stripChoicePrefix(guessText))
-    if (!normalizedGuess) continue
-    const matchIndex = normalizedChoices.findIndex(choice => choice === normalizedGuess)
-    if (matchIndex === -1) continue
-    counts[matchIndex] += 1
-    responseCount += 1
+    const selectedLetters = parseAnatomyGuessLetters(guessText, choiceSource)
+    if (selectedLetters.length === 0) continue
+    for (const letter of selectedLetters) {
+      const matchIndex = choices.findIndex(choice => choice.letter === letter)
+      if (matchIndex !== -1) {
+        counts[matchIndex] += 1
+      }
+    }
   }
 
   return {
-    responseCount,
+    responseCount: firstGuessBySession.size,
     breakdown: choices.map((choice, index) => {
-      const label = stripChoicePrefix(choice)
       return {
-        letter: String.fromCharCode(65 + index),
-        label,
+        letter: choice.letter,
+        label: choice.label,
         count: counts[index] || 0,
-        rate: responseCount > 0 ? ((counts[index] || 0) / responseCount) * 100 : 0,
-        isCorrect: normalizedAcceptedAnswers.has(normalizeAnswer(label)),
+        rate: firstGuessBySession.size > 0 ? ((counts[index] || 0) / firstGuessBySession.size) * 100 : 0,
+        isCorrect: correctLetters.has(choice.letter),
       }
     }),
   }
@@ -497,6 +502,7 @@ function PlayPageContent() {
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isMobileInputFocused, setIsMobileInputFocused] = useState(false)
   const [guesses, setGuesses] = useState<Guess[]>([])
+  const [selectedAnatomyLetters, setSelectedAnatomyLetters] = useState<string[]>([])
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [gameWon, setGameWon] = useState(false)
@@ -528,6 +534,7 @@ function PlayPageContent() {
   const [dismissedResumeRoundToken, setDismissedResumeRoundToken] = useState<string | null>(null)
   const [homepageSurvey, setHomepageSurvey] = useState<HomepageSurveyRow | null>(null)
   const [dismissedHomepageSurveyKey, setDismissedHomepageSurveyKey] = useState<string | null>(null)
+  const [dismissedDailyCompleteDate, setDismissedDailyCompleteDate] = useState<string | null>(null)
   const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
   const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
   const [homepageSurveyStatus, setHomepageSurveyStatus] = useState('')
@@ -605,6 +612,9 @@ function PlayPageContent() {
     )
     setDismissedHomepageSurveyKey(
       window.localStorage.getItem(HOMEPAGE_SURVEY_DISMISS_KEY)
+    )
+    setDismissedDailyCompleteDate(
+      window.localStorage.getItem(DAILY_COMPLETE_DISMISS_KEY)
     )
     setShowTutorial(!window.localStorage.getItem(TUTORIAL_DISMISS_KEY))
     setResumeRound(getLatestUnfinishedRoundProgress())
@@ -1240,11 +1250,12 @@ function PlayPageContent() {
     async function loadCase() {
       setLoading(true)
       setDailyCase(null)
-      setGuess('')
-      setGuesses([])
-      setGameWon(false)
-      setGameOver(false)
-      setMessage('')
+          setGuess('')
+          setGuesses([])
+          setSelectedAnatomyLetters([])
+          setGameWon(false)
+          setGameOver(false)
+          setMessage('')
       setShakeInput(false)
       setPulseSuccess(false)
       setShowConfetti(false)
@@ -1336,6 +1347,7 @@ function PlayPageContent() {
 
         if (previewCase) {
           setGuesses([])
+          setSelectedAnatomyLetters([])
           setGameWon(false)
           setGameOver(false)
           setMessage('')
@@ -1373,6 +1385,14 @@ function PlayPageContent() {
 
         if (shouldUseSavedProgress && savedProgress) {
           setGuesses(savedProgress.guesses)
+          setSelectedAnatomyLetters(
+            savedProgress.guesses.length > 0
+              ? parseAnatomyGuessLetters(
+                  savedProgress.guesses[savedProgress.guesses.length - 1]?.text || '',
+                  surgicalAnatomyChoices
+                )
+              : []
+          )
           setGameWon(savedProgress.gameWon)
           setGameOver(savedProgress.gameOver)
           setMessage(savedProgress.message)
@@ -1390,6 +1410,14 @@ function PlayPageContent() {
               : `Not quite. ${maxGuessesForLoadedCase - serverGuesses.length} guesses remaining.`
 
           setGuesses(serverGuesses)
+          setSelectedAnatomyLetters(
+            serverGuesses.length > 0
+              ? parseAnatomyGuessLetters(
+                  serverGuesses[serverGuesses.length - 1]?.text || '',
+                  [data.clue_1, data.clue_2, data.clue_3, data.clue_4, data.clue_5, data.clue_6]
+                )
+              : []
+          )
           setGameWon(solvedOnServer)
           setGameOver(gameOverOnServer)
           setMessage(serverMessage)
@@ -1405,6 +1433,7 @@ function PlayPageContent() {
           })
         } else {
           setGuesses([])
+          setSelectedAnatomyLetters([])
           setGameWon(false)
           setGameOver(false)
           setMessage('')
@@ -1484,7 +1513,8 @@ function PlayPageContent() {
             ? buildAnatomyChoiceBreakdown(
                 [data.clue_1, data.clue_2, data.clue_3, data.clue_4, data.clue_5, data.clue_6],
                 publicGuessRows,
-                [data.answer, ...(data.synonyms || [])]
+                data.answer,
+                data.synonyms || []
               )
             : { responseCount: 0, breakdown: [] }
 
@@ -1562,13 +1592,20 @@ function PlayPageContent() {
   const useSurgicalAnatomyQuiz = isSurgicalAnatomyMode && hasValidSurgicalAnatomyChoices
   const maxGuessesForCurrentCase = isSurgicalAnatomyMode ? 1 : MAX_GUESSES
   const selectedQuizGuess = useSurgicalAnatomyQuiz && guesses.length > 0 ? guesses[guesses.length - 1] : null
-  const normalizedCorrectAnswers = useMemo(() => {
-    const pool = [dailyCase?.answer || '', ...(dailyCase?.synonyms || [])]
-    return new Set(pool.map(item => normalizeAnswer(item)).filter(Boolean))
-  }, [dailyCase])
-  const selectedQuizAnswerNormalized = selectedQuizGuess
-    ? normalizeAnswer(stripChoicePrefix(selectedQuizGuess.text))
-    : ''
+  const correctAnatomyLetters = useMemo(
+    () =>
+      getCorrectAnatomyChoiceLetters(
+        surgicalAnatomyChoices,
+        dailyCase?.answer || '',
+        dailyCase?.synonyms || []
+      ),
+    [dailyCase, surgicalAnatomyChoices]
+  )
+  const selectedQuizLetterSet = new Set(
+    selectedQuizGuess
+      ? parseAnatomyGuessLetters(selectedQuizGuess.text, surgicalAnatomyChoices)
+      : selectedAnatomyLetters
+  )
 
   const roundComplete = gameWon || gameOver
 
@@ -2215,20 +2252,27 @@ function PlayPageContent() {
     )
   }
 
-  async function submitGuess(submittedGuess?: string, displayGuess?: string) {
+  async function submitGuess(
+    submittedGuess?: string,
+    displayGuess?: string,
+    submittedLetters?: string[]
+  ) {
     if (!dailyCase || gameWon || gameOver) return
 
     const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
     const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
+    const selectedLettersForGuess = submittedLetters || []
     const data = isAdminPreview
       ? (() => {
           const accepted = [dailyCase.answer, ...(dailyCase.synonyms || [])]
           const isAnatomyPreview = dailyCase.level === 'attending' && surgicalAnatomyChoices.length >= 2
           const correct = isAnatomyPreview
-            ? accepted
-                .map(answer => normalizeAnswer(answer))
-                .filter(Boolean)
-                .includes(normalizeAnswer(currentGuess))
+            ? isCorrectAnatomySelection(
+                currentGuess,
+                surgicalAnatomyChoices,
+                dailyCase.answer,
+                dailyCase.synonyms || []
+              )
             : isAcceptedGuess(currentGuess, accepted)
           return { correct, remaining: Math.max(0, maxGuessesForCurrentCase - (guesses.length + 1)) }
         })()
@@ -2253,6 +2297,9 @@ function PlayPageContent() {
 
     setGuesses(nextGuesses)
     setGuess('')
+    if (selectedLettersForGuess.length > 0) {
+      setSelectedAnatomyLetters(selectedLettersForGuess)
+    }
 
     if (data.correct) {
       setGameWon(true)
@@ -2357,6 +2404,7 @@ function PlayPageContent() {
       setMessage('')
       setJustCompletedRound(false)
       setGuess('')
+      setSelectedAnatomyLetters([])
     }
 
     window.addEventListener('orthodle:go-home', handleGoHome)
@@ -2455,6 +2503,7 @@ function PlayPageContent() {
   ).length
   const todayComplete = todayCompletedLevels >= requiredDailyLevels
   const onTodayCard = selectedDate === todayISO()
+  const showDailyCompleteCard = onTodayCard && todayComplete && dismissedDailyCompleteDate !== today
   const resumeRoundIsCurrent = Boolean(
     resumeRound &&
       resumeRound.caseDate === selectedDate &&
@@ -2506,6 +2555,7 @@ function PlayPageContent() {
     setIsTransitioningLevel(true)
     setSelectedLevel(nextLevel)
     setGuess('')
+    setSelectedAnatomyLetters([])
     setMessage('')
     setImageHidden(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -2803,14 +2853,31 @@ function PlayPageContent() {
       )}
 
       <section className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
-        {onTodayCard && todayComplete && (
+        {showDailyCompleteCard && (
           <div className="orthodle-panel-shell mt-3 w-full rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)] sm:px-5 sm:py-3.5">
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
-              Daily card complete
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 text-center">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
+                  Daily card complete
+                </div>
+                <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268] sm:text-[12px]">
+                  Fresh cases drop tomorrow. Keep the streak alive.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.localStorage.setItem(DAILY_COMPLETE_DISMISS_KEY, today)
+                  }
+                  setDismissedDailyCompleteDate(today)
+                }}
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#cfded4] bg-white text-[#637268] transition hover:bg-[#f7fbf8]"
+                aria-label="Dismiss daily complete card"
+              >
+                ×
+              </button>
             </div>
-            <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268] sm:text-[12px]">
-              Fresh cases drop tomorrow. Keep the streak alive.
-            </p>
             <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
               <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1">
                 <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
@@ -3161,12 +3228,32 @@ function PlayPageContent() {
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] border border-[#d9cfbf] bg-[linear-gradient(180deg,#fffdf7_0%,#fbf7ef_100%)] p-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:p-4">
                     {hasValidSurgicalAnatomyChoices ? (
                       <>
+                        {!roundComplete && (
+                          <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[11px] text-[#637268]">
+                            <div>
+                              Select all that apply, then submit.
+                            </div>
+                            <button
+                              type="button"
+                              disabled={selectedAnatomyLetters.length === 0}
+                              onClick={() =>
+                                void submitGuess(
+                                  serializeAnatomyGuessLetters(selectedAnatomyLetters),
+                                  selectedAnatomyLetters.join(', '),
+                                  selectedAnatomyLetters
+                                )
+                              }
+                              className="rounded-full border border-[#1f6448] bg-[#1f6448] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:border-[#cbd6cf] disabled:bg-[#cbd6cf]"
+                            >
+                              Submit
+                            </button>
+                          </div>
+                        )}
                         <div className="grid gap-2 sm:grid-cols-2">
                           {surgicalAnatomyChoices.map((choice, index) => {
                             const letter = String.fromCharCode(65 + index)
-                            const normalizedChoice = normalizeAnswer(stripChoicePrefix(choice))
-                            const isCorrectChoice = normalizedCorrectAnswers.has(normalizedChoice)
-                            const isChosenChoice = selectedQuizAnswerNormalized === normalizedChoice
+                            const isCorrectChoice = correctAnatomyLetters.includes(letter)
+                            const isChosenChoice = selectedQuizLetterSet.has(letter)
                             const choiceState = roundComplete
                               ? isCorrectChoice
                                 ? 'correct'
@@ -3180,12 +3267,20 @@ function PlayPageContent() {
                                 key={`${choice}-${index}`}
                                 type="button"
                                 disabled={roundComplete}
-                                onClick={() => void submitGuess(stripChoicePrefix(choice), choice)}
+                                onClick={() =>
+                                  setSelectedAnatomyLetters(current =>
+                                    current.includes(letter)
+                                      ? current.filter(item => item !== letter)
+                                      : [...current, letter].sort()
+                                  )
+                                }
                                 className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
                                   choiceState === 'correct'
                                     ? 'orthodle-anatomy-choice-correct cursor-default border-[#1f7a4d] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
                                       ? 'orthodle-anatomy-choice-incorrect cursor-default border-[#c76b3a] bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
+                                      : isChosenChoice
+                                        ? 'border-[#1f6448] bg-[#f7fbf8] text-[#102018] shadow-[0_8px_18px_rgba(31,100,72,0.08)]'
                                       : roundComplete
                                         ? 'orthodle-anatomy-choice-idle cursor-default border-[#ded7ca] bg-[#fbfaf7] text-[#102018]'
                                         : 'orthodle-anatomy-choice-idle border-[#ded7ca] bg-white text-[#102018] hover:border-[#1f6448] hover:bg-[#f7fbf8]'
@@ -3198,6 +3293,8 @@ function PlayPageContent() {
                                         ? 'orthodle-anatomy-choice-badge-correct border-[#1f7a4d] bg-[#dff0e4] text-[#1f7a4d]'
                                         : choiceState === 'incorrect'
                                           ? 'orthodle-anatomy-choice-badge-incorrect border-[#c76b3a] bg-[#fde1d2] text-[#b95426]'
+                                          : isChosenChoice
+                                            ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
                                           : 'orthodle-anatomy-choice-badge-idle border-[#ead9b7] bg-[#fffaf1] text-[#a35d32]'
                                     }`}
                                   >

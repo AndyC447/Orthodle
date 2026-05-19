@@ -1,16 +1,7 @@
 import { NextResponse } from 'next/server'
+import { isCorrectAnatomySelection } from '@/lib/anatomy-quiz'
 import { supabase } from '@/lib/supabase'
-import { isAcceptedGuess, normalizeAnswer } from '@/lib/utils'
-
-function isExactAcceptedGuess(guess: string, acceptedAnswers: string[]) {
-  const normalizedGuess = normalizeAnswer(guess)
-  if (!normalizedGuess) return false
-
-  return acceptedAnswers
-    .map(answer => normalizeAnswer(answer))
-    .filter(Boolean)
-    .includes(normalizedGuess)
-}
+import { isAcceptedGuess } from '@/lib/utils'
 
 export async function POST(req: Request) {
   const { caseId, guess, sessionId, doNotTrack } = await req.json()
@@ -29,17 +20,20 @@ export async function POST(req: Request) {
   if (error || !caseRow) return NextResponse.json({ error: 'Case not found' }, { status: 404 })
 
   const accepted = [caseRow.answer, ...(caseRow.synonyms || [])]
-  const anatomyChoiceCount = [
+  const anatomyChoices = [
     caseRow.clue_1,
     caseRow.clue_2,
     caseRow.clue_3,
     caseRow.clue_4,
     caseRow.clue_5,
     caseRow.clue_6,
-  ].filter(choice => typeof choice === 'string' && choice.trim().length > 0).length
+  ]
+  const anatomyChoiceCount = anatomyChoices.filter(
+    choice => typeof choice === 'string' && choice.trim().length > 0
+  ).length
   const shouldUseStrictAnatomyMatching = caseRow.level === 'attending' && anatomyChoiceCount >= 2
   const correct = shouldUseStrictAnatomyMatching
-    ? isExactAcceptedGuess(normalizedGuess, accepted)
+    ? isCorrectAnatomySelection(normalizedGuess, anatomyChoices, caseRow.answer, caseRow.synonyms || [])
     : isAcceptedGuess(normalizedGuess, accepted)
 
   if (isLocalRequest) {
