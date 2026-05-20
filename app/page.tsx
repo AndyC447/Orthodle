@@ -481,7 +481,6 @@ function PlayPageContent() {
   const guessInputRef = useRef<HTMLInputElement | null>(null)
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
-  const inputSectionRef = useRef<HTMLDivElement | null>(null)
   const imageTouchStartY = useRef<number | null>(null)
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
   const imagePinchStart = useRef<number | null>(null)
@@ -497,7 +496,6 @@ function PlayPageContent() {
   const [guess, setGuess] = useState('')
   const [answerOptions, setAnswerOptions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [isMobileInputFocused, setIsMobileInputFocused] = useState(false)
   const [guesses, setGuesses] = useState<Guess[]>([])
   const [selectedAnatomyLetters, setSelectedAnatomyLetters] = useState<string[]>([])
   const [message, setMessage] = useState('')
@@ -2289,7 +2287,6 @@ function PlayPageContent() {
     const selectedLettersForGuess = submittedLetters || []
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
       guessInputRef.current?.blur()
-      setIsMobileInputFocused(false)
       setShowSuggestions(false)
     }
     const data = isAdminPreview
@@ -2411,19 +2408,6 @@ function PlayPageContent() {
 
     return () => window.clearTimeout(timeoutId)
   }, [unlockedFindings, roundComplete])
-
-  useEffect(() => {
-    if (!isMobileInputFocused) return
-
-    const timeoutId = window.setTimeout(() => {
-      inputSectionRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      })
-    }, 120)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [isMobileInputFocused])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -3404,34 +3388,9 @@ function PlayPageContent() {
                 )}
               </div>
 
-              <div
-                ref={inputSectionRef}
-                className={`mt-3 border-t border-[#ded7ca] pt-2.5 ${
-                  isMobileInputFocused
-                    ? 'fixed inset-x-3 bottom-3 z-40 rounded-[22px] border border-[#ded7ca] bg-[#fbfaf7] p-3 shadow-[0_18px_40px_rgba(16,32,24,0.12)] sm:static sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none'
-                    : ''
-                }`}
-              >
+              <div className="mt-3 border-t border-[#ded7ca] pt-2.5">
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
-                    {isMobileInputFocused && (
-                      <div className="mb-2 flex items-center justify-between gap-3 sm:hidden">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                          Type your guess
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            guessInputRef.current?.blur()
-                            setIsMobileInputFocused(false)
-                            setShowSuggestions(false)
-                          }}
-                          className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018]"
-                        >
-                          Done
-                        </button>
-                      </div>
-                    )}
                     <div className="relative">
                       <div className={shakeInput ? 'orthodle-shake flex items-stretch gap-2' : 'flex items-stretch gap-2'}>
                         <input
@@ -3443,9 +3402,7 @@ function PlayPageContent() {
                           }}
                           onFocus={() => {
                             setShowSuggestions(true)
-                            setIsMobileInputFocused(true)
                           }}
-                          onBlurCapture={() => setIsMobileInputFocused(false)}
                           onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
                           onKeyDown={e => e.key === 'Enter' && submitGuess()}
                           autoCapitalize="none"
