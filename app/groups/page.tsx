@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, BookOpen, Download, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
+import { Bell, BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
 import {
@@ -1488,8 +1488,6 @@ export default function GroupsPage() {
   const [authUsername, setAuthUsername] = useState('')
   const [authPassword, setAuthPassword] = useState('')
   const [authSubmitting, setAuthSubmitting] = useState(false)
-  const [backupStatus, setBackupStatus] = useState('')
-  const [backingUp, setBackingUp] = useState(false)
   const [isEditingProfileName, setIsEditingProfileName] = useState(false)
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
@@ -2662,88 +2660,6 @@ export default function GroupsPage() {
     setMessage('Signed out. This browser is back on its local profile.')
   }
 
-  async function downloadProgressBackup() {
-    if (typeof window === 'undefined') return
-
-    setBackingUp(true)
-    setBackupStatus('')
-
-    try {
-      const localStorageSnapshot: Record<string, string> = {}
-
-      for (let index = 0; index < window.localStorage.length; index += 1) {
-        const key = window.localStorage.key(index)
-        if (!key || !key.startsWith('orthodle')) continue
-        const value = window.localStorage.getItem(key)
-        if (value !== null) {
-          localStorageSnapshot[key] = value
-        }
-      }
-
-      const params = new URLSearchParams({
-        sessionId,
-      })
-
-      if (accountSession?.accountId) {
-        params.set('accountId', accountSession.accountId)
-      }
-
-      let serverBackup: Record<string, unknown> | null = null
-      let usedServerData = false
-
-      try {
-        const response = await fetch(`/api/account/backup?${params.toString()}`, {
-          cache: 'no-store',
-        })
-        const payload = await response.json().catch(() => ({}))
-
-        if (response.ok) {
-          serverBackup = payload
-          usedServerData = true
-        }
-      } catch {
-        serverBackup = null
-      }
-
-      const backupPayload = {
-        exportedAt: new Date().toISOString(),
-        source: 'orthodle-progress-backup',
-        identity: {
-          accountSession,
-          currentSessionId: sessionId,
-          anonymousSessionId: getAnonymousSessionId() || null,
-        },
-        browserData: {
-          localStorage: localStorageSnapshot,
-        },
-        serverBackup,
-      }
-
-      const fileDate = new Date().toISOString().slice(0, 10)
-      const blob = new Blob([JSON.stringify(backupPayload, null, 2)], {
-        type: 'application/json',
-      })
-      const url = window.URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = `orthodle-backup-${fileDate}.json`
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      window.URL.revokeObjectURL(url)
-
-      setBackupStatus(
-        usedServerData
-          ? 'Backup downloaded with your browser progress and saved account data.'
-          : 'Backup downloaded with your browser progress. Server data could not be included right now.'
-      )
-    } catch {
-      setBackupStatus('Could not build your backup right now.')
-    } finally {
-      setBackingUp(false)
-    }
-  }
-
   function dismissGroupAnnouncement() {
     if (!groupAnnouncementKey || typeof window === 'undefined') return
     window.localStorage.setItem(GROUP_ANNOUNCEMENT_DISMISS_KEY, groupAnnouncementKey)
@@ -3506,9 +3422,8 @@ export default function GroupsPage() {
       ) : null}
 
       {showGroupsExplainer ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:items-center sm:py-6">
-          <div className="w-full max-w-[420px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:rounded-[24px] sm:p-5">
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-[420px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
@@ -3553,9 +3468,8 @@ export default function GroupsPage() {
       ) : null}
 
       {showLeaderboardScoringGuide ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:items-center sm:py-6">
-          <div className="w-full max-w-[430px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:rounded-[24px] sm:p-5">
-            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
+          <div className="w-full max-w-[430px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
@@ -4029,18 +3943,6 @@ export default function GroupsPage() {
           <div className="space-y-3.5 sm:space-y-4">
             {selectedGroup && selectedGroupAggregate ? (
               <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveGroupsTab('home')
-                    setShowSelectedGroupIconPicker(false)
-                    setSelectedMemberStats(null)
-                  }}
-                  className="inline-flex h-9 items-center gap-2 self-start rounded-full border border-[#e6dfd3] bg-white px-3.5 text-[11px] font-bold uppercase tracking-[0.12em] text-[#355542] transition hover:-translate-y-0.5 hover:bg-[#fbfaf7]"
-                >
-                  <span aria-hidden="true">←</span>
-                  Back to groups
-                </button>
                 <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
                   <div className="flex flex-col gap-3 sm:gap-4">
                     <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
@@ -4078,7 +3980,7 @@ export default function GroupsPage() {
                         </div>
                       </div>
 
-                    <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:self-auto">
+                    <div className="flex w-full flex-wrap items-center gap-2 sm:ml-2 sm:w-auto sm:self-auto">
                       <button
                         type="button"
                         onClick={() =>
@@ -4091,7 +3993,7 @@ export default function GroupsPage() {
                       <button
                         type="button"
                         onClick={() => setShowLeaderboardScoringGuide(true)}
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 text-white transition hover:bg-white/12 sm:h-10 sm:w-10"
+                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 text-white transition hover:bg-white/12 sm:h-10 sm:w-10"
                         aria-label="Show leaderboard scoring guide"
                       >
                         <Info size={14} />
@@ -4174,25 +4076,13 @@ export default function GroupsPage() {
                     </div>
                   </div>
 
-                  <div className="mt-3 rounded-[16px] border border-white/12 bg-white/6 px-3 py-2.5">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#dfece5]">
-                        Weekly momentum
-                      </div>
-                      <div className="text-[11px] font-semibold text-white sm:text-[12px]">
-                        {selectedGroupMomentum || 'Keep stacking solves.'}
-                      </div>
-                    </div>
-                    <div className="mt-1 text-[11px] text-[#dbe8e1] sm:text-[12px]">
-                      {selectedWeeklyGroupAggregate?.currentStreak || 0}-day group streak ·{' '}
-                      {selectedWeeklyGroupAggregate?.activeTodayCount || 0} active today
-                    </div>
-                  </div>
                 </section>
 
-                {weeklyHonorsEnabled ? (
+                {weeklyHonorsEnabled &&
+                (selectedGroupMvpHistory.length > 0 || selectedGroupBannerHistory.length > 0) ? (
                   <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
-                    <div className="grid gap-2.5 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div className={`grid gap-2.5 ${selectedGroupMvpHistory.length > 0 && selectedGroupBannerHistory.length > 0 ? 'lg:grid-cols-[1.1fr_0.9fr]' : ''}`}>
+                      {selectedGroupMvpHistory.length > 0 ? (
                       <div className="rounded-[18px] border border-[#eadfca] bg-[linear-gradient(135deg,#fffaf0,#fcfbf8)] px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -4225,13 +4115,11 @@ export default function GroupsPage() {
                               </div>
                             ))}
                           </div>
-                        ) : (
-                          <div className="mt-3 rounded-[16px] border border-dashed border-[#ece6db] bg-[#fcfbf8] px-3 py-3 text-[12px] text-[#637268]">
-                            No MVP history yet for this group.
-                          </div>
-                        )}
+                        ) : null}
                       </div>
+                      ) : null}
 
+                      {selectedGroupBannerHistory.length > 0 ? (
                       <div className="rounded-[18px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -4268,12 +4156,9 @@ export default function GroupsPage() {
                               </div>
                             ))}
                           </div>
-                        ) : (
-                          <div className="mt-3 rounded-[16px] border border-dashed border-[#dfe9e2] bg-white px-3 py-3 text-[12px] text-[#637268]">
-                            Win Group of the Week to unlock your first banner.
-                          </div>
-                        )}
+                        ) : null}
                       </div>
+                      ) : null}
                     </div>
                   </section>
                 ) : null}
@@ -4282,9 +4167,6 @@ export default function GroupsPage() {
                   <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
-                          Your group this week
-                        </div>
                         <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
                           {viewerGroup.name}
                         </div>
@@ -4319,148 +4201,87 @@ export default function GroupsPage() {
                           {viewerGroupAggregate.activeTodayCount} active today
                         </div>
                       </div>
-                      <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3 sm:col-span-2">
+                      <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
                         <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                          Momentum
+                          Group rank
                         </div>
-                        <div className="mt-1 font-semibold text-[#102018]">
-                          {viewerGroupMomentum || 'Keep stacking solves.'}
-                        </div>
-                        <div className="mt-1 text-[11px] text-[#637268]">
-                          {viewerGroupRecap?.detail || 'Every solve moves the board.'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                      <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
-                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                          Today's solvers
-                        </div>
-                        <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
-                          {viewerGroupTodaySolvers.length > 0 ? viewerGroupTodaySolvers.join(' · ') : 'Nobody has checked in yet'}
-                        </div>
-                      </div>
-                      <div className="rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5">
-                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                          Race status
-                        </div>
-                        <div className="mt-1.5 text-[12px] font-semibold text-[#102018]">
-                          {viewerGroupMomentum || 'Keep stacking solves.'}
+                        <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                          #{viewerGroupRank || '—'}
                         </div>
                         <div className="mt-1 text-[11px] text-[#2d7651]">
-                          {viewerGroupRank === 1 ? 'Defend the lead today.' : 'A small run can flip the board.'}
+                          of {activeGroupAggregates.length} groups
+                        </div>
+                      </div>
+                      <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
+                        <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Team score
+                        </div>
+                        <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
+                          {formatScore(viewerGroupAggregate.score)}
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#2d7651]">
+                          {leaderboardWindow === 'week' ? 'this week' : 'all time'}
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
-                      {viewerGroupChallenge ? (
-                        <div className="rounded-[16px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
-                          <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
-                            Weekly challenge
-                          </div>
-                          <div className="mt-1 font-semibold text-[#102018]">
-                            {viewerGroupChallenge.title}
-                          </div>
-                          <div className="mt-1 text-[12px] text-[#637268]">
-                            {viewerGroupChallenge.detail}
-                          </div>
-                          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
-                            <div
-                              className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
-                              style={{
-                                width: `${Math.min(
-                                  100,
-                                  Math.max(
-                                    12,
-                                    (viewerGroupChallenge.progress / viewerGroupChallenge.goal) * 100
-                                  )
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                          <div className="mt-1 flex items-center justify-between text-[11px]">
-                            <span className="font-semibold text-[#102018]">
-                              {viewerGroupChallenge.progress}/{viewerGroupChallenge.goal}
-                            </span>
-                            <span className="text-[#637268]">{viewerGroupChallenge.reward}</span>
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {viewerGroupRecap ? (
-                        <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
-                          <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                            Weekly recap
-                          </div>
-                          <div className="mt-1 font-semibold text-[#102018]">
-                            {viewerGroupRecap.title}
-                          </div>
-                          <div className="mt-1 text-[12px] text-[#637268]">
-                            {viewerGroupRecap.detail}
-                          </div>
-                          <div className="mt-2 text-[11px] font-semibold text-[#2d7651]">
-                            {viewerGroupRecap.accent}
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
                   </section>
                 ) : null}
 
-                <div className="grid gap-2.5 sm:grid-cols-2">
-                  {selectedGroupChallenge ? (
-                    <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
-                        Weekly challenge
-                      </div>
-                      <div className="mt-1 font-serif text-[20px] font-bold tracking-[-0.03em] text-[#102018]">
-                        {selectedGroupChallenge.title}
-                      </div>
-                      <div className="mt-1 text-[13px] leading-5 text-[#637268]">
-                        {selectedGroupChallenge.detail}
-                      </div>
-                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
-                        <div
-                          className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
-                          style={{
-                            width: `${Math.min(
-                              100,
-                              Math.max(
-                                12,
-                                (selectedGroupChallenge.progress / selectedGroupChallenge.goal) * 100
-                              )
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                      <div className="mt-2 flex items-center justify-between gap-3 text-[12px]">
-                        <span className="font-semibold text-[#102018]">
-                          {selectedGroupChallenge.progress}/{selectedGroupChallenge.goal}
-                        </span>
-                        <span className="text-right text-[#637268]">{selectedGroupChallenge.reward}</span>
-                      </div>
-                    </section>
-                  ) : null}
+                {!isViewingOwnGroup ? (
+                  <div className="grid gap-2.5 sm:grid-cols-2">
+                    {selectedGroupChallenge ? (
+                      <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
+                          Weekly challenge
+                        </div>
+                        <div className="mt-1 font-serif text-[20px] font-bold tracking-[-0.03em] text-[#102018]">
+                          {selectedGroupChallenge.title}
+                        </div>
+                        <div className="mt-1 text-[13px] leading-5 text-[#637268]">
+                          {selectedGroupChallenge.detail}
+                        </div>
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
+                          <div
+                            className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.max(
+                                  12,
+                                  (selectedGroupChallenge.progress / selectedGroupChallenge.goal) * 100
+                                )
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3 text-[12px]">
+                          <span className="font-semibold text-[#102018]">
+                            {selectedGroupChallenge.progress}/{selectedGroupChallenge.goal}
+                          </span>
+                          <span className="text-right text-[#637268]">{selectedGroupChallenge.reward}</span>
+                        </div>
+                      </section>
+                    ) : null}
 
-                  {selectedGroupRecap ? (
-                    <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Weekly recap
-                      </div>
-                      <div className="mt-1 font-serif text-[20px] font-bold tracking-[-0.03em] text-[#102018]">
-                        {selectedGroupRecap.title}
-                      </div>
-                      <div className="mt-1 text-[13px] leading-5 text-[#637268]">
-                        {selectedGroupRecap.detail}
-                      </div>
-                      <div className="mt-3 inline-flex rounded-full border border-[#dfe9e2] bg-[#f7fbf8] px-2.5 py-1 text-[11px] font-semibold text-[#2d7651]">
-                        {selectedGroupRecap.accent}
-                      </div>
-                    </section>
-                  ) : null}
-                </div>
+                    {selectedGroupRecap ? (
+                      <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Weekly recap
+                        </div>
+                        <div className="mt-1 font-serif text-[20px] font-bold tracking-[-0.03em] text-[#102018]">
+                          {selectedGroupRecap.title}
+                        </div>
+                        <div className="mt-1 text-[13px] leading-5 text-[#637268]">
+                          {selectedGroupRecap.detail}
+                        </div>
+                        <div className="mt-3 inline-flex rounded-full border border-[#dfe9e2] bg-[#f7fbf8] px-2.5 py-1 text-[11px] font-semibold text-[#2d7651]">
+                          {selectedGroupRecap.accent}
+                        </div>
+                      </section>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
@@ -4473,16 +4294,17 @@ export default function GroupsPage() {
                           key={entry.member.id}
                           type="button"
                           onClick={() => setSelectedMemberStats(entry)}
-                        className="grid w-full grid-cols-[24px_30px_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-[#ece6db] bg-white px-2 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[32px_34px_minmax(0,1fr)_auto] sm:gap-2.5 sm:px-2.5"
+                        className="grid w-full grid-cols-[24px_26px_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-[#ece6db] bg-white px-2 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[32px_30px_minmax(0,1fr)_auto] sm:gap-2.5 sm:px-2.5"
                         >
                           <div className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold sm:h-7 sm:w-7 sm:text-xs ${rankCircleClass(index + 1)}`}>
                             {index + 1}
                           </div>
                           <MemberAvatar
                             member={entry.member}
+                            size="sm"
                             crowned={mvpEntry?.stats.member.session_id === entry.member.session_id}
                           />
-                          <div className="min-w-0">
+                          <div className="min-w-0 self-center pl-0.5">
                             <div className="truncate font-serif text-[13px] font-bold text-[#102018] sm:text-[17px]">
                               {mvpEntry?.stats.member.session_id === entry.member.session_id ? '👑 ' : ''}
                               {entry.member.display_name}
@@ -4492,7 +4314,7 @@ export default function GroupsPage() {
                                 </span>
                               ) : null}
                             </div>
-                            <div className="text-[10px] text-[#637268] sm:text-xs">
+                            <div className="mt-0.5 text-[10px] text-[#637268] sm:text-xs">
                               {entry.solves} solves · {entry.firstTrySolves} first try · {entry.longestStreak} day streak
                             </div>
                           </div>
@@ -4808,30 +4630,6 @@ export default function GroupsPage() {
                 </div>
               )}
 
-              <div className="mt-4 rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                      Emergency backup
-                    </div>
-                    <div className="mt-1 text-[13px] leading-5 text-[#637268]">
-                      Download a file with your saved browser progress and any synced Orthodle data tied to this profile.
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => void downloadProgressBackup()}
-                    disabled={backingUp}
-                    className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full border border-[#d9eadf] bg-[#eef8f2] px-4 text-[12px] font-bold text-[#1f6448] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    <Download size={14} strokeWidth={2.2} />
-                    {backingUp ? 'Saving backup...' : 'Download backup'}
-                  </button>
-                </div>
-                {backupStatus ? (
-                  <div className="mt-2 text-[12px] font-medium text-[#2d7651]">{backupStatus}</div>
-                ) : null}
-              </div>
             </section>
 
             <TrophyCase trophies={trophyCaseItems} />
@@ -4839,9 +4637,8 @@ export default function GroupsPage() {
         ) : null}
 
         {showNotificationsPanel ? (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
-            <div className="mx-auto mt-[22vh] w-full max-w-[520px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:mt-0 sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:rounded-[24px] sm:p-5">
-              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
+            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -4894,9 +4691,8 @@ export default function GroupsPage() {
         ) : null}
 
         {showProfileStatGuide ? (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
-            <div className="mx-auto mt-[22vh] w-full max-w-[520px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:mt-0 sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:rounded-[24px] sm:p-5">
-              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
+            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -5363,8 +5159,10 @@ export default function GroupsPage() {
                     </div>
                   </div>
 
-                  {weeklyHonorsEnabled ? (
+                  {weeklyHonorsEnabled &&
+                  (selectedGroupMvpHistory.length > 0 || selectedGroupBannerHistory.length > 0) ? (
                     <div className="grid gap-2">
+                      {selectedGroupMvpHistory.length > 0 ? (
                       <div className="rounded-[14px] border border-[#eadfca] bg-[linear-gradient(135deg,#fffaf0,#fcfbf8)] px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -5396,13 +5194,11 @@ export default function GroupsPage() {
                               </div>
                             ))}
                           </div>
-                        ) : (
-                          <div className="mt-2.5 text-[11px] text-[#637268]">
-                            No MVP history yet for this group.
-                          </div>
-                        )}
+                        ) : null}
                       </div>
+                      ) : null}
 
+                      {selectedGroupBannerHistory.length > 0 ? (
                       <div className="rounded-[14px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -5431,12 +5227,9 @@ export default function GroupsPage() {
                               </div>
                             ))}
                           </div>
-                        ) : (
-                          <div className="mt-2.5 text-[11px] text-[#637268]">
-                            Win Group of the Week to unlock your first banner.
-                          </div>
-                        )}
+                        ) : null}
                       </div>
+                      ) : null}
                     </div>
                   ) : null}
 

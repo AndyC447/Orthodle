@@ -250,13 +250,12 @@ export function Header() {
 
               {notificationsOpen && (
                 <div
-                  className={`fixed inset-x-0 bottom-0 z-50 max-h-[78vh] overflow-hidden rounded-t-[26px] border-x border-t shadow-[0_-16px_40px_rgba(16,32,24,0.14)] sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:max-h-none sm:w-[320px] sm:max-w-[calc(100vw-32px)] sm:rounded-2xl sm:border ${
+                  className={`fixed left-4 right-4 top-[72px] z-50 overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.08)] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[320px] sm:max-w-[calc(100vw-32px)] ${
                     theme === 'dark'
                       ? 'border-[#33453c] bg-[#18241f]'
                       : 'border-[#e7e1d6] bg-white'
                   }`}
                 >
-                  <div className={`mx-auto mt-2 h-1.5 w-12 rounded-full ${theme === 'dark' ? 'bg-[#33453c] sm:hidden' : 'bg-[#ddd5c9] sm:hidden'}`} />
                   <div
                     className={`border-b px-4 py-3 ${
                       theme === 'dark' ? 'border-[#24342d]' : 'border-[#f3eee5]'
@@ -274,7 +273,7 @@ export function Header() {
                     </p>
                   </div>
 
-                    <div className="max-h-[calc(78vh-76px)] overflow-y-auto p-2 sm:max-h-[360px]">
+                  <div className="max-h-[360px] overflow-y-auto p-2">
                     {notificationsLoading ? (
                       <div
                         className={`rounded-xl px-3 py-4 text-sm ${
@@ -468,13 +467,12 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className={`fixed inset-x-0 bottom-0 z-50 overflow-hidden rounded-t-[26px] border-x border-t shadow-[0_-16px_40px_rgba(16,32,24,0.14)] sm:absolute sm:bottom-auto sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:min-w-[170px] sm:rounded-2xl sm:border ${
+              className={`fixed left-4 right-4 top-[72px] z-50 overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.06)] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:min-w-[170px] ${
                 theme === 'dark'
                   ? 'border-[#33453c] bg-[#18241f]'
                   : 'border-[#e7e1d6] bg-white'
               }`}
             >
-              <div className={`mx-auto mt-2 h-1.5 w-12 rounded-full ${theme === 'dark' ? 'bg-[#33453c] sm:hidden' : 'bg-[#ddd5c9] sm:hidden'}`} />
               <div
                 className={`border-b px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${
                   theme === 'dark'

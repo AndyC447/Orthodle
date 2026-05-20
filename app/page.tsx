@@ -487,14 +487,11 @@ function PlayPageContent() {
   const imagePinchStart = useRef<number | null>(null)
   const imageScaleStart = useRef<number>(1)
   const today = todayISO()
-  const initialPlayModeSettings = readCachedPlayModeSettings()
-  const initialLevel = getInitialLevelFromParams(searchParams.get('level'), initialPlayModeSettings, today)
+  const initialLevel = getInitialLevelFromParams(searchParams.get('level'), null, today)
   const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
   const [selectedLevel, setSelectedLevel] = useState<Level>(initialLevel)
-  const [noResidentMode, setNoResidentMode] = useState(Boolean(initialPlayModeSettings?.no_resident_mode))
-  const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(
-    initialPlayModeSettings?.no_resident_mode_start_date || null
-  )
+  const [noResidentMode, setNoResidentMode] = useState(false)
+  const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(null)
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
@@ -525,10 +522,11 @@ function PlayPageContent() {
   const [feedbackText, setFeedbackText] = useState('')
   const [isSavingFeedback, setIsSavingFeedback] = useState(false)
   const [feedbackStatus, setFeedbackStatus] = useState('')
+  const [showCaseFeedback, setShowCaseFeedback] = useState(false)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
-  const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(readCachedLevelTitles())
+  const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(DEFAULT_LEVEL_TITLES)
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
@@ -690,6 +688,12 @@ function PlayPageContent() {
     let cancelled = false
 
     async function loadPlayModeSettings() {
+      const cachedSettings = readCachedPlayModeSettings()
+      if (!cancelled && cachedSettings) {
+        setNoResidentMode(Boolean(cachedSettings.no_resident_mode))
+        setNoResidentModeStartDate(cachedSettings.no_resident_mode_start_date || null)
+      }
+
       const { data } = await supabase
         .from('play_mode_settings')
         .select('no_resident_mode, no_resident_mode_start_date')
@@ -1817,6 +1821,7 @@ function PlayPageContent() {
 
   async function submitQuickReaction(tag: string) {
     if (!dailyCase) return
+    setShowCaseFeedback(true)
     if (submittedReactionTags.includes(tag)) {
       setReactionStatus('You already sent that reaction for this case.')
       return
@@ -1891,6 +1896,7 @@ function PlayPageContent() {
 
   async function submitTypedFeedback() {
     if (!dailyCase) return
+    setShowCaseFeedback(true)
 
     const trimmed = feedbackText.trim()
 
@@ -3538,6 +3544,13 @@ function PlayPageContent() {
                 {roundComplete && (
                   <div className="mx-auto mt-2 w-full max-w-[460px]">
                     <div className="grid gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={shareResult}
+                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:col-span-2"
+                      >
+                        Share the case
+                      </button>
                       {canAdvanceToNextLevel && nextLevel ? (
                         <button
                           type="button"
@@ -3557,76 +3570,82 @@ function PlayPageContent() {
                       <Link
                         href="/stats"
                         className="rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                      >
-                        View your stats
-                      </Link>
-                      <button
-                        type="button"
-                        onClick={shareResult}
-                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:col-span-2"
-                      >
-                        Share the case
-                      </button>
+                        >
+                          View your stats
+                        </Link>
                     </div>
                   </div>
                 )}
 
                 <div className="night-soft-surface rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-2.5 sm:p-3">
-                  <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    How was the case?
-                  </div>
-                  <div className="mx-auto grid max-w-[260px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
-                    {FEEDBACK_TAG_OPTIONS.map(tag => {
-                      const alreadySent = submittedReactionTags.includes(tag)
-                      const isPositiveReaction = tag === 'Great case'
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => void submitQuickReaction(tag)}
-                          disabled={
-                            submittingReaction !== null ||
-                            alreadySent ||
-                            (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
-                            (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
-                          }
-                          className={`w-full rounded-lg border px-2 py-1.5 text-[9.5px] font-semibold transition sm:w-auto ${
-                            submittingReaction === tag
-                              ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                              : alreadySent
-                                ? isPositiveReaction
+                  <button
+                    type="button"
+                    onClick={() => setShowCaseFeedback(current => !current)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <div className="night-label text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                      How was the case?
+                    </div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a948d]">
+                      {showCaseFeedback ? 'Hide' : 'Open'}
+                    </div>
+                  </button>
+                  {showCaseFeedback && (
+                    <>
+                      <div className="mx-auto mt-2 grid max-w-[260px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
+                        {FEEDBACK_TAG_OPTIONS.map(tag => {
+                          const alreadySent = submittedReactionTags.includes(tag)
+                          const isPositiveReaction = tag === 'Great case'
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => void submitQuickReaction(tag)}
+                              disabled={
+                                submittingReaction !== null ||
+                                alreadySent ||
+                                (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
+                                (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
+                              }
+                              className={`w-full rounded-lg border px-2 py-1.5 text-[9.5px] font-semibold transition sm:w-auto ${
+                                submittingReaction === tag
                                   ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                                  : 'border-[#ead9b7] bg-[#fff3e8] text-[#a24d24]'
-                                : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
-                          } disabled:cursor-not-allowed disabled:opacity-70`}
+                                  : alreadySent
+                                    ? isPositiveReaction
+                                      ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                                      : 'border-[#ead9b7] bg-[#fff3e8] text-[#a24d24]'
+                                    : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
+                              } disabled:cursor-not-allowed disabled:opacity-70`}
+                            >
+                              {submittingReaction === tag ? 'Saving...' : alreadySent ? 'Sent' : tag}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {reactionStatus && (
+                        <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
+                      )}
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <input
+                          type="text"
+                          value={feedbackText}
+                          onChange={e => setFeedbackText(e.target.value)}
+                          placeholder="Share any feedback on the site here"
+                          className="min-h-[38px] min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-center text-[12px] text-[#102018] outline-none transition placeholder:text-center placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void submitTypedFeedback()}
+                          disabled={isSavingFeedback}
+                          className="min-h-[38px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                         >
-                          {submittingReaction === tag ? 'Saving...' : alreadySent ? 'Sent' : tag}
+                          {isSavingFeedback ? 'Sending...' : 'Send'}
                         </button>
-                      )
-                    })}
-                  </div>
-                  {reactionStatus && (
-                    <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
-                  )}
-                  <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-                    <input
-                      type="text"
-                      value={feedbackText}
-                      onChange={e => setFeedbackText(e.target.value)}
-                      placeholder="Share any feedback on the site here"
-                      className="min-h-[38px] min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => void submitTypedFeedback()}
-                      disabled={isSavingFeedback}
-                      className="min-h-[38px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-                    >
-                      {isSavingFeedback ? 'Sending...' : 'Send'}
-                    </button>
-                  </div>
-                  {feedbackStatus && (
-                    <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
+                      </div>
+                      {feedbackStatus && (
+                        <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
