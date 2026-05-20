@@ -1618,6 +1618,7 @@ function PlayPageContent() {
       ),
     [dailyCase, surgicalAnatomyChoices]
   )
+  const isMultiSelectAnatomy = correctAnatomyLetters.length > 1
   const selectedQuizLetterSet = new Set(
     selectedQuizGuess
       ? parseAnatomyGuessLetters(selectedQuizGuess.text, surgicalAnatomyChoices)
@@ -3256,7 +3257,9 @@ function PlayPageContent() {
                         {!roundComplete && (
                           <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[11px] text-[#637268]">
                             <div>
-                              Select all that apply, then submit.
+                              {isMultiSelectAnatomy
+                                ? 'Select all that apply, then submit.'
+                                : 'Select one answer, then submit.'}
                             </div>
                             <button
                               type="button"
@@ -3294,9 +3297,13 @@ function PlayPageContent() {
                                 disabled={roundComplete}
                                 onClick={() =>
                                   setSelectedAnatomyLetters(current =>
-                                    current.includes(letter)
-                                      ? current.filter(item => item !== letter)
-                                      : [...current, letter].sort()
+                                    isMultiSelectAnatomy
+                                      ? current.includes(letter)
+                                        ? current.filter(item => item !== letter)
+                                        : [...current, letter].sort()
+                                      : current.includes(letter)
+                                        ? []
+                                        : [letter]
                                   )
                                 }
                                 className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
