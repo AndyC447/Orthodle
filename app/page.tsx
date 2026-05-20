@@ -3157,7 +3157,7 @@ function PlayPageContent() {
             </div>
           )}
 
-          <div className={`orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-3.5 sm:py-4 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'}`}>
+          <div className={`orthodle-panel-shell relative z-20 rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-3.5 sm:py-4 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'}`}>
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
@@ -3662,7 +3662,7 @@ function PlayPageContent() {
 
         <aside className="space-y-3">
           {!roundComplete && !isSurgicalAnatomyMode && (
-          <div className="orthodle-panel-shell rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
+          <div className="orthodle-panel-shell relative z-0 rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
             <div className="mb-1.5 flex justify-center text-[10px] font-bold uppercase tracking-[0.22em] text-[#102018]">
               <span>Your guesses</span>
             </div>
