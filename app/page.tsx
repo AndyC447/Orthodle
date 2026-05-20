@@ -3388,7 +3388,7 @@ function PlayPageContent() {
                 )}
               </div>
 
-              <div className="mt-3 border-t border-[#ded7ca] pt-2.5">
+              <div className="relative z-20 mt-3 border-t border-[#ded7ca] pt-2.5">
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     <div className="relative">
@@ -3426,7 +3426,7 @@ function PlayPageContent() {
                       </div>
 
                       {renderSuggestionList(
-                        'absolute inset-x-0 top-[calc(100%+8px)] z-30 max-h-[44vh] overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
+                        'absolute inset-x-0 top-[calc(100%+8px)] z-40 max-h-[44vh] overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
                       )}
                     </div>
 
