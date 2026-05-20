@@ -293,7 +293,7 @@ export default function ArchivePage() {
                 <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">
                   Difficulty
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="-mx-0.5 flex gap-1.5 overflow-x-auto px-0.5 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
                   {[
                     ['all', 'All levels'],
                     ['med_student', levelTitles.med_student],
@@ -309,7 +309,7 @@ export default function ArchivePage() {
                         selectedLevel === value
                           ? 'border-[#1f6448] bg-[#1f6448] text-white'
                           : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
-                      }`}
+                      } shrink-0`}
                     >
                       {label}
                     </button>
@@ -321,7 +321,7 @@ export default function ArchivePage() {
                       imagingOnly
                         ? 'border-[#1f6448] bg-[#eef7f2] text-[#1f6448]'
                         : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
-                    }`}
+                    } shrink-0`}
                   >
                     Has imaging
                   </button>
@@ -434,7 +434,7 @@ export default function ArchivePage() {
                           <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                             {formatLevel(level, item.case_date)}
                           </div>
-                          <div className="mt-0.5 font-serif text-[13px] font-bold leading-tight text-[#102018]">
+                          <div className="mt-0.5 line-clamp-2 font-serif text-[13px] font-bold leading-tight text-[#102018]">
                             {showAnswers ? item.answer : item.category || 'Case'}
                           </div>
                           {showAnswers && item.category && (

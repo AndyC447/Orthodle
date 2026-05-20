@@ -478,6 +478,7 @@ function PlayPageContent() {
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
   const isAdminPreview = searchParams.get('preview') === '1'
+  const guessInputRef = useRef<HTMLInputElement | null>(null)
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const inputSectionRef = useRef<HTMLDivElement | null>(null)
@@ -2280,6 +2281,11 @@ function PlayPageContent() {
     const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
     const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
     const selectedLettersForGuess = submittedLetters || []
+    if (typeof window !== 'undefined' && window.innerWidth < 640) {
+      guessInputRef.current?.blur()
+      setIsMobileInputFocused(false)
+      setShowSuggestions(false)
+    }
     const data = isAdminPreview
       ? (() => {
           const accepted = [dailyCase.answer, ...(dailyCase.synonyms || [])]
@@ -3392,12 +3398,38 @@ function PlayPageContent() {
                 )}
               </div>
 
-              <div ref={inputSectionRef} className="mt-3 border-t border-[#ded7ca] pt-2.5">
+              <div
+                ref={inputSectionRef}
+                className={`mt-3 border-t border-[#ded7ca] pt-2.5 ${
+                  isMobileInputFocused
+                    ? 'fixed inset-x-3 bottom-3 z-40 rounded-[22px] border border-[#ded7ca] bg-[#fbfaf7] p-3 shadow-[0_18px_40px_rgba(16,32,24,0.12)] sm:static sm:rounded-none sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none'
+                    : ''
+                }`}
+              >
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
+                    {isMobileInputFocused && (
+                      <div className="mb-2 flex items-center justify-between gap-3 sm:hidden">
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Type your guess
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            guessInputRef.current?.blur()
+                            setIsMobileInputFocused(false)
+                            setShowSuggestions(false)
+                          }}
+                          className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018]"
+                        >
+                          Done
+                        </button>
+                      </div>
+                    )}
                     <div className="relative">
-                      <div className={shakeInput ? 'orthodle-shake flex gap-2' : 'flex gap-2'}>
+                      <div className={shakeInput ? 'orthodle-shake flex items-stretch gap-2' : 'flex items-stretch gap-2'}>
                         <input
+                          ref={guessInputRef}
                           value={guess}
                           onChange={e => {
                             setGuess(e.target.value)
@@ -3418,20 +3450,20 @@ function PlayPageContent() {
                           inputMode="text"
                           placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                           disabled={!dailyCase}
-                          className="min-h-[40px] flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12.5px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                          className="min-h-[44px] flex-1 rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
                         />
 
                         <button
                           onClick={() => void submitGuess()}
                           disabled={!dailyCase}
-                          className="min-h-[40px] rounded-lg bg-[#1f6448] px-3 py-2 text-[11px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          className="min-h-[44px] rounded-xl bg-[#1f6448] px-4 py-2 text-[11px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                         >
                           Guess
                         </button>
                       </div>
 
                       {renderSuggestionList(
-                        'absolute inset-x-0 top-[calc(100%+8px)] z-30 max-h-64 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
+                        'absolute inset-x-0 top-[calc(100%+8px)] z-30 max-h-[44vh] overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
                       )}
                     </div>
 
@@ -3659,7 +3691,7 @@ function PlayPageContent() {
               <span>Your guesses</span>
             </div>
 
-            <div className="grid grid-cols-6 gap-1">
+            <div className="grid grid-cols-6 gap-1.5">
               {Array.from({ length: maxGuessesForCurrentCase }).map((_, i) => {
                 const item = guesses[i]
 
@@ -3669,9 +3701,9 @@ function PlayPageContent() {
                     className={
                       item
                         ? item.correct
-                          ? 'orthodle-guess-correct flex min-h-[34px] flex-col items-center justify-center rounded-lg border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
-                          : 'orthodle-guess-wrong flex min-h-[34px] flex-col items-center justify-center rounded-lg bg-[#fffaf1] px-1 py-1 text-[#102018]'
-                        : 'orthodle-guess-empty flex min-h-[34px] flex-col items-center justify-center rounded-lg border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
+                          ? 'orthodle-guess-correct flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
+                          : 'orthodle-guess-wrong flex min-h-[38px] flex-col items-center justify-center rounded-xl bg-[#fffaf1] px-1 py-1 text-[#102018]'
+                        : 'orthodle-guess-empty flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
                     }
                   >
                     <span className="text-[8px] font-mono text-[#637268]">

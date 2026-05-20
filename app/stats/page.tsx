@@ -196,7 +196,7 @@ export default function StatsPage() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div className="orthodle-stat-tile rounded-[24px] border border-[#e7e1d6] bg-[linear-gradient(180deg,#fffdf8_0%,#f8f5ee_100%)] p-4">
                 <div className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#6d786f]">
                   Games played
@@ -297,7 +297,7 @@ export default function StatsPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3">
+                    <div className="rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-2.5 py-3 sm:px-3">
                       <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Accuracy
                       </div>
@@ -307,7 +307,7 @@ export default function StatsPage() {
                           : '—'}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-[#e7e1d6] bg-[#fffdf8] px-3 py-3">
+                    <div className="rounded-2xl border border-[#e7e1d6] bg-[#fffdf8] px-2.5 py-3 sm:px-3">
                       <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Attempts
                       </div>
@@ -315,7 +315,7 @@ export default function StatsPage() {
                         {statsSnapshot?.anatomy.played || 0}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3">
+                    <div className="rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-2.5 py-3 sm:px-3">
                       <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Correct picks
                       </div>
@@ -323,7 +323,7 @@ export default function StatsPage() {
                         {statsSnapshot?.anatomy.wins || 0}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3">
+                    <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-2.5 py-3 sm:px-3">
                       <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                         Misses
                       </div>
@@ -395,7 +395,7 @@ export default function StatsPage() {
                     <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                       {getLevelTitle(level.level, levelTitles)}
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                    <div className="mt-2 grid grid-cols-3 gap-1.5 text-center sm:gap-2">
                       <div>
                         <div className="text-[10px] uppercase tracking-[0.14em] text-[#8a948d]">
                           Win

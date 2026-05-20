@@ -3506,8 +3506,9 @@ export default function GroupsPage() {
       ) : null}
 
       {showGroupsExplainer ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:items-center sm:py-6">
+          <div className="w-full max-w-[420px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:rounded-[24px] sm:p-5">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
@@ -3552,8 +3553,9 @@ export default function GroupsPage() {
       ) : null}
 
       {showLeaderboardScoringGuide ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-[430px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:items-center sm:py-6">
+          <div className="w-full max-w-[430px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:rounded-[24px] sm:p-5">
+            <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
@@ -3974,7 +3976,7 @@ export default function GroupsPage() {
                         </div>
                         <GroupCrest group={group} size="xs" />
                         <div className="min-w-0">
-                          <div className="truncate font-serif text-[14px] font-bold text-[#102018] sm:text-[17px]">
+                          <div className="line-clamp-2 pr-1 font-serif text-[14px] font-bold leading-tight text-[#102018] sm:truncate sm:text-[17px]">
                             {group.name}
                           </div>
                           <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
@@ -4837,8 +4839,9 @@ export default function GroupsPage() {
         ) : null}
 
         {showNotificationsPanel ? (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
-            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
+            <div className="mx-auto mt-[22vh] w-full max-w-[520px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:mt-0 sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:rounded-[24px] sm:p-5">
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -4891,8 +4894,9 @@ export default function GroupsPage() {
         ) : null}
 
         {showProfileStatGuide ? (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
-            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-0 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
+            <div className="mx-auto mt-[22vh] w-full max-w-[520px] rounded-t-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:mt-0 sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:rounded-[24px] sm:p-5">
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#ddd5c9] sm:hidden" />
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -5610,7 +5614,7 @@ export default function GroupsPage() {
                       >
                         <div className="text-[15px] font-semibold text-[#102018]">{rank}</div>
                         <div className="min-w-0">
-                          <div className="truncate font-serif text-[15px] font-semibold tracking-[-0.03em] text-[#102018]">
+                          <div className="line-clamp-2 pr-1 font-serif text-[15px] font-semibold leading-tight tracking-[-0.03em] text-[#102018]">
                             {group.name}
                           </div>
                           <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
