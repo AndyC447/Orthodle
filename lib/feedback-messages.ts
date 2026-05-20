@@ -1,3 +1,5 @@
+import { readCachedLevelTitles } from '@/lib/level-display'
+
 export type FeedbackMessageRow = {
   id: string
   feedback_id: string | null
@@ -13,8 +15,9 @@ export type FeedbackMessageRow = {
 }
 
 export function formatFeedbackLevel(level: FeedbackMessageRow['level']) {
-  if (level === 'med_student') return 'Med Student'
-  if (level === 'resident') return 'Resident'
-  if (level === 'attending') return 'Anatomy'
+  const titles = readCachedLevelTitles()
+  if (level === 'med_student') return titles.med_student
+  if (level === 'resident') return titles.resident
+  if (level === 'attending') return titles.attending
   return 'Unknown'
 }

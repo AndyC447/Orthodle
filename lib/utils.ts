@@ -500,9 +500,10 @@ export function clearStatsSummary() {
 }
 
 export function getStatsLevelLabel(level: StatsLevel) {
-  if (level === 'med_student') return 'Med Student'
-  if (level === 'resident') return 'Resident'
-  return 'Anatomy'
+  const titles = readCachedLevelTitles()
+  if (level === 'med_student') return titles.med_student
+  if (level === 'resident') return titles.resident
+  return titles.attending
 }
 
 export function recordGameResult(result: Omit<StoredGameResult, 'key' | 'completedAt'>) {
@@ -914,3 +915,4 @@ export function getStatsSummary(): StatsSummary {
       .slice(0, 6),
   }
 }
+import { readCachedLevelTitles } from '@/lib/level-display'

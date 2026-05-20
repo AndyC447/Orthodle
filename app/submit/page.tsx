@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import {
+  getLevelTitle,
+  normalizeLevelTitles,
+  readCachedLevelTitles,
+  writeCachedLevelTitles,
+} from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
 
 type Level = 'med_student' | 'resident' | 'attending'
@@ -20,6 +26,7 @@ type SubmissionLookup = {
 const SUBMISSION_LOOKUP_KEY = 'orthodle_last_submission_code'
 
 export default function SubmitCasePage() {
+  const [levelTitles, setLevelTitles] = useState(readCachedLevelTitles())
   const [showFullSubmission, setShowFullSubmission] = useState(false)
   const [ideaName, setIdeaName] = useState('')
   const [ideaLevel, setIdeaLevel] = useState<'any' | Level>('any')
@@ -58,6 +65,37 @@ export default function SubmitCasePage() {
 
     setLookupCode(savedCode)
     void checkSubmissionStatus(savedCode)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadLevelTitles() {
+      const { data } = await supabase
+        .from('level_display_settings')
+        .select('level, title')
+
+      if (cancelled) return
+
+      const nextTitles = normalizeLevelTitles(
+        ((data || []) as Array<{ level: Level; title: string }>).reduce(
+          (acc, item) => {
+            acc[item.level] = item.title
+            return acc
+          },
+          {} as Partial<Record<Level, string>>
+        )
+      )
+
+      setLevelTitles(nextTitles)
+      writeCachedLevelTitles(nextTitles)
+    }
+
+    void loadLevelTitles()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   async function uploadImage(file: File, slot: 1 | 2 = 1) {
@@ -293,9 +331,9 @@ export default function SubmitCasePage() {
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 >
                   <option value="any">Any level</option>
-                  <option value="med_student">Med Student</option>
-                  <option value="resident">Resident</option>
-                  <option value="attending">Anatomy</option>
+                  <option value="med_student">{getLevelTitle('med_student', levelTitles)}</option>
+                  <option value="resident">{getLevelTitle('resident', levelTitles)}</option>
+                  <option value="attending">{getLevelTitle('attending', levelTitles)}</option>
                 </select>
               </label>
             </div>
@@ -376,9 +414,9 @@ export default function SubmitCasePage() {
                 onChange={e => setLevel(e.target.value as Level)}
                 className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
               >
-                <option value="med_student">Med Student</option>
-                <option value="resident">Resident</option>
-                <option value="attending">Anatomy</option>
+                <option value="med_student">{getLevelTitle('med_student', levelTitles)}</option>
+                <option value="resident">{getLevelTitle('resident', levelTitles)}</option>
+                <option value="attending">{getLevelTitle('attending', levelTitles)}</option>
               </select>
             </label>
 

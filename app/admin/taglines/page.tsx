@@ -3,9 +3,15 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
+import {
+  DEFAULT_LEVEL_TITLES,
+  LEVEL_TITLE_CACHE_KEY,
+  normalizeLevelTitles,
+  type DisplayLevel,
+} from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
 
-type Level = 'med_student' | 'resident' | 'attending'
+type Level = DisplayLevel
 
 type TaglineRow = {
   id?: string
@@ -26,6 +32,7 @@ const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
 export default function AdminTaglinesPage() {
   const [authReady, setAuthReady] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
+  const [titles, setTitles] = useState<Record<Level, string>>(DEFAULT_LEVEL_TITLES)
   const [rows, setRows] = useState<Record<Level, string>>(DEFAULT_TAGLINES)
   const [status, setStatus] = useState('')
 
@@ -41,27 +48,44 @@ export default function AdminTaglinesPage() {
   }, [isUnlocked])
 
   async function loadRows() {
-    const { data, error } = await supabase
-      .from('difficulty_taglines')
-      .select('id, level, text, position, updated_at')
-      .order('updated_at', { ascending: false })
-      .order('id', { ascending: false })
+    const [{ data, error }, { data: titleData, error: titleError }] = await Promise.all([
+      supabase
+        .from('difficulty_taglines')
+        .select('id, level, text, position, updated_at')
+        .order('updated_at', { ascending: false })
+        .order('id', { ascending: false }),
+      supabase
+        .from('level_display_settings')
+        .select('level, title')
+    ])
 
     if (error) {
       setStatus(`Could not load subtitles: ${error.message}`)
       return
     }
 
+    if (titleError) {
+      setStatus(`Could not load case titles: ${titleError.message}`)
+      return
+    }
+
     const nextRows = { ...DEFAULT_TAGLINES }
+    const nextTitles = { ...DEFAULT_LEVEL_TITLES }
 
     for (const level of LEVEL_ORDER) {
       const latestRow = (data || []).find(item => item.level === level && item.text?.trim())
       if (latestRow?.text) {
         nextRows[level] = latestRow.text.toUpperCase()
       }
+
+      const titleRow = (titleData || []).find(item => item.level === level && item.title?.trim())
+      if (titleRow?.title) {
+        nextTitles[level] = titleRow.title.trim()
+      }
     }
 
     setRows(nextRows)
+    setTitles(nextTitles)
   }
 
   async function saveAll() {
@@ -69,9 +93,15 @@ export default function AdminTaglinesPage() {
       level,
       text: (rows[level] || DEFAULT_TAGLINES[level]).trim().toUpperCase(),
     }))
+    const titlePayload = normalizeLevelTitles(titles)
 
     if (payload.some(item => !item.text)) {
       setStatus('Each level needs a subtitle.')
+      return
+    }
+
+    if (LEVEL_ORDER.some(level => !titlePayload[level].trim())) {
+      setStatus('Each level needs a case title.')
       return
     }
 
@@ -132,15 +162,32 @@ export default function AdminTaglinesPage() {
       }
     }
 
+    for (const level of LEVEL_ORDER) {
+      const { error: titleSaveError } = await supabase.from('level_display_settings').upsert(
+        {
+          level,
+          title: titlePayload[level],
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'level',
+        }
+      )
+
+      if (titleSaveError) {
+        setStatus(`Could not save case titles: ${titleSaveError.message}`)
+        return
+      }
+    }
+
     window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)
-    setStatus('Button subtitles updated.')
+    window.localStorage.setItem(LEVEL_TITLE_CACHE_KEY, JSON.stringify(titlePayload))
+    setStatus('Case titles and subtitles updated.')
     await loadRows()
   }
 
   function formatLevel(level: Level) {
-    if (level === 'med_student') return 'Med Student'
-    if (level === 'resident') return 'Resident'
-    return 'Anatomy'
+    return titles[level] || DEFAULT_LEVEL_TITLES[level]
   }
 
   if (!authReady) {
@@ -164,7 +211,7 @@ export default function AdminTaglinesPage() {
               Unlock admin first
             </h1>
             <p className="mt-2 text-sm leading-6 text-[#637268]">
-              Open the main admin page first, then come back here to edit button subtitles.
+              Open the main admin page first, then come back here to edit case titles and button subtitles.
             </p>
             <Link
               href="/admin"
@@ -189,7 +236,7 @@ export default function AdminTaglinesPage() {
               Admin
             </div>
             <h1 className="mt-2 font-serif text-3xl font-bold text-[#102018]">
-              Button Subtitles
+              Case Titles & Subtitles
             </h1>
           </div>
 
@@ -223,6 +270,20 @@ export default function AdminTaglinesPage() {
                 <label className="grid gap-2">
                   <span className="text-sm font-semibold text-[#102018]">
                     {formatLevel(level)}
+                  </span>
+                  <input
+                    value={titles[level]}
+                    onChange={e =>
+                      setTitles(prev => ({
+                        ...prev,
+                        [level]: e.target.value,
+                      }))
+                    }
+                    placeholder={`${DEFAULT_LEVEL_TITLES[level]} title`}
+                    className="w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                    Subtitle
                   </span>
                   <input
                     value={rows[level]}

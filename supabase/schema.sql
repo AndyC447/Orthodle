@@ -183,6 +183,12 @@ create table if not exists difficulty_taglines (
   updated_at timestamptz default now()
 );
 
+create table if not exists level_display_settings (
+  level text primary key,
+  title text not null,
+  updated_at timestamptz default now()
+);
+
 create table if not exists homepage_announcements (
   id uuid primary key default uuid_generate_v4(),
   message text not null,
@@ -303,6 +309,7 @@ alter table case_feedback enable row level security;
 alter table feedback_messages enable row level security;
 alter table direct_messages enable row level security;
 alter table difficulty_taglines enable row level security;
+alter table level_display_settings enable row level security;
 alter table homepage_announcements enable row level security;
 alter table homepage_announcement_responses enable row level security;
 alter table homepage_surveys enable row level security;
@@ -341,6 +348,9 @@ create policy "public read difficulty taglines" on difficulty_taglines for selec
 create policy "public insert difficulty taglines" on difficulty_taglines for insert with check (true);
 create policy "public update difficulty taglines" on difficulty_taglines for update using (true) with check (true);
 create policy "public delete difficulty taglines" on difficulty_taglines for delete using (true);
+create policy "public read level display settings" on level_display_settings for select using (true);
+create policy "public insert level display settings" on level_display_settings for insert with check (true);
+create policy "public update level display settings" on level_display_settings for update using (true) with check (true);
 create policy "public read homepage announcements" on homepage_announcements for select using (true);
 create policy "public insert homepage announcements" on homepage_announcements for insert with check (true);
 create policy "public update homepage announcements" on homepage_announcements for update using (true) with check (true);
@@ -383,6 +393,13 @@ values
   ('resident', 'MAKE THE CALL', 0),
   ('attending', 'CONNECT THE DOTS', 0)
 on conflict do nothing;
+
+insert into level_display_settings (level, title)
+values
+  ('med_student', 'Med Student'),
+  ('resident', 'Resident'),
+  ('attending', 'Anatomy')
+on conflict (level) do nothing;
 
 insert into homepage_announcements (message, start_date, end_date)
 values (

@@ -12,6 +12,12 @@ import {
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import {
+  DEFAULT_LEVEL_TITLES,
+  normalizeLevelTitles,
+  readCachedLevelTitles,
+  writeCachedLevelTitles,
+} from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
 import {
   getSurveyLevelScopeLabel,
@@ -147,6 +153,11 @@ type PlayModeSettingsRow = {
   no_resident_mode_start_date: string | null
 }
 
+type LevelDisplaySettingsRow = {
+  level: Level
+  title: string
+}
+
 type ActiveSurveyState = {
   survey: SiteSurveyRow | null
   submittedChoice: string | null
@@ -167,19 +178,6 @@ const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
-
-const levels = [
-  { key: 'med_student' as Level, label: 'Med Student' },
-  { key: 'resident' as Level, label: 'Resident' },
-  { key: 'attending' as Level, label: 'Anatomy' },
-]
-
-const baseHomeTabs = [
-  { type: 'level' as const, key: 'med_student' as const, label: 'Med Student' },
-  { type: 'level' as const, key: 'resident' as const, label: 'Resident' },
-  { type: 'level' as const, key: 'attending' as const, label: 'Anatomy' },
-  { type: 'link' as const, href: '/groups', label: 'Groups', subtitle: 'COMPETE' },
-]
 
 const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
   id: index,
@@ -238,6 +236,7 @@ type PlayBootstrapCache = {
   savedAt: number
   answerOptions: string[]
   levelTaglines: Record<Level, string[]>
+  levelTitles: Record<Level, string>
 }
 
 type AdminCasePreviewCache = {
@@ -528,6 +527,7 @@ function PlayPageContent() {
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
+  const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(readCachedLevelTitles())
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
@@ -740,10 +740,11 @@ function PlayPageContent() {
       if (cached) {
         setAnswerOptions(cached.answerOptions)
         setLevelTaglines(cached.levelTaglines)
+        setLevelTitles(cached.levelTitles || DEFAULT_LEVEL_TITLES)
         return
       }
 
-      const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }] = await Promise.all([
+      const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }, { data: titleRows }] = await Promise.all([
         supabase
           .from('cases')
           .select('answer')
@@ -757,6 +758,9 @@ function PlayPageContent() {
           .select('level, text, position, updated_at, id')
           .order('updated_at', { ascending: false })
           .order('id', { ascending: false }),
+        supabase
+          .from('level_display_settings')
+          .select('level, title'),
       ])
       if (cancelled) return
 
@@ -781,7 +785,7 @@ function PlayPageContent() {
       }
 
       if (taglineRows && taglineRows.length > 0) {
-        for (const level of levels.map(item => item.key)) {
+        for (const level of ['med_student', 'resident', 'attending'] as const) {
           const firstRow = (taglineRows as Array<{ level: Level; text: string }>).find(
             row => row.level === level && row.text?.trim()
           )
@@ -806,10 +810,23 @@ function PlayPageContent() {
             : DEFAULT_LEVEL_TAGLINES.attending,
       }
 
+      const resolvedTitles = normalizeLevelTitles(
+        (titleRows || []).reduce(
+          (acc, row) => ({
+            ...acc,
+            [row.level]: row.title,
+          }),
+          {} as Partial<Record<Level, string>>
+        )
+      )
+
       setLevelTaglines(resolvedTaglines)
+      setLevelTitles(resolvedTitles)
+      writeCachedLevelTitles(resolvedTitles)
       writePlayBootstrapCache({
         answerOptions: uniqueAnswers,
         levelTaglines: resolvedTaglines,
+        levelTitles: resolvedTitles,
       })
     }
 
@@ -1550,9 +1567,9 @@ function PlayPageContent() {
   }, [caseParam, isAdminPreview, selectedLevel, selectedDate, today])
 
   function formatLevel(level: Level, dateText = selectedDate) {
-    if (level === 'med_student') return 'Med Student'
-    if (level === 'resident') return 'Resident'
-    return isSurgicalAnatomyDate(dateText) ? 'Anatomy' : 'Attending'
+    if (level === 'med_student') return levelTitles.med_student
+    if (level === 'resident') return levelTitles.resident
+    return isSurgicalAnatomyDate(dateText) ? levelTitles.attending : 'Attending'
   }
 
   function formatArchiveDate(dateText: string) {
@@ -2468,11 +2485,19 @@ function PlayPageContent() {
   }, [gameWon, justCompletedRound, roundComplete])
 
   const homeTabs = useMemo(
-    () =>
-      noResidentModeActiveToday
-        ? baseHomeTabs.filter(item => !(item.type === 'level' && item.key === 'resident'))
-        : baseHomeTabs,
-    [noResidentModeActiveToday]
+    () => {
+      const tabs = [
+        { type: 'level' as const, key: 'med_student' as const, label: levelTitles.med_student },
+        { type: 'level' as const, key: 'resident' as const, label: levelTitles.resident },
+        { type: 'level' as const, key: 'attending' as const, label: levelTitles.attending },
+        { type: 'link' as const, href: '/groups', label: 'Groups', subtitle: 'COMPETE' },
+      ]
+
+      return noResidentModeActiveToday
+        ? tabs.filter(item => !(item.type === 'level' && item.key === 'resident'))
+        : tabs
+    },
+    [levelTitles, noResidentModeActiveToday]
   )
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
     () =>

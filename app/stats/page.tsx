@@ -3,10 +3,15 @@
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import {
+  getLevelTitle,
+  normalizeLevelTitles,
+  readCachedLevelTitles,
+  writeCachedLevelTitles,
+} from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
 import {
   clearStatsSummary,
-  getStatsLevelLabel,
   getStatsSummary,
   todayISO,
   type StatsSummary,
@@ -21,6 +26,7 @@ export default function StatsPage() {
   const [statsSnapshot, setStatsSnapshot] = useState<StatsSummary | null>(null)
   const [showDistribution, setShowDistribution] = useState(true)
   const [showDifficulty, setShowDifficulty] = useState(false)
+  const [levelTitles, setLevelTitles] = useState(readCachedLevelTitles())
   const [noResidentMode, setNoResidentMode] = useState(false)
   const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(null)
 
@@ -38,6 +44,27 @@ export default function StatsPage() {
   useEffect(() => {
     let cancelled = false
 
+    async function loadLevelTitles() {
+      const { data } = await supabase
+        .from('level_display_settings')
+        .select('level, title')
+
+      if (cancelled) return
+
+      const nextTitles = normalizeLevelTitles(
+        ((data || []) as Array<{ level: 'med_student' | 'resident' | 'attending'; title: string }>).reduce(
+          (acc, item) => {
+            acc[item.level] = item.title
+            return acc
+          },
+          {} as Partial<Record<'med_student' | 'resident' | 'attending', string>>
+        )
+      )
+
+      setLevelTitles(nextTitles)
+      writeCachedLevelTitles(nextTitles)
+    }
+
     async function loadPlayModeSettings() {
       const { data } = await supabase
         .from('play_mode_settings')
@@ -51,6 +78,7 @@ export default function StatsPage() {
       setNoResidentModeStartDate(row?.no_resident_mode_start_date || null)
     }
 
+    void loadLevelTitles()
     void loadPlayModeSettings()
 
     return () => {
@@ -327,7 +355,7 @@ export default function StatsPage() {
                           }
                         >
                           <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                            {getStatsLevelLabel(level)}
+                            {getLevelTitle(level, levelTitles)}
                           </div>
                           <div className="mt-2 font-serif text-[22px] font-bold leading-none tracking-[-0.03em] text-[#102018]">
                             {entry ? (entry.won ? `${entry.guessesUsed}/6` : 'Missed') : 'Not played'}
@@ -365,7 +393,7 @@ export default function StatsPage() {
                     className="orthodle-stat-tile rounded-xl border border-[#ded7ca] bg-[#fbfaf7] p-3"
                   >
                     <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                      {getStatsLevelLabel(level.level)}
+                      {getLevelTitle(level.level, levelTitles)}
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                       <div>

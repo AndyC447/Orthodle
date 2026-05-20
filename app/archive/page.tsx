@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import {
+  normalizeLevelTitles,
+  readCachedLevelTitles,
+  writeCachedLevelTitles,
+} from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import { clearStatsSummary, getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
@@ -14,6 +19,7 @@ type ArchiveCase = {
   id: string
   case_date: string
   level: Level
+  answer: string
   category: string | null
   image_url: string | null
 }
@@ -40,12 +46,15 @@ export default function ArchivePage() {
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
   const [showCaseList, setShowCaseList] = useState(true)
+  const [showAnswers, setShowAnswers] = useState(false)
   const [selectedLevel, setSelectedLevel] = useState<ArchiveLevelFilter>('all')
   const [selectedCategory, setSelectedCategory] = useState('all')
+  const [answerQuery, setAnswerQuery] = useState('')
   const [imagingOnly, setImagingOnly] = useState(false)
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
   const [guessRows, setGuessRows] = useState<GuessLite[]>([])
   const [feedbackRows, setFeedbackRows] = useState<FeedbackLite[]>([])
+  const [levelTitles, setLevelTitles] = useState(readCachedLevelTitles())
 
   useEffect(() => {
     setCompletedArchiveKeys(getCompletedCaseKeys(true))
@@ -53,11 +62,11 @@ export default function ArchivePage() {
 
   useEffect(() => {
     async function loadArchive() {
-      const [excludedSessionIds, { data }, { data: guessData }, { data: feedbackData }] = await Promise.all([
+      const [excludedSessionIds, { data }, { data: guessData }, { data: feedbackData }, { data: levelTitleData }] = await Promise.all([
         fetchExcludedStatsSessionIds(),
         supabase
           .from('cases')
-          .select('id, case_date, level, category, image_url')
+          .select('id, case_date, level, answer, category, image_url')
           .gte('case_date', LAUNCH_DATE)
           .lte('case_date', today)
           .order('case_date', { ascending: false })
@@ -70,6 +79,9 @@ export default function ArchivePage() {
           .from('case_feedback')
           .select('case_id, feedback_tags')
           .limit(5000),
+        supabase
+          .from('level_display_settings')
+          .select('level, title'),
       ])
 
       const nextCases = (data || []) as ArchiveCase[]
@@ -81,6 +93,17 @@ export default function ArchivePage() {
       setCases(nextCases)
       setGuessRows(nextGuessRows)
       setFeedbackRows((feedbackData || []) as FeedbackLite[])
+      const nextTitles = normalizeLevelTitles(
+        ((levelTitleData || []) as Array<{ level: Level; title: string }>).reduce(
+          (acc, item) => {
+            acc[item.level] = item.title
+            return acc
+          },
+          {} as Partial<Record<Level, string>>
+        )
+      )
+      setLevelTitles(nextTitles)
+      writeCachedLevelTitles(nextTitles)
       const completedKeysFromServer = new Set(
         nextGuessRows
           .filter(row => row.session_id === sessionId && row.case_id)
@@ -108,6 +131,8 @@ export default function ArchivePage() {
   }, [cases])
 
   const filteredCases = useMemo(() => {
+    const normalizedAnswerQuery = answerQuery.trim().toLowerCase()
+
     return cases.filter(item => {
       if (item.case_date === today) return false
       if (selectedLevel === 'attending') {
@@ -118,10 +143,17 @@ export default function ArchivePage() {
         return false
       }
       if (selectedCategory !== 'all' && (item.category || '') !== selectedCategory) return false
+      if (
+        normalizedAnswerQuery &&
+        !item.answer.toLowerCase().includes(normalizedAnswerQuery) &&
+        !(item.category || '').toLowerCase().includes(normalizedAnswerQuery)
+      ) {
+        return false
+      }
       if (imagingOnly && !item.image_url) return false
       return true
     })
-  }, [cases, imagingOnly, selectedCategory, selectedLevel, today])
+  }, [answerQuery, cases, imagingOnly, selectedCategory, selectedLevel, today])
 
   const groupedDates = useMemo(() => {
     const grouped = new Map<string, ArchiveCase[]>()
@@ -157,13 +189,13 @@ export default function ArchivePage() {
   }
 
   function formatLevel(level: Level, dateText = today) {
-    if (level === 'med_student') return 'Med Student'
-    if (level === 'resident') return 'Resident'
-    return isSurgicalAnatomyDate(dateText) ? 'Anatomy' : 'Attending'
+    if (level === 'med_student') return levelTitles.med_student
+    if (level === 'resident') return levelTitles.resident
+    return isSurgicalAnatomyDate(dateText) ? levelTitles.attending : 'Attending'
   }
 
   const hasActiveFilters =
-    selectedLevel !== 'all' || selectedCategory !== 'all' || imagingOnly
+    selectedLevel !== 'all' || selectedCategory !== 'all' || imagingOnly || Boolean(answerQuery.trim())
   const surprisePool = useMemo(() => {
     return filteredCases.filter(
       item => !completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
@@ -264,10 +296,10 @@ export default function ArchivePage() {
                 <div className="flex flex-wrap gap-1.5">
                   {[
                     ['all', 'All levels'],
-                    ['med_student', 'Med Student'],
-                    ['resident', 'Resident'],
+                    ['med_student', levelTitles.med_student],
+                    ['resident', levelTitles.resident],
                     ['attending', 'Attending'],
-                    ['anatomy', 'Anatomy'],
+                    ['anatomy', levelTitles.attending],
                   ].map(([value, label]) => (
                     <button
                       key={value}
@@ -297,6 +329,16 @@ export default function ArchivePage() {
               </div>
 
               <label className="grid gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">
+                Diagnosis
+                <input
+                  value={answerQuery}
+                  onChange={e => setAnswerQuery(e.target.value)}
+                  placeholder="Search diagnosis or answer"
+                  className="min-h-[36px] rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[12px] font-medium normal-case tracking-normal text-[#102018] placeholder:text-[#8b938d]"
+                />
+              </label>
+
+              <label className="grid gap-1 text-[9px] font-bold uppercase tracking-[0.14em] text-[#637268]">
                 Category
                 <select
                   value={selectedCategory}
@@ -324,6 +366,7 @@ export default function ArchivePage() {
                   onClick={() => {
                     setSelectedLevel('all')
                     setSelectedCategory('all')
+                    setAnswerQuery('')
                     setImagingOnly(false)
                   }}
                   className="rounded-lg border border-[#ded7ca] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#637268] transition hover:bg-white"
@@ -338,13 +381,22 @@ export default function ArchivePage() {
             <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
               Previous cases
             </div>
-            <button
-              type="button"
-              onClick={() => setShowCaseList(current => !current)}
-              className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-[#637268] transition hover:bg-[#fbfaf7]"
-            >
-              {showCaseList ? 'Collapse' : 'Expand'}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setShowAnswers(current => !current)}
+                className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-[#637268] transition hover:bg-[#fbfaf7]"
+              >
+                {showAnswers ? 'Show category' : 'Show answer'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCaseList(current => !current)}
+                className="rounded-full border border-[#ded7ca] bg-white px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.12em] text-[#637268] transition hover:bg-[#fbfaf7]"
+              >
+                {showCaseList ? 'Collapse' : 'Expand'}
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -383,8 +435,13 @@ export default function ArchivePage() {
                             {formatLevel(level, item.case_date)}
                           </div>
                           <div className="mt-0.5 font-serif text-[13px] font-bold leading-tight text-[#102018]">
-                            {item.category || 'Case'}
+                            {showAnswers ? item.answer : item.category || 'Case'}
                           </div>
+                          {showAnswers && item.category && (
+                            <div className="mt-0.5 text-[10px] uppercase tracking-[0.14em] text-[#8b938d]">
+                              {item.category}
+                            </div>
+                          )}
                           <div className={`mt-0.5 text-[10px] ${isCompleted ? 'text-[#a24d24]' : 'text-[#1f6448]'}`}>
                             {isCompleted ? 'Completed case' : 'Open case'}
                           </div>
