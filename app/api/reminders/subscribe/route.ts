@@ -5,6 +5,7 @@ import {
   formatReminderMinutes,
   normalizeReminderMode,
   normalizeScheduledReminderMinutes,
+  normalizeReminderTimezone,
 } from '@/lib/reminders'
 
 function normalizeEmail(email: string) {
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     const email = normalizeEmail(body.email || '')
     const reminderMode = normalizeReminderMode(body.reminderMode)
     const reminderMinutes = normalizeScheduledReminderMinutes(body.reminderTime)
+    const reminderTimezone = normalizeReminderTimezone(body.timezone)
 
     if (!isValidEmail(email)) {
       return NextResponse.json(
@@ -41,7 +43,7 @@ export async function POST(request: Request) {
         .from('email_reminders')
         .update({
           active: true,
-          timezone: body.timezone || null,
+          timezone: reminderTimezone,
           source_path: body.sourcePath || '/',
           reminder_mode: reminderMode,
           scheduled_time_minutes: reminderMinutes,
@@ -59,7 +61,7 @@ export async function POST(request: Request) {
       const { error: insertError } = await supabaseAdmin.from('email_reminders').insert({
         email,
         active: true,
-        timezone: body.timezone || null,
+        timezone: reminderTimezone,
         source_path: body.sourcePath || '/',
         reminder_mode: reminderMode,
         scheduled_time_minutes: reminderMinutes,
@@ -80,7 +82,7 @@ export async function POST(request: Request) {
       message:
         reminderMode === DEFAULT_REMINDER_MODE
           ? 'You’re signed up for an email as soon as the new cases go live.'
-          : `You’re signed up for a daily reminder at ${formatReminderMinutes(reminderMinutes)} Pacific.`,
+          : `You’re signed up for a daily reminder at ${formatReminderMinutes(reminderMinutes)} in your selected time zone.`,
     })
   } catch (error) {
     if (error instanceof Error) {

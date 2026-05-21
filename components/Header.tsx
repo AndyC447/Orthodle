@@ -5,6 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, Menu, Moon, Sun } from 'lucide-react'
 import { formatFeedbackLevel } from '@/lib/feedback-messages'
+import {
+  DEFAULT_REMINDER_TIME,
+  PACIFIC_TIMEZONE,
+  normalizeReminderTimezone,
+  type ReminderMode,
+} from '@/lib/reminders'
 import type { MessagingPayload } from '@/lib/messaging'
 import { getAccountSession, getSessionId } from '@/lib/utils'
 
@@ -17,15 +23,38 @@ export function Header() {
   const [replyDrafts, setReplyDrafts] = useState<Record<string, string>>({})
   const [openReplyThreadId, setOpenReplyThreadId] = useState<string | null>(null)
   const [sendingReplyThreadId, setSendingReplyThreadId] = useState<string | null>(null)
+  const [dismissedThreadIds, setDismissedThreadIds] = useState<string[]>([])
+  const [reminderEmail, setReminderEmail] = useState('')
+  const [reminderMode, setReminderMode] = useState<ReminderMode>('instant')
+  const [reminderTime, setReminderTime] = useState(DEFAULT_REMINDER_TIME)
+  const [reminderTimezone, setReminderTimezone] = useState(PACIFIC_TIMEZONE)
+  const [reminderStatus, setReminderStatus] = useState('')
+  const [isSavingReminder, setIsSavingReminder] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const closeTimerRef = useRef<number | null>(null)
   const notificationPanelRef = useRef<HTMLDivElement | null>(null)
   const pathname = usePathname()
   const THEME_STORAGE_KEY = 'orthodle_theme'
+  const DISMISSED_THREADS_STORAGE_KEY = 'orthodle_dismissed_feedback_threads_v1'
   const showNotifications = true
   const showPlayLink = pathname !== '/'
-  const threadCount = messagingPayload?.threads.length || 0
+  const visibleThreads =
+    messagingPayload?.threads.filter(thread => !dismissedThreadIds.includes(thread.feedbackId)) || []
+  const threadCount = visibleThreads.length || 0
   const hasAnyMessages = threadCount > 0
+  const availableTimezones = [
+    'America/Los_Angeles',
+    'America/Denver',
+    'America/Chicago',
+    'America/New_York',
+    'America/Anchorage',
+    'Pacific/Honolulu',
+    'Europe/London',
+    'Europe/Paris',
+    'Asia/Kolkata',
+    'Asia/Tokyo',
+    'Australia/Sydney',
+  ]
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -39,7 +68,28 @@ export function Header() {
       (window.localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null) || 'light'
     setTheme(savedTheme)
     document.documentElement.dataset.theme = savedTheme
+    setReminderTimezone(
+      normalizeReminderTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || PACIFIC_TIMEZONE)
+    )
+
+    try {
+      const raw = window.localStorage.getItem(DISMISSED_THREADS_STORAGE_KEY)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          setDismissedThreadIds(parsed.filter(item => typeof item === 'string'))
+        }
+      }
+    } catch {}
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(
+      DISMISSED_THREADS_STORAGE_KEY,
+      JSON.stringify(dismissedThreadIds)
+    )
+  }, [dismissedThreadIds])
 
   useEffect(() => {
     let cancelled = false
@@ -166,6 +216,16 @@ export function Header() {
     }
   }
 
+  function getBrowserTimezone() {
+    try {
+      return normalizeReminderTimezone(
+        Intl.DateTimeFormat().resolvedOptions().timeZone || PACIFIC_TIMEZONE
+      )
+    } catch {
+      return PACIFIC_TIMEZONE
+    }
+  }
+
   async function sendThreadReply(feedbackId: string, recipientSessionId: string) {
     const draft = (replyDrafts[feedbackId] || '').trim()
     if (!draft) return
@@ -206,6 +266,51 @@ export function Header() {
           }
         : prev
     )
+  }
+
+  async function subscribeToReminder() {
+    const email = reminderEmail.trim()
+
+    if (!email) {
+      setReminderStatus('Enter an email to get the reminder.')
+      return
+    }
+
+    setIsSavingReminder(true)
+    setReminderStatus('')
+
+    try {
+      const response = await fetch('/api/reminders/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          timezone: reminderTimezone || getBrowserTimezone(),
+          sourcePath: pathname || '/',
+          reminderMode,
+          reminderTime,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setReminderStatus(data.error || 'Could not save your reminder.')
+        return
+      }
+
+      setReminderStatus(data.message || 'You’re signed up.')
+      setReminderEmail('')
+    } catch {
+      setReminderStatus('Could not save your reminder.')
+    } finally {
+      setIsSavingReminder(false)
+    }
+  }
+
+  function dismissThread(feedbackId: string) {
+    setDismissedThreadIds(prev => (prev.includes(feedbackId) ? prev : [...prev, feedbackId]))
+    setOpenReplyThreadId(current => (current === feedbackId ? null : current))
   }
 
   return (
@@ -274,6 +379,106 @@ export function Header() {
                   </div>
 
                   <div className="max-h-[360px] overflow-y-auto p-2">
+                    <div
+                      className={`mb-2 rounded-xl border p-3 ${
+                        theme === 'dark'
+                          ? 'border-[#2a3b34] bg-[#1d2a24]'
+                          : 'border-[#e7e1d6] bg-[#fcfbf8]'
+                      }`}
+                    >
+                      <div className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${theme === 'dark' ? 'text-[#9fb4a7]' : 'text-[#637268]'}`}>
+                        Email notifications
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setReminderMode('instant')}
+                          className={`rounded-lg border px-2 py-1.5 text-[9px] font-semibold leading-none transition ${
+                            reminderMode === 'instant'
+                              ? 'border-[#1f6448] bg-[#1f6448] text-white'
+                              : theme === 'dark'
+                                ? 'border-[#33453c] bg-[#18241f] text-[#dbe5dd] hover:bg-[#213129]'
+                                : 'border-[#ded7ca] bg-white text-[#637268] hover:border-[#c8bda9] hover:text-[#102018]'
+                          }`}
+                        >
+                          Right when cases go live
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setReminderMode('scheduled')}
+                          className={`rounded-lg border px-2 py-1.5 text-[9px] font-semibold leading-none transition ${
+                            reminderMode === 'scheduled'
+                              ? 'border-[#1f6448] bg-[#1f6448] text-white'
+                              : theme === 'dark'
+                                ? 'border-[#33453c] bg-[#18241f] text-[#dbe5dd] hover:bg-[#213129]'
+                                : 'border-[#ded7ca] bg-white text-[#637268] hover:border-[#c8bda9] hover:text-[#102018]'
+                          }`}
+                        >
+                          Later in the day
+                        </button>
+                        {reminderMode === 'scheduled' && (
+                          <>
+                            <input
+                              type="time"
+                              value={reminderTime}
+                              onChange={event => setReminderTime(event.target.value)}
+                              className={`min-h-[30px] rounded-lg border px-2.5 py-1 text-[10px] leading-none outline-none transition ${
+                                theme === 'dark'
+                                  ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] focus:border-[#1f6448]'
+                                  : 'border-[#ded7ca] bg-white text-[#102018] focus:border-[#1f6448]'
+                              }`}
+                            />
+                            <select
+                              value={reminderTimezone}
+                              onChange={event => setReminderTimezone(event.target.value)}
+                              className={`min-h-[30px] max-w-[180px] rounded-lg border px-2.5 py-1 text-[10px] leading-none outline-none transition ${
+                                theme === 'dark'
+                                  ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] focus:border-[#1f6448]'
+                                  : 'border-[#ded7ca] bg-white text-[#102018] focus:border-[#1f6448]'
+                              }`}
+                            >
+                              {availableTimezones.map(zone => (
+                                <option key={zone} value={zone}>
+                                  {zone.replaceAll('_', ' ')}
+                                </option>
+                              ))}
+                            </select>
+                          </>
+                        )}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <input
+                          type="email"
+                          value={reminderEmail}
+                          onChange={event => setReminderEmail(event.target.value)}
+                          placeholder="you@example.com"
+                          className={`min-h-[34px] flex-1 rounded-xl border px-3 py-2 text-[11px] leading-none outline-none transition ${
+                            theme === 'dark'
+                              ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] placeholder:text-[#8ea194] focus:border-[#1f6448]'
+                              : 'border-[#ded7ca] bg-white text-[#102018] focus:border-[#1f6448]'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void subscribeToReminder()}
+                          disabled={isSavingReminder}
+                          className="min-h-[34px] shrink-0 rounded-xl border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-[10px] font-semibold leading-none text-white transition hover:bg-[#174c37] disabled:opacity-60"
+                        >
+                          {isSavingReminder ? 'Saving...' : 'Notify me'}
+                        </button>
+                      </div>
+                      <p className={`mt-1 text-[10px] leading-none ${theme === 'dark' ? 'text-[#8ea194]' : 'text-[#7a857c]'}`}>
+                        {reminderMode === 'scheduled'
+                          ? `Scheduled reminders use ${reminderTimezone.replaceAll('_', ' ')}. New cases still go live at 12:00 AM Pacific.`
+                          : 'New cases go live at 12:00 AM Pacific.'}
+                      </p>
+                      {reminderStatus && (
+                        <p className={`mt-2 text-[10px] leading-none ${theme === 'dark' ? 'text-[#b7d3c3]' : 'text-[#1f6448]'}`}>
+                          {reminderStatus}
+                        </p>
+                      )}
+                    </div>
+
                     {notificationsLoading ? (
                       <div
                         className={`rounded-xl px-3 py-4 text-sm ${
@@ -292,7 +497,7 @@ export function Header() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {(messagingPayload?.threads || []).slice(0, 8).map(thread => {
+                        {visibleThreads.slice(0, 8).map(thread => {
                           const latestMessage = thread.messages[thread.messages.length - 1] || null
                           const isReplyOpen = openReplyThreadId === thread.feedbackId
                           const recipientSessionId =
@@ -329,11 +534,25 @@ export function Header() {
                                   {thread.feedbackText}
                                 </p>
                               </div>
-                              {thread.hasUnreadAdminReply ? (
-                                <span className="inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#c96b37] px-1 text-[10px] font-bold text-white">
-                                  New
-                                </span>
-                              ) : null}
+                              <div className="flex items-start gap-2">
+                                {thread.hasUnreadAdminReply ? (
+                                  <span className="inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#c96b37] px-1 text-[10px] font-bold text-white">
+                                    New
+                                  </span>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  onClick={() => dismissThread(thread.feedbackId)}
+                                  aria-label="Dismiss thread"
+                                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[13px] font-medium leading-none transition ${
+                                    theme === 'dark'
+                                      ? 'border-[#33453c] bg-[#18241f] text-[#dbe5dd] hover:bg-[#213129]'
+                                      : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7] hover:text-[#102018]'
+                                  }`}
+                                >
+                                  <span className="-mt-px">×</span>
+                                </button>
+                              </div>
                             </div>
                             {thread.messages.length > 0 ? (
                               <div className="mt-3 space-y-2">

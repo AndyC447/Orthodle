@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { buildReminderEmail } from '@/lib/reminder-email'
 import {
+  getDatePartsForTimezone,
   getPacificDateParts,
   isReminderDueToday,
   normalizeReminderMode,
+  normalizeReminderTimezone,
   type ReminderMode,
 } from '@/lib/reminders'
 
@@ -17,6 +19,7 @@ type ReminderRow = {
   sent_count: number | null
   reminder_mode: ReminderMode | null
   scheduled_time_minutes: number | null
+  timezone: string | null
 }
 
 type ReminderPreviewCase = {
@@ -80,7 +83,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabaseAdmin
     .from('email_reminders')
     .select(
-      'id, email, unsubscribe_token, active, last_sent_on, sent_count, reminder_mode, scheduled_time_minutes'
+      'id, email, unsubscribe_token, active, last_sent_on, sent_count, reminder_mode, scheduled_time_minutes, timezone'
     )
     .eq('active', true)
 
@@ -92,7 +95,12 @@ export async function GET(request: Request) {
     item => {
       if (!item.active || item.last_sent_on === today) return false
       const reminderMode = normalizeReminderMode(item.reminder_mode)
-      return isReminderDueToday(reminderMode, item.scheduled_time_minutes, minutesIntoDay)
+      if (reminderMode === 'instant') {
+        return isReminderDueToday(reminderMode, item.scheduled_time_minutes, minutesIntoDay)
+      }
+      const timezone = normalizeReminderTimezone(item.timezone)
+      const localMinutes = getDatePartsForTimezone(timezone).minutesIntoDay
+      return isReminderDueToday(reminderMode, item.scheduled_time_minutes, localMinutes)
     }
   )
 

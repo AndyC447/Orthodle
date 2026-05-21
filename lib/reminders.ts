@@ -33,9 +33,25 @@ export function normalizeScheduledReminderMinutes(value: unknown) {
   return parseReminderTimeToMinutes(value) ?? parseReminderTimeToMinutes(DEFAULT_REMINDER_TIME) ?? 8 * 60
 }
 
+export function normalizeReminderTimezone(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return PACIFIC_TIMEZONE
+  const timezone = value.trim()
+
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date())
+    return timezone
+  } catch {
+    return PACIFIC_TIMEZONE
+  }
+}
+
 export function getPacificDateParts(date = new Date()) {
+  return getDatePartsForTimezone(PACIFIC_TIMEZONE, date)
+}
+
+export function getDatePartsForTimezone(timeZone: string, date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: PACIFIC_TIMEZONE,
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
