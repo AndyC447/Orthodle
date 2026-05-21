@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/react'
+import Script from 'next/script'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://orthodle.com'),
@@ -73,20 +74,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function () {
-                try {
-                  var saved = localStorage.getItem('orthodle_theme');
-                  if (saved === 'dark' || saved === 'light') {
-                    document.documentElement.dataset.theme = saved;
-                  }
-                } catch (e) {}
-              })();
-            `,
-          }}
-        />
+        <Script id="orthodle-theme-init" strategy="beforeInteractive">
+          {`
+            (function () {
+              try {
+                var saved = localStorage.getItem('orthodle_theme');
+                if (saved === 'dark' || saved === 'light') {
+                  document.documentElement.dataset.theme = saved;
+                }
+              } catch (e) {}
+            })();
+          `}
+        </Script>
       </head>
       <body>
         {children}

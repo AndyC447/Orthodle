@@ -3462,23 +3462,29 @@ function PlayPageContent() {
               }
             >
               <div className="mt-1">
-                <div className="text-center">
-                  <h3 className="orthodle-answer-pop font-serif text-[21px] font-bold leading-tight tracking-[-0.03em] text-[#1f6448] sm:text-[26px]">
-                    {dailyCase.answer}
-                  </h3>
-                  {onTodayCard && levelStreak >= 1 && (
-                    <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold text-[#a24d24]">
-                      <span aria-hidden="true">🔥</span>
-                      <span>
-                        {levelStreak}-day {formatLevel(selectedLevel)} streak
-                      </span>
+                <div className="relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_26%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-4 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.16)] sm:px-5 sm:py-5">
+                  <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.4px,transparent_1.4px)] [background-size:32px_32px]" />
+                  <div className="relative">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0c247] sm:text-[10px]">
+                      Correct answer
                     </div>
-                  )}
-                  {!gameWon && (
-                    <p className="mt-1 text-[12px] leading-5 text-[#637268]">
-                      Missed this one, but the takeaway below is worth the round.
-                    </p>
-                  )}
+                    <h3 className="orthodle-answer-pop mt-2 font-serif text-[23px] font-bold leading-tight tracking-[-0.04em] text-white sm:text-[29px]">
+                      {dailyCase.answer}
+                    </h3>
+                    {onTodayCard && levelStreak >= 1 && (
+                      <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95]">
+                        <span aria-hidden="true">🔥</span>
+                        <span>
+                          {levelStreak}-day {formatLevel(selectedLevel)} streak
+                        </span>
+                      </div>
+                    )}
+                    {!gameWon && (
+                      <p className="mx-auto mt-2 max-w-[440px] text-[12px] leading-5 text-[#deebe5]">
+                        Missed this one, but the takeaway below is worth the round.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
 
