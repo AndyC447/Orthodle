@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { buildReminderEmail } from '@/lib/reminder-email'
+import {
+  getPacificDateParts,
+  isReminderDueToday,
+  normalizeReminderMode,
+  type ReminderMode,
+} from '@/lib/reminders'
 
 type ReminderRow = {
   id: string
@@ -9,26 +15,13 @@ type ReminderRow = {
   active: boolean
   last_sent_on: string | null
   sent_count: number | null
+  reminder_mode: ReminderMode | null
+  scheduled_time_minutes: number | null
 }
 
 type ReminderPreviewCase = {
   label: string
   title: string
-}
-
-function getTodayPacificISO() {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Los_Angeles',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-
-  const year = parts.find(part => part.type === 'year')?.value
-  const month = parts.find(part => part.type === 'month')?.value
-  const day = parts.find(part => part.type === 'day')?.value
-
-  return `${year}-${month}-${day}`
 }
 
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
@@ -41,7 +34,7 @@ function getPreviewLabel(level: 'med_student' | 'resident' | 'attending', caseDa
 
 async function loadReminderPreviewCases() {
   const supabaseAdmin = getSupabaseAdmin()
-  const today = getTodayPacificISO()
+  const today = getPacificDateParts().isoDate
   const { data, error } = await supabaseAdmin
     .from('cases')
     .select('level, case_date, category')
@@ -81,12 +74,14 @@ export async function GET(request: Request) {
   }
 
   const supabaseAdmin = getSupabaseAdmin()
-  const today = getTodayPacificISO()
+  const { isoDate: today, minutesIntoDay } = getPacificDateParts()
   const previewCases = await loadReminderPreviewCases()
 
   const { data, error } = await supabaseAdmin
     .from('email_reminders')
-    .select('id, email, unsubscribe_token, active, last_sent_on, sent_count')
+    .select(
+      'id, email, unsubscribe_token, active, last_sent_on, sent_count, reminder_mode, scheduled_time_minutes'
+    )
     .eq('active', true)
 
   if (error) {
@@ -94,7 +89,11 @@ export async function GET(request: Request) {
   }
 
   const dueReminders = ((data || []) as ReminderRow[]).filter(
-    item => item.active && item.last_sent_on !== today
+    item => {
+      if (!item.active || item.last_sent_on === today) return false
+      const reminderMode = normalizeReminderMode(item.reminder_mode)
+      return isReminderDueToday(reminderMode, item.scheduled_time_minutes, minutesIntoDay)
+    }
   )
 
   let sent = 0

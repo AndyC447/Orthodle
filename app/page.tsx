@@ -41,6 +41,7 @@ import {
   saveRoundProgress,
   todayISO,
 } from '@/lib/utils'
+import { DEFAULT_REMINDER_TIME, type ReminderMode } from '@/lib/reminders'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -520,6 +521,8 @@ function PlayPageContent() {
   const [imageHidden, setImageHidden] = useState(false)
   const [communityStats, setCommunityStats] = useState<CommunityCaseStats | null>(null)
   const [reminderEmail, setReminderEmail] = useState('')
+  const [reminderMode, setReminderMode] = useState<ReminderMode>('instant')
+  const [reminderTime, setReminderTime] = useState(DEFAULT_REMINDER_TIME)
   const [reminderStatus, setReminderStatus] = useState('')
   const [isSavingReminder, setIsSavingReminder] = useState(false)
   const [reactionStatus, setReactionStatus] = useState('')
@@ -1813,6 +1816,8 @@ function PlayPageContent() {
           email,
           timezone: getBrowserTimezone(),
           sourcePath: window.location.pathname,
+          reminderMode,
+          reminderTime,
         }),
       })
 
@@ -2961,43 +2966,6 @@ function PlayPageContent() {
           </div>
         )}
 
-        {false && onTodayCard && (
-          <div className="orthodle-panel-shell mt-2 w-full rounded-2xl border border-[#e7e1d6] bg-white px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-5 sm:py-3.5">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 flex-1 sm:flex-none">
-                <h2 className="font-serif text-[15px] font-bold leading-tight tracking-[-0.02em] text-[#102018] sm:text-[16px]">
-                  Email notifications
-                </h2>
-              </div>
-
-              <div className="w-full max-w-[360px]">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="email"
-                    value={reminderEmail}
-                    onChange={event => setReminderEmail(event.target.value)}
-                    placeholder="you@example.com"
-                    className="min-h-[36px] flex-1 rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-[11px] text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void subscribeToReminder()}
-                    disabled={isSavingReminder}
-                    className="shrink-0 rounded-full border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-[9px] font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
-                  >
-                    {isSavingReminder ? 'Saving...' : 'Notify me'}
-                  </button>
-                </div>
-                {reminderStatus && (
-                  <p className="mt-1.5 text-[10px] text-[#1f6448]">
-                    {reminderStatus}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {showHomepageAnnouncement && homepageAnnouncement && (
           <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-2.5">
             <div className="flex items-start justify-between gap-3">
@@ -3749,6 +3717,77 @@ function PlayPageContent() {
 
         </aside>
       </div>
+
+      {onTodayCard && (
+        <section className="mx-auto mt-6 w-full max-w-[1120px] px-3 sm:px-4">
+          <div className="orthodle-panel-shell rounded-2xl border border-[#e7e1d6] bg-white px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-5 sm:py-3.5">
+            <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <h2 className="font-serif text-[15px] font-bold leading-tight tracking-[-0.02em] text-[#102018] sm:text-[16px]">
+                  Email notifications
+                </h2>
+              </div>
+
+              <div className="w-full max-w-[430px]">
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setReminderMode('instant')}
+                    className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold transition ${
+                      reminderMode === 'instant'
+                        ? 'border-[#1f6448] bg-[#1f6448] text-white'
+                        : 'border-[#ded7ca] bg-white text-[#637268] hover:border-[#c8bda9] hover:text-[#102018]'
+                    }`}
+                  >
+                    Right when cases go live
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReminderMode('scheduled')}
+                    className={`rounded-full border px-2.5 py-1 text-[9px] font-semibold transition ${
+                      reminderMode === 'scheduled'
+                        ? 'border-[#1f6448] bg-[#1f6448] text-white'
+                        : 'border-[#ded7ca] bg-white text-[#637268] hover:border-[#c8bda9] hover:text-[#102018]'
+                    }`}
+                  >
+                    Later in the day
+                  </button>
+                  {reminderMode === 'scheduled' && (
+                    <input
+                      type="time"
+                      value={reminderTime}
+                      onChange={event => setReminderTime(event.target.value)}
+                      className="min-h-[32px] rounded-xl border border-[#ded7ca] bg-white px-2.5 py-1 text-[10px] text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                    />
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    value={reminderEmail}
+                    onChange={event => setReminderEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    className="min-h-[36px] flex-1 rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-[11px] text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void subscribeToReminder()}
+                    disabled={isSavingReminder}
+                    className="shrink-0 rounded-full border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-[9px] font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
+                  >
+                    {isSavingReminder ? 'Saving...' : 'Notify me'}
+                  </button>
+                </div>
+                {reminderStatus && (
+                  <p className="mt-1.5 text-[10px] text-[#1f6448]">
+                    {reminderStatus}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <PublicFooter />
 

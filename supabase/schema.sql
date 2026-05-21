@@ -107,6 +107,8 @@ create table if not exists email_reminders (
   id uuid primary key default uuid_generate_v4(),
   email text not null,
   active boolean not null default true,
+  reminder_mode text not null default 'instant',
+  scheduled_time_minutes integer not null default 480,
   timezone text,
   source_path text,
   unsubscribe_token text not null unique,
