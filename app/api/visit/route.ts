@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
+const CANONICAL_VISIT_HOSTS = new Set(['orthodle.com', 'www.orthodle.com'])
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}))
   const sessionId = typeof body.sessionId === 'string' ? body.sessionId : ''
@@ -20,13 +22,24 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing session id' }, { status: 400 })
   }
 
-  const host = req.headers.get('host') || ''
+  const rawHost = req.headers.get('host') || ''
+  const host = rawHost.split(':')[0].toLowerCase()
+  const userAgent = (req.headers.get('user-agent') || '').toLowerCase()
+  const secChUa = (req.headers.get('sec-ch-ua') || '').toLowerCase()
+  const isAutomationTraffic =
+    userAgent.includes('headless') ||
+    userAgent.includes('playwright') ||
+    userAgent.includes('puppeteer') ||
+    userAgent.includes('phantomjs') ||
+    userAgent.includes('cypress') ||
+    userAgent.includes('openai') ||
+    userAgent.includes('codex') ||
+    secChUa.includes('headless')
   if (
-    host.includes('localhost') ||
-    host.includes('127.0.0.1') ||
-    host.includes('0.0.0.0') ||
+    !CANONICAL_VISIT_HOSTS.has(host) ||
     doNotTrack ||
-    isPreview
+    isPreview ||
+    isAutomationTraffic
   ) {
     return NextResponse.json({ ok: true, local: true })
   }

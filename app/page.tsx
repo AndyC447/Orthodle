@@ -324,6 +324,12 @@ function isLocalhostBrowser() {
   return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0'
 }
 
+function isCanonicalTrackingHost() {
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname.toLowerCase()
+  return host === 'orthodle.com' || host === 'www.orthodle.com'
+}
+
 function getBrowserTimezone() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || null
@@ -1346,7 +1352,12 @@ function PlayPageContent() {
         const useQuizMode = isAnatomyModeForLoadedCase && loadedQuizChoices.length >= 2
         const maxGuessesForLoadedCase = isAnatomyModeForLoadedCase ? 1 : MAX_GUESSES
 
-        if (!previewCase && !isLocalhostBrowser() && !isTrackingDisabledForThisBrowser()) {
+        if (
+          !previewCase &&
+          isCanonicalTrackingHost() &&
+          !isLocalhostBrowser() &&
+          !isTrackingDisabledForThisBrowser()
+        ) {
           void fetch('/api/visit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
