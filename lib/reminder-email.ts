@@ -1,4 +1,61 @@
-export function buildReminderEmail(siteUrl: string, unsubscribeUrl: string) {
+type ReminderPreviewCase = {
+  label: string
+  title: string
+}
+
+export function buildReminderEmail(
+  siteUrl: string,
+  unsubscribeUrl: string,
+  previewCases: ReminderPreviewCase[] = []
+) {
+  const previewMarkup =
+    previewCases.length > 0
+      ? `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:18px;">
+          <tr>
+            <td align="center" style="font-family:Arial, Helvetica, sans-serif; font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#637268; padding-bottom:10px;">
+              Today’s lineup
+            </td>
+          </tr>
+          ${previewCases
+            .map(
+              item => `
+                <tr>
+                  <td style="padding:0 0 10px;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #e7e1d6; border-radius:18px; background-color:#ffffff;">
+                      <tr>
+                        <td align="center" style="padding:12px 16px;">
+                          <div style="font-family:Arial, Helvetica, sans-serif; font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#637268;">
+                            ${item.label}
+                          </div>
+                          <div style="font-family:Georgia, 'Times New Roman', serif; font-size:22px; line-height:1.2; font-weight:700; color:#102018; margin-top:6px;">
+                            ${item.title}
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              `
+            )
+            .join('')}
+        </table>
+      `
+      : `
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:18px;">
+          <tr>
+            <td style="border:1px solid #e7e1d6; border-radius:18px; background-color:#ffffff; padding:16px 18px;" align="center">
+              <div style="font-family:Arial, Helvetica, sans-serif; font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#637268;">
+                Today
+              </div>
+              <div style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; line-height:1.2; font-weight:700; color:#102018; margin-top:8px;">
+                Open the new card
+              </div>
+            </td>
+          </tr>
+        </table>
+      `
+
   return {
     subject: 'Your Orthodle cases are ready',
     html: `
@@ -24,22 +81,11 @@ export function buildReminderEmail(siteUrl: string, unsubscribeUrl: string) {
                     >
                       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                         <tr>
-                          <td align="center" style="background-color:#0c4b36; padding:24px 28px 28px;">
-                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
-                              <tr>
-                                <td align="center" style="padding-bottom:14px;">
-                                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
-                                    <tr>
-                                      <td style="height:56px; width:56px; border:2px solid #f0c247; border-radius:999px; text-align:center; vertical-align:middle; font-family:Georgia, 'Times New Roman', serif; font-size:28px; color:#f0c247;">
-                                        O
-                                      </td>
-                                    </tr>
-                                  </table>
-                                </td>
-                              </tr>
-                            </table>
-
-                            <div style="font-family:Arial, Helvetica, sans-serif; font-size:11px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#f0c247;">
+                          <td align="center" style="background-color:#0c4b36; padding:20px 28px 28px;">
+                            <div style="font-family:Arial, Helvetica, sans-serif; font-size:10px; line-height:1; color:#d5a63a; letter-spacing:14px; text-align:center;">
+                              • • • • • • • • •
+                            </div>
+                            <div style="font-family:Arial, Helvetica, sans-serif; font-size:13px; font-weight:700; letter-spacing:3px; text-transform:uppercase; color:#f0c247; margin-top:14px;">
                               Orthodle Daily
                             </div>
                             <div style="font-family:Georgia, 'Times New Roman', serif; font-size:36px; line-height:1.08; font-weight:700; color:#ffffff; margin-top:16px;">
@@ -54,18 +100,7 @@ export function buildReminderEmail(siteUrl: string, unsubscribeUrl: string) {
 
                         <tr>
                           <td style="padding:28px 28px 32px; background-color:#fffdfa;">
-                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #e7e1d6; border-radius:18px; background-color:#ffffff;">
-                              <tr>
-                                <td align="center" style="padding:16px 18px;">
-                                  <div style="font-family:Arial, Helvetica, sans-serif; font-size:10px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#637268;">
-                                    Today
-                                  </div>
-                                  <div style="font-family:Georgia, 'Times New Roman', serif; font-size:26px; line-height:1.2; font-weight:700; color:#102018; margin-top:8px;">
-                                    Open the new card
-                                  </div>
-                                </td>
-                              </tr>
-                            </table>
+                            ${previewMarkup}
 
                             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:24px;">
                               <tr>

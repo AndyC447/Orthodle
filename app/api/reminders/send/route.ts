@@ -11,6 +11,11 @@ type ReminderRow = {
   sent_count: number | null
 }
 
+type ReminderPreviewCase = {
+  label: string
+  title: string
+}
+
 function getTodayPacificISO() {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Los_Angeles',
@@ -24,6 +29,35 @@ function getTodayPacificISO() {
   const day = parts.find(part => part.type === 'day')?.value
 
   return `${year}-${month}-${day}`
+}
+
+const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
+
+function getPreviewLabel(level: 'med_student' | 'resident' | 'attending', caseDate: string) {
+  if (level === 'med_student') return 'Daily Case'
+  if (level === 'resident') return 'Resident'
+  return caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE ? 'Anatomy Quiz' : 'Attending'
+}
+
+async function loadReminderPreviewCases() {
+  const supabaseAdmin = getSupabaseAdmin()
+  const today = getTodayPacificISO()
+  const { data, error } = await supabaseAdmin
+    .from('cases')
+    .select('level, case_date, category')
+    .eq('case_date', today)
+    .order('level', { ascending: true })
+
+  if (error || !data) return [] as ReminderPreviewCase[]
+
+  const order = { med_student: 0, resident: 1, attending: 2 } as const
+
+  return [...data]
+    .sort((a, b) => order[a.level as keyof typeof order] - order[b.level as keyof typeof order])
+    .map(item => ({
+      label: getPreviewLabel(item.level as 'med_student' | 'resident' | 'attending', item.case_date),
+      title: item.category?.trim() || 'Case ready',
+    }))
 }
 
 export async function GET(request: Request) {
@@ -48,6 +82,7 @@ export async function GET(request: Request) {
 
   const supabaseAdmin = getSupabaseAdmin()
   const today = getTodayPacificISO()
+  const previewCases = await loadReminderPreviewCases()
 
   const { data, error } = await supabaseAdmin
     .from('email_reminders')
@@ -66,7 +101,7 @@ export async function GET(request: Request) {
 
   for (const reminder of dueReminders) {
     const unsubscribeUrl = `${siteUrl}/api/reminders/unsubscribe?token=${reminder.unsubscribe_token}`
-    const content = buildReminderEmail(siteUrl, unsubscribeUrl)
+    const content = buildReminderEmail(siteUrl, unsubscribeUrl, previewCases)
 
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
