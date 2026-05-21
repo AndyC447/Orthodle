@@ -217,6 +217,7 @@ type AnatomySurveyRow = {
 type AdminSidebarSectionId =
   | 'button_subtitles'
   | 'case_stats'
+  | 'email_reminders'
   | 'analytics'
   | 'homepage_notes'
   | 'surveys'
@@ -240,6 +241,16 @@ type AdminCollapsedSectionId =
 type PlayModeSettingsRow = {
   no_resident_mode: boolean
   no_resident_mode_start_date: string | null
+}
+
+type ReminderStatusSummary = {
+  activeSubscribers: number
+  totalSubscribers: number
+  isConfigured: boolean
+  missingConfig: string[]
+  fromEmail: string | null
+  siteUrl: string
+  cronSecretPresent: boolean
 }
 
 function buildAnatomyChoiceBreakdown(
@@ -311,6 +322,7 @@ const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'button_subtitles',
   'case_stats',
+  'email_reminders',
   'analytics',
   'homepage_notes',
   'surveys',
@@ -438,6 +450,10 @@ export default function AdminPage() {
     hasNew: false,
     latestCreatedAt: null as string | null,
   })
+  const [reminderSummary, setReminderSummary] = useState<ReminderStatusSummary | null>(null)
+  const [reminderStatusMessage, setReminderStatusMessage] = useState('')
+  const [testReminderEmail, setTestReminderEmail] = useState('')
+  const [sendingTestReminder, setSendingTestReminder] = useState(false)
   const [noResidentMode, setNoResidentMode] = useState(false)
   const [noResidentModeStartDate, setNoResidentModeStartDate] = useState(shiftISODate(today, 1))
   const [savingNoResidentMode, setSavingNoResidentMode] = useState(false)
@@ -556,6 +572,7 @@ export default function AdminPage() {
     loadDiagnosisChoices()
     loadSubmissionSummary()
     loadFeedbackSummary()
+    loadReminderSummary()
     loadHomepageAnnouncements()
     loadPlayModeSettings()
     loadHomepageSurveys()
@@ -1764,6 +1781,58 @@ export default function AdminPage() {
     })
   }
 
+  async function loadReminderSummary() {
+    try {
+      const response = await fetch('/api/reminders/status', { cache: 'no-store' })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        setReminderStatusMessage(data.error || 'Could not load reminder status.')
+        return
+      }
+
+      setReminderSummary(data as ReminderStatusSummary)
+      setReminderStatusMessage('')
+    } catch {
+      setReminderStatusMessage('Could not load reminder status.')
+    }
+  }
+
+  async function sendTestReminderEmail() {
+    const email = testReminderEmail.trim()
+    if (!email) {
+      setReminderStatusMessage('Enter a test email address first.')
+      return
+    }
+
+    const adminPassword = window.sessionStorage.getItem('orthodle_admin_password') || ''
+    setSendingTestReminder(true)
+    setReminderStatusMessage('')
+
+    try {
+      const response = await fetch('/api/reminders/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password: adminPassword,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        setReminderStatusMessage(data.error || 'Could not send the test reminder email.')
+        return
+      }
+
+      setReminderStatusMessage(data.message || 'Test reminder sent.')
+    } catch {
+      setReminderStatusMessage('Could not send the test reminder email.')
+    } finally {
+      setSendingTestReminder(false)
+    }
+  }
+
   async function loadHomepageAnnouncements() {
     const { data } = await supabase
       .from('homepage_announcements')
@@ -2500,6 +2569,88 @@ export default function AdminPage() {
           Case Stats
         </Link>
         <p className="mt-2 text-sm text-[#8a948d]">Cumulative level trends and case performance</p>
+      </section>
+    ),
+    email_reminders: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="font-serif text-xl font-bold">Email Reminders</h2>
+            <p className="mt-1 text-sm text-[#8a948d]">Daily case notifications and setup health.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadReminderSummary()}
+            className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1.5 text-[10px] font-semibold text-[#637268] transition hover:bg-white"
+          >
+            Refresh
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              Active
+            </div>
+            <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+              {reminderSummary?.activeSubscribers ?? '—'}
+            </div>
+          </div>
+          <div className="rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+              Total
+            </div>
+            <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
+              {reminderSummary?.totalSubscribers ?? '—'}
+            </div>
+          </div>
+        </div>
+
+        <div className={`mt-3 rounded-2xl border px-3.5 py-3 ${
+          reminderSummary?.isConfigured
+            ? 'border-[#cfded4] bg-[#f7fbf8]'
+            : 'border-[#ead9b7] bg-[#fffaf1]'
+        }`}>
+          <div className={`text-[10px] font-bold uppercase tracking-[0.18em] ${
+            reminderSummary?.isConfigured ? 'text-[#1f6448]' : 'text-[#a24d24]'
+          }`}>
+            {reminderSummary?.isConfigured ? 'Ready to send' : 'Setup needed'}
+          </div>
+          <p className="mt-1 text-[12px] leading-5 text-[#637268]">
+            {reminderSummary?.isConfigured
+              ? `Using ${reminderSummary.fromEmail || 'your sender email'} and ${reminderSummary.siteUrl}.`
+              : reminderSummary?.missingConfig?.length
+                ? `Missing: ${reminderSummary.missingConfig.join(', ')}`
+                : 'Loading reminder configuration.'}
+          </p>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <label className="grid gap-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
+            Test email
+            <input
+              type="email"
+              value={testReminderEmail}
+              onChange={event => setTestReminderEmail(event.target.value)}
+              placeholder="you@example.com"
+              className="rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm font-normal normal-case tracking-normal text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void sendTestReminderEmail()}
+            disabled={sendingTestReminder}
+            className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
+          >
+            {sendingTestReminder ? 'Sending...' : 'Send test email'}
+          </button>
+          {reminderStatusMessage && (
+            <p className="text-sm text-[#637268]">{reminderStatusMessage}</p>
+          )}
+          <p className="text-xs leading-5 text-[#8a948d]">
+            Daily sends should call <span className="font-mono">/api/reminders/send</span> with your cron secret.
+          </p>
+        </div>
       </section>
     ),
     no_resident_mode: (
