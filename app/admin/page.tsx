@@ -2568,7 +2568,6 @@ export default function AdminPage() {
         <Link href="/admin/case-stats" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
           Case Stats
         </Link>
-        <p className="mt-2 text-sm text-[#8a948d]">Cumulative level trends and case performance</p>
       </section>
     ),
     email_reminders: (
@@ -2576,7 +2575,6 @@ export default function AdminPage() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-serif text-xl font-bold">Email Reminders</h2>
-            <p className="mt-1 text-sm text-[#8a948d]">Daily case notifications and setup health.</p>
           </div>
           <button
             type="button"
@@ -2611,11 +2609,6 @@ export default function AdminPage() {
             ? 'border-[#cfded4] bg-[#f7fbf8]'
             : 'border-[#ead9b7] bg-[#fffaf1]'
         }`}>
-          <div className={`text-[10px] font-bold uppercase tracking-[0.18em] ${
-            reminderSummary?.isConfigured ? 'text-[#1f6448]' : 'text-[#a24d24]'
-          }`}>
-            {reminderSummary?.isConfigured ? 'Ready to send' : 'Setup needed'}
-          </div>
           <p className="mt-1 text-[12px] leading-5 text-[#637268]">
             {reminderSummary?.isConfigured
               ? `Using ${reminderSummary.fromEmail || 'your sender email'} and ${reminderSummary.siteUrl}.`
@@ -2647,9 +2640,6 @@ export default function AdminPage() {
           {reminderStatusMessage && (
             <p className="text-sm text-[#637268]">{reminderStatusMessage}</p>
           )}
-          <p className="text-xs leading-5 text-[#8a948d]">
-            Daily sends should call <span className="font-mono">/api/reminders/send</span> with your cron secret.
-          </p>
         </div>
       </section>
     ),
@@ -2810,9 +2800,6 @@ export default function AdminPage() {
               Dedicated page
             </div>
           </div>
-          <p className="text-sm leading-6 text-[#637268]">
-            Manage homepage header surveys, group header surveys, and after-case surveys from one place.
-          </p>
           <Link
             href="/admin/surveys"
             className="inline-flex h-10 items-center justify-center rounded-full border border-[#1f6448] bg-[#1f6448] px-4 text-sm font-semibold text-white transition hover:bg-[#174c37]"
@@ -2902,7 +2889,6 @@ export default function AdminPage() {
             Groups
           </Link>
         </div>
-        <p className="mt-2 text-sm text-[#8a948d]">Manage group boards, announcements, invite requests, and scoring in one place.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href="/admin/groups"
@@ -3000,17 +2986,6 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                      Night mode users
-                    </div>
-                    <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                      {formatPercent(analyticsSummary.darkModeRate)}
-                    </div>
-                    <div className="mt-1 text-[11px] text-[#637268]">
-                      {analyticsSummary.darkModeUsers} of {analyticsSummary.themeTrackedUsers} tracked users
-                    </div>
-                  </div>
                 </div>
 
                 <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
