@@ -60,7 +60,7 @@ export default function AdminTaglinesPage() {
     ])
 
     if (error) {
-      setStatus(`Could not load subtitles: ${error.message}`)
+      setStatus(`Could not load button subtitles: ${error.message}`)
       return
     }
 
@@ -69,13 +69,17 @@ export default function AdminTaglinesPage() {
       return
     }
 
-    const nextRows = { ...DEFAULT_TAGLINES }
+    const nextRows: Record<Level, string> = {
+      med_student: '',
+      resident: '',
+      attending: '',
+    }
     const nextTitles = { ...DEFAULT_LEVEL_TITLES }
 
     for (const level of LEVEL_ORDER) {
-      const latestRow = (data || []).find(item => item.level === level && item.text?.trim())
-      if (latestRow?.text) {
-        nextRows[level] = latestRow.text.toUpperCase()
+      const latestRow = (data || []).find(item => item.level === level)
+      if (latestRow) {
+        nextRows[level] = (latestRow.text || '').trim().toUpperCase()
       }
 
       const titleRow = (titleData || []).find(item => item.level === level && item.title?.trim())
@@ -91,14 +95,9 @@ export default function AdminTaglinesPage() {
   async function saveAll() {
     const payload = LEVEL_ORDER.map(level => ({
       level,
-      text: (rows[level] || DEFAULT_TAGLINES[level]).trim().toUpperCase(),
+      text: (rows[level] || '').trim().toUpperCase(),
     }))
     const titlePayload = normalizeLevelTitles(titles)
-
-    if (payload.some(item => !item.text)) {
-      setStatus('Each level needs a subtitle.')
-      return
-    }
 
     if (LEVEL_ORDER.some(level => !titlePayload[level].trim())) {
       setStatus('Each level needs a case title.')
@@ -114,7 +113,7 @@ export default function AdminTaglinesPage() {
         .order('id', { ascending: false })
 
       if (existingError) {
-        setStatus(`Could not load existing subtitles: ${existingError.message}`)
+        setStatus(`Could not load existing button subtitles: ${existingError.message}`)
         return
       }
 
@@ -126,7 +125,7 @@ export default function AdminTaglinesPage() {
         })
 
         if (insertError) {
-          setStatus(`Could not save subtitles: ${insertError.message}`)
+          setStatus(`Could not save button subtitles: ${insertError.message}`)
           return
         }
         continue
@@ -145,7 +144,7 @@ export default function AdminTaglinesPage() {
         .eq('id', primaryId)
 
       if (updateError) {
-        setStatus(`Could not save subtitles: ${updateError.message}`)
+        setStatus(`Could not save button subtitles: ${updateError.message}`)
         return
       }
 
@@ -182,7 +181,7 @@ export default function AdminTaglinesPage() {
 
     window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)
     window.localStorage.setItem(LEVEL_TITLE_CACHE_KEY, JSON.stringify(titlePayload))
-    setStatus('Case titles and subtitles updated.')
+    setStatus('Case titles and button subtitles updated.')
     await loadRows()
   }
 
@@ -293,7 +292,7 @@ export default function AdminTaglinesPage() {
                         [level]: e.target.value.toUpperCase(),
                       }))
                     }
-                    placeholder={`${formatLevel(level)} subtitle`}
+                    placeholder={`${DEFAULT_TAGLINES[level]} or leave blank`}
                     className="w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
                   />
                 </label>

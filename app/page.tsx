@@ -781,37 +781,25 @@ function PlayPageContent() {
 
       setAnswerOptions(uniqueAnswers)
 
-      const nextTaglines = {
-        med_student: [...DEFAULT_LEVEL_TAGLINES.med_student],
-        resident: [...DEFAULT_LEVEL_TAGLINES.resident],
-        attending: [...DEFAULT_LEVEL_TAGLINES.attending],
+      const nextTaglines: Record<Level, string[]> = {
+        med_student: [],
+        resident: [],
+        attending: [],
       }
 
       if (taglineRows && taglineRows.length > 0) {
         for (const level of ['med_student', 'resident', 'attending'] as const) {
-          const firstRow = (taglineRows as Array<{ level: Level; text: string }>).find(
-            row => row.level === level && row.text?.trim()
+          const firstRow = (taglineRows as Array<{ level: Level; text: string | null }>).find(
+            row => row.level === level
           )
-          if (firstRow?.text) {
-            nextTaglines[level] = [firstRow.text.toUpperCase()]
+          if (firstRow) {
+            const trimmedText = (firstRow.text || '').trim().toUpperCase()
+            nextTaglines[level] = trimmedText ? [trimmedText] : ['']
           }
         }
       }
 
-      const resolvedTaglines = {
-        med_student:
-          nextTaglines.med_student.length > 0
-            ? nextTaglines.med_student
-            : DEFAULT_LEVEL_TAGLINES.med_student,
-        resident:
-          nextTaglines.resident.length > 0
-            ? nextTaglines.resident
-            : DEFAULT_LEVEL_TAGLINES.resident,
-        attending:
-          nextTaglines.attending.length > 0
-            ? nextTaglines.attending
-            : DEFAULT_LEVEL_TAGLINES.attending,
-      }
+      const resolvedTaglines = nextTaglines
 
       const resolvedTitles = normalizeLevelTitles(
         (titleRows || []).reduce(
@@ -2542,9 +2530,9 @@ function PlayPageContent() {
   const selectedTaglines = useMemo(
     () =>
       ({
-        med_student: levelTaglines.med_student[0] || DEFAULT_LEVEL_TAGLINES.med_student[0],
-        resident: levelTaglines.resident[0] || DEFAULT_LEVEL_TAGLINES.resident[0],
-        attending: levelTaglines.attending[0] || DEFAULT_LEVEL_TAGLINES.attending[0],
+        med_student: levelTaglines.med_student[0] || '',
+        resident: levelTaglines.resident[0] || '',
+        attending: levelTaglines.attending[0] || '',
       }) as Record<Level, string>,
     [levelTaglines]
   )
@@ -3082,19 +3070,24 @@ function PlayPageContent() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex min-h-[58px] flex-col items-center justify-center rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 py-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2"
+                    className={`flex min-h-[58px] items-center rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 ${
+                      item.subtitle ? 'flex-col justify-center py-1.5 sm:py-2' : 'justify-center py-2.5 sm:py-3'
+                    }`}
                   >
                     <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
                       {item.label}
                     </div>
-                    <div className="mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]">
-                      {item.subtitle}
-                    </div>
+                    {item.subtitle ? (
+                      <div className="mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]">
+                        {item.subtitle}
+                      </div>
+                    ) : null}
                   </Link>
                 )
               }
 
               const active = selectedLevel === item.key
+              const subtitle = selectedTaglines[item.key]
 
               return (
                 <button
@@ -3102,23 +3095,29 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? 'min-h-[58px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-1.5 py-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 sm:py-2'
-                      : 'min-h-[58px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 py-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 sm:py-2'
+                      ? `min-h-[58px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 ${
+                          subtitle ? 'py-1.5 sm:py-2' : 'py-2.5 sm:py-3'
+                        }`
+                      : `min-h-[58px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 ${
+                          subtitle ? 'py-1.5 sm:py-2' : 'py-2.5 sm:py-3'
+                        }`
                   }
                 >
                   <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
                     {item.label}
                   </div>
 
-                  <div
-                    className={
-                      active
-                        ? 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
-                        : 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
-                    }
-                  >
-                    {selectedTaglines[item.key]}
-                  </div>
+                  {subtitle ? (
+                    <div
+                      className={
+                        active
+                          ? 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
+                          : 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
+                      }
+                    >
+                      {subtitle}
+                    </div>
+                  ) : null}
                 </button>
               )
             })}
