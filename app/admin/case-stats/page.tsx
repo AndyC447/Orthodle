@@ -43,6 +43,17 @@ type CasePerformanceRow = {
   averageGuessCorrect: number | null
 }
 
+type CasePerformanceAccumulator = CasePerformanceRow & {
+  bucket: CaseStatsBucketId
+  playerSet: Set<string>
+}
+
+type CaseStatsBucketId =
+  | 'med_student'
+  | 'resident'
+  | 'attending_legacy'
+  | 'attending_anatomy'
+
 type TrendDay = {
   date: string
   label: string
@@ -52,7 +63,7 @@ type TrendDay = {
 }
 
 type LevelStats = {
-  level: Level
+  level: CaseStatsBucketId
   label: string
   caseCount: number
   uniquePlayers: number
@@ -84,6 +95,15 @@ const LEVEL_LABELS: Record<Level, string> = {
   resident: 'Resident',
   attending: 'Anatomy',
 }
+
+const CASE_STATS_BUCKET_LABELS: Record<CaseStatsBucketId, string> = {
+  med_student: 'Med Student',
+  resident: 'Resident',
+  attending_legacy: 'Attending',
+  attending_anatomy: 'Anatomy',
+}
+
+const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
 
 const PACIFIC_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   timeZone: 'America/Los_Angeles',
@@ -138,17 +158,25 @@ function buildLastSevenPacificDates() {
   return days
 }
 
+function getCaseStatsBucket(level: Level, caseDate: string): CaseStatsBucketId {
+  if (level === 'med_student') return 'med_student'
+  if (level === 'resident') return 'resident'
+  return caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE ? 'attending_anatomy' : 'attending_legacy'
+}
+
 function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPayload {
   const caseLookup = new Map(cases.map(item => [item.id, item]))
   const guessesByCaseSession = new Map<string, GuessRow[]>()
-  const levelCaseCounts = new Map<Level, number>([
+  const levelCaseCounts = new Map<CaseStatsBucketId, number>([
     ['med_student', 0],
     ['resident', 0],
-    ['attending', 0],
+    ['attending_legacy', 0],
+    ['attending_anatomy', 0],
   ])
 
   for (const item of cases) {
-    levelCaseCounts.set(item.level, (levelCaseCounts.get(item.level) || 0) + 1)
+    const bucket = getCaseStatsBucket(item.level, item.case_date)
+    levelCaseCounts.set(bucket, (levelCaseCounts.get(bucket) || 0) + 1)
   }
 
   for (const row of guessRows) {
@@ -176,11 +204,11 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
 
   const casePerformanceById = new Map<
     string,
-    CasePerformanceRow & { playerSet: Set<string>; category: string; level: Level }
+    CasePerformanceAccumulator
   >()
 
   const levelAccumulators = new Map<
-    Level,
+    CaseStatsBucketId,
     {
       solveCount: number
       firstTrySolves: number
@@ -193,7 +221,7 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
       >
     }
   >(
-    (Object.keys(LEVEL_LABELS) as Level[]).map(level => [
+    (Object.keys(CASE_STATS_BUCKET_LABELS) as CaseStatsBucketId[]).map(level => [
       level,
       {
         solveCount: 0,
@@ -223,7 +251,8 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
     if (!caseInfo) continue
 
     const caseRow = caseLookup.get(sample.case_id)
-    const level = caseInfo.level
+    const caseDate = caseRow?.case_date || caseInfo.case_date
+    const level = getCaseStatsBucket(caseInfo.level, caseDate)
     const accumulator = levelAccumulators.get(level)
     if (!accumulator) continue
 
@@ -236,12 +265,13 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
         caseId: sample.case_id,
         answer: caseInfo.answer,
         category: caseInfo.category || 'Uncategorized',
-        level,
+        level: caseInfo.level,
         players: 0,
         solves: 0,
         firstTrySolves: 0,
         averageGuessCorrect: null,
         playerSet: new Set<string>(),
+        bucket: level,
       }
       casePerformanceById.set(sample.case_id, performance)
     }
@@ -278,7 +308,7 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
     accumulator.categories.set(categoryKey, categoryEntry)
 
     const solvedAt = orderedRows[firstCorrectIndex]?.created_at
-    const solvedDate = caseRow?.case_date || getPacificIsoDate(solvedAt)
+    const solvedDate = caseDate || getPacificIsoDate(solvedAt)
     if (lastSeven.includes(solvedDate)) {
       const trendEntry = accumulator.trend[solvedDate] || trendSkeleton[solvedDate]
       trendEntry.solves += 1
@@ -312,7 +342,7 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
       totals.solves > 0 ? totals.totalGuessCorrect / totals.solves : null
   }
 
-  const levelStats = (Object.keys(LEVEL_LABELS) as Level[]).map(level => {
+  const levelStats = (Object.keys(CASE_STATS_BUCKET_LABELS) as CaseStatsBucketId[]).map(level => {
     const accumulator = levelAccumulators.get(level)!
     const categories = Array.from(accumulator.categories.entries()).map(([category, value]) => ({
       category,
@@ -326,7 +356,7 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
         ? categories.reduce((sum, item) => sum + item.avgPlayers, 0) / categories.length
         : null
 
-    const levelCases = Array.from(casePerformanceById.values()).filter(item => item.level === level)
+    const levelCases = Array.from(casePerformanceById.values()).filter(item => item.bucket === level)
 
     const trend = lastSeven.map(date => {
       const trendEntry = accumulator.trend[date] || trendSkeleton[date]
@@ -345,7 +375,7 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
 
     return {
       level,
-      label: LEVEL_LABELS[level],
+      label: CASE_STATS_BUCKET_LABELS[level],
       caseCount,
       uniquePlayers: accumulator.playerSet.size,
       averageGuessCorrect:
@@ -358,14 +388,14 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
       trend,
       topCategories: categories.sort((a, b) => b.avgPlayers - a.avgPlayers).slice(0, 4),
       hottestCases: Array.from(casePerformanceById.values())
-        .filter(item => item.level === level)
+        .filter(item => item.bucket === level)
         .sort((a, b) => {
           if (b.players !== a.players) return b.players - a.players
           if (b.solves !== a.solves) return b.solves - a.solves
           return a.answer.localeCompare(b.answer)
         })
         .slice(0, 4)
-        .map(({ playerSet: _playerSet, ...rest }) => rest),
+        .map(({ playerSet: _playerSet, bucket: _bucket, ...rest }) => rest),
     }
   })
 
