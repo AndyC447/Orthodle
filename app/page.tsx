@@ -748,8 +748,8 @@ function PlayPageContent() {
         setAnswerOptions(cached.answerOptions)
         setLevelTaglines(cached.levelTaglines)
         setLevelTitles(cached.levelTitles || DEFAULT_LEVEL_TITLES)
-        setGroupsTitle(cached.groupsTitle || 'Groups')
-        setGroupsSubtitle(cached.groupsSubtitle || 'COMPETE')
+        setGroupsTitle(cached.groupsTitle ?? 'Groups')
+        setGroupsSubtitle(cached.groupsSubtitle ?? 'COMPETE')
         return
       }
 
@@ -1358,6 +1358,7 @@ function PlayPageContent() {
                 (typeof navigator !== 'undefined' && (navigator.language || navigator.languages?.[0])) || null,
               browserTheme: getBrowserTheme(),
               doNotTrack: isTrackingDisabledForThisBrowser(),
+              preview: isAdminPreview,
             }),
           })
         }
@@ -2316,6 +2317,7 @@ function PlayPageContent() {
               guess: currentGuess,
               sessionId,
               doNotTrack: isTrackingDisabledForThisBrowser(),
+              preview: isAdminPreview,
             }),
           })
 

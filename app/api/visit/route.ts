@@ -14,6 +14,7 @@ export async function POST(req: Request) {
       ? body.browserTheme
       : null
   const doNotTrack = body.doNotTrack === true
+  const isPreview = body.preview === true
 
   if (!sessionId) {
     return NextResponse.json({ error: 'Missing session id' }, { status: 400 })
@@ -24,7 +25,8 @@ export async function POST(req: Request) {
     host.includes('localhost') ||
     host.includes('127.0.0.1') ||
     host.includes('0.0.0.0') ||
-    doNotTrack
+    doNotTrack ||
+    isPreview
   ) {
     return NextResponse.json({ ok: true, local: true })
   }
