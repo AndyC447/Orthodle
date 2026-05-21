@@ -3718,7 +3718,7 @@ function PlayPageContent() {
         </aside>
       </div>
 
-      {onTodayCard && (
+      {!caseParam && (
         <section className="mx-auto mt-6 w-full max-w-[1120px] px-3 sm:px-4">
           <div className="orthodle-panel-shell rounded-2xl border border-[#e7e1d6] bg-white px-4 py-3 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-5 sm:py-3.5">
             <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
