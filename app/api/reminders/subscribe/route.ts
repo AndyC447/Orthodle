@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   DEFAULT_REMINDER_MODE,
+  DEFAULT_REMINDER_TIME,
   PACIFIC_TIMEZONE,
+  normalizeScheduledReminderMinutes,
 } from '@/lib/reminders'
 
 function normalizeEmail(email: string) {
@@ -18,7 +20,7 @@ export async function POST(request: Request) {
     const body = await request.json()
     const email = normalizeEmail(body.email || '')
     const reminderMode = DEFAULT_REMINDER_MODE
-    const reminderMinutes = null
+    const reminderMinutes = normalizeScheduledReminderMinutes(DEFAULT_REMINDER_TIME)
 
     if (!isValidEmail(email)) {
       return NextResponse.json(
