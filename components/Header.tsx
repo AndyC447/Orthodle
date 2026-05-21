@@ -5,12 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Bell, Menu, Moon, Sun } from 'lucide-react'
 import { formatFeedbackLevel } from '@/lib/feedback-messages'
-import {
-  DEFAULT_REMINDER_TIME,
-  PACIFIC_TIMEZONE,
-  normalizeReminderTimezone,
-  type ReminderMode,
-} from '@/lib/reminders'
 import type { MessagingPayload } from '@/lib/messaging'
 import { getAccountSession, getSessionId } from '@/lib/utils'
 
@@ -25,9 +19,6 @@ export function Header() {
   const [sendingReplyThreadId, setSendingReplyThreadId] = useState<string | null>(null)
   const [dismissedThreadIds, setDismissedThreadIds] = useState<string[]>([])
   const [reminderEmail, setReminderEmail] = useState('')
-  const [reminderMode, setReminderMode] = useState<ReminderMode>('instant')
-  const [reminderTime, setReminderTime] = useState(DEFAULT_REMINDER_TIME)
-  const [reminderTimezone, setReminderTimezone] = useState(PACIFIC_TIMEZONE)
   const [reminderStatus, setReminderStatus] = useState('')
   const [isSavingReminder, setIsSavingReminder] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
@@ -42,19 +33,6 @@ export function Header() {
     messagingPayload?.threads.filter(thread => !dismissedThreadIds.includes(thread.feedbackId)) || []
   const threadCount = visibleThreads.length || 0
   const hasAnyMessages = threadCount > 0
-  const availableTimezones = [
-    'America/Los_Angeles',
-    'America/Denver',
-    'America/Chicago',
-    'America/New_York',
-    'America/Anchorage',
-    'Pacific/Honolulu',
-    'Europe/London',
-    'Europe/Paris',
-    'Asia/Kolkata',
-    'Asia/Tokyo',
-    'Australia/Sydney',
-  ]
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -68,9 +46,6 @@ export function Header() {
       (window.localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null) || 'light'
     setTheme(savedTheme)
     document.documentElement.dataset.theme = savedTheme
-    setReminderTimezone(
-      normalizeReminderTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone || PACIFIC_TIMEZONE)
-    )
 
     try {
       const raw = window.localStorage.getItem(DISMISSED_THREADS_STORAGE_KEY)
@@ -216,16 +191,6 @@ export function Header() {
     }
   }
 
-  function getBrowserTimezone() {
-    try {
-      return normalizeReminderTimezone(
-        Intl.DateTimeFormat().resolvedOptions().timeZone || PACIFIC_TIMEZONE
-      )
-    } catch {
-      return PACIFIC_TIMEZONE
-    }
-  }
-
   async function sendThreadReply(feedbackId: string, recipientSessionId: string) {
     const draft = (replyDrafts[feedbackId] || '').trim()
     if (!draft) return
@@ -285,10 +250,7 @@ export function Header() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
-          timezone: reminderTimezone || getBrowserTimezone(),
           sourcePath: pathname || '/',
-          reminderMode,
-          reminderTime,
         }),
       })
 
@@ -389,63 +351,6 @@ export function Header() {
                       <div className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${theme === 'dark' ? 'text-[#9fb4a7]' : 'text-[#637268]'}`}>
                         Email notifications
                       </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setReminderMode('instant')}
-                          className={`rounded-lg border px-2 py-1.5 text-[9px] font-semibold leading-none transition ${
-                            reminderMode === 'instant'
-                              ? 'border-[#1f6448] bg-[#1f6448] text-white'
-                              : theme === 'dark'
-                                ? 'border-[#33453c] bg-[#18241f] text-[#dbe5dd] hover:bg-[#213129]'
-                                : 'border-[#ded7ca] bg-white text-[#637268] hover:border-[#c8bda9] hover:text-[#102018]'
-                          }`}
-                        >
-                          Right when cases go live
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setReminderMode('scheduled')}
-                          className={`rounded-lg border px-2 py-1.5 text-[9px] font-semibold leading-none transition ${
-                            reminderMode === 'scheduled'
-                              ? 'border-[#1f6448] bg-[#1f6448] text-white'
-                              : theme === 'dark'
-                                ? 'border-[#33453c] bg-[#18241f] text-[#dbe5dd] hover:bg-[#213129]'
-                                : 'border-[#ded7ca] bg-white text-[#637268] hover:border-[#c8bda9] hover:text-[#102018]'
-                          }`}
-                        >
-                          Later in the day
-                        </button>
-                        {reminderMode === 'scheduled' && (
-                          <>
-                            <input
-                              type="time"
-                              value={reminderTime}
-                              onChange={event => setReminderTime(event.target.value)}
-                              className={`min-h-[30px] rounded-lg border px-2.5 py-1 text-[10px] leading-none outline-none transition ${
-                                theme === 'dark'
-                                  ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] focus:border-[#1f6448]'
-                                  : 'border-[#ded7ca] bg-white text-[#102018] focus:border-[#1f6448]'
-                              }`}
-                            />
-                            <select
-                              value={reminderTimezone}
-                              onChange={event => setReminderTimezone(event.target.value)}
-                              className={`min-h-[30px] max-w-[180px] rounded-lg border px-2.5 py-1 text-[10px] leading-none outline-none transition ${
-                                theme === 'dark'
-                                  ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] focus:border-[#1f6448]'
-                                  : 'border-[#ded7ca] bg-white text-[#102018] focus:border-[#1f6448]'
-                              }`}
-                            >
-                              {availableTimezones.map(zone => (
-                                <option key={zone} value={zone}>
-                                  {zone.replaceAll('_', ' ')}
-                                </option>
-                              ))}
-                            </select>
-                          </>
-                        )}
-                      </div>
                       <div className="mt-2 flex items-center gap-2">
                         <input
                           type="email"
@@ -468,9 +373,7 @@ export function Header() {
                         </button>
                       </div>
                       <p className={`mt-1 text-[10px] leading-none ${theme === 'dark' ? 'text-[#8ea194]' : 'text-[#7a857c]'}`}>
-                        {reminderMode === 'scheduled'
-                          ? `Scheduled reminders use ${reminderTimezone.replaceAll('_', ' ')}. New cases still go live at 12:00 AM Pacific.`
-                          : 'New cases go live at 12:00 AM Pacific.'}
+                        One daily email after new cases are live.
                       </p>
                       {reminderStatus && (
                         <p className={`mt-2 text-[10px] leading-none ${theme === 'dark' ? 'text-[#b7d3c3]' : 'text-[#1f6448]'}`}>

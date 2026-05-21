@@ -47,7 +47,7 @@ function formatReminderPreference(row: ReminderSubscriberRow) {
   if (row.reminder_mode === 'scheduled') {
     return `${formatPacificTime(row.scheduled_time_minutes)} · ${formatTimezoneLabel(row.timezone)}`
   }
-  return 'When cases go live'
+  return 'Daily reminder'
 }
 
 function formatDateTime(value: string | null) {

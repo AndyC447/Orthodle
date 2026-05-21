@@ -2,10 +2,7 @@ import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   DEFAULT_REMINDER_MODE,
-  formatReminderMinutes,
-  normalizeReminderMode,
-  normalizeScheduledReminderMinutes,
-  normalizeReminderTimezone,
+  PACIFIC_TIMEZONE,
 } from '@/lib/reminders'
 
 function normalizeEmail(email: string) {
@@ -20,9 +17,8 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const email = normalizeEmail(body.email || '')
-    const reminderMode = normalizeReminderMode(body.reminderMode)
-    const reminderMinutes = normalizeScheduledReminderMinutes(body.reminderTime)
-    const reminderTimezone = normalizeReminderTimezone(body.timezone)
+    const reminderMode = DEFAULT_REMINDER_MODE
+    const reminderMinutes = null
 
     if (!isValidEmail(email)) {
       return NextResponse.json(
@@ -43,7 +39,7 @@ export async function POST(request: Request) {
         .from('email_reminders')
         .update({
           active: true,
-          timezone: reminderTimezone,
+          timezone: PACIFIC_TIMEZONE,
           source_path: body.sourcePath || '/',
           reminder_mode: reminderMode,
           scheduled_time_minutes: reminderMinutes,
@@ -61,7 +57,7 @@ export async function POST(request: Request) {
       const { error: insertError } = await supabaseAdmin.from('email_reminders').insert({
         email,
         active: true,
-        timezone: reminderTimezone,
+        timezone: PACIFIC_TIMEZONE,
         source_path: body.sourcePath || '/',
         reminder_mode: reminderMode,
         scheduled_time_minutes: reminderMinutes,
@@ -79,10 +75,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message:
-        reminderMode === DEFAULT_REMINDER_MODE
-          ? 'You’re signed up for an email as soon as the new cases go live.'
-          : `You’re signed up for a daily reminder at ${formatReminderMinutes(reminderMinutes)} in your selected time zone.`,
+      message: 'You’re signed up for one daily Orthodle reminder email.',
     })
   } catch (error) {
     if (error instanceof Error) {
