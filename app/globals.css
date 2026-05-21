@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f6f2ea;
+  --bg: #f5f6f1;
   --ink: #18231c;
   --green: #16392a;
   --green-2: #335f4b;
   --muted: #66746a;
   --line: #c8bcaa;
-  --card: #f7f7f2;
+  --card: #f8f8f4;
   --card-strong: #fffefb;
   --orange: #b9753d;
   --shadow: 0 16px 34px rgba(16, 32, 24, 0.08);
@@ -81,9 +81,9 @@ body {
 
 .app-surface {
   background:
-    radial-gradient(circle at 10% 0%, rgba(72, 120, 92, 0.05), transparent 24%),
-    radial-gradient(circle at 92% 4%, rgba(185, 117, 61, 0.045), transparent 22%),
-    linear-gradient(180deg, #faf7f1 0%, #f4efe6 100%);
+    radial-gradient(circle at 12% 0%, rgba(72, 120, 92, 0.035), transparent 20%),
+    radial-gradient(circle at 92% 3%, rgba(185, 117, 61, 0.028), transparent 18%),
+    linear-gradient(180deg, #fafbf8 0%, #f2f4ee 100%);
   position: relative;
 }
 
@@ -92,7 +92,7 @@ body {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.32;
+  opacity: 0.18;
   background-image:
     radial-gradient(circle at 20% 20%, var(--paper-speck) 0.7px, transparent 0.9px),
     radial-gradient(circle at 80% 40%, var(--paper-speck) 0.8px, transparent 1px),
@@ -781,12 +781,10 @@ a {
 
 .orthodle-anatomy-quiz-shell {
   background:
-    radial-gradient(circle at top left, rgba(233, 189, 106, 0.16), transparent 24%),
-    linear-gradient(180deg, #fffdf7 0%, #fbf7ef 100%) !important;
-  border-color: rgba(217, 207, 191, 0.82) !important;
-  box-shadow:
-    0 16px 30px rgba(16, 32, 24, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+    radial-gradient(circle at top left, rgba(233, 189, 106, 0.08), transparent 20%),
+    linear-gradient(180deg, rgba(255, 253, 247, 0.68) 0%, rgba(251, 247, 239, 0.42) 100%) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .night-label,
@@ -862,5 +860,28 @@ a {
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+@keyframes orthodle-border-drift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.orthodle-animated-border {
+  background-size: 180% 180%;
+  animation: orthodle-border-drift 9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orthodle-animated-border {
+    animation: none;
   }
 }

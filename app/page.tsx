@@ -3045,16 +3045,23 @@ function PlayPageContent() {
         )}
 
         {showResumeRound && resumeRound && (
-          <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-2.5 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4">
-            <div className="flex items-start justify-between gap-3">
+          <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-2 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-2.5">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <div className="min-w-0 flex-1">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
                   Continue where you left off
                 </div>
-                <p className="mt-1 text-[11.5px] leading-4.5 text-[#355542] sm:text-[13px] sm:leading-5">
+                <p className="mt-0.5 truncate text-[11.5px] leading-4 text-[#355542] sm:text-[12.5px]">
                   {formatLevel(resumeRound.level)} · {formatArchiveDate(resumeRound.caseDate)} · {resumeRound.guesses.length} saved guess{resumeRound.guesses.length === 1 ? '' : 'es'}
                 </p>
               </div>
+              <button
+                type="button"
+                onClick={resumeSavedRound}
+                className="inline-flex h-8 shrink-0 items-center justify-center rounded-full border border-[#1f6448] bg-[#1f6448] px-3 text-[10.5px] font-semibold text-white transition hover:bg-[#174c37] sm:h-9 sm:px-3.5 sm:text-[11px]"
+              >
+                Resume case
+              </button>
               <button
                 type="button"
                 onClick={dismissResumeRound}
@@ -3064,19 +3071,10 @@ function PlayPageContent() {
                 ×
               </button>
             </div>
-            <div className="mt-2 flex justify-start sm:justify-end">
-              <button
-                type="button"
-                onClick={resumeSavedRound}
-                className="inline-flex h-9 items-center justify-center rounded-full border border-[#1f6448] bg-[#1f6448] px-3.5 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:text-[12px]"
-              >
-                Resume case
-              </button>
-            </div>
           </div>
         )}
 
-        <div className={`w-full rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-animated-border w-full rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           <div
             className="grid gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5"
             style={{ gridTemplateColumns: `repeat(${homeTabs.length}, minmax(0, 1fr))` }}
@@ -3087,8 +3085,10 @@ function PlayPageContent() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex min-h-[58px] items-center rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 ${
-                      item.subtitle ? 'flex-col justify-center py-1.5 sm:py-2' : 'justify-center py-2.5 sm:py-3'
+                    className={`flex items-center rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-2.5 ${
+                      item.subtitle
+                        ? 'min-h-[58px] flex-col justify-center py-1.5 sm:min-h-[58px] sm:py-2'
+                        : 'min-h-[46px] justify-center py-2 sm:min-h-[48px] sm:py-2.5'
                     }`}
                   >
                     <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
@@ -3112,11 +3112,15 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `min-h-[58px] rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:min-h-[58px] sm:px-2.5 ${
-                          subtitle ? 'py-1.5 sm:py-2' : 'py-2.5 sm:py-3'
+                      ? `rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-2.5 ${
+                          subtitle
+                            ? 'min-h-[58px] py-1.5 sm:min-h-[58px] sm:py-2'
+                            : 'min-h-[46px] py-2 sm:min-h-[48px] sm:py-2.5'
                         }`
-                      : `min-h-[58px] rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:min-h-[58px] sm:px-2.5 ${
-                          subtitle ? 'py-1.5 sm:py-2' : 'py-2.5 sm:py-3'
+                      : `rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-2.5 ${
+                          subtitle
+                            ? 'min-h-[58px] py-1.5 sm:min-h-[58px] sm:py-2'
+                            : 'min-h-[46px] py-2 sm:min-h-[48px] sm:py-2.5'
                         }`
                   }
                 >
@@ -3205,35 +3209,14 @@ function PlayPageContent() {
                 )}
               </div>
 
-              {visibleImages.length > 0 && imageRevealed && (
-                imageHidden ? (
-                  <div className="mt-3.5 flex items-center justify-between rounded-xl border border-dashed border-[#d9d4ca] bg-[#fbfaf7] px-3 py-2.5">
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-                      Imaging hidden
-                    </div>
-                    <button
-                      onClick={() => setImageHidden(false)}
-                      className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
-                    >
-                      Show
-                    </button>
-                  </div>
-                ) : (
-                  <div className="orthodle-fade-up orthodle-imaging-shell night-soft-surface mt-3 rounded-xl border border-[#e2ddd3] bg-[#f8f6f1] p-2">
+              {visibleImages.length > 0 && imageRevealed && !imageHidden && (
+                  <div className="orthodle-fade-up orthodle-imaging-shell mt-3 px-0.5">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                         Imaging
                       </div>
-
-                      <div className="hidden items-center justify-end gap-1.5 sm:flex">
-                        <button
-                          onClick={() => setImageHidden(true)}
-                          className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
-                        >
-                          Hide
-                        </button>
-                      </div>
+                      <div />
                     </div>
 
                     <div className={`grid gap-2 ${visibleImages.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
@@ -3241,7 +3224,7 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`}>
                           <button
                             onClick={() => openExpandedImage(index)}
-                            className="night-surface orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg border border-[#d9d4ca] bg-white py-1.5"
+                            className="orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-1"
                           >
                             <img
                               src={image.url}
@@ -3250,7 +3233,7 @@ function PlayPageContent() {
                             />
                           </button>
                           {image.credit && (
-                            <p className="mt-2 text-[10px] leading-4 text-[#8a948d]">
+                            <p className="mt-1.5 text-center text-[10px] leading-4 text-[#8a948d]">
                               {image.credit}
                             </p>
                           )}
@@ -3258,16 +3241,15 @@ function PlayPageContent() {
                       ))}
                     </div>
                   </div>
-                )
               )}
 
               <div ref={findingsRef} className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
                 {isSurgicalAnatomyMode ? (
-                  <div className="orthodle-anatomy-quiz-shell rounded-[20px] border border-[#d9cfbf] bg-[linear-gradient(180deg,#fffdf7_0%,#fbf7ef_100%)] p-3 shadow-[0_10px_22px_rgba(16,32,24,0.04)] sm:p-4">
+                  <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
                     {hasValidSurgicalAnatomyChoices ? (
                       <>
                         {!roundComplete && (
-                          <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[11px] text-[#637268]">
+                          <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-[#fffaf1]/70 px-3 py-2 text-[11px] text-[#637268]">
                             <div>
                               {isMultiSelectAnatomy
                                 ? 'Select all that apply, then submit.'
@@ -3318,16 +3300,16 @@ function PlayPageContent() {
                                         : [letter]
                                   )
                                 }
-                                className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
+                                className={`orthodle-anatomy-choice rounded-2xl px-3 py-3 text-left transition ${
                                   choiceState === 'correct'
-                                    ? 'orthodle-anatomy-choice-correct cursor-default border-[#1f7a4d] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
+                                    ? 'orthodle-anatomy-choice-correct cursor-default bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
-                                      ? 'orthodle-anatomy-choice-incorrect cursor-default border-[#c76b3a] bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
+                                      ? 'orthodle-anatomy-choice-incorrect cursor-default bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
                                       : isChosenChoice
-                                        ? 'border-[#1f6448] bg-[#f7fbf8] text-[#102018] shadow-[0_8px_18px_rgba(31,100,72,0.08)]'
+                                        ? 'bg-[#f7fbf8] text-[#102018] shadow-[0_8px_18px_rgba(31,100,72,0.08)]'
                                       : roundComplete
-                                        ? 'orthodle-anatomy-choice-idle cursor-default border-[#ded7ca] bg-[#fbfaf7] text-[#102018]'
-                                        : 'orthodle-anatomy-choice-idle border-[#ded7ca] bg-white text-[#102018] hover:border-[#1f6448] hover:bg-[#f7fbf8]'
+                                        ? 'orthodle-anatomy-choice-idle cursor-default bg-[#fbfaf7] text-[#102018]'
+                                        : 'orthodle-anatomy-choice-idle bg-white text-[#102018] hover:bg-[#f7fbf8]'
                                 }`}
                               >
                                 <div className="flex items-start gap-3">
@@ -3645,8 +3627,8 @@ function PlayPageContent() {
                           ? `${
                               isLatestCorrect ? 'orthodle-success-pulse' : ''
                             } orthodle-guess-correct flex min-h-[38px] items-center gap-2 rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm`
-                          : 'orthodle-guess-wrong flex min-h-[38px] items-center gap-2 rounded-lg bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm'
-                        : 'orthodle-guess-empty flex min-h-[38px] items-center gap-2 rounded-lg border border-dashed border-[#ded7ca] bg-white px-3 py-1.5 text-[12px] text-[#9aa39c] transition duration-200 hover:bg-[#fbfaf7]'
+                          : 'orthodle-guess-wrong flex min-h-[38px] items-center gap-2 rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm'
+                        : 'orthodle-guess-empty flex min-h-[38px] items-center gap-2 rounded-lg border border-dashed border-[#d7ccbc] bg-[#fffdfa] px-3 py-1.5 text-[12px] text-[#9aa39c] transition duration-200 hover:bg-[#fbfaf7]'
                     }
                   >
                     <span className="w-5 font-mono text-[11px] text-[#637268]">
@@ -3694,8 +3676,8 @@ function PlayPageContent() {
                       item
                         ? item.correct
                           ? 'orthodle-guess-correct flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
-                          : 'orthodle-guess-wrong flex min-h-[38px] flex-col items-center justify-center rounded-xl bg-[#fffaf1] px-1 py-1 text-[#102018]'
-                        : 'orthodle-guess-empty flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-dashed border-[#e1d8cb] bg-white px-1 py-1 text-[#9aa39c]'
+                          : 'orthodle-guess-wrong flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-1 py-1 text-[#102018]'
+                        : 'orthodle-guess-empty flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-dashed border-[#d7ccbc] bg-[#fffdfa] px-1 py-1 text-[#9aa39c]'
                     }
                   >
                     <span className="text-[8px] font-mono text-[#637268]">
