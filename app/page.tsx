@@ -237,6 +237,8 @@ type PlayBootstrapCache = {
   answerOptions: string[]
   levelTaglines: Record<Level, string[]>
   levelTitles: Record<Level, string>
+  groupsTitle?: string
+  groupsSubtitle?: string
 }
 
 type AdminCasePreviewCache = {
@@ -526,6 +528,8 @@ function PlayPageContent() {
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
   const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(DEFAULT_LEVEL_TITLES)
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
+  const [groupsTitle, setGroupsTitle] = useState('Groups')
+  const [groupsSubtitle, setGroupsSubtitle] = useState('COMPETE')
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
   const [dismissedResumeRoundToken, setDismissedResumeRoundToken] = useState<string | null>(null)
@@ -744,6 +748,8 @@ function PlayPageContent() {
         setAnswerOptions(cached.answerOptions)
         setLevelTaglines(cached.levelTaglines)
         setLevelTitles(cached.levelTitles || DEFAULT_LEVEL_TITLES)
+        setGroupsTitle(cached.groupsTitle || 'Groups')
+        setGroupsSubtitle(cached.groupsSubtitle || 'COMPETE')
         return
       }
 
@@ -811,13 +817,22 @@ function PlayPageContent() {
         )
       )
 
+      const groupsTitleRow = (titleRows || []).find(row => row.level === 'groups' && row.title?.trim())
+      const groupsTaglineRow = (taglineRows || []).find(row => row.level === 'groups')
+      const resolvedGroupsTitle = groupsTitleRow?.title?.trim() || 'Groups'
+      const resolvedGroupsSubtitle = (groupsTaglineRow?.text || '').trim().toUpperCase()
+
       setLevelTaglines(resolvedTaglines)
       setLevelTitles(resolvedTitles)
+      setGroupsTitle(resolvedGroupsTitle)
+      setGroupsSubtitle(resolvedGroupsSubtitle)
       writeCachedLevelTitles(resolvedTitles)
       writePlayBootstrapCache({
         answerOptions: uniqueAnswers,
         levelTaglines: resolvedTaglines,
         levelTitles: resolvedTitles,
+        groupsTitle: resolvedGroupsTitle,
+        groupsSubtitle: resolvedGroupsSubtitle,
       })
     }
 
@@ -2475,14 +2490,14 @@ function PlayPageContent() {
         { type: 'level' as const, key: 'med_student' as const, label: levelTitles.med_student },
         { type: 'level' as const, key: 'resident' as const, label: levelTitles.resident },
         { type: 'level' as const, key: 'attending' as const, label: levelTitles.attending },
-        { type: 'link' as const, href: '/groups', label: 'Groups', subtitle: 'COMPETE' },
+        { type: 'link' as const, href: '/groups', label: groupsTitle, subtitle: groupsSubtitle },
       ]
 
       return noResidentModeActiveToday
         ? tabs.filter(item => !(item.type === 'level' && item.key === 'resident'))
         : tabs
     },
-    [levelTitles, noResidentModeActiveToday]
+    [groupsSubtitle, groupsTitle, levelTitles, noResidentModeActiveToday]
   )
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
     () =>

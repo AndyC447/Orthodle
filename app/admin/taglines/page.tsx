@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/lib/supabase'
 
 type Level = DisplayLevel
+type HomeButtonKey = Level | 'groups'
 
 type TaglineRow = {
   id?: string
@@ -25,6 +26,8 @@ const DEFAULT_TAGLINES: Record<Level, string> = {
   resident: 'MAKE THE CALL',
   attending: 'CONNECT THE DOTS',
 }
+const DEFAULT_GROUPS_TITLE = 'Groups'
+const DEFAULT_GROUPS_SUBTITLE = 'COMPETE'
 
 const LEVEL_ORDER: Level[] = ['med_student', 'resident', 'attending']
 const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
@@ -34,6 +37,8 @@ export default function AdminTaglinesPage() {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [titles, setTitles] = useState<Record<Level, string>>(DEFAULT_LEVEL_TITLES)
   const [rows, setRows] = useState<Record<Level, string>>(DEFAULT_TAGLINES)
+  const [groupsTitle, setGroupsTitle] = useState(DEFAULT_GROUPS_TITLE)
+  const [groupsSubtitle, setGroupsSubtitle] = useState(DEFAULT_GROUPS_SUBTITLE)
   const [status, setStatus] = useState('')
 
   useEffect(() => {
@@ -88,8 +93,13 @@ export default function AdminTaglinesPage() {
       }
     }
 
+    const groupsRow = (data || []).find(item => item.level === 'groups')
+    const groupsTitleRow = (titleData || []).find(item => item.level === 'groups' && item.title?.trim())
+
     setRows(nextRows)
     setTitles(nextTitles)
+    setGroupsSubtitle(groupsRow ? (groupsRow.text || '').trim().toUpperCase() : DEFAULT_GROUPS_SUBTITLE)
+    setGroupsTitle(groupsTitleRow?.title?.trim() || DEFAULT_GROUPS_TITLE)
   }
 
   async function saveAll() {
@@ -103,6 +113,9 @@ export default function AdminTaglinesPage() {
       setStatus('Each level needs a case title.')
       return
     }
+
+    const nextGroupsTitle = groupsTitle.trim() || DEFAULT_GROUPS_TITLE
+    const nextGroupsSubtitle = groupsSubtitle.trim().toUpperCase()
 
     for (const item of payload) {
       const { data: existingRows, error: existingError } = await supabase
@@ -179,8 +192,81 @@ export default function AdminTaglinesPage() {
       }
     }
 
+    const { error: groupsTitleSaveError } = await supabase.from('level_display_settings').upsert(
+      {
+        level: 'groups',
+        title: nextGroupsTitle,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'level',
+      }
+    )
+
+    if (groupsTitleSaveError) {
+      setStatus(`Could not save groups button title: ${groupsTitleSaveError.message}`)
+      return
+    }
+
+    const { data: existingGroupsRows, error: existingGroupsError } = await supabase
+      .from('difficulty_taglines')
+      .select('id')
+      .eq('level', 'groups')
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: false })
+
+    if (existingGroupsError) {
+      setStatus(`Could not load existing groups button subtitle: ${existingGroupsError.message}`)
+      return
+    }
+
+    if (!existingGroupsRows || existingGroupsRows.length === 0) {
+      const { error: insertGroupsError } = await supabase.from('difficulty_taglines').insert({
+        level: 'groups',
+        text: nextGroupsSubtitle,
+        position: 0,
+      })
+
+      if (insertGroupsError) {
+        setStatus(`Could not save groups button subtitle: ${insertGroupsError.message}`)
+        return
+      }
+    } else {
+      const primaryId = existingGroupsRows[0].id
+      const duplicateIds = existingGroupsRows.slice(1).map(row => row.id)
+
+      const { error: updateGroupsError } = await supabase
+        .from('difficulty_taglines')
+        .update({
+          text: nextGroupsSubtitle,
+          position: 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', primaryId)
+
+      if (updateGroupsError) {
+        setStatus(`Could not save groups button subtitle: ${updateGroupsError.message}`)
+        return
+      }
+
+      if (duplicateIds.length > 0) {
+        const { error: cleanupGroupsError } = await supabase
+          .from('difficulty_taglines')
+          .delete()
+          .in('id', duplicateIds)
+
+        if (cleanupGroupsError) {
+          setStatus(`Saved, but could not clean old groups subtitle duplicates: ${cleanupGroupsError.message}`)
+          return
+        }
+      }
+    }
+
     window.sessionStorage.removeItem(PLAY_BOOTSTRAP_CACHE_KEY)
-    window.localStorage.setItem(LEVEL_TITLE_CACHE_KEY, JSON.stringify(titlePayload))
+    window.localStorage.setItem(
+      LEVEL_TITLE_CACHE_KEY,
+      JSON.stringify({ ...titlePayload, groups: nextGroupsTitle })
+    )
     setStatus('Case titles and button subtitles updated.')
     await loadRows()
   }
@@ -298,6 +384,26 @@ export default function AdminTaglinesPage() {
                 </label>
               </div>
             ))}
+            <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
+              <label className="grid gap-2">
+                <span className="text-sm font-semibold text-[#102018]">Groups</span>
+                <input
+                  value={groupsTitle}
+                  onChange={e => setGroupsTitle(e.target.value)}
+                  placeholder={DEFAULT_GROUPS_TITLE}
+                  className="w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                  Subtitle
+                </span>
+                <input
+                  value={groupsSubtitle}
+                  onChange={e => setGroupsSubtitle(e.target.value.toUpperCase())}
+                  placeholder={`${DEFAULT_GROUPS_SUBTITLE} or leave blank`}
+                  className="w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+                />
+              </label>
+            </div>
           </div>
         </section>
       </div>
