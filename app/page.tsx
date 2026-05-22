@@ -499,6 +499,8 @@ function PlayPageContent() {
   const guessInputRef = useRef<HTMLInputElement | null>(null)
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
+  const confettiTimeoutRef = useRef<number | null>(null)
+  const lastConfettiAtRef = useRef<number>(0)
   const imageTouchStartY = useRef<number | null>(null)
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
   const imagePinchStart = useRef<number | null>(null)
@@ -1715,10 +1717,23 @@ function PlayPageContent() {
   }
 
   function triggerConfetti() {
+    if (typeof window === 'undefined') return
+    const now = window.performance.now()
+    if (now - lastConfettiAtRef.current < 2200) return
+    lastConfettiAtRef.current = now
+
+    if (confettiTimeoutRef.current) {
+      window.clearTimeout(confettiTimeoutRef.current)
+      confettiTimeoutRef.current = null
+    }
+
     setShowConfetti(false)
     requestAnimationFrame(() => {
       setShowConfetti(true)
-      window.setTimeout(() => setShowConfetti(false), 1850)
+      confettiTimeoutRef.current = window.setTimeout(() => {
+        setShowConfetti(false)
+        confettiTimeoutRef.current = null
+      }, 2100)
     })
   }
 
@@ -2472,12 +2487,7 @@ function PlayPageContent() {
           message: nextMessage,
         })
       }
-      if (typeof window !== 'undefined' && window.innerWidth < 640) {
-        triggerSuccessPulse()
-      } else {
-        triggerSuccessPulse()
-        triggerConfetti()
-      }
+      triggerSuccessPulse()
       return
     }
 
@@ -2908,7 +2918,7 @@ function PlayPageContent() {
           }
           100% {
             opacity: 0;
-            transform: translate3d(calc(var(--burst-x) + var(--drift-x)), 96vh, 0) rotate(calc(var(--rotation) * 2.2)) scale(0.92);
+            transform: translate3d(calc(var(--burst-x) + var(--drift-x)), 112vh, 0) rotate(calc(var(--rotation) * 2.2)) scale(0.92);
           }
         }
 
@@ -3036,7 +3046,7 @@ function PlayPageContent() {
       `}</style>
 
       {showConfetti && (
-        <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+        <div className="pointer-events-none fixed inset-x-0 -top-[8vh] bottom-[-18vh] z-[60] overflow-hidden">
           <div className="orthodle-celebration-glow absolute left-1/2 top-[10vh] h-[220px] w-[220px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(239,191,72,0.22)_0%,rgba(239,191,72,0.12)_34%,rgba(255,255,255,0)_72%)]" />
           <span className="orthodle-celebration-sparkle absolute left-[26%] top-[16vh] text-[20px] text-[#f0c247]">✦</span>
           <span className="orthodle-celebration-sparkle absolute right-[24%] top-[18vh] text-[16px] text-[#f6e1a1]" style={{ animationDelay: '0.08s' }}>✦</span>

@@ -422,6 +422,9 @@ function timestampToLocalISO(timestamp: string) {
 }
 
 const ANALYTICS_PAGE_SIZE = 1000
+const ADMIN_ANALYTICS_CACHE_KEY = 'orthodle_admin_analytics_cache_v1'
+const ADMIN_ANALYTICS_CACHE_TTL_MS = 1000 * 60 * 5
+const EMAIL_REMINDERS_SEEN_AT_KEY = 'orthodle_seen_email_reminders_at'
 
 export default function AdminPage() {
   const teachingPointRef = useRef<HTMLTextAreaElement | null>(null)
@@ -479,6 +482,10 @@ export default function AdminPage() {
     latestCreatedAt: null as string | null,
   })
   const [emailReminderSummary, setEmailReminderSummary] = useState<ReminderAdminDashboardSummary | null>(null)
+  const [seenEmailRemindersAt, setSeenEmailRemindersAt] = useState<string | null>(null)
+  const [playModeSettingsReady, setPlayModeSettingsReady] = useState(false)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsLoaded, setAnalyticsLoaded] = useState(false)
   const [noResidentMode, setNoResidentMode] = useState(false)
   const [noResidentModeStartDate, setNoResidentModeStartDate] = useState(shiftISODate(today, 1))
   const [savingNoResidentMode, setSavingNoResidentMode] = useState(false)
@@ -531,6 +538,7 @@ export default function AdminPage() {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
     setIsUnlocked(savedUnlock === 'true')
     setAuthReady(true)
+    setSeenEmailRemindersAt(window.localStorage.getItem(EMAIL_REMINDERS_SEEN_AT_KEY))
   }, [])
 
   function isNoResidentModeActiveOn(dateText: string) {
@@ -594,7 +602,6 @@ export default function AdminPage() {
 
     setTrackingDisabledForThisBrowser(true)
     loadCases()
-    loadAnalytics()
     loadDiagnosisChoices()
     loadSubmissionSummary()
     loadFeedbackSummary()
@@ -648,6 +655,53 @@ export default function AdminPage() {
       }
     }
   }, [isUnlocked])
+
+  useEffect(() => {
+    if (!isUnlocked || typeof window === 'undefined') return
+
+    try {
+      const rawCache = window.sessionStorage.getItem(ADMIN_ANALYTICS_CACHE_KEY)
+      if (!rawCache) return
+
+      const parsed = JSON.parse(rawCache) as {
+        savedAt: number
+        analytics: AnalyticsRow[]
+        analyticsSummary: AnalyticsSummary | null
+        levelAnalytics: LevelAnalytics[]
+        casePerformance: CasePerformance[]
+        audienceSummary: AudienceSummary
+      }
+
+      if (!parsed?.savedAt || Date.now() - parsed.savedAt > ADMIN_ANALYTICS_CACHE_TTL_MS) {
+        window.sessionStorage.removeItem(ADMIN_ANALYTICS_CACHE_KEY)
+        return
+      }
+
+      setAnalytics(parsed.analytics || [])
+      setAnalyticsSummary(parsed.analyticsSummary || null)
+      setLevelAnalytics(parsed.levelAnalytics || [])
+      setCasePerformance(parsed.casePerformance || [])
+      setAudienceSummary(
+        parsed.audienceSummary || {
+          topRegions: [],
+          topTimezones: [],
+        }
+      )
+      setAnalyticsLoaded(Boolean(parsed.analyticsSummary))
+    } catch {
+      window.sessionStorage.removeItem(ADMIN_ANALYTICS_CACHE_KEY)
+    }
+  }, [isUnlocked])
+
+  useEffect(() => {
+    if (!isUnlocked || !showAnalytics || analyticsLoading || analyticsLoaded) return
+
+    const timeoutId = window.setTimeout(() => {
+      void loadAnalytics()
+    }, 150)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [analyticsLoaded, analyticsLoading, isUnlocked, showAnalytics])
 
   useEffect(() => {
     if (!isUnlocked) return
@@ -794,6 +848,19 @@ export default function AdminPage() {
       .slice(0, 4)
   }, [emailReminderSummary])
 
+  const latestEmailReminderChangeAt = recentEmailReminderChanges[0]?.timestamp || null
+  const unseenEmailReminderCount = useMemo(() => {
+    if (!seenEmailRemindersAt) return recentEmailReminderChanges.length
+
+    const seenAtMs = new Date(seenEmailRemindersAt).getTime()
+    if (Number.isNaN(seenAtMs)) return recentEmailReminderChanges.length
+
+    return recentEmailReminderChanges.filter(item => {
+      const itemMs = new Date(item.timestamp).getTime()
+      return Number.isFinite(itemMs) && itemMs > seenAtMs
+    }).length
+  }, [recentEmailReminderChanges, seenEmailRemindersAt])
+
   function moveSidebarSection(
     order: AdminSidebarSectionId[],
     draggedId: AdminSidebarSectionId,
@@ -936,7 +1003,7 @@ export default function AdminPage() {
     () => (isNoResidentModeActiveOn(overviewDate) ? noResidentLevelOrder : levelOrder),
     [overviewDate, noResidentMode, noResidentModeStartDate]
   )
-  const useCompactOverviewLayout = noResidentMode
+  const useCompactOverviewLayout = playModeSettingsReady && noResidentMode
 
   const previewClues = useMemo(
     () => [clue1, clue2, clue3, clue4, clue5, clue6].map(item => item.trim()).filter(Boolean),
@@ -1643,6 +1710,7 @@ export default function AdminPage() {
   }
 
   async function loadAnalytics() {
+    setAnalyticsLoading(true)
     const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const visitPages: VisitAnalyticsRow[] = []
     let visitOffset = 0
@@ -1655,6 +1723,7 @@ export default function AdminPage() {
 
       if (error) {
         setStatus(`Failed to load visits: ${error.message}`)
+        setAnalyticsLoading(false)
         return
       }
 
@@ -1677,6 +1746,7 @@ export default function AdminPage() {
 
       if (error) {
         setStatus(`Failed to load guesses: ${error.message}`)
+        setAnalyticsLoading(false)
         return
       }
 
@@ -1886,13 +1956,11 @@ export default function AdminPage() {
       returning_sessions: 0,
     }
 
-    setAnalytics(
-      Object.values(byDate)
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 14)
-    )
+    const nextAnalytics = Object.values(byDate)
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, 14)
 
-    setAnalyticsSummary({
+    const nextAnalyticsSummary = {
       totalVisits,
       totalUniqueUsers,
       cumulativeDailyUsers,
@@ -1909,28 +1977,27 @@ export default function AdminPage() {
       todayReturningUsers: todayRow.returning_sessions,
       todayGuesses: todayRow.guesses,
       todayCorrectGuesses: todayRow.correct_guesses,
-    })
+    }
 
-    setLevelAnalytics(levelOrder.map(levelValue => levelTotals[levelValue]))
-    setCasePerformance(
-      Array.from(caseTotals.values())
-        .map(item => ({
-          caseId: item.caseId,
-          answer: item.answer,
-          category: item.category,
-          level: item.level,
-          caseDate: item.caseDate,
-          guesses: item.guesses,
-          correctGuesses: item.correctGuesses,
-          players: item.playerSessions.size,
-        }))
-        .sort((a, b) => {
-          if (b.players !== a.players) return b.players - a.players
-          return b.guesses - a.guesses
-        })
-        .slice(0, 6)
-    )
-    setAudienceSummary({
+    const nextLevelAnalytics = levelOrder.map(levelValue => levelTotals[levelValue])
+    const nextCasePerformance = Array.from(caseTotals.values())
+      .map(item => ({
+        caseId: item.caseId,
+        answer: item.answer,
+        category: item.category,
+        level: item.level,
+        caseDate: item.caseDate,
+        guesses: item.guesses,
+        correctGuesses: item.correctGuesses,
+        players: item.playerSessions.size,
+      }))
+      .sort((a, b) => {
+        if (b.players !== a.players) return b.players - a.players
+        return b.guesses - a.guesses
+      })
+      .slice(0, 6)
+
+    const nextAudienceSummary = {
       topRegions: Array.from(regionCounts.entries())
         .sort((a, b) => b[1] - a[1])
         .slice(0, 6)
@@ -1939,7 +2006,29 @@ export default function AdminPage() {
         .sort((a, b) => b[1] - a[1])
         .slice(0, 6)
         .map(([label, count]) => ({ label, count })),
-    })
+    }
+
+    setAnalytics(nextAnalytics)
+    setAnalyticsSummary(nextAnalyticsSummary)
+    setLevelAnalytics(nextLevelAnalytics)
+    setCasePerformance(nextCasePerformance)
+    setAudienceSummary(nextAudienceSummary)
+    setAnalyticsLoaded(true)
+    setAnalyticsLoading(false)
+
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(
+        ADMIN_ANALYTICS_CACHE_KEY,
+        JSON.stringify({
+          savedAt: Date.now(),
+          analytics: nextAnalytics,
+          analyticsSummary: nextAnalyticsSummary,
+          levelAnalytics: nextLevelAnalytics,
+          casePerformance: nextCasePerformance,
+          audienceSummary: nextAudienceSummary,
+        })
+      )
+    }
   }
 
   async function loadDiagnosisChoices() {
@@ -2015,15 +2104,19 @@ export default function AdminPage() {
   }
 
   async function loadPlayModeSettings() {
-    const { data } = await supabase
-      .from('play_mode_settings')
-      .select('no_resident_mode, no_resident_mode_start_date')
-      .eq('id', 'default')
-      .maybeSingle()
+    try {
+      const { data } = await supabase
+        .from('play_mode_settings')
+        .select('no_resident_mode, no_resident_mode_start_date')
+        .eq('id', 'default')
+        .maybeSingle()
 
-    const row = (data as PlayModeSettingsRow | null) || null
-    setNoResidentMode(Boolean(row?.no_resident_mode))
-    setNoResidentModeStartDate(row?.no_resident_mode_start_date || shiftISODate(today, 1))
+      const row = (data as PlayModeSettingsRow | null) || null
+      setNoResidentMode(Boolean(row?.no_resident_mode))
+      setNoResidentModeStartDate(row?.no_resident_mode_start_date || shiftISODate(today, 1))
+    } finally {
+      setPlayModeSettingsReady(true)
+    }
   }
 
   async function saveNoResidentModeSchedule(enabled: boolean) {
@@ -2745,56 +2838,27 @@ export default function AdminPage() {
     ),
     email_reminders: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <Link href="/admin/email-reminders" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
-          Email Reminders
-        </Link>
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-[#fcfbf8] px-3 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70">
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-              Active
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/email-reminders"
+            onClick={() => {
+              if (latestEmailReminderChangeAt) {
+                window.localStorage.setItem(
+                  EMAIL_REMINDERS_SEEN_AT_KEY,
+                  latestEmailReminderChangeAt
+                )
+                setSeenEmailRemindersAt(latestEmailReminderChangeAt)
+              }
+            }}
+            className="font-serif text-xl font-bold transition hover:text-[#1f6448]"
+          >
+            Email Reminders
+          </Link>
+          {unseenEmailReminderCount > 0 && (
+            <div className="rounded-full bg-[#fff1e8] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
+              {unseenEmailReminderCount}
             </div>
-            <div className="mt-1 font-serif text-[22px] font-bold leading-none text-[#102018]">
-              {emailReminderSummary?.activeSubscribers ?? '—'}
-            </div>
-          </div>
-          <div className="rounded-xl bg-[#fcfbf8] px-3 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70">
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-              Total
-            </div>
-            <div className="mt-1 font-serif text-[22px] font-bold leading-none text-[#102018]">
-              {emailReminderSummary?.totalSubscribers ?? '—'}
-            </div>
-          </div>
-        </div>
-        <div className="mt-3 rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/70">
-          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-            Recent activity
-          </div>
-          <div className="mt-2 space-y-2">
-            {recentEmailReminderChanges.length > 0 ? (
-              recentEmailReminderChanges.map(item => (
-                <div key={item.id} className="flex items-start justify-between gap-3 text-[12px]">
-                  <div className="min-w-0 text-[#102018]">
-                    <span className="font-semibold">
-                      {item.kind === 'unsubscribed'
-                        ? 'Unsubscribed'
-                        : item.kind === 'resubscribed'
-                          ? 'Resubscribed'
-                          : 'Signed up'}
-                    </span>{' '}
-                    <span className="break-all text-[#637268]">{item.email}</span>
-                  </div>
-                  <div className="shrink-0 text-[#8a948d]">
-                    {formatAdminRelativeTime(item.timestamp)}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-[12px] text-[#637268]">
-                No reminder changes yet.
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </section>
     ),
@@ -3258,6 +3322,10 @@ export default function AdminPage() {
                   </div>
                 </div>
               </>
+            ) : analyticsLoading ? (
+              <div className="rounded-xl border border-[#ded7ca] bg-[#fbfaf7] px-4 py-4 text-sm text-[#637268]">
+                Loading analytics…
+              </div>
             ) : (
               <p className="text-sm text-[#637268]">No analytics yet.</p>
             )}
@@ -3549,7 +3617,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {!useCompactOverviewLayout && (
+        {playModeSettingsReady && !useCompactOverviewLayout && (
           <>
             <div className="mt-3">
               {renderOverviewSection({
@@ -3573,7 +3641,7 @@ export default function AdminPage() {
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_320px]">
           <div className="space-y-3">
-          {useCompactOverviewLayout && (
+          {playModeSettingsReady && useCompactOverviewLayout && (
             <>
               {renderOverviewSection({
                 title: 'Today overview',
