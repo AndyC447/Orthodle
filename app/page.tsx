@@ -2100,16 +2100,20 @@ function PlayPageContent() {
     ]
   }
 
-  function renderTeachingPoint(text: string) {
+  function renderTeachingPoint(text: string, caseItem: Case) {
     const sections = parseTeachingPointSections(text)
     const insightLines = getOrthodleInsightLines()
     const hasInsightSection = sections.some(
       section => section.label.toLowerCase() === 'orthodle insight'
     )
+    const hasQuickTakeawaySection = sections.some(
+      section => section.label.toLowerCase() === 'quick takeaway'
+    )
     const allSections =
       !hasInsightSection && insightLines.length > 0
         ? [...sections, { label: 'Orthodle Insight', body: insightLines }]
         : sections
+    const teachingImages = renderTeachingImages(caseItem)
 
     if (allSections.length === 0) {
       return (
@@ -2186,6 +2190,7 @@ function PlayPageContent() {
                           <div key={`${section.label}-${index}`} className="h-1" />
                         )
                       )}
+                      {teachingImages}
                     </div>
                   )}
                 </>
@@ -2212,6 +2217,7 @@ function PlayPageContent() {
               )}
             </div>
           ))}
+          {!hasQuickTakeawaySection && teachingImages}
         </div>
       </div>
     )
@@ -2229,22 +2235,20 @@ function PlayPageContent() {
     )
   }
 
-  function renderAnatomyLearningImages(caseItem: Case) {
-    if (!useSurgicalAnatomyQuiz) return null
-
+  function renderTeachingImages(caseItem: Case) {
     const learningImages = [
       caseItem.learning_image_url
         ? {
             url: caseItem.learning_image_url,
             credit: caseItem.learning_image_credit,
-            alt: 'Anatomy teaching image 1',
+            alt: 'Teaching image 1',
           }
         : null,
       caseItem.learning_image_url_2
         ? {
             url: caseItem.learning_image_url_2,
             credit: caseItem.learning_image_credit_2,
-            alt: 'Anatomy teaching image 2',
+            alt: 'Teaching image 2',
           }
         : null,
     ].filter(Boolean) as ExpandableImage[]
@@ -2252,7 +2256,7 @@ function PlayPageContent() {
     if (learningImages.length === 0) return null
 
     return (
-      <div className="orthodle-anatomy-teaching-shell rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
+      <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
         <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
           Teaching Images
         </div>
@@ -2260,19 +2264,19 @@ function PlayPageContent() {
           {learningImages.map((image, index) => (
             <div
               key={`${image.url}-${index}`}
-              className="orthodle-anatomy-teaching-tile overflow-hidden rounded-xl border border-[#ded7ca] bg-white"
+              className="overflow-hidden rounded-xl border border-[#ded7ca] bg-white"
             >
-                          <button
-                            type="button"
-                            onClick={() => openExpandedImage(index, learningImages)}
-                            className="orthodle-anatomy-teaching-frame flex min-h-[170px] w-full items-center justify-center bg-[#f8f5ee] p-2 transition hover:bg-[#f4efe4]"
-                          >
-                            <img
-                              src={image.url}
-                              alt={image.alt}
-                              className="max-h-[320px] w-full rounded-lg object-contain"
-                            />
-                          </button>
+              <button
+                type="button"
+                onClick={() => openExpandedImage(index, learningImages)}
+                className="flex min-h-[170px] w-full items-center justify-center bg-[#f8f5ee] p-2 transition hover:bg-[#f4efe4]"
+              >
+                <img
+                  src={image.url}
+                  alt={image.alt}
+                  className="max-h-[320px] w-full rounded-lg object-contain"
+                />
+              </button>
               {image.credit?.trim() ? (
                 <p className="px-2.5 pb-2.5 pt-1.5 text-[11px] text-[#8a948d]">
                   {image.credit}
@@ -3575,7 +3579,7 @@ function PlayPageContent() {
               <div className="mt-3 space-y-2 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-2.5">
                 <div>
                   <div className="space-y-1">
-                    {renderTeachingPoint(teachingPoint)}
+                    {renderTeachingPoint(teachingPoint, dailyCase)}
                   </div>
                   {dailyCase.contributor_name && (
                     <div className="mt-3 text-center text-[11px] font-semibold text-[#315f4d]">
@@ -3583,8 +3587,6 @@ function PlayPageContent() {
                     </div>
                   )}
                 </div>
-
-                {renderAnatomyLearningImages(dailyCase)}
 
                 {roundComplete && (
                   <div className="mx-auto mt-2 w-full max-w-[460px]">

@@ -3567,8 +3567,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-              {level === 'attending' && (
-                <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-2.5">
                       <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -3576,7 +3575,7 @@ export default function AdminPage() {
                         <input
                           value={learningImageUrl}
                           onChange={e => setLearningImageUrl(e.target.value)}
-                          placeholder="Optional hosted anatomy reference image"
+                          placeholder="Optional hosted teaching image"
                           className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                         />
                       </label>
@@ -3628,7 +3627,6 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
-              )}
 
               {imageUrl && (
                 <div className="rounded-lg border border-[#ded7ca] p-2.5">
