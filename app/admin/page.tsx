@@ -243,6 +243,44 @@ type PlayModeSettingsRow = {
   no_resident_mode_start_date: string | null
 }
 
+type ReminderSubscriberAdminRow = {
+  id: string
+  email: string
+  active: boolean
+  created_at: string
+  updated_at: string
+}
+
+type ReminderAdminDashboardSummary = {
+  activeSubscribers: number
+  totalSubscribers: number
+  subscribers: ReminderSubscriberAdminRow[]
+}
+
+type ReminderChangeItem = {
+  id: string
+  email: string
+  kind: 'signup' | 'resubscribed' | 'unsubscribed'
+  timestamp: string
+}
+
+function formatAdminRelativeTime(value: string) {
+  const timestamp = new Date(value)
+  if (Number.isNaN(timestamp.getTime())) return ''
+
+  const diffMs = Date.now() - timestamp.getTime()
+  const diffMinutes = Math.max(0, Math.round(diffMs / (1000 * 60)))
+
+  if (diffMinutes < 1) return 'just now'
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+
+  const diffHours = Math.round(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+
+  const diffDays = Math.round(diffHours / 24)
+  return `${diffDays}d ago`
+}
+
 function buildAnatomyChoiceBreakdown(
   choiceSource: Array<string | null | undefined>,
   guessRows: Array<{ session_id: string; guess_text?: string | null }>,
@@ -440,6 +478,7 @@ export default function AdminPage() {
     hasNew: false,
     latestCreatedAt: null as string | null,
   })
+  const [emailReminderSummary, setEmailReminderSummary] = useState<ReminderAdminDashboardSummary | null>(null)
   const [noResidentMode, setNoResidentMode] = useState(false)
   const [noResidentModeStartDate, setNoResidentModeStartDate] = useState(shiftISODate(today, 1))
   const [savingNoResidentMode, setSavingNoResidentMode] = useState(false)
@@ -559,6 +598,7 @@ export default function AdminPage() {
     loadDiagnosisChoices()
     loadSubmissionSummary()
     loadFeedbackSummary()
+    loadEmailReminderSummary()
     loadHomepageAnnouncements()
     loadPlayModeSettings()
     loadHomepageSurveys()
@@ -607,6 +647,16 @@ export default function AdminPage() {
         window.localStorage.removeItem(ADMIN_DRAFT_STORAGE_KEY)
       }
     }
+  }, [isUnlocked])
+
+  useEffect(() => {
+    if (!isUnlocked) return
+
+    const intervalId = window.setInterval(() => {
+      void loadEmailReminderSummary()
+    }, 60000)
+
+    return () => window.clearInterval(intervalId)
   }, [isUnlocked])
 
   useEffect(() => {
@@ -703,6 +753,46 @@ export default function AdminPage() {
     teachingPoint,
     activeSubmissionId,
   ])
+
+  const recentEmailReminderChanges = useMemo<ReminderChangeItem[]>(() => {
+    const subscribers = emailReminderSummary?.subscribers || []
+
+    return subscribers
+      .flatMap<ReminderChangeItem>(row => {
+        const createdAtMs = new Date(row.created_at).getTime()
+        const updatedAtMs = new Date(row.updated_at).getTime()
+        const wasUpdatedLater = Number.isFinite(createdAtMs) &&
+          Number.isFinite(updatedAtMs) &&
+          updatedAtMs - createdAtMs > 60 * 1000
+
+        if (!row.active && wasUpdatedLater) {
+          return [{
+            id: `${row.id}-unsubscribed`,
+            email: row.email,
+            kind: 'unsubscribed' as const,
+            timestamp: row.updated_at,
+          }]
+        }
+
+        if (row.active && wasUpdatedLater) {
+          return [{
+            id: `${row.id}-resubscribed`,
+            email: row.email,
+            kind: 'resubscribed' as const,
+            timestamp: row.updated_at,
+          }]
+        }
+
+        return [{
+          id: `${row.id}-signup`,
+          email: row.email,
+          kind: 'signup' as const,
+          timestamp: row.created_at,
+        }]
+      })
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 4)
+  }, [emailReminderSummary])
 
   function moveSidebarSection(
     order: AdminSidebarSectionId[],
@@ -1899,6 +1989,23 @@ export default function AdminPage() {
     })
   }
 
+  async function loadEmailReminderSummary() {
+    try {
+      const response = await fetch('/api/reminders/admin', { cache: 'no-store' })
+      const data = await response.json().catch(() => null)
+
+      if (!response.ok || !data) return
+
+      setEmailReminderSummary({
+        activeSubscribers: data.activeSubscribers || 0,
+        totalSubscribers: data.totalSubscribers || 0,
+        subscribers: Array.isArray(data.subscribers) ? data.subscribers : [],
+      })
+    } catch {
+      // Keep the dashboard quiet if reminder activity cannot be loaded.
+    }
+  }
+
   async function loadHomepageAnnouncements() {
     const { data } = await supabase
       .from('homepage_announcements')
@@ -2641,6 +2748,54 @@ export default function AdminPage() {
         <Link href="/admin/email-reminders" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
           Email Reminders
         </Link>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-[#fcfbf8] px-3 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+              Active
+            </div>
+            <div className="mt-1 font-serif text-[22px] font-bold leading-none text-[#102018]">
+              {emailReminderSummary?.activeSubscribers ?? '—'}
+            </div>
+          </div>
+          <div className="rounded-xl bg-[#fcfbf8] px-3 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+              Total
+            </div>
+            <div className="mt-1 font-serif text-[22px] font-bold leading-none text-[#102018]">
+              {emailReminderSummary?.totalSubscribers ?? '—'}
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/70">
+          <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+            Recent activity
+          </div>
+          <div className="mt-2 space-y-2">
+            {recentEmailReminderChanges.length > 0 ? (
+              recentEmailReminderChanges.map(item => (
+                <div key={item.id} className="flex items-start justify-between gap-3 text-[12px]">
+                  <div className="min-w-0 text-[#102018]">
+                    <span className="font-semibold">
+                      {item.kind === 'unsubscribed'
+                        ? 'Unsubscribed'
+                        : item.kind === 'resubscribed'
+                          ? 'Resubscribed'
+                          : 'Signed up'}
+                    </span>{' '}
+                    <span className="break-all text-[#637268]">{item.email}</span>
+                  </div>
+                  <div className="shrink-0 text-[#8a948d]">
+                    {formatAdminRelativeTime(item.timestamp)}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-[12px] text-[#637268]">
+                No reminder changes yet.
+              </div>
+            )}
+          </div>
+        </div>
       </section>
     ),
     no_resident_mode: (
@@ -3287,12 +3442,30 @@ export default function AdminPage() {
               {readyCount}/{levelOrderForSection.length} ready
             </div>
             {showDatePicker ? (
-              <input
-                type="date"
-                value={overviewDate}
-                onChange={event => setOverviewDate(event.target.value || tomorrow)}
-                className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] text-[#637268] outline-none transition focus:border-[#1f6448]"
-              />
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setOverviewDate(shiftISODate(overviewDate, -1))}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
+                  aria-label="Previous date"
+                >
+                  {'<'}
+                </button>
+                <input
+                  type="date"
+                  value={overviewDate}
+                  onChange={event => setOverviewDate(event.target.value || tomorrow)}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] text-[#637268] outline-none transition focus:border-[#1f6448]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setOverviewDate(shiftISODate(overviewDate, 1))}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
+                  aria-label="Next date"
+                >
+                  {'>'}
+                </button>
+              </div>
             ) : null}
           </div>
         </div>
@@ -3313,7 +3486,7 @@ export default function AdminPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                      {formatLevel(levelValue)}
+                      {levelValue === 'med_student' ? 'Cases' : formatLevel(levelValue)}
                     </div>
                     <div className="mt-1.5 font-semibold text-[#102018]">
                       {item ? item.answer : 'Not scheduled'}
