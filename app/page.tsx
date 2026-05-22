@@ -180,18 +180,19 @@ const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
 
-const confettiPieces = Array.from({ length: 28 }, (_, index) => ({
+const confettiPieces = Array.from({ length: 44 }, (_, index) => ({
   id: index,
-  left: 4 + ((index * 17) % 92),
-  burstX: -180 + (index % 9) * 45,
-  burstY: 70 + (index % 6) * 24,
-  driftX: -80 + (index % 11) * 16,
-  delay: (index % 10) * 0.025,
-  duration: 1.38 + (index % 5) * 0.13,
-  rotation: -120 + (index % 13) * 18,
-  color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d'][index % 4],
-  size: index % 5 === 0 ? 8 : index % 3 === 0 ? 13 : 10,
-  shape: index % 4 === 0 ? 'circle' : index % 5 === 0 ? 'diamond' : 'pill',
+  left: 6 + ((index * 11) % 88),
+  top: 4 + ((index * 7) % 14),
+  burstX: -220 + (index % 11) * 44,
+  burstY: 85 + (index % 7) * 22,
+  driftX: -110 + (index % 13) * 18,
+  delay: (index % 12) * 0.022,
+  duration: 1.55 + (index % 6) * 0.14,
+  rotation: -160 + (index % 17) * 20,
+  color: ['#1f7a4d', '#c76b3a', '#ead9b7', '#315f4d', '#f6efe1', '#efbf48'][index % 6],
+  size: index % 7 === 0 ? 7 : index % 4 === 0 ? 12 : index % 3 === 0 ? 14 : 10,
+  shape: index % 5 === 0 ? 'circle' : index % 4 === 0 ? 'diamond' : index % 3 === 0 ? 'bar' : 'pill',
 }))
 
 const DEFAULT_LEVEL_TAGLINES: Record<Level, string[]> = {
@@ -2802,18 +2803,50 @@ function PlayPageContent() {
         @keyframes orthodle-confetti-burst {
           0% {
             opacity: 0;
-            transform: translate3d(0, 0, 0) rotate(0deg) scale(0.7);
+            transform: translate3d(0, 0, 0) rotate(0deg) scale(0.65);
           }
-          8% {
+          10% {
             opacity: 1;
           }
-          25% {
+          22% {
             opacity: 1;
-            transform: translate3d(var(--burst-x), calc(var(--burst-y) * -1), 0) rotate(calc(var(--rotation) * 0.45)) scale(1);
+            transform: translate3d(calc(var(--burst-x) * 0.72), calc(var(--burst-y) * -0.92), 0) rotate(calc(var(--rotation) * 0.55)) scale(1);
+          }
+          58% {
+            opacity: 0.96;
+            transform: translate3d(var(--burst-x), calc(var(--burst-y) * -0.35), 0) rotate(calc(var(--rotation) * 1.35)) scale(0.98);
           }
           100% {
             opacity: 0;
             transform: translate3d(calc(var(--burst-x) + var(--drift-x)), 96vh, 0) rotate(calc(var(--rotation) * 2.2)) scale(0.92);
+          }
+        }
+
+        @keyframes orthodle-celebration-glow {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.9);
+          }
+          25% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-8px) scale(1.08);
+          }
+        }
+
+        @keyframes orthodle-celebration-sparkle {
+          0% {
+            opacity: 0;
+            transform: scale(0.6) rotate(0deg);
+          }
+          35% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.2) rotate(22deg);
           }
         }
 
@@ -2872,7 +2905,7 @@ function PlayPageContent() {
 
         .orthodle-confetti-piece {
           position: absolute;
-          top: 0;
+          top: calc(var(--piece-top) * 1vh);
           width: 10px;
           height: 18px;
           border-radius: 999px;
@@ -2880,6 +2913,15 @@ function PlayPageContent() {
           animation-timing-function: ease-out;
           animation-fill-mode: forwards;
           will-change: transform, opacity;
+          box-shadow: 0 0 0 1px rgba(255,255,255,0.16);
+        }
+
+        .orthodle-celebration-glow {
+          animation: orthodle-celebration-glow 1.6s ease-out forwards;
+        }
+
+        .orthodle-celebration-sparkle {
+          animation: orthodle-celebration-sparkle 1.2s ease-out forwards;
         }
 
         .orthodle-answer-pop {
@@ -2905,12 +2947,17 @@ function PlayPageContent() {
 
       {showConfetti && (
         <div className="pointer-events-none fixed inset-0 z-[60] overflow-hidden">
+          <div className="orthodle-celebration-glow absolute left-1/2 top-[10vh] h-[220px] w-[220px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(239,191,72,0.22)_0%,rgba(239,191,72,0.12)_34%,rgba(255,255,255,0)_72%)]" />
+          <span className="orthodle-celebration-sparkle absolute left-[26%] top-[16vh] text-[20px] text-[#f0c247]">✦</span>
+          <span className="orthodle-celebration-sparkle absolute right-[24%] top-[18vh] text-[16px] text-[#f6e1a1]" style={{ animationDelay: '0.08s' }}>✦</span>
+          <span className="orthodle-celebration-sparkle absolute left-[48%] top-[12vh] text-[14px] text-[#fff7df]" style={{ animationDelay: '0.12s' }}>✦</span>
           {confettiPieces.map(piece => (
             <span
               key={piece.id}
               className="orthodle-confetti-piece"
               style={{
                 left: `${piece.left}%`,
+                top: `${piece.top}vh`,
                 backgroundColor: piece.color,
                 animationDelay: `${piece.delay}s`,
                 animationDuration: `${piece.duration}s`,
@@ -2918,6 +2965,7 @@ function PlayPageContent() {
                 ['--burst-y' as string]: `${piece.burstY}px`,
                 ['--drift-x' as string]: `${piece.driftX}px`,
                 ['--rotation' as string]: `${piece.rotation}deg`,
+                ['--piece-top' as string]: `${piece.top}`,
                 transform:
                   piece.shape === 'diamond'
                     ? `rotate(${piece.rotation}deg)`
@@ -2925,9 +2973,14 @@ function PlayPageContent() {
                       ? 'rotate(0deg)'
                       : `rotate(${piece.rotation}deg)`,
                 width: `${piece.size}px`,
-                height: piece.shape === 'circle' ? `${piece.size}px` : `${piece.size * 1.7}px`,
+                height:
+                  piece.shape === 'circle'
+                    ? `${piece.size}px`
+                    : piece.shape === 'bar'
+                      ? `${piece.size * 2.1}px`
+                      : `${piece.size * 1.7}px`,
                 borderRadius:
-                  piece.shape === 'circle' ? '999px' : piece.shape === 'diamond' ? '3px' : '999px',
+                  piece.shape === 'circle' ? '999px' : piece.shape === 'diamond' ? '3px' : piece.shape === 'bar' ? '4px' : '999px',
               }}
             />
           ))}
@@ -3565,6 +3618,12 @@ function PlayPageContent() {
               <div className="mt-1">
                 <div className="relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_26%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-4 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.16)] sm:px-5 sm:py-5">
                   <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.4px,transparent_1.4px)] [background-size:32px_32px]" />
+                  {showConfetti && (
+                    <>
+                      <div className="absolute inset-x-[18%] top-0 h-px bg-gradient-to-r from-transparent via-[#f0c247] to-transparent opacity-70" />
+                      <div className="absolute inset-x-[28%] top-3 h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-70" />
+                    </>
+                  )}
                   <div className="relative">
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0c247] sm:text-[10px]">
                       Correct answer
