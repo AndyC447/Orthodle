@@ -171,6 +171,9 @@ const HOMEPAGE_SURVEY_DISMISS_KEY = 'orthodle_dismissed_homepage_survey'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
 const RESUME_ROUND_DISMISS_KEY = 'orthodle_dismissed_resume_round'
 const DAILY_COMPLETE_DISMISS_KEY = 'orthodle_dismissed_daily_complete'
+const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
+const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
+const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -2539,7 +2542,7 @@ function PlayPageContent() {
 
   useEffect(() => {
     if (!roundComplete || !justCompletedRound) return
-    if (typeof window === 'undefined' || window.innerWidth >= 640) return
+    if (typeof window === 'undefined') return
 
     const timeoutId = window.setTimeout(() => {
       solvedCardRef.current?.scrollIntoView({
@@ -2753,8 +2756,52 @@ function PlayPageContent() {
   }, [])
 
   useEffect(() => {
-    setShowQuickTakeaway(true)
-    setShowOrthodleInsight(false)
+    if (typeof window === 'undefined') return
+
+    const savedQuickTakeaway = window.localStorage.getItem(QUICK_TAKEAWAY_OPEN_KEY)
+    const savedInsight = window.localStorage.getItem(ORTHODLE_INSIGHT_OPEN_KEY)
+    const savedFeedback = window.localStorage.getItem(CASE_FEEDBACK_OPEN_KEY)
+
+    if (savedQuickTakeaway === 'true' || savedQuickTakeaway === 'false') {
+      setShowQuickTakeaway(savedQuickTakeaway === 'true')
+    }
+
+    if (savedInsight === 'true' || savedInsight === 'false') {
+      setShowOrthodleInsight(savedInsight === 'true')
+    }
+
+    if (savedFeedback === 'true' || savedFeedback === 'false') {
+      setShowCaseFeedback(savedFeedback === 'true')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(QUICK_TAKEAWAY_OPEN_KEY, showQuickTakeaway ? 'true' : 'false')
+  }, [showQuickTakeaway])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(ORTHODLE_INSIGHT_OPEN_KEY, showOrthodleInsight ? 'true' : 'false')
+  }, [showOrthodleInsight])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.localStorage.setItem(CASE_FEEDBACK_OPEN_KEY, showCaseFeedback ? 'true' : 'false')
+  }, [showCaseFeedback])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setShowQuickTakeaway(true)
+      setShowOrthodleInsight(false)
+      return
+    }
+
+    const savedQuickTakeaway = window.localStorage.getItem(QUICK_TAKEAWAY_OPEN_KEY)
+    const savedInsight = window.localStorage.getItem(ORTHODLE_INSIGHT_OPEN_KEY)
+
+    setShowQuickTakeaway(savedQuickTakeaway === 'false' ? false : true)
+    setShowOrthodleInsight(savedInsight === 'true')
   }, [selectedLevel, selectedDate, dailyCase?.answer])
 
   return (

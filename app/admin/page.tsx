@@ -977,6 +977,94 @@ export default function AdminPage() {
     [groupedCases, noResidentMode, noResidentModeStartDate]
   )
 
+  const caseChecklistItems = useMemo(() => {
+    const items = [
+      {
+        label: 'Publish date',
+        ready: Boolean(caseDate),
+      },
+      {
+        label: 'Category',
+        ready: Boolean(category.trim()),
+      },
+      {
+        label: 'Case prompt',
+        ready: Boolean(prompt.trim()),
+      },
+      {
+        label: 'Answer',
+        ready: Boolean(answer.trim()),
+      },
+      {
+        label: 'Teaching point',
+        ready: Boolean(teachingPoint.trim()),
+      },
+      {
+        label: 'At least 1 clue',
+        ready: previewClues.length > 0,
+      },
+      {
+        label: 'Image credits',
+        ready:
+          (!imageUrl.trim() || Boolean(imageCredit.trim())) &&
+          (!imageUrl2.trim() || Boolean(imageCredit2.trim())),
+        note:
+          imageUrl.trim() || imageUrl2.trim()
+            ? 'Add credit for each attached case image.'
+            : undefined,
+      },
+      {
+        label: 'Teaching image credits',
+        ready:
+          (!learningImageUrl.trim() || Boolean(learningImageCredit.trim())) &&
+          (!learningImageUrl2.trim() || Boolean(learningImageCredit2.trim())),
+        note:
+          learningImageUrl.trim() || learningImageUrl2.trim()
+            ? 'Add credit for each teaching image.'
+            : undefined,
+      },
+    ]
+
+    if (level === 'attending') {
+      items.push({
+        label: 'Answer choices',
+        ready: anatomyChoiceItemsForComposer.length >= 2,
+        note: 'Use at least two anatomy answer choices.',
+      })
+      items.push({
+        label: 'Correct choices',
+        ready:
+          normalizedAnatomyCorrectChoices.length > 0 &&
+          normalizedAnatomyCorrectChoices.every(letter =>
+            anatomyChoiceItemsForComposer.some(item => item.letter === letter)
+          ),
+        note: 'Pick valid correct letters like A, B, C.',
+      })
+    }
+
+    return items
+  }, [
+    anatomyChoiceItemsForComposer,
+    answer,
+    caseDate,
+    category,
+    imageCredit,
+    imageCredit2,
+    imageUrl,
+    imageUrl2,
+    learningImageCredit,
+    learningImageCredit2,
+    learningImageUrl,
+    learningImageUrl2,
+    level,
+    normalizedAnatomyCorrectChoices,
+    previewClues.length,
+    prompt,
+    teachingPoint,
+  ])
+
+  const readyChecklistCount = caseChecklistItems.filter(item => item.ready).length
+
   function formatLevel(levelValue: Level) {
     if (levelValue === 'med_student') return 'Med Student'
     if (levelValue === 'resident') return 'Resident'
@@ -3890,6 +3978,40 @@ export default function AdminPage() {
               >
                 Delete current slot
               </button>
+
+              <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                    Case checklist
+                  </div>
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#637268]">
+                    {readyChecklistCount}/{caseChecklistItems.length} ready
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                  {caseChecklistItems.map(item => (
+                    <div
+                      key={item.label}
+                      className={`rounded-lg px-3 py-2 text-sm ${
+                        item.ready
+                          ? 'bg-white text-[#355542] shadow-[inset_0_0_0_1px_#d8e5dd]'
+                          : 'bg-white text-[#7a6452] shadow-[inset_0_0_0_1px_#ead9b7]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-semibold">{item.label}</span>
+                        <span className={`text-[11px] font-semibold ${item.ready ? 'text-[#1f6448]' : 'text-[#a24d24]'}`}>
+                          {item.ready ? 'Ready' : 'Needs work'}
+                        </span>
+                      </div>
+                      {!item.ready && item.note ? (
+                        <p className="mt-1 text-[11px] leading-4 text-[#8a948d]">{item.note}</p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
               {(status || draftStatus) && (
                 <div className="space-y-1">
