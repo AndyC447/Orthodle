@@ -4225,6 +4225,88 @@ export default function GroupsPage() {
                       </div>
                     </div>
 
+                    {viewerGroupChallenge || viewerGroupRecap ? (
+                      <div className="mt-3 grid gap-2.5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                        {viewerGroupChallenge ? (
+                          <section className="rounded-[18px] border border-[#e6dfd3] bg-[linear-gradient(180deg,#fcfcfa_0%,#f8fbf9_100%)] px-3 py-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
+                                  This week&apos;s push
+                                </div>
+                                <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018]">
+                                  {viewerGroupChallenge.title}
+                                </div>
+                              </div>
+                              <div className="rounded-full border border-[#d9eadf] bg-[#eef8f2] px-2.5 py-1 text-[11px] font-semibold text-[#1f6448]">
+                                {viewerGroupChallenge.progress}/{viewerGroupChallenge.goal}
+                              </div>
+                            </div>
+                            <div className="mt-1.5 text-[13px] leading-5 text-[#637268]">
+                              {viewerGroupChallenge.detail}
+                            </div>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e7efe9]">
+                              <div
+                                className="h-full rounded-full bg-[linear-gradient(90deg,#2d7651,#c76b3a)]"
+                                style={{
+                                  width: `${Math.min(
+                                    100,
+                                    Math.max(
+                                      12,
+                                      (viewerGroupChallenge.progress / viewerGroupChallenge.goal) * 100
+                                    )
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                            <div className="mt-2 text-[12px] text-[#637268]">
+                              {viewerGroupChallenge.reward}
+                            </div>
+                          </section>
+                        ) : null}
+
+                        {viewerGroupRecap ? (
+                          <section className="rounded-[18px] border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-3">
+                            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                              Team pulse
+                            </div>
+                            <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018]">
+                              {viewerGroupRecap.title}
+                            </div>
+                            <div className="mt-1.5 text-[13px] leading-5 text-[#637268]">
+                              {viewerGroupRecap.detail}
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span className="inline-flex rounded-full border border-[#dfe9e2] bg-[#f7fbf8] px-2.5 py-1 text-[11px] font-semibold text-[#2d7651]">
+                                {viewerGroupRecap.accent}
+                              </span>
+                              {viewerGroupMomentum ? (
+                                <span className="inline-flex rounded-full border border-[#ece6db] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#102018]">
+                                  {viewerGroupMomentum}
+                                </span>
+                              ) : null}
+                            </div>
+                          </section>
+                        ) : null}
+                      </div>
+                    ) : null}
+
+                    <div className="mt-3 flex flex-col gap-2.5 rounded-[18px] border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                          Today&apos;s check-in
+                        </div>
+                        <div className="mt-1 text-[13px] leading-5 text-[#102018]">
+                          {viewerGroupTodaySolvers.length > 0
+                            ? `${viewerGroupTodaySolvers.slice(0, 3).join(', ')}${viewerGroupTodaySolvers.length > 3 ? ` +${viewerGroupTodaySolvers.length - 3} more` : ''} checked in today.`
+                            : 'Nobody from your group has checked in yet today.'}
+                        </div>
+                      </div>
+                      <div className="inline-flex rounded-full border border-[#d9eadf] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]">
+                        {viewerGroupTodaySolvers.length}/{viewerGroupAggregate.members.length} members active
+                      </div>
+                    </div>
+
                   </section>
                 ) : null}
 

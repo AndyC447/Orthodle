@@ -99,6 +99,11 @@ type TeachingPointSection = {
   body: string[]
 }
 
+type TeachingBodyBlock =
+  | { type: 'spacer'; key: string }
+  | { type: 'paragraph'; key: string; text: string }
+  | { type: 'bullets'; key: string; items: string[] }
+
 type ExpandableImage = {
   url: string
   credit: string | null | undefined
@@ -2059,6 +2064,77 @@ function PlayPageContent() {
     return sections.filter(section => section.body.some(line => line.trim()))
   }
 
+  function buildTeachingBodyBlocks(lines: string[], keyPrefix: string): TeachingBodyBlock[] {
+    const blocks: TeachingBodyBlock[] = []
+    let bulletItems: string[] = []
+
+    const flushBullets = () => {
+      if (!bulletItems.length) return
+      blocks.push({
+        type: 'bullets',
+        key: `${keyPrefix}-bullets-${blocks.length}`,
+        items: bulletItems,
+      })
+      bulletItems = []
+    }
+
+    lines.forEach((line, index) => {
+      if (!line) {
+        flushBullets()
+        blocks.push({ type: 'spacer', key: `${keyPrefix}-spacer-${index}` })
+        return
+      }
+
+      const bulletMatch = line.match(/^[-*•]\s+(.+)$/)
+      if (bulletMatch) {
+        bulletItems.push(bulletMatch[1].trim())
+        return
+      }
+
+      flushBullets()
+      blocks.push({
+        type: 'paragraph',
+        key: `${keyPrefix}-paragraph-${index}`,
+        text: line,
+      })
+    })
+
+    flushBullets()
+    return blocks
+  }
+
+  function renderTeachingBody(lines: string[], keyPrefix: string) {
+    return buildTeachingBodyBlocks(lines, keyPrefix).map(block => {
+      if (block.type === 'spacer') {
+        return <div key={block.key} className="h-1" />
+      }
+
+      if (block.type === 'bullets') {
+        return (
+          <ul key={block.key} className="space-y-1.5 pl-5">
+            {block.items.map((item, index) => (
+              <li
+                key={`${block.key}-${index}`}
+                className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+              >
+                {renderFormattedLine(item, `${block.key}-item-${index}`)}
+              </li>
+            ))}
+          </ul>
+        )
+      }
+
+      return (
+        <p
+          key={block.key}
+          className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+        >
+          {renderFormattedLine(block.text, `${block.key}-text`)}
+        </p>
+      )
+    })
+  }
+
   function getOrthodleInsightLines() {
     if (!communityStats) return []
 
@@ -2163,18 +2239,7 @@ function PlayPageContent() {
                   </button>
                   {showOrthodleInsight && (
                     <div className="mt-1.5 space-y-1.5">
-                      {section.body.map((line, index) =>
-                        line ? (
-                          <p
-                            key={`${section.label}-${index}`}
-                            className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
-                          >
-                            {renderFormattedLine(line)}
-                          </p>
-                        ) : (
-                          <div key={`${section.label}-${index}`} className="h-1" />
-                        )
-                      )}
+                      {renderTeachingBody(section.body, `insight-${sectionIndex}`)}
                     </div>
                   )}
                 </>
@@ -2194,18 +2259,7 @@ function PlayPageContent() {
                   </button>
                   {showQuickTakeaway && (
                     <div className="mt-1.5 space-y-1.5">
-                      {section.body.map((line, index) =>
-                        line ? (
-                          <p
-                            key={`${section.label}-${index}`}
-                            className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
-                          >
-                            {renderFormattedLine(line)}
-                          </p>
-                        ) : (
-                          <div key={`${section.label}-${index}`} className="h-1" />
-                        )
-                      )}
+                      {renderTeachingBody(section.body, `takeaway-${sectionIndex}`)}
                       {teachingImages}
                     </div>
                   )}
@@ -2216,18 +2270,7 @@ function PlayPageContent() {
                     {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                   </div>
                   <div className="mt-1.5 space-y-1.5">
-                    {section.body.map((line, index) =>
-                      line ? (
-                        <p
-                          key={`${section.label}-${index}`}
-                          className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
-                        >
-                          {renderFormattedLine(line)}
-                        </p>
-                      ) : (
-                        <div key={`${section.label}-${index}`} className="h-1" />
-                      )
-                    )}
+                    {renderTeachingBody(section.body, `section-${sectionIndex}`)}
                   </div>
                 </>
               )}

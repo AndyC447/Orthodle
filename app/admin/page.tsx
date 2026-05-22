@@ -1272,6 +1272,39 @@ export default function AdminPage() {
     })
   }
 
+  function toggleTeachingPointBullets() {
+    const textarea = teachingPointRef.current
+    if (!textarea) return
+
+    const selectionStart = textarea.selectionStart
+    const selectionEnd = textarea.selectionEnd
+    const startOfFirstLine = teachingPoint.lastIndexOf('\n', Math.max(0, selectionStart - 1)) + 1
+    const endOfLastLineIndex = teachingPoint.indexOf('\n', selectionEnd)
+    const endOfLastLine = endOfLastLineIndex === -1 ? teachingPoint.length : endOfLastLineIndex
+    const selectedBlock = teachingPoint.slice(startOfFirstLine, endOfLastLine)
+    const lines = selectedBlock.split('\n')
+
+    const shouldRemoveBullets = lines.every(line => !line.trim() || /^[-*•]\s+/.test(line.trim()))
+    const nextBlock = lines
+      .map(line => {
+        if (!line.trim()) return line
+        return shouldRemoveBullets ? line.replace(/^(\s*)[-*•]\s+/, '$1') : `${line.replace(/^(\s*)/, '$1')}`.replace(/^(\s*)/, '$1- ')
+      })
+      .join('\n')
+
+    const nextValue =
+      teachingPoint.slice(0, startOfFirstLine) +
+      nextBlock +
+      teachingPoint.slice(endOfLastLine)
+
+    setTeachingPoint(nextValue)
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      textarea.setSelectionRange(startOfFirstLine, startOfFirstLine + nextBlock.length)
+    })
+  }
+
   function handleTeachingPointKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (!(event.metaKey || event.ctrlKey)) return
 
@@ -3471,7 +3504,7 @@ export default function AdminPage() {
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
                 {duplicateAnswerMatches.length > 0 && (
-                  <div className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2.5 text-xs font-normal text-[#8a5a2b]">
+                  <div className="rounded-lg bg-[#fffaf1] px-3 py-2.5 text-xs font-normal text-[#8a5a2b] ring-1 ring-inset ring-[#ead9b7]/75">
                     <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8a5a2b]">
                       Existing diagnosis match
                     </div>
@@ -3511,7 +3544,7 @@ export default function AdminPage() {
                 </label>
               ) : null}
 
-              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+              <div className="rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/65">
                 <button
                   type="button"
                   onClick={() => setImagesCollapsed(current => !current)}
@@ -3526,7 +3559,7 @@ export default function AdminPage() {
                 </button>
 
                 {!imagesCollapsed && (
-                  <div className="mt-3 space-y-3">
+                  <div className="mt-3 space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="grid gap-2.5">
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -3655,7 +3688,7 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+              <div className="rounded-xl bg-white/55 px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/55">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="grid gap-2.5">
                       <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -3717,7 +3750,7 @@ export default function AdminPage() {
                 </div>
 
               {imageUrl && (
-                <div className="rounded-lg border border-[#ded7ca] p-2.5">
+                <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
                   <img
                     src={imageUrl}
                     alt="Uploaded case"
@@ -3732,7 +3765,7 @@ export default function AdminPage() {
                       setImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
                       setImageRevealClue('none')
                     }}
-                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
                     Remove image
                   </button>
@@ -3740,7 +3773,7 @@ export default function AdminPage() {
               )}
 
               {imageUrl2 && (
-                <div className="rounded-lg border border-[#ded7ca] p-2.5">
+                <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
                   <img
                     src={imageUrl2}
                     alt="Uploaded second case"
@@ -3755,7 +3788,7 @@ export default function AdminPage() {
                       setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
                       setImageRevealClue2('none')
                     }}
-                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
                     Remove second image
                   </button>
@@ -3763,7 +3796,7 @@ export default function AdminPage() {
               )}
 
               {level === 'attending' && learningImageUrl && (
-                <div className="rounded-lg border border-[#ded7ca] p-2.5">
+                <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
                   <img
                     src={learningImageUrl}
                     alt="Teaching image"
@@ -3777,7 +3810,7 @@ export default function AdminPage() {
                       setLearningImageUrl('')
                       setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
                     }}
-                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
                     Remove teaching image
                   </button>
@@ -3785,7 +3818,7 @@ export default function AdminPage() {
               )}
 
               {level === 'attending' && learningImageUrl2 && (
-                <div className="rounded-lg border border-[#ded7ca] p-2.5">
+                <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
                   <img
                     src={learningImageUrl2}
                     alt="Second teaching image"
@@ -3799,7 +3832,7 @@ export default function AdminPage() {
                       setLearningImageUrl2('')
                       setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
                     }}
-                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
                     Remove second teaching image
                   </button>
@@ -3809,7 +3842,10 @@ export default function AdminPage() {
                 )}
               </div>
 
-              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+              <div className="rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/65">
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  {level === 'attending' ? 'Answer choices' : 'Clinical clues'}
+                </div>
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'A' : 'Clue 1'}
@@ -3912,6 +3948,13 @@ export default function AdminPage() {
                   >
                     Link
                   </button>
+                  <button
+                    type="button"
+                    onClick={toggleTeachingPointBullets}
+                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                  >
+                    Bullets
+                  </button>
                 </div>
                 <textarea
                   ref={teachingPointRef}
@@ -3923,6 +3966,9 @@ export default function AdminPage() {
 **<u>Pathophys</u>**
 
 **<u>Key Clues</u>**
+
+- clue one
+- clue two
 
 **<u>Tx</u>**
 
