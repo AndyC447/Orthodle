@@ -2256,7 +2256,7 @@ function PlayPageContent() {
     if (learningImages.length === 0) return null
 
     return (
-      <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
+      <div className="rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
         <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
           Teaching Images
         </div>
@@ -2264,7 +2264,7 @@ function PlayPageContent() {
           {learningImages.map((image, index) => (
             <div
               key={`${image.url}-${index}`}
-              className="overflow-hidden rounded-xl border border-[#ded7ca] bg-white"
+              className="overflow-hidden rounded-xl bg-white shadow-[inset_0_0_0_1px_#e3dbce]"
             >
               <button
                 type="button"
@@ -2278,7 +2278,7 @@ function PlayPageContent() {
                 />
               </button>
               {image.credit?.trim() ? (
-                <p className="px-2.5 pb-2.5 pt-1.5 text-[11px] text-[#8a948d]">
+                <p className="px-2.5 pb-2.5 pt-1.5 text-center text-[11px] text-[#8a948d]">
                   {image.credit}
                 </p>
               ) : null}
