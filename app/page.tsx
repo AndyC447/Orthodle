@@ -29,6 +29,7 @@ import {
 } from '@/lib/site-surveys'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
+  clearStatsSummary,
   getStatsSummary,
   getLatestUnfinishedRoundProgress,
   isAcceptedGuess,
@@ -526,6 +527,9 @@ function PlayPageContent() {
   const [isSavingFeedback, setIsSavingFeedback] = useState(false)
   const [feedbackStatus, setFeedbackStatus] = useState('')
   const [showCaseFeedback, setShowCaseFeedback] = useState(false)
+  const [showQuickTakeaway, setShowQuickTakeaway] = useState(true)
+  const [showOrthodleInsight, setShowOrthodleInsight] = useState(false)
+  const [showLocalhostReset, setShowLocalhostReset] = useState(false)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
@@ -2044,7 +2048,22 @@ function PlayPageContent() {
 
     if (useSurgicalAnatomyQuiz) {
       if (communityStats.anatomyChoiceBreakdown.length === 0) return []
+      const correctRate =
+        communityStats.solveRate !== null ? `${Math.round(communityStats.solveRate)}%` : '—'
+      const responseCount =
+        communityStats.anatomyResponseCount > 0
+          ? `${communityStats.anatomyResponseCount}`
+          : '—'
+      const strongestDistractor = communityStats.anatomyChoiceBreakdown
+        .filter(choice => !choice.isCorrect)
+        .sort((a, b) => b.count - a.count || a.letter.localeCompare(b.letter))[0]
+
       return [
+        `Correct pick rate: **${correctRate}**`,
+        `Responses: **${responseCount}**`,
+        ...(strongestDistractor
+          ? [`Most tempting wrong answer: **${strongestDistractor.letter}. ${strongestDistractor.label}**`]
+          : []),
         'Answer distribution:',
         ...communityStats.anatomyChoiceBreakdown.map(
           choice => `${choice.letter}. ${choice.label}: **${Math.round(choice.rate)}%**`
@@ -2108,23 +2127,89 @@ function PlayPageContent() {
               key={section.label}
               className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-3' : ''}
             >
-              <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
-                {renderFormattedLine(section.label, `label-${sectionIndex}`)}
-              </div>
-              <div className="mt-1.5 space-y-1.5">
-                {section.body.map((line, index) =>
-                  line ? (
-                    <p
-                      key={`${section.label}-${index}`}
-                      className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
-                    >
-                      {renderFormattedLine(line)}
-                    </p>
-                  ) : (
-                    <div key={`${section.label}-${index}`} className="h-1" />
-                  )
-                )}
-              </div>
+              {section.label.toLowerCase() === 'orthodle insight' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowOrthodleInsight(current => !current)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                      {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                    </div>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
+                      {showOrthodleInsight ? '▴' : '▾'}
+                    </span>
+                  </button>
+                  {showOrthodleInsight && (
+                    <div className="mt-1.5 space-y-1.5">
+                      {section.body.map((line, index) =>
+                        line ? (
+                          <p
+                            key={`${section.label}-${index}`}
+                            className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+                          >
+                            {renderFormattedLine(line)}
+                          </p>
+                        ) : (
+                          <div key={`${section.label}-${index}`} className="h-1" />
+                        )
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : section.label.toLowerCase() === 'quick takeaway' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickTakeaway(current => !current)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                  >
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                      {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                    </div>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
+                      {showQuickTakeaway ? '▴' : '▾'}
+                    </span>
+                  </button>
+                  {showQuickTakeaway && (
+                    <div className="mt-1.5 space-y-1.5">
+                      {section.body.map((line, index) =>
+                        line ? (
+                          <p
+                            key={`${section.label}-${index}`}
+                            className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+                          >
+                            {renderFormattedLine(line)}
+                          </p>
+                        ) : (
+                          <div key={`${section.label}-${index}`} className="h-1" />
+                        )
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                    {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                  </div>
+                  <div className="mt-1.5 space-y-1.5">
+                    {section.body.map((line, index) =>
+                      line ? (
+                        <p
+                          key={`${section.label}-${index}`}
+                          className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+                        >
+                          {renderFormattedLine(line)}
+                        </p>
+                      ) : (
+                        <div key={`${section.label}-${index}`} className="h-1" />
+                      )
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -2559,6 +2644,19 @@ function PlayPageContent() {
     window.setTimeout(() => setIsTransitioningLevel(false), 550)
   }
 
+  function resetLocalhostCases() {
+    if (!isLocalhostBrowser()) return
+
+    const confirmed = window.confirm(
+      'Reset your saved Orthodle case progress on this browser? This will clear local guesses, solved states, and streak history.'
+    )
+
+    if (!confirmed) return
+
+    clearStatsSummary()
+    window.location.reload()
+  }
+
   const latestFindingIndex =
     !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
   const homepageAnnouncementKey = homepageAnnouncement
@@ -2632,6 +2730,15 @@ function PlayPageContent() {
     const savedChoice = window.localStorage.getItem(anatomySurveyStorageKey)
     setSubmittedAnatomySurveyChoice(savedChoice)
   }, [anatomySurveyStorageKey])
+
+  useEffect(() => {
+    setShowLocalhostReset(isLocalhostBrowser())
+  }, [])
+
+  useEffect(() => {
+    setShowQuickTakeaway(true)
+    setShowOrthodleInsight(false)
+  }, [selectedLevel, selectedDate, dailyCase?.answer])
 
   return (
     <main className="app-surface min-h-screen">
@@ -3115,6 +3222,18 @@ function PlayPageContent() {
           </div>
         </div>
 
+        {showLocalhostReset && (
+          <div className="mt-2 flex justify-center">
+            <button
+              type="button"
+              onClick={resetLocalhostCases}
+              className="rounded-full border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-[10px] font-semibold text-[#a35d32] transition hover:bg-[#fff4df]"
+            >
+              Reset local cases
+            </button>
+          </div>
+        )}
+
       </section>
 
       <div className={`mx-auto w-full max-w-[700px] px-4 py-1 pb-3 sm:px-0 sm:pb-8 ${hasMobileInteraction ? 'pt-1.5' : 'pt-1'}`}>
@@ -3218,30 +3337,7 @@ function PlayPageContent() {
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
                     {hasValidSurgicalAnatomyChoices ? (
                       <>
-                        {!roundComplete && (
-                          <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl bg-[#fffaf1]/70 px-3 py-2 text-[11px] text-[#637268]">
-                            <div>
-                              {isMultiSelectAnatomy
-                                ? 'Select all that apply, then submit.'
-                                : 'Select one answer, then submit.'}
-                            </div>
-                            <button
-                              type="button"
-                              disabled={selectedAnatomyLetters.length === 0}
-                              onClick={() =>
-                                void submitGuess(
-                                  serializeAnatomyGuessLetters(selectedAnatomyLetters),
-                                  selectedAnatomyLetters.join(', '),
-                                  selectedAnatomyLetters
-                                )
-                              }
-                              className="rounded-full border border-[#1f6448] bg-[#1f6448] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:border-[#cbd6cf] disabled:bg-[#cbd6cf]"
-                            >
-                              Submit
-                            </button>
-                          </div>
-                        )}
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <div className="grid gap-2.5 sm:grid-cols-2">
                           {surgicalAnatomyChoices.map((choice, index) => {
                             const letter = String.fromCharCode(65 + index)
                             const isCorrectChoice = correctAnatomyLetters.includes(letter)
@@ -3270,16 +3366,16 @@ function PlayPageContent() {
                                         : [letter]
                                   )
                                 }
-                                className={`orthodle-anatomy-choice rounded-2xl px-3 py-3 text-left transition ${
+                                className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
                                   choiceState === 'correct'
-                                    ? 'orthodle-anatomy-choice-correct cursor-default bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
+                                    ? 'orthodle-anatomy-choice-correct cursor-default border-[#cfe2d6] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
-                                      ? 'orthodle-anatomy-choice-incorrect cursor-default bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
+                                      ? 'orthodle-anatomy-choice-incorrect cursor-default border-[#efd2c3] bg-[#fff1ea] text-[#4b2314] shadow-[0_10px_20px_rgba(199,107,58,0.12)]'
                                       : isChosenChoice
-                                        ? 'bg-[#f7fbf8] text-[#102018] shadow-[0_8px_18px_rgba(31,100,72,0.08)]'
+                                        ? 'border-[#d7e3db] bg-[#f7fbf8] text-[#102018] shadow-[0_8px_18px_rgba(31,100,72,0.08)]'
                                       : roundComplete
-                                        ? 'orthodle-anatomy-choice-idle cursor-default bg-[#fbfaf7] text-[#102018]'
-                                        : 'orthodle-anatomy-choice-idle bg-white text-[#102018] hover:bg-[#f7fbf8]'
+                                        ? 'orthodle-anatomy-choice-idle cursor-default border-[#e5ddd0] bg-[#fbfaf7] text-[#102018]'
+                                        : 'orthodle-anatomy-choice-idle border-[#e3dacb] bg-[#fffdfa] text-[#102018] shadow-[0_2px_8px_rgba(16,32,24,0.03)] hover:border-[#d4cab9] hover:bg-[#f7fbf8]'
                                 }`}
                               >
                                 <div className="flex items-start gap-3">
@@ -3306,6 +3402,24 @@ function PlayPageContent() {
                             )
                           })}
                         </div>
+                        {!roundComplete && (
+                          <div className="mt-3 flex justify-center">
+                            <button
+                              type="button"
+                              disabled={selectedAnatomyLetters.length === 0}
+                              onClick={() =>
+                                void submitGuess(
+                                  serializeAnatomyGuessLetters(selectedAnatomyLetters),
+                                  selectedAnatomyLetters.join(', '),
+                                  selectedAnatomyLetters
+                                )
+                              }
+                              className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:border-[#cbd6cf] disabled:bg-[#cbd6cf]"
+                            >
+                              Submit
+                            </button>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="mt-3 rounded-2xl border border-dashed border-[#d9cfbf] bg-[#fbfaf7] px-4 py-4 text-center">
@@ -3327,7 +3441,7 @@ function PlayPageContent() {
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7] shadow-[0_8px_18px_rgba(199,107,58,0.08)]' : ''} orthodle-finding-card orthodle-reveal rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[#102018] sm:px-3.5`}
+                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7]/80 shadow-[0_8px_18px_rgba(199,107,58,0.06)]' : ''} orthodle-finding-card orthodle-reveal rounded-lg border px-3 py-2 text-[#102018] sm:px-3.5`}
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
@@ -3356,7 +3470,7 @@ function PlayPageContent() {
                 )}
               </div>
 
-              <div className="relative z-20 mt-3 border-t border-[#ded7ca] pt-2.5">
+              <div className="relative z-20 mt-2">
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     <div className="relative">
@@ -3508,18 +3622,18 @@ function PlayPageContent() {
                   </div>
                 )}
 
-                <div className="night-soft-surface rounded-xl border border-[#e7e1d6] bg-[#fbfaf7] p-2.5 sm:p-3">
+                <div className="night-soft-surface rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
                   <button
                     type="button"
                     onClick={() => setShowCaseFeedback(current => !current)}
-                    className="flex w-full items-center justify-between gap-3 text-left"
+                    className="relative flex w-full items-center justify-end text-left"
                   >
-                    <div className="night-label text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                      How was the case?
+                    <div className="night-label pointer-events-none absolute inset-x-0 text-center text-[11px] font-semibold text-[#637268]">
+                      Feedback
                     </div>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8a948d]">
-                      {showCaseFeedback ? 'Hide' : 'Open'}
-                    </div>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
+                      {showCaseFeedback ? '▴' : '▾'}
+                    </span>
                   </button>
                   {showCaseFeedback && (
                     <>
@@ -3538,14 +3652,14 @@ function PlayPageContent() {
                                 (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
                                 (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
                               }
-                              className={`w-full rounded-lg border px-2 py-1.5 text-[9.5px] font-semibold transition sm:w-auto ${
+                              className={`w-full rounded-lg px-2 py-1.5 text-[9.5px] font-semibold transition sm:w-auto ${
                                 submittingReaction === tag
-                                  ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
+                                  ? 'bg-[#eef7f2] text-[#1f6448]'
                                   : alreadySent
                                     ? isPositiveReaction
-                                      ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                                      : 'border-[#ead9b7] bg-[#fff3e8] text-[#a24d24]'
-                                    : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
+                                      ? 'bg-[#eef7f2] text-[#1f6448]'
+                                      : 'bg-[#fff3e8] text-[#a24d24]'
+                                    : 'bg-white text-[#637268] shadow-[inset_0_0_0_1px_#e3dbce] hover:bg-[#fbfaf7]'
                               } disabled:cursor-not-allowed disabled:opacity-70`}
                             >
                               {submittingReaction === tag ? 'Saving...' : alreadySent ? 'Sent' : tag}
@@ -3556,19 +3670,19 @@ function PlayPageContent() {
                       {reactionStatus && (
                         <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
                       )}
-                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <div className="mt-2 flex flex-col gap-1.5 sm:flex-row">
                         <input
                           type="text"
                           value={feedbackText}
                           onChange={e => setFeedbackText(e.target.value)}
                           placeholder="Share any feedback on the site here"
-                          className="min-h-[38px] min-w-0 flex-1 rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-center text-[12px] text-[#102018] outline-none transition placeholder:text-center placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:border-[#c9d8ce]"
+                          className="min-h-[38px] min-w-0 flex-1 rounded-lg bg-white px-3 py-2 text-center text-[12px] text-[#102018] outline-none shadow-[inset_0_0_0_1px_#e3dbce] transition placeholder:text-center placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:shadow-[inset_0_0_0_1px_#c9d8ce]"
                         />
                         <button
                           type="button"
                           onClick={() => void submitTypedFeedback()}
                           disabled={isSavingFeedback}
-                          className="min-h-[38px] shrink-0 rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                          className="min-h-[38px] shrink-0 rounded-lg bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] shadow-[inset_0_0_0_1px_#e3dbce] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                         >
                           {isSavingFeedback ? 'Sending...' : 'Send'}
                         </button>
@@ -3583,94 +3697,7 @@ function PlayPageContent() {
             </div>
           )}
 
-          {!isSurgicalAnatomyMode && (
-          <div className="orthodle-panel-shell hidden rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:block">
-            <div className="mb-3 flex justify-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#102018]">
-              <span>Your guesses</span>
-            </div>
-
-            <div className="space-y-1.5">
-              {Array.from({ length: maxGuessesForCurrentCase }).map((_, i) => {
-                const item = guesses[i]
-                const isLatestCorrect = item?.correct && i === guesses.length - 1 && gameWon
-
-                return (
-                  <div
-                    key={`desktop-inline-${i}`}
-                    className={
-                      item
-                        ? item.correct
-                          ? `${
-                              isLatestCorrect ? 'orthodle-success-pulse' : ''
-                            } orthodle-guess-correct flex min-h-[38px] items-center gap-2 rounded-lg border border-[#cfded4] bg-[#e8f3ed] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm`
-                          : 'orthodle-guess-wrong flex min-h-[38px] items-center gap-2 rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition duration-200 hover:-translate-y-0.5 hover:shadow-sm'
-                        : 'orthodle-guess-empty flex min-h-[38px] items-center gap-2 rounded-lg border border-dashed border-[#d7ccbc] bg-[#fffdfa] px-3 py-1.5 text-[12px] text-[#9aa39c] transition duration-200 hover:bg-[#fbfaf7]'
-                    }
-                  >
-                    <span className="w-5 font-mono text-[11px] text-[#637268]">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-
-                    <span
-                      className={
-                        item
-                          ? item.correct
-                            ? 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1f7a4d] text-[10px] text-white'
-                            : 'flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#c76b3a] text-[10px] text-white'
-                          : 'h-5 w-5 shrink-0 rounded-full bg-[#f1eee8]'
-                      }
-                    >
-                      {item ? (item.correct ? '✓' : '×') : ''}
-                    </span>
-
-                    <span className="truncate font-serif text-[13px] font-bold leading-none">
-                      {item ? formatGuessDisplayText(item.text) : '—'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-          )}
-
         </section>
-
-        <aside className="space-y-3">
-          {!roundComplete && !isSurgicalAnatomyMode && (
-          <div className="orthodle-panel-shell relative z-0 rounded-2xl border border-[#ebe3d7] bg-white p-2 shadow-[0_8px_18px_rgba(16,32,24,0.04)] sm:hidden">
-            <div className="mb-1.5 flex justify-center text-[10px] font-bold uppercase tracking-[0.22em] text-[#102018]">
-              <span>Your guesses</span>
-            </div>
-
-            <div className="grid grid-cols-6 gap-1.5">
-              {Array.from({ length: maxGuessesForCurrentCase }).map((_, i) => {
-                const item = guesses[i]
-
-                return (
-                  <div
-                    key={`mobile-${i}`}
-                    className={
-                      item
-                        ? item.correct
-                          ? 'orthodle-guess-correct flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-[#d7e2dc] bg-[#eef7f2] px-1 py-1 text-[#102018]'
-                          : 'orthodle-guess-wrong flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-1 py-1 text-[#102018]'
-                        : 'orthodle-guess-empty flex min-h-[38px] flex-col items-center justify-center rounded-xl border border-dashed border-[#d7ccbc] bg-[#fffdfa] px-1 py-1 text-[#9aa39c]'
-                    }
-                  >
-                    <span className="text-[8px] font-mono text-[#637268]">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span className="mt-0.5 text-[10px] font-semibold">
-                      {item ? (item.correct ? '✓' : '×') : '•'}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-          )}
-
-        </aside>
       </div>
 
       <PublicFooter />
@@ -3682,21 +3709,11 @@ function PlayPageContent() {
         >
           <div className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
-                  Imaging
-                </div>
-                <div className="mt-1 text-[10px] text-[#8a948d]">
-                  Pinch to zoom. Double tap to zoom. Swipe down to close.
-                </div>
+              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+                Imaging
               </div>
 
               <div className="flex items-center gap-2">
-                {currentExpandedImages.length > 1 && (
-                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                    {expandedImageIndex + 1} / {currentExpandedImages.length}
-                  </div>
-                )}
                 {imageScale > 1.02 && (
                   <button
                     onClick={resetExpandedImageView}
@@ -3705,12 +3722,6 @@ function PlayPageContent() {
                     Reset
                   </button>
                 )}
-                <button
-                  onClick={closeExpandedImage}
-                  className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px] sm:tracking-[0.18em]"
-                >
-                  Minimize
-                </button>
               </div>
             </div>
 
@@ -3773,37 +3784,6 @@ function PlayPageContent() {
             >
               {activeExpandedImage && (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    {currentExpandedImages.length > 1 ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            resetExpandedImageView()
-                            setExpandedImageIndex(current =>
-                              current === 0 ? currentExpandedImages.length - 1 : current - 1
-                            )
-                          }}
-                          className="rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
-                        >
-                          Previous
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            resetExpandedImageView()
-                            setExpandedImageIndex(current => (current + 1) % currentExpandedImages.length)
-                          }}
-                          className="rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-[#fbfaf7]"
-                        >
-                          Next
-                        </button>
-                      </>
-                    ) : (
-                      <div />
-                    )}
-                  </div>
-
                   <div>
                     <img
                       src={activeExpandedImage.url}
@@ -3823,7 +3803,21 @@ function PlayPageContent() {
                   </div>
 
                   {currentExpandedImages.length > 1 && (
-                    <div className="flex flex-wrap justify-center gap-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetExpandedImageView()
+                          setExpandedImageIndex(current =>
+                            current === 0 ? currentExpandedImages.length - 1 : current - 1
+                          )
+                        }}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        aria-label="Previous image"
+                      >
+                        {'<'}
+                      </button>
+                      <div className="flex flex-wrap justify-center gap-2">
                       {currentExpandedImages.map((image, index) => (
                         <button
                           key={`expanded-thumb-${image.url}-${index}`}
@@ -3845,6 +3839,18 @@ function PlayPageContent() {
                           />
                         </button>
                       ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          resetExpandedImageView()
+                          setExpandedImageIndex(current => (current + 1) % currentExpandedImages.length)
+                        }}
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        aria-label="Next image"
+                      >
+                        {'>'}
+                      </button>
                     </div>
                   )}
                     </div>

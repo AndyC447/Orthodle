@@ -219,7 +219,7 @@ export default function AdminFeedbackPage() {
     const isOpen = openReplyId === row.id
 
     return (
-      <div className="mt-3 rounded-xl border border-[#e7e1d6] bg-white/80 p-3">
+      <div className="mt-2 rounded-lg bg-[#fcfbf8] px-3 py-2 shadow-[inset_0_0_0_1px_#e8e0d3]">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
             Thread
@@ -240,25 +240,27 @@ export default function AdminFeedbackPage() {
           </div>
         </div>
 
-        {replies.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {replies.map(reply => (
-              <div key={reply.id} className="rounded-lg border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]">
-                  {reply.sender_role === 'admin' ? 'Orthodle' : 'Player'} · {reply.created_at.slice(0, 16).replace('T', ' ')}
-                </div>
-                <p className="mt-1 text-sm leading-6 text-[#102018]">{reply.message_text}</p>
-              </div>
-            ))}
-          </div>
-        )}
-
         {!canReply ? (
-          <p className="mt-2 text-sm text-[#637268]">
+          <p className="mt-1.5 text-[12px] leading-5 text-[#637268]">
             This feedback was submitted without a player session, so it cannot receive a reply.
           </p>
         ) : isOpen ? (
           <>
+            {replies.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                {replies.map(reply => (
+                  <div
+                    key={reply.id}
+                    className="rounded-lg bg-white px-3 py-2 shadow-[inset_0_0_0_1px_#e3dbce]"
+                  >
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]">
+                      {reply.sender_role === 'admin' ? 'Orthodle' : 'Player'} · {reply.created_at.slice(0, 16).replace('T', ' ')}
+                    </div>
+                    <p className="mt-1 text-[13px] leading-5 text-[#102018]">{reply.message_text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
             <textarea
               value={replyDrafts[row.id] || ''}
               onChange={event =>
@@ -269,7 +271,7 @@ export default function AdminFeedbackPage() {
               }
               rows={3}
               placeholder="Send a follow-up note to this player..."
-              className="mt-2 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018] outline-none transition placeholder:text-[#8a968d] focus:border-[#1f6448] focus:ring-2 focus:ring-[#d9eadf]"
+              className="mt-2 w-full rounded-xl bg-white px-3 py-2 text-sm text-[#102018] outline-none shadow-[inset_0_0_0_1px_#e3dbce] transition placeholder:text-[#8a968d] focus:shadow-[inset_0_0_0_1px_#1f6448]"
             />
             <div className="mt-2 flex justify-end">
               <button
@@ -282,10 +284,6 @@ export default function AdminFeedbackPage() {
               </button>
             </div>
           </>
-        ) : replies.length === 0 ? (
-          <p className="mt-2 text-sm text-[#637268]">
-            Open reply when you want to send this player a follow-up note.
-          </p>
         ) : null}
       </div>
     )

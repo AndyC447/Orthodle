@@ -471,6 +471,7 @@ export default function AdminPage() {
   const [showAnalytics, setShowAnalytics] = useState(true)
   const [showCasesByDate, setShowCasesByDate] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
+  const [overviewDate, setOverviewDate] = useState(shiftISODate(today, 1))
   const [sidebarSectionOrder, setSidebarSectionOrder] = useState<AdminSidebarSectionId[]>(
     DEFAULT_ADMIN_SIDEBAR_ORDER
   )
@@ -835,6 +836,17 @@ export default function AdminPage() {
     () => (isNoResidentModeActiveOn(tomorrow) ? noResidentLevelOrder : levelOrder),
     [noResidentMode, noResidentModeStartDate, tomorrow]
   )
+
+  const overviewCases = useMemo(
+    () => groupedCases.find(group => group.date === overviewDate)?.items || [],
+    [groupedCases, overviewDate]
+  )
+
+  const overviewLevelOrder = useMemo<Level[]>(
+    () => (isNoResidentModeActiveOn(overviewDate) ? noResidentLevelOrder : levelOrder),
+    [overviewDate, noResidentMode, noResidentModeStartDate]
+  )
+  const useCompactOverviewLayout = noResidentMode
 
   const previewClues = useMemo(
     () => [clue1, clue2, clue3, clue4, clue5, clue6].map(item => item.trim()).filter(Boolean),
@@ -3122,6 +3134,100 @@ export default function AdminPage() {
     ),
   }
 
+  function renderOverviewSection({
+    title,
+    dateText,
+    cases,
+    levelOrderForSection,
+    showDatePicker = false,
+  }: {
+    title: string
+    dateText: string
+    cases: CaseRow[]
+    levelOrderForSection: Level[]
+    showDatePicker?: boolean
+  }) {
+    const readyCount = levelOrderForSection.filter(levelValue =>
+      cases.some(item => item.level === levelValue)
+    ).length
+    const nextMissing = nextMissingLevelForDate(dateText)
+
+    return (
+      <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+              {title}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              {readyCount}/{levelOrderForSection.length} ready
+            </div>
+            {showDatePicker ? (
+              <input
+                type="date"
+                value={overviewDate}
+                onChange={event => setOverviewDate(event.target.value || tomorrow)}
+                className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] text-[#637268] outline-none transition focus:border-[#1f6448]"
+              />
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-2 md:grid-cols-3">
+          {levelOrderForSection.map(levelValue => {
+            const item = cases.find(entry => entry.level === levelValue)
+
+            return (
+              <div
+                key={`${dateText}-${levelValue}`}
+                className={
+                  item
+                    ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
+                    : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
+                }
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                      {formatLevel(levelValue)}
+                    </div>
+                    <div className="mt-1.5 font-semibold text-[#102018]">
+                      {item ? item.answer : 'Not scheduled'}
+                    </div>
+                    <div className="mt-1 text-sm text-[#637268]">
+                      {item ? item.category : 'Open slot'}
+                    </div>
+                  </div>
+
+                  {item ? (
+                    <button
+                      type="button"
+                      onClick={() => editCase(item)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    >
+                      Edit
+                    </button>
+                  ) : nextMissing === levelValue ? (
+                    <button
+                      type="button"
+                      onClick={() => startCaseFor(dateText, levelValue)}
+                      className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                    >
+                      Add
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+    )
+  }
+
   return (
     <main className="app-surface min-h-screen">
       <Header />
@@ -3149,135 +3255,47 @@ export default function AdminPage() {
           </button>
         </div>
 
-        <section className="night-surface mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-3.5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                Today overview
-              </div>
+        {!useCompactOverviewLayout && (
+          <>
+            <div className="mt-3">
+              {renderOverviewSection({
+                title: 'Today overview',
+                dateText: today,
+                cases: todaysCases,
+                levelOrderForSection: todaysLevelOrder,
+              })}
             </div>
-
-            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {todaysLevelOrder.filter(levelValue => todaysCases.some(item => item.level === levelValue)).length}/{todaysLevelOrder.length} ready
+            <div className="mt-3">
+              {renderOverviewSection({
+                title: `${formatShortDate(overviewDate)} overview`,
+                dateText: overviewDate,
+                cases: overviewCases,
+                levelOrderForSection: overviewLevelOrder,
+                showDatePicker: true,
+              })}
             </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {todaysLevelOrder.map(levelValue => {
-              const item = todaysCases.find(entry => entry.level === levelValue)
-              const nextMissing = nextMissingLevelForDate(today)
-
-              return (
-                <div
-                  key={levelValue}
-                  className={
-                    item
-                      ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
-                      : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
-                  }
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                        {formatLevel(levelValue)}
-                      </div>
-                      <div className="mt-1.5 font-semibold text-[#102018]">
-                        {item ? item.answer : 'Not scheduled'}
-                      </div>
-                      <div className="mt-1 text-sm text-[#637268]">
-                        {item ? item.category : 'Open slot'}
-                      </div>
-                    </div>
-
-                    {item ? (
-                      <button
-                        type="button"
-                        onClick={() => editCase(item)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                      >
-                        Edit
-                      </button>
-                    ) : nextMissing === levelValue ? (
-                      <button
-                        type="button"
-                        onClick={() => startCaseFor(today, levelValue)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                      >
-                        Add
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-
-        <section className="night-surface mt-3 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                Tomorrow overview
-              </div>
-            </div>
-
-            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {tomorrowsLevelOrder.filter(levelValue => tomorrowsCases.some(item => item.level === levelValue)).length}/{tomorrowsLevelOrder.length} ready
-            </div>
-          </div>
-
-          <div className="mt-3 grid gap-2 md:grid-cols-3">
-            {tomorrowsLevelOrder.map(levelValue => {
-              const item = tomorrowsCases.find(entry => entry.level === levelValue)
-              const nextMissing = nextMissingLevelForDate(tomorrow)
-
-              return (
-                <div
-                  key={`tomorrow-${levelValue}`}
-                  className={
-                    item
-                      ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
-                      : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
-                  }
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                        {formatLevel(levelValue)}
-                      </div>
-                      <div className="mt-1.5 font-semibold text-[#102018]">
-                        {item ? item.answer : 'Not scheduled'}
-                      </div>
-                      <div className="mt-1 text-sm text-[#637268]">
-                        {item ? item.category : 'Open slot'}
-                      </div>
-                    </div>
-
-                    {item ? (
-                      <button
-                        type="button"
-                        onClick={() => editCase(item)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                      >
-                        Edit
-                      </button>
-                    ) : nextMissing === levelValue ? (
-                      <button
-                        type="button"
-                        onClick={() => startCaseFor(tomorrow, levelValue)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                      >
-                        Add
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </section>
+          </>
+        )}
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_320px]">
+          <div className="space-y-3">
+          {useCompactOverviewLayout && (
+            <>
+              {renderOverviewSection({
+                title: 'Today overview',
+                dateText: today,
+                cases: todaysCases,
+                levelOrderForSection: todaysLevelOrder,
+              })}
+              {renderOverviewSection({
+                title: `${formatShortDate(overviewDate)} overview`,
+                dateText: overviewDate,
+                cases: overviewCases,
+                levelOrderForSection: overviewLevelOrder,
+                showDatePicker: true,
+              })}
+            </>
+          )}
           <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-serif text-xl font-bold">
@@ -4075,6 +4093,7 @@ export default function AdminPage() {
             </div>
             )}
           </section>
+          </div>
 
           <aside className="flex flex-col gap-3">
             {sidebarSectionOrder.map(sectionId => (
