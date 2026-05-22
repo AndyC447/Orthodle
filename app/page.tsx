@@ -489,6 +489,7 @@ function PlayPageContent() {
   const isAdminPreview = searchParams.get('preview') === '1'
   const guessInputRef = useRef<HTMLInputElement | null>(null)
   const findingsRef = useRef<HTMLDivElement | null>(null)
+  const caseCardRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const imageTouchStartY = useRef<number | null>(null)
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
@@ -1713,6 +1714,18 @@ function PlayPageContent() {
     })
   }
 
+  function keepMobileCaseInView() {
+    if (typeof window === 'undefined') return
+    if (window.innerWidth >= 640) return
+
+    window.setTimeout(() => {
+      caseCardRef.current?.scrollIntoView({
+        block: 'start',
+        behavior: 'auto',
+      })
+    }, 60)
+  }
+
   function resumeSavedRound() {
     if (!resumeRound) return
     setPendingResumeKey(resumeRound.key)
@@ -2472,6 +2485,24 @@ function PlayPageContent() {
 
     return () => window.clearTimeout(timeoutId)
   }, [unlockedFindings, roundComplete])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return
+
+    const handleViewportChange = () => {
+      if (document.activeElement === guessInputRef.current) {
+        keepMobileCaseInView()
+      }
+    }
+
+    window.visualViewport.addEventListener('resize', handleViewportChange)
+    window.visualViewport.addEventListener('scroll', handleViewportChange)
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewportChange)
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange)
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -3336,7 +3367,7 @@ function PlayPageContent() {
                   </div>
               )}
 
-              <div ref={findingsRef} className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
+              <div ref={caseCardRef} className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
                 {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
                     {hasValidSurgicalAnatomyChoices ? (
@@ -3488,6 +3519,7 @@ function PlayPageContent() {
                           }}
                           onFocus={() => {
                             setShowSuggestions(true)
+                            keepMobileCaseInView()
                           }}
                           onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
                           onKeyDown={e => e.key === 'Enter' && submitGuess()}
