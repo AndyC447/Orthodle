@@ -2422,8 +2422,19 @@ function PlayPageContent() {
     const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
     const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
     const selectedLettersForGuess = submittedLetters || []
+    const refocusGuessInput = () => {
+      if (typeof window === 'undefined') return
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          const input = guessInputRef.current
+          if (!input) return
+          input.focus({ preventScroll: true })
+          const end = input.value.length
+          input.setSelectionRange(end, end)
+        })
+      })
+    }
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
-      guessInputRef.current?.blur()
       setShowSuggestions(false)
     }
     const data = isAdminPreview
@@ -2527,6 +2538,7 @@ function PlayPageContent() {
         message: nextMessage,
       })
     }
+    refocusGuessInput()
   }
 
   useEffect(() => {
@@ -2858,7 +2870,7 @@ function PlayPageContent() {
   }, [selectedLevel, selectedDate, dailyCase?.answer])
 
   return (
-    <main className="app-surface min-h-screen">
+    <main className="app-surface home-surface min-h-screen">
       <Header />
 
       <style jsx global>{`
@@ -3320,9 +3332,9 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`orthodle-animated-border w-full rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.75px] shadow-[0_8px_18px_rgba(16,32,24,0.05)] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           <div
-            className="grid gap-1 rounded-[24px] bg-white p-1.5 sm:gap-1.5 sm:p-1.5"
+            className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
             style={{ gridTemplateColumns: `repeat(${homeTabs.length}, minmax(0, 1fr))` }}
           >
             {homeTabs.map(item => {
@@ -3331,10 +3343,10 @@ function PlayPageContent() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-2.5 ${
+                    className={`flex items-center rounded-[16px] border border-[#eee5d8] bg-[#fffdf9] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#fbf8f2] sm:px-2 ${
                       item.subtitle
-                        ? 'min-h-[58px] flex-col justify-center py-1.5 sm:min-h-[58px] sm:py-2'
-                        : 'min-h-[46px] justify-center py-2 sm:min-h-[48px] sm:py-2.5'
+                        ? 'min-h-[54px] flex-col justify-center py-1.5 sm:min-h-[56px] sm:py-2'
+                        : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
                     }`}
                   >
                     <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
@@ -3358,15 +3370,15 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `rounded-[18px] border border-[#1f6448] bg-[#1f6448] px-1.5 text-center text-white shadow-sm transition duration-200 hover:scale-[1.01] sm:px-2.5 ${
+                      ? `rounded-[16px] border border-[#1f6448] bg-[#1f6448] px-1.5 text-center text-white shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
-                            ? 'min-h-[58px] py-1.5 sm:min-h-[58px] sm:py-2'
-                            : 'min-h-[46px] py-2 sm:min-h-[48px] sm:py-2.5'
+                            ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
+                            : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
-                      : `rounded-[18px] border border-[#ebe3d7] bg-[#fffdf8] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#f7f5f0] sm:px-2.5 ${
+                      : `rounded-[16px] border border-[#eee5d8] bg-[#fffdf9] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#fbf8f2] sm:px-2 ${
                           subtitle
-                            ? 'min-h-[58px] py-1.5 sm:min-h-[58px] sm:py-2'
-                            : 'min-h-[46px] py-2 sm:min-h-[48px] sm:py-2.5'
+                            ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
+                            : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
                   }
                 >
@@ -3435,15 +3447,15 @@ function PlayPageContent() {
             </div>
           )}
 
-          <div className={`orthodle-panel-shell relative z-20 rounded-2xl border border-[#ebe3d7] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-3.5 sm:py-4 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'}`}>
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
+          <div className={`orthodle-panel-shell orthodle-home-card relative z-20 rounded-[24px] border bg-white px-3 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-5 sm:py-5 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'}`}>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
                   <span>{dailyCase?.category || formatLevel(selectedLevel)}</span>
                 </div>
               </div>
 
-              <div className="mt-1 sm:mt-2.5">
+              <div className="mt-1 sm:mt-2">
                 {loading ? (
                   <div className="space-y-3 py-1">
                     <div className="orthodle-skeleton h-4 w-16 rounded-full" />
@@ -3452,7 +3464,7 @@ function PlayPageContent() {
                     <div className="orthodle-skeleton h-8 w-[88%] rounded-lg" />
                   </div>
                 ) : dailyCase ? (
-                  <div key={dailyCase.id} className="orthodle-fade-up space-y-0">
+                  <div key={dailyCase.id} className="orthodle-home-copy orthodle-fade-up space-y-0">
                     {renderCasePrompt(dailyCase.prompt)}
                   </div>
                 ) : (
@@ -3599,18 +3611,11 @@ function PlayPageContent() {
                     )}
                   </div>
                 ) : visibleFindings.length > 0 ? (
-                  <>
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                      <div />
-                      <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                        Clinical findings
-                      </div>
-                    </div>
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-2 space-y-2.5">
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7]/80 shadow-[0_8px_18px_rgba(199,107,58,0.06)]' : ''} orthodle-finding-card orthodle-reveal rounded-lg border px-3 py-2 text-[#102018] sm:px-3.5`}
+                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7]/70 shadow-[0_8px_18px_rgba(199,107,58,0.05)]' : ''} orthodle-finding-card orthodle-home-findings orthodle-reveal rounded-xl border px-3 py-2.5 text-[#102018] sm:px-4`}
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
@@ -3621,25 +3626,10 @@ function PlayPageContent() {
                       </div>
                     ))}
                   </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-                      <div />
-                      <div className="text-center text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                        Clinical findings
-                      </div>
-                    </div>
-                    <div className="mt-2 rounded-lg border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-3 py-3 text-center">
-                      <p className="text-[12px] leading-5 text-[#8a948d]">
-                        Incorrect guesses will reveal additional clinical findings and any delayed imaging clues.
-                      </p>
-                    </div>
-                  </>
-                )}
+                ) : null}
               </div>
 
-              <div className="relative z-20 mt-2">
+              <div className={`orthodle-home-input-shell relative z-20 rounded-[18px] pt-3 ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-3' : 'mt-2'}`}>
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     <div className="relative">
@@ -3665,7 +3655,7 @@ function PlayPageContent() {
                           inputMode="text"
                           placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                           disabled={!dailyCase}
-                          className="min-h-[44px] flex-1 rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                          className="orthodle-home-input min-h-[44px] flex-1 rounded-xl border bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
                         />
 
                         <button
