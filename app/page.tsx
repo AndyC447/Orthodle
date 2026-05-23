@@ -3469,6 +3469,10 @@ function PlayPageContent() {
                 )}
               </div>
 
+              {!loading && dailyCase && (
+                <div className="mt-3 border-t border-dashed border-[#ded7ca]" />
+              )}
+
               {visibleImages.length > 0 && imageRevealed && !imageHidden && (
                   <div className="orthodle-fade-up orthodle-imaging-shell mt-3 px-0.5">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
@@ -3645,7 +3649,7 @@ function PlayPageContent() {
                           inputMode="text"
                           placeholder={!dailyCase ? 'No case available' : 'Type to narrow the diagnosis'}
                           disabled={!dailyCase}
-                          className="orthodle-home-input min-h-[44px] flex-1 rounded-xl border bg-white px-3 py-2 text-[13px] text-[#102018] outline-none transition placeholder:text-[#9aa39c] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
+                          className="orthodle-home-input min-h-[44px] flex-1 rounded-xl border bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition placeholder:text-[11px] placeholder:text-[#9aa39c] focus:ring-2 focus:ring-[#1f6448]/20 disabled:cursor-not-allowed disabled:bg-[#f7f5f0] disabled:text-[#a0a7a2]"
                         />
 
                         <button
