@@ -274,11 +274,14 @@ export default function ArchivePage() {
       .filter(item => caseDifficultyMap.has(item.id))
       .sort((a, b) => (caseDifficultyMap.get(b.id) || 0) - (caseDifficultyMap.get(a.id) || 0))[0] || null
   }, [caseDifficultyMap, filteredCases])
-  const pillButtonClass =
-    'inline-flex min-h-[31px] items-center justify-center rounded-full border px-3 py-1.5 text-[8.5px] font-semibold tracking-[0.01em] transition sm:min-h-[34px] sm:px-3.5 sm:text-[9px]'
-  const sectionLabelClass = 'text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]'
-  const fieldLabelClass = 'text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]'
-  const caseMetaLabelClass = 'text-[9px] font-semibold tracking-[0.01em] text-[#637268]'
+  const actionButtonClass =
+    'inline-flex min-h-[34px] items-center justify-center rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition'
+  const softButtonClass = `${actionButtonClass} border-[#ded7ca] bg-white text-[#55645b] hover:bg-[#fbfaf7]`
+  const activeButtonClass = `${actionButtonClass} border-[#1f6448] bg-[#1f6448] text-white hover:bg-[#174c37]`
+  const accentButtonClass = `${actionButtonClass} border-[#d9c7a6] bg-[#fffaf1] text-[#8a5a2b] hover:bg-[#fff3e0]`
+  const sectionLabelClass = 'text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]'
+  const fieldLabelClass = 'text-[10px] font-bold uppercase tracking-[0.14em] text-[#637268]'
+  const caseMetaLabelClass = 'text-[10px] font-semibold tracking-[0.01em] text-[#637268]'
   const levelOptions: Array<{ value: ArchiveLevelFilter; label: string }> = [
     { value: 'all', label: 'All Levels' },
     { value: 'med_student', label: formatLevel('med_student') },
@@ -293,33 +296,33 @@ export default function ArchivePage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-5xl px-4 py-4 sm:px-6 sm:py-5">
-        <div className="night-surface rounded-[28px] border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-5">
+      <section className="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-5">
+        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4.5">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
             Archive
           </div>
-          <h1 className="mt-2 font-serif text-[26px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:text-[30px]">
+          <h1 className="mt-1.5 font-serif text-[23px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:text-[28px]">
             Browse older cases
           </h1>
 
           {(surpriseTarget || filteredCases.length > 0) && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
               {surpriseTarget ? (
                 <Link
                   href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
-                  className={`${pillButtonClass} border-[#cfded4] bg-[#f7fbf8] text-[#1f6448] hover:bg-white`}
+                  className={activeButtonClass}
                 >
                   Surprise me
                 </Link>
               ) : (
-                <div className={`${pillButtonClass} border-[#ded7ca] bg-[#fbfaf7] text-[#8b938d]`}>
+                <div className={softButtonClass}>
                   All done
                 </div>
               )}
               {hardestPick && (
                 <Link
                   href={`/?case=${hardestPick.id}&date=${hardestPick.case_date}&level=${hardestPick.level}`}
-                  className={`${pillButtonClass} border-[#ead9b7] bg-[#fff8ef] text-[#a24d24] hover:bg-[#fff2e2]`}
+                  className={accentButtonClass}
                 >
                   Hardest pick
                 </Link>
@@ -330,39 +333,37 @@ export default function ArchivePage() {
                   clearStatsSummary()
                   setCompletedArchiveKeys(new Set())
                 }}
-                className={`${pillButtonClass} border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]`}
+                className={softButtonClass}
               >
                 Reset cases
               </button>
             </div>
           )}
 
-          <div className="mt-3 rounded-[22px] border border-[#ebe5db] bg-[#fcfbf8] p-2.5 sm:p-3">
+          <div className="mt-3 rounded-[20px] bg-[#fcfbf8] px-2.5 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70 sm:px-3 sm:py-3">
             <div className={sectionLabelClass}>
               Filters
             </div>
 
-            <div className="mt-2.5 space-y-2.5">
+            <div className="mt-2.5 space-y-2">
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                <div className={`${fieldLabelClass} mb-1.5`}>
-                  Difficulty
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <label className="grid gap-1.5">
+                  <span className={fieldLabelClass}>Difficulty</span>
                   <div className="relative" ref={levelMenuRef}>
                     <button
                       type="button"
                       onClick={() => setLevelMenuOpen(current => !current)}
-                      className="flex min-h-[36px] w-full items-center justify-between rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-left text-[12px] text-[#102018] transition hover:bg-[#fbfaf7]"
+                      className="flex min-h-[38px] w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7]"
                     >
                       <span>{selectedLevelLabel}</span>
                       <span className="ml-3 text-[10px] text-[#7a857c]">{levelMenuOpen ? '▲' : '▼'}</span>
                     </button>
                     {levelMenuOpen && (
-                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_18px_40px_rgba(16,32,24,0.06)]">
-                        <div className="border-b border-[#f3eee5] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7a857c]">
+                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-xl border border-[#e7e1d6] bg-white shadow-[0_18px_40px_rgba(16,32,24,0.06)]">
+                        <div className="border-b border-[#f3eee5] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a857c]">
                           Difficulty
                         </div>
-                        <div className="p-2">
+                        <div className="p-1.5">
                           {levelOptions.map(option => (
                             <button
                               key={option.value}
@@ -371,7 +372,7 @@ export default function ArchivePage() {
                                 setSelectedLevel(option.value)
                                 setLevelMenuOpen(false)
                               }}
-                              className={`block w-full rounded-xl px-3 py-2 text-left text-[12px] transition ${
+                              className={`block w-full rounded-lg px-3 py-2 text-left text-[13px] transition ${
                                 selectedLevel === option.value
                                   ? 'bg-[#f7fbf8] font-semibold text-[#1f6448]'
                                   : 'text-[#102018] hover:bg-[#fbfaf7]'
@@ -384,16 +385,14 @@ export default function ArchivePage() {
                       </div>
                     )}
                   </div>
+                </label>
+                <div className="sm:pb-0">
                   <button
                     type="button"
                     onClick={() => setImagingOnly(current => !current)}
-                    className={`rounded-full border px-2.5 py-1.5 text-[8.5px] font-semibold tracking-[0.01em] transition sm:text-[9px] ${
-                      imagingOnly
-                        ? 'border-[#1f6448] bg-[#eef7f2] text-[#1f6448]'
-                        : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7]'
-                    }`}
+                    className={imagingOnly ? activeButtonClass : softButtonClass}
                   >
-                    Has Imaging
+                    Imaging
                   </button>
                 </div>
               </div>
@@ -404,7 +403,7 @@ export default function ArchivePage() {
                   value={answerQuery}
                   onChange={e => setAnswerQuery(e.target.value)}
                   placeholder="Search diagnosis or answer"
-                  className="min-h-[36px] rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-[12px] font-medium normal-case tracking-normal text-[#102018] placeholder:text-[#8b938d]"
+                  className="min-h-[38px] rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] font-medium text-[#102018] placeholder:text-[#8b938d]"
                 />
               </label>
 
@@ -414,30 +413,30 @@ export default function ArchivePage() {
                   <button
                     type="button"
                     onClick={() => setCategoryMenuOpen(current => !current)}
-                    className="flex min-h-[36px] w-full items-center justify-between rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7]"
+                    className="flex min-h-[38px] w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
-                    <span>{selectedCategory === 'all' ? 'All Categories' : formatCategoryLabel(selectedCategory)}</span>
+                    <span>{selectedCategory === 'all' ? 'All categories' : formatCategoryLabel(selectedCategory)}</span>
                     <span className="ml-3 text-[10px] text-[#7a857c]">{categoryMenuOpen ? '▲' : '▼'}</span>
                   </button>
                   {categoryMenuOpen && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-2xl border border-[#e7e1d6] bg-white shadow-[0_18px_40px_rgba(16,32,24,0.06)]">
-                      <div className="border-b border-[#f3eee5] px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#7a857c]">
+                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-xl border border-[#e7e1d6] bg-white shadow-[0_18px_40px_rgba(16,32,24,0.06)]">
+                      <div className="border-b border-[#f3eee5] px-3 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#7a857c]">
                         Category
                       </div>
-                      <div className="max-h-[280px] overflow-y-auto p-2">
+                      <div className="max-h-[280px] overflow-y-auto p-1.5">
                         <button
                           type="button"
                           onClick={() => {
                             setSelectedCategory('all')
                             setCategoryMenuOpen(false)
                           }}
-                          className={`block w-full rounded-xl px-3 py-2 text-left text-[12px] transition ${
+                          className={`block w-full rounded-lg px-3 py-2 text-left text-[13px] transition ${
                             selectedCategory === 'all'
                               ? 'bg-[#f7fbf8] font-semibold text-[#1f6448]'
                               : 'text-[#102018] hover:bg-[#fbfaf7]'
                           }`}
                         >
-                          All Categories
+                          All categories
                         </button>
                         {categoryOptions.map(option => (
                           <button
@@ -447,7 +446,7 @@ export default function ArchivePage() {
                               setSelectedCategory(option)
                               setCategoryMenuOpen(false)
                             }}
-                            className={`block w-full rounded-xl px-3 py-2 text-left text-[12px] transition ${
+                            className={`block w-full rounded-lg px-3 py-2 text-left text-[13px] transition ${
                               selectedCategory === option
                                 ? 'bg-[#f7fbf8] font-semibold text-[#1f6448]'
                                 : 'text-[#102018] hover:bg-[#fbfaf7]'
@@ -464,9 +463,9 @@ export default function ArchivePage() {
             </div>
 
             {hasActiveFilters && (
-              <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 border-t border-[#eee8de] pt-2.5">
+              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[#eee8de] pt-2.5">
                 <p className="text-[11px] text-[#637268]">
-                  Showing {filteredCases.length} matching case{filteredCases.length === 1 ? '' : 's'}.
+                  {filteredCases.length} case{filteredCases.length === 1 ? '' : 's'}
                 </p>
 
                 <button
@@ -477,15 +476,15 @@ export default function ArchivePage() {
                     setAnswerQuery('')
                     setImagingOnly(false)
                   }}
-                  className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[8.5px] font-semibold tracking-[0.01em] text-[#637268] transition hover:bg-[#fbfaf7]"
+                  className={softButtonClass}
                 >
-                  Clear Filters
+                  Clear
                 </button>
               </div>
             )}
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
             <div className={sectionLabelClass}>
               Previous cases
             </div>
@@ -493,14 +492,14 @@ export default function ArchivePage() {
               <button
                 type="button"
                 onClick={() => setShowAnswers(current => !current)}
-                className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[8.5px] font-semibold tracking-[0.01em] text-[#637268] transition hover:bg-[#fbfaf7]"
+                className={softButtonClass}
               >
                 {showAnswers ? 'Show Category' : 'Show Answer'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowCaseList(current => !current)}
-                className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[8.5px] font-semibold tracking-[0.01em] text-[#637268] transition hover:bg-[#fbfaf7]"
+                className={softButtonClass}
               >
                 {showCaseList ? 'Collapse' : 'Expand'}
               </button>
@@ -508,62 +507,54 @@ export default function ArchivePage() {
           </div>
 
           {loading ? (
-            <div className="mt-5 rounded-2xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-5 text-[14px] text-[#637268]">Loading archive...</div>
+            <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">Loading archive...</div>
           ) : groupedDates.length === 0 ? (
-            <div className="mt-5 rounded-2xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-5 text-[14px] text-[#637268]">No archive cases are available yet.</div>
+            <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">No archive cases are available yet.</div>
           ) : !showCaseList ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-4 text-[14px] text-[#637268]">
+            <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-4 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">
               {groupedDates.length} dates ready. Expand to browse the full archive.
             </div>
           ) : (
-            <div className="mt-3 space-y-2">
+            <div className="mt-3 space-y-2.5">
               {groupedDates.map(group => (
                 <div
                   key={group.date}
-                  className="rounded-[20px] border border-[#e7e1d6] bg-[#fcfbf8] p-2.5 sm:p-3"
+                  className="rounded-[20px] bg-[#fcfbf8] px-2.5 py-2.5 ring-1 ring-inset ring-[#e7e1d6] sm:px-3 sm:py-3"
                 >
                   <div className={sectionLabelClass}>
                     {formatDate(group.date)}
                   </div>
 
-                  <div className="mt-2 grid gap-1.5 sm:grid-cols-3 sm:gap-2">
+                  <div className="mt-2 space-y-1.5 sm:grid sm:grid-cols-3 sm:gap-2 sm:space-y-0">
                     {levelOrder.map(level => {
                       const item = group.items.find(entry => entry.level === level)
-                      const isCompleted = item
-                        ? completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
-                        : false
+                      if (!item) return null
 
-                      return item ? (
+                      const isCompleted = completedArchiveKeys.has(
+                        `${item.case_date}:${item.level}:archive`
+                      )
+
+                      return (
                         <Link
                           key={`${group.date}-${level}`}
                           href={`/?case=${item.id}&date=${group.date}&level=${level}`}
-                          className="rounded-[16px] border border-[#e3dccf] bg-white px-2.5 py-2 transition hover:bg-[#f8fbf9]"
+                          className="rounded-[16px] bg-white px-3 py-2.5 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9]"
                         >
                           <div className={caseMetaLabelClass}>
                             {toTitleCase(formatLevel(level, item.case_date))}
                           </div>
-                          <div className="mt-0.5 line-clamp-2 font-serif text-[12px] font-bold leading-tight tracking-[-0.01em] text-[#102018] sm:text-[13px]">
+                          <div className="mt-1 line-clamp-2 font-serif text-[13px] font-bold leading-tight tracking-[-0.01em] text-[#102018]">
                             {showAnswers ? item.answer : formatCategoryLabel(item.category)}
                           </div>
                           {showAnswers && item.category && (
-                            <div className="mt-0.5 text-[9px] tracking-[0.01em] text-[#8b938d]">
+                            <div className="mt-0.5 text-[10px] tracking-[0.01em] text-[#8b938d]">
                               {formatCategoryLabel(item.category)}
                             </div>
                           )}
-                          <div className={`mt-1 text-[10px] ${isCompleted ? 'text-[#a24d24]' : 'text-[#1f6448]'}`}>
+                          <div className={`mt-1.5 text-[10px] font-semibold ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
                             {isCompleted ? 'Completed case' : 'Open case'}
                           </div>
                         </Link>
-                      ) : (
-                        <div
-                          key={`${group.date}-${level}`}
-                          className="rounded-[16px] border border-dashed border-[#ded7ca] bg-[#fffdfa] px-2.5 py-2 text-[#9aa39c]"
-                        >
-                          <div className={caseMetaLabelClass}>
-                            {toTitleCase(formatLevel(level, group.date))}
-                          </div>
-                          <div className="mt-0.5 text-[11px]">No case saved</div>
-                        </div>
                       )
                     })}
                   </div>
