@@ -3109,10 +3109,11 @@ function PlayPageContent() {
 
             <div className="mt-3 space-y-2.5 text-[13px] leading-5.5 text-[#102018]">
               <p><strong>1.</strong> Read the case and narrow the diagnosis.</p>
-              <p><strong>2.</strong> There are {requiredDailyLevels} new cases every day, each with increasing difficulty.</p>
+              <p><strong>2.</strong> There's a new case and anatomy quiz every day.</p>
               <p><strong>3.</strong> Wrong guesses unlock more clinical findings.</p>
               <p><strong>4.</strong> Imaging may appear later as part of the clues.</p>
               <p><strong>5.</strong> You get 6 guesses total for each case.</p>
+              <p><strong>6.</strong> Join or create a group to compete on the leaderboards in the Groups tab.</p>
             </div>
 
             <button
