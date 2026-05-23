@@ -2157,20 +2157,9 @@ function PlayPageContent() {
       if (communityStats.anatomyChoiceBreakdown.length === 0) return []
       const correctRate =
         communityStats.solveRate !== null ? `${Math.round(communityStats.solveRate)}%` : '—'
-      const responseCount =
-        communityStats.anatomyResponseCount > 0
-          ? `${communityStats.anatomyResponseCount}`
-          : '—'
-      const strongestDistractor = communityStats.anatomyChoiceBreakdown
-        .filter(choice => !choice.isCorrect)
-        .sort((a, b) => b.count - a.count || a.letter.localeCompare(b.letter))[0]
 
       return [
         `Correct pick rate: **${correctRate}**`,
-        `Responses: **${responseCount}**`,
-        ...(strongestDistractor
-          ? [`Most tempting wrong answer: **${strongestDistractor.letter}. ${strongestDistractor.label}**`]
-          : []),
         'Answer distribution:',
         ...communityStats.anatomyChoiceBreakdown.map(
           choice => `${choice.letter}. ${choice.label}: **${Math.round(choice.rate)}%**`
