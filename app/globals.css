@@ -636,7 +636,7 @@ body {
 }
 
 .orthodle-home-input-shell {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(251, 248, 242, 0.92));
+  background: transparent;
 }
 
 .orthodle-home-input {
@@ -683,7 +683,7 @@ body {
 }
 
 :root[data-theme="dark"] .orthodle-home-input-shell {
-  background: linear-gradient(180deg, rgba(19, 27, 24, 0.96), rgba(17, 24, 21, 0.96));
+  background: transparent;
 }
 
 .orthodle-home-secondary-action {

@@ -3513,7 +3513,7 @@ function PlayPageContent() {
                   </div>
               )}
 
-              <div className="mt-3 border-t border-dashed border-[#ded7ca] pt-2.5">
+              <div className="mt-2 pt-0">
                 {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
                     {hasValidSurgicalAnatomyChoices ? (
@@ -3611,7 +3611,7 @@ function PlayPageContent() {
                     )}
                   </div>
                 ) : visibleFindings.length > 0 ? (
-                  <div className="mt-2 space-y-2.5">
+                  <div className="space-y-2.5">
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
@@ -3629,7 +3629,7 @@ function PlayPageContent() {
                 ) : null}
               </div>
 
-              <div className={`orthodle-home-input-shell relative z-20 rounded-[18px] pt-3 ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-3' : 'mt-2'}`}>
+              <div className={`orthodle-home-input-shell relative z-20 ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-2' : 'mt-1.5'}`}>
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     <div className="relative">
