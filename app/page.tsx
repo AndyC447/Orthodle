@@ -3343,7 +3343,7 @@ function PlayPageContent() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center rounded-[16px] border border-[#eee5d8] bg-[#fffdf9] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#fbf8f2] sm:px-2 ${
+                    className={`orthodle-home-tab flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                       item.subtitle
                         ? 'min-h-[54px] flex-col justify-center py-1.5 sm:min-h-[56px] sm:py-2'
                         : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
@@ -3370,12 +3370,12 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `rounded-[16px] border border-[#1f6448] bg-[#1f6448] px-1.5 text-center text-white shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      ? `orthodle-home-tab-active rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
-                      : `rounded-[16px] border border-[#eee5d8] bg-[#fffdf9] px-1.5 text-center text-[#102018] transition duration-200 hover:scale-[1.01] hover:bg-[#fbf8f2] sm:px-2 ${
+                      : `orthodle-home-tab rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
@@ -3764,21 +3764,21 @@ function PlayPageContent() {
                         <button
                           type="button"
                           onClick={moveToNextLevel}
-                          className="rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
+                          className="orthodle-home-secondary-action rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
                         >
                           Try the {formatLevel(nextLevel)} case
                         </button>
                       ) : (
                         <Link
                           href="/archive"
-                          className="rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                          className="orthodle-home-secondary-action rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         >
                           Browse archive
                         </Link>
                       )}
                       <Link
                         href="/stats"
-                        className="rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="orthodle-home-secondary-action rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         >
                           View your stats
                         </Link>
@@ -3786,7 +3786,7 @@ function PlayPageContent() {
                   </div>
                 )}
 
-                <div className="night-soft-surface rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
+                <div className="night-soft-surface orthodle-home-feedback-shell rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
                   <button
                     type="button"
                     onClick={() => setShowCaseFeedback(current => !current)}
@@ -3795,7 +3795,7 @@ function PlayPageContent() {
                     <div className="night-label pointer-events-none absolute inset-x-0 text-center text-[11px] font-semibold text-[#637268]">
                       Feedback
                     </div>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
+                    <span className="orthodle-home-toggle-chip inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
                       {showCaseFeedback ? '▴' : '▾'}
                     </span>
                   </button>
@@ -3840,13 +3840,13 @@ function PlayPageContent() {
                           value={feedbackText}
                           onChange={e => setFeedbackText(e.target.value)}
                           placeholder="Share any feedback on the site here"
-                          className="min-h-[38px] min-w-0 flex-1 rounded-lg bg-white px-3 py-2 text-center text-[12px] text-[#102018] outline-none shadow-[inset_0_0_0_1px_#e3dbce] transition placeholder:text-center placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:shadow-[inset_0_0_0_1px_#c9d8ce]"
+                          className="orthodle-home-feedback-input min-h-[38px] min-w-0 flex-1 rounded-lg bg-white px-3 py-2 text-center text-[12px] text-[#102018] outline-none shadow-[inset_0_0_0_1px_#e3dbce] transition placeholder:text-center placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:shadow-[inset_0_0_0_1px_#c9d8ce]"
                         />
                         <button
                           type="button"
                           onClick={() => void submitTypedFeedback()}
                           disabled={isSavingFeedback}
-                          className="min-h-[38px] shrink-0 rounded-lg bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] shadow-[inset_0_0_0_1px_#e3dbce] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                          className="orthodle-home-feedback-send min-h-[38px] shrink-0 rounded-lg bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] shadow-[inset_0_0_0_1px_#e3dbce] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
                         >
                           {isSavingFeedback ? 'Sending...' : 'Send'}
                         </button>
@@ -3871,8 +3871,8 @@ function PlayPageContent() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8"
           onClick={closeExpandedImage}
         >
-          <div className="w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
+          <div className="orthodle-image-modal w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
+            <div className="orthodle-image-modal-header flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                 Imaging
               </div>
@@ -3881,7 +3881,7 @@ function PlayPageContent() {
                 {imageScale > 1.02 && (
                   <button
                     onClick={resetExpandedImageView}
-                    className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-3 sm:py-1.5 sm:text-[10px]"
+                    className="orthodle-image-modal-reset rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-3 sm:py-1.5 sm:text-[10px]"
                   >
                     Reset
                   </button>
@@ -3890,7 +3890,7 @@ function PlayPageContent() {
             </div>
 
             <div
-              className="bg-[#f7f4ee] p-5"
+              className="orthodle-image-modal-stage bg-[#f7f4ee] p-5"
               onClick={e => e.stopPropagation()}
               onDoubleClick={() => {
                 if (imageScale > 1.2) {
@@ -3976,7 +3976,7 @@ function PlayPageContent() {
                             current === 0 ? currentExpandedImages.length - 1 : current - 1
                           )
                         }}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="orthodle-image-modal-nav flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         aria-label="Previous image"
                       >
                         {'<'}
@@ -3990,7 +3990,7 @@ function PlayPageContent() {
                             resetExpandedImageView()
                             setExpandedImageIndex(index)
                           }}
-                          className={`overflow-hidden rounded-xl border p-1 transition ${
+                          className={`orthodle-image-modal-thumb overflow-hidden rounded-xl border p-1 transition ${
                             index === expandedImageIndex
                               ? 'border-[#1f6448] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.08)]'
                               : 'border-[#ded7ca] bg-white/80'
@@ -4010,7 +4010,7 @@ function PlayPageContent() {
                           resetExpandedImageView()
                           setExpandedImageIndex(current => (current + 1) % currentExpandedImages.length)
                         }}
-                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="orthodle-image-modal-nav flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         aria-label="Next image"
                       >
                         {'>'}

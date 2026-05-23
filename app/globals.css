@@ -602,6 +602,18 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
+.orthodle-home-tab {
+  border-color: #eee5d8 !important;
+  background: #fffdf9 !important;
+  color: #102018 !important;
+}
+
+.orthodle-home-tab-active {
+  border-color: #1f6448 !important;
+  background: #1f6448 !important;
+  color: #ffffff !important;
+}
+
 .orthodle-home-card {
   border-color: rgba(196, 184, 165, 0.44) !important;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(252, 249, 243, 0.975)) !important;
@@ -640,8 +652,29 @@ body {
   background: linear-gradient(180deg, #161f1b, #131b18) !important;
 }
 
+:root[data-theme="dark"] .orthodle-home-rail {
+  background: linear-gradient(90deg, rgba(94, 168, 132, 0.78), rgba(188, 126, 81, 0.5), rgba(130, 112, 81, 0.56));
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
 :root[data-theme="dark"] .orthodle-home-rail-inner {
   background: linear-gradient(180deg, rgba(22, 31, 27, 0.98), rgba(17, 24, 21, 0.98));
+}
+
+:root[data-theme="dark"] .orthodle-home-tab {
+  border-color: rgba(250, 245, 236, 0.12) !important;
+  background: rgba(24, 35, 31, 0.92) !important;
+  color: var(--ink) !important;
+}
+
+:root[data-theme="dark"] .orthodle-home-tab:hover {
+  background: rgba(30, 44, 38, 0.98) !important;
+}
+
+:root[data-theme="dark"] .orthodle-home-tab-active {
+  border-color: rgba(154, 208, 179, 0.48) !important;
+  background: linear-gradient(180deg, #1f6448, #184f39) !important;
+  color: #f4faf6 !important;
 }
 
 :root[data-theme="dark"] .orthodle-home-findings {
@@ -651,6 +684,93 @@ body {
 
 :root[data-theme="dark"] .orthodle-home-input-shell {
   background: linear-gradient(180deg, rgba(19, 27, 24, 0.96), rgba(17, 24, 21, 0.96));
+}
+
+.orthodle-home-secondary-action {
+  background: #ffffff;
+  border-color: rgba(222, 215, 202, 1);
+  color: #102018;
+}
+
+.orthodle-home-feedback-shell {
+  background: #fcfbf8;
+}
+
+.orthodle-home-toggle-chip,
+.orthodle-home-feedback-input,
+.orthodle-home-feedback-send,
+.orthodle-image-modal,
+.orthodle-image-modal-header,
+.orthodle-image-modal-stage,
+.orthodle-image-modal-nav,
+.orthodle-image-modal-thumb,
+.orthodle-image-modal-reset {
+  transition:
+    background-color 300ms ease,
+    border-color 300ms ease,
+    box-shadow 300ms ease,
+    color 300ms ease;
+}
+
+:root[data-theme="dark"] .orthodle-home-secondary-action {
+  background: rgba(24, 35, 31, 0.94) !important;
+  border-color: rgba(250, 245, 236, 0.12) !important;
+  color: var(--ink) !important;
+}
+
+:root[data-theme="dark"] .orthodle-home-secondary-action:hover {
+  background: rgba(30, 44, 38, 0.98) !important;
+}
+
+:root[data-theme="dark"] .orthodle-home-feedback-shell {
+  background: linear-gradient(180deg, rgba(20, 29, 26, 0.98), rgba(17, 24, 21, 0.96)) !important;
+  border-color: rgba(250, 245, 236, 0.12) !important;
+}
+
+:root[data-theme="dark"] .orthodle-home-toggle-chip {
+  background: rgba(24, 35, 31, 0.92) !important;
+  border-color: rgba(250, 245, 236, 0.12) !important;
+  color: var(--muted) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18) !important;
+}
+
+:root[data-theme="dark"] .orthodle-home-feedback-input,
+:root[data-theme="dark"] .orthodle-home-feedback-send {
+  background: rgba(24, 35, 31, 0.94) !important;
+  color: var(--ink) !important;
+  box-shadow: inset 0 0 0 1px rgba(250, 245, 236, 0.12) !important;
+}
+
+:root[data-theme="dark"] .orthodle-home-feedback-send:hover {
+  background: rgba(30, 44, 38, 0.98) !important;
+}
+
+:root[data-theme="dark"] .orthodle-image-modal {
+  background: #18211d !important;
+  border-color: rgba(250, 245, 236, 0.1) !important;
+}
+
+:root[data-theme="dark"] .orthodle-image-modal-header {
+  background: rgba(20, 29, 26, 0.98) !important;
+  border-color: rgba(250, 245, 236, 0.08) !important;
+}
+
+:root[data-theme="dark"] .orthodle-image-modal-stage {
+  background: rgba(12, 18, 16, 0.98) !important;
+}
+
+:root[data-theme="dark"] .orthodle-image-modal-nav,
+:root[data-theme="dark"] .orthodle-image-modal-thumb,
+:root[data-theme="dark"] .orthodle-image-modal-reset {
+  background: rgba(24, 35, 31, 0.94) !important;
+  border-color: rgba(250, 245, 236, 0.12) !important;
+  color: var(--ink) !important;
+}
+
+:root[data-theme="dark"] .orthodle-image-modal-nav:hover,
+:root[data-theme="dark"] .orthodle-image-modal-thumb:hover,
+:root[data-theme="dark"] .orthodle-image-modal-reset:hover {
+  background: rgba(30, 44, 38, 0.98) !important;
 }
 
 .orthodle-anatomy-quiz-shell,
