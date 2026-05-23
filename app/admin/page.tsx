@@ -264,6 +264,13 @@ type ReminderChangeItem = {
   timestamp: string
 }
 
+type LinkMetadataResult = {
+  title: string | null
+  siteName: string | null
+  author: string | null
+  creditLine: string | null
+}
+
 function formatAdminRelativeTime(value: string) {
   const timestamp = new Date(value)
   if (Number.isNaN(timestamp.getTime())) return ''
@@ -1308,6 +1315,43 @@ export default function AdminPage() {
     return trimmed
   }
 
+  function shouldAutofillCredit(value: string) {
+    return !normalizeCreditValue(value)
+  }
+
+  async function fetchLinkMetadata(url: string) {
+    const response = await fetch(`/api/link-metadata?url=${encodeURIComponent(url)}`, {
+      cache: 'no-store',
+    })
+    const data = (await response.json().catch(() => null)) as LinkMetadataResult | { error?: string } | null
+    if (!response.ok || !data || !('creditLine' in data || 'error' in data)) {
+      return null
+    }
+    if ('error' in data) return null
+    return data as LinkMetadataResult
+  }
+
+  async function maybeFillCreditFromUrl(
+    url: string,
+    currentCredit: string,
+    setCredit: (value: string) => void,
+    statusLabel: string
+  ) {
+    const trimmedUrl = url.trim()
+    if (!/^https?:\/\//i.test(trimmedUrl) || !shouldAutofillCredit(currentCredit)) return null
+
+    const metadata = await fetchLinkMetadata(trimmedUrl)
+    if (metadata?.creditLine) {
+      setCredit(metadata.creditLine)
+      setStatus(
+        metadata.author
+          ? `${statusLabel} credit filled from ${metadata.author}${metadata.siteName ? ` · ${metadata.siteName}` : ''}.`
+          : `${statusLabel} credit filled from ${metadata.siteName || 'the link'}.`
+      )
+    }
+    return metadata
+  }
+
   function clueMentionsShownAbove(value: string) {
     return value.toLowerCase().includes('shown above')
   }
@@ -1427,6 +1471,28 @@ export default function AdminPage() {
       const nextCaret = selectionStart + inserted.length
       textarea.setSelectionRange(nextCaret, nextCaret)
     })
+
+    void (async () => {
+      const metadata = await fetchLinkMetadata(trimmedUrl)
+      if (!metadata?.creditLine) return
+
+      let applied = false
+      if (learningImageUrl.trim() && shouldAutofillCredit(learningImageCredit)) {
+        setLearningImageCredit(metadata.creditLine)
+        applied = true
+      } else if (learningImageUrl2.trim() && shouldAutofillCredit(learningImageCredit2)) {
+        setLearningImageCredit2(metadata.creditLine)
+        applied = true
+      }
+
+      if (applied) {
+        setStatus(
+          metadata.author
+            ? `Reference link inserted. Teaching image credit filled from ${metadata.author}${metadata.siteName ? ` · ${metadata.siteName}` : ''}.`
+            : `Reference link inserted. Teaching image credit filled from ${metadata.siteName || 'the link'}.`
+        )
+      }
+    })()
   }
 
   function toggleTeachingPointBullets() {
@@ -3937,6 +4003,14 @@ export default function AdminPage() {
                         <input
                           value={learningImageUrl}
                           onChange={e => setLearningImageUrl(e.target.value)}
+                          onBlur={() =>
+                            void maybeFillCreditFromUrl(
+                              learningImageUrl,
+                              learningImageCredit,
+                              setLearningImageCredit,
+                              'Teaching image 1'
+                            )
+                          }
                           placeholder="Optional hosted teaching image"
                           className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                         />
@@ -3973,6 +4047,14 @@ export default function AdminPage() {
                         <input
                           value={learningImageUrl2}
                           onChange={e => setLearningImageUrl2(e.target.value)}
+                          onBlur={() =>
+                            void maybeFillCreditFromUrl(
+                              learningImageUrl2,
+                              learningImageCredit2,
+                              setLearningImageCredit2,
+                              'Teaching image 2'
+                            )
+                          }
                           placeholder="Optional second teaching image"
                           className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                         />
