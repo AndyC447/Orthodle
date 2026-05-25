@@ -2921,6 +2921,10 @@ function PlayPageContent() {
             opacity: 0.96;
             transform: translate3d(var(--burst-x), calc(var(--burst-y) * -0.35), 0) rotate(calc(var(--rotation) * 1.35)) scale(0.98);
           }
+          88% {
+            opacity: 0.94;
+            transform: translate3d(calc(var(--burst-x) + (var(--drift-x) * 0.8)), 96vh, 0) rotate(calc(var(--rotation) * 1.95)) scale(0.94);
+          }
           100% {
             opacity: 0;
             transform: translate3d(calc(var(--burst-x) + var(--drift-x)), 112vh, 0) rotate(calc(var(--rotation) * 2.2)) scale(0.92);

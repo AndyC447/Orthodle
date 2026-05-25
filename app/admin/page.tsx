@@ -380,6 +380,12 @@ const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Who</u>**
 
 **<u>Classic Pitfall</u>**`
 
+const DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE = `<u>**Explanation**:</u>
+
+**<u>Clinical Pearl:</u>**
+
+<u>**Why not the others?**</u>`
+
 type AdminCaseDraft = {
   caseDate: string
   level: Level
@@ -416,6 +422,12 @@ type CasePreviewCache = {
 }
 
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
+
+function getDefaultTeachingPointTemplate(level: Level) {
+  return level === 'attending'
+    ? DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE
+    : DEFAULT_TEACHING_POINT_TEMPLATE
+}
 
 function shiftISODate(dateText: string, days: number) {
   const baseDate = new Date(`${dateText}T12:00:00`)
@@ -650,7 +662,9 @@ export default function AdminPage() {
           setClue4(draft.clue4 || '')
           setClue5(draft.clue5 || '')
           setClue6(draft.clue6 || '')
-          setTeachingPoint(draft.teachingPoint || DEFAULT_TEACHING_POINT_TEMPLATE)
+          setTeachingPoint(
+            draft.teachingPoint || getDefaultTeachingPointTemplate(draft.level || 'med_student')
+          )
           setActiveSubmissionId(draft.activeSubmissionId || null)
           setDraftStatus(
             draft.savedAt
@@ -1639,7 +1653,7 @@ export default function AdminPage() {
     setClue4('')
     setClue5('')
     setClue6('')
-    setTeachingPoint(DEFAULT_TEACHING_POINT_TEMPLATE)
+    setTeachingPoint(getDefaultTeachingPointTemplate(nextLevel))
     setStatus(`Creating ${formatLevel(nextLevel)} case for ${date}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1669,7 +1683,7 @@ export default function AdminPage() {
     setClue4('')
     setClue5('')
     setClue6('')
-    setTeachingPoint(DEFAULT_TEACHING_POINT_TEMPLATE)
+    setTeachingPoint(getDefaultTeachingPointTemplate('med_student'))
     setActiveSubmissionId(null)
     setStatus('')
     setDraftStatus('Draft cleared.')
@@ -1707,7 +1721,7 @@ export default function AdminPage() {
     setClue4(c.clue_4 || '')
     setClue5(c.clue_5 || '')
     setClue6(c.clue_6 || '')
-    setTeachingPoint(c.teaching_point || DEFAULT_TEACHING_POINT_TEMPLATE)
+    setTeachingPoint(c.teaching_point || getDefaultTeachingPointTemplate(c.level))
     setActiveSubmissionId(null)
     setStatus(`Editing ${c.case_date} · ${c.level}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1742,7 +1756,9 @@ export default function AdminPage() {
     setClue4(submission.clue_4 || '')
     setClue5(submission.clue_5 || '')
     setClue6(submission.clue_6 || '')
-    setTeachingPoint(submission.teaching_point || DEFAULT_TEACHING_POINT_TEMPLATE)
+    setTeachingPoint(
+      submission.teaching_point || getDefaultTeachingPointTemplate(submission.level)
+    )
     setActiveSubmissionId(submission.id)
     setShowComposer(true)
     setStatus(
