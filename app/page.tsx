@@ -2898,7 +2898,7 @@ function PlayPageContent() {
     dailyOpenerTimeoutRef.current = window.setTimeout(() => {
       setShowDailyOpener(false)
       dailyOpenerTimeoutRef.current = null
-    }, 1200)
+    }, 2200)
   }, [homeBootReady, isAdminPreview, onTodayCard, today])
 
   return (
@@ -3036,20 +3036,20 @@ function PlayPageContent() {
         @keyframes orthodle-lineup-label {
           0% {
             opacity: 0;
-            transform: translateY(6px);
-            letter-spacing: 0.28em;
+            transform: translateY(8px);
+            letter-spacing: 0.34em;
           }
-          18% {
+          22% {
             opacity: 1;
             transform: translateY(0);
           }
-          82% {
+          88% {
             opacity: 1;
             transform: translateY(0);
           }
           100% {
             opacity: 0;
-            transform: translateY(-2px);
+            transform: translateY(-4px);
             letter-spacing: 0.22em;
           }
         }
@@ -3057,7 +3057,11 @@ function PlayPageContent() {
         @keyframes orthodle-lineup-tab-reveal {
           0% {
             opacity: 0;
-            transform: translateY(10px) scale(0.965);
+            transform: translateY(14px) scale(0.945);
+          }
+          58% {
+            opacity: 1;
+            transform: translateY(0) scale(1.02);
           }
           100% {
             opacity: 1;
@@ -3070,7 +3074,9 @@ function PlayPageContent() {
             box-shadow: 0 0 0 rgba(31, 100, 72, 0);
           }
           40% {
-            box-shadow: 0 10px 26px rgba(31, 100, 72, 0.08);
+            box-shadow:
+              0 12px 32px rgba(31, 100, 72, 0.1),
+              0 0 0 1px rgba(202, 153, 76, 0.16);
           }
           100% {
             box-shadow: 0 0 0 rgba(31, 100, 72, 0);
@@ -3136,16 +3142,16 @@ function PlayPageContent() {
         }
 
         .orthodle-lineup-label {
-          animation: orthodle-lineup-label 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: orthodle-lineup-label 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
 
         .orthodle-lineup-tab {
           opacity: 0;
-          animation: orthodle-lineup-tab-reveal 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: orthodle-lineup-tab-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
 
         .orthodle-lineup-rail-glow {
-          animation: orthodle-lineup-rail-glow 0.95s ease-out both;
+          animation: orthodle-lineup-rail-glow 1.45s ease-out both;
         }
 
       `}</style>
