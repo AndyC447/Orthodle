@@ -180,6 +180,7 @@ const DAILY_COMPLETE_DISMISS_KEY = 'orthodle_dismissed_daily_complete'
 const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
 const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
 const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
+const TODAYS_LINEUP_REVEAL_KEY_PREFIX = 'orthodle_todays_lineup_seen_'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -501,6 +502,7 @@ function PlayPageContent() {
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const confettiTimeoutRef = useRef<number | null>(null)
+  const dailyOpenerTimeoutRef = useRef<number | null>(null)
   const lastConfettiAtRef = useRef<number>(0)
   const imageTouchStartY = useRef<number | null>(null)
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
@@ -542,6 +544,7 @@ function PlayPageContent() {
   const [showQuickTakeaway, setShowQuickTakeaway] = useState(true)
   const [showOrthodleInsight, setShowOrthodleInsight] = useState(false)
   const [showLocalhostReset, setShowLocalhostReset] = useState(false)
+  const [showDailyOpener, setShowDailyOpener] = useState(false)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
@@ -2849,6 +2852,14 @@ function PlayPageContent() {
   }, [showCaseFeedback])
 
   useEffect(() => {
+    return () => {
+      if (dailyOpenerTimeoutRef.current) {
+        window.clearTimeout(dailyOpenerTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined') {
       setShowQuickTakeaway(true)
       setShowOrthodleInsight(false)
@@ -2861,6 +2872,27 @@ function PlayPageContent() {
     setShowQuickTakeaway(savedQuickTakeaway === 'false' ? false : true)
     setShowOrthodleInsight(savedInsight === 'true')
   }, [selectedLevel, selectedDate, dailyCase?.answer])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !onTodayCard || isAdminPreview) return
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (mediaQuery.matches) return
+
+    const revealKey = `${TODAYS_LINEUP_REVEAL_KEY_PREFIX}${today}`
+    if (window.localStorage.getItem(revealKey) === 'true') return
+
+    window.localStorage.setItem(revealKey, 'true')
+    setShowDailyOpener(true)
+
+    if (dailyOpenerTimeoutRef.current) {
+      window.clearTimeout(dailyOpenerTimeoutRef.current)
+    }
+
+    dailyOpenerTimeoutRef.current = window.setTimeout(() => {
+      setShowDailyOpener(false)
+      dailyOpenerTimeoutRef.current = null
+    }, 1200)
+  }, [isAdminPreview, onTodayCard, today])
 
   return (
     <main className="app-surface home-surface min-h-screen">
@@ -2994,6 +3026,50 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-lineup-label {
+          0% {
+            opacity: 0;
+            transform: translateY(6px);
+            letter-spacing: 0.28em;
+          }
+          18% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          82% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-2px);
+            letter-spacing: 0.22em;
+          }
+        }
+
+        @keyframes orthodle-lineup-tab-reveal {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.965);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes orthodle-lineup-rail-glow {
+          0% {
+            box-shadow: 0 0 0 rgba(31, 100, 72, 0);
+          }
+          40% {
+            box-shadow: 0 10px 26px rgba(31, 100, 72, 0.08);
+          }
+          100% {
+            box-shadow: 0 0 0 rgba(31, 100, 72, 0);
+          }
+        }
+
         .orthodle-shake {
           animation: orthodle-shake 0.42s ease-in-out;
         }
@@ -3050,6 +3126,19 @@ function PlayPageContent() {
           );
           background-size: 200% 100%;
           animation: orthodle-soft-shimmer 1.6s linear infinite;
+        }
+
+        .orthodle-lineup-label {
+          animation: orthodle-lineup-label 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .orthodle-lineup-tab {
+          opacity: 0;
+          animation: orthodle-lineup-tab-reveal 0.48s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .orthodle-lineup-rail-glow {
+          animation: orthodle-lineup-rail-glow 0.95s ease-out both;
         }
 
       `}</style>
@@ -3330,22 +3419,33 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        {showDailyOpener ? (
+          <div className="orthodle-lineup-label mb-1 text-center text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8b785f] sm:text-[10px]">
+            Today&apos;s lineup
+          </div>
+        ) : null}
+
+        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showDailyOpener ? 'orthodle-lineup-rail-glow' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           <div
             className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
             style={{ gridTemplateColumns: `repeat(${homeTabs.length}, minmax(0, 1fr))` }}
           >
-            {homeTabs.map(item => {
+            {homeTabs.map((item, index) => {
               if (item.type === 'link') {
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`orthodle-home-tab flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                    className={`orthodle-home-tab ${showDailyOpener ? 'orthodle-lineup-tab' : ''} flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                       item.subtitle
                         ? 'min-h-[54px] flex-col justify-center py-1.5 sm:min-h-[56px] sm:py-2'
                         : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
                     }`}
+                    style={
+                      showDailyOpener
+                        ? { animationDelay: `${0.08 + index * 0.08}s` }
+                        : undefined
+                    }
                   >
                     <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
                       {item.label}
@@ -3368,16 +3468,21 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `orthodle-home-tab-active rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      ? `orthodle-home-tab-active ${showDailyOpener ? 'orthodle-lineup-tab' : ''} rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
-                      : `orthodle-home-tab rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      : `orthodle-home-tab ${showDailyOpener ? 'orthodle-lineup-tab' : ''} rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
+                  }
+                  style={
+                    showDailyOpener
+                      ? { animationDelay: `${0.08 + index * 0.08}s` }
+                      : undefined
                   }
                 >
                   <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">

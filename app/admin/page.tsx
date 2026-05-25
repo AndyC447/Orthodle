@@ -448,6 +448,7 @@ const EMAIL_REMINDERS_SEEN_AT_KEY = 'orthodle_seen_email_reminders_at'
 
 export default function AdminPage() {
   const teachingPointRef = useRef<HTMLTextAreaElement | null>(null)
+  const previousLevelRef = useRef<Level>('med_student')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -456,6 +457,7 @@ export default function AdminPage() {
   const [level, setLevel] = useState<Level>('med_student')
   const [contributorName, setContributorName] = useState('')
   const [category, setCategory] = useState('')
+  const [showCategorySuggestions, setShowCategorySuggestions] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [answer, setAnswer] = useState('')
   const [synonyms, setSynonyms] = useState('')
@@ -677,6 +679,25 @@ export default function AdminPage() {
       }
     }
   }, [isUnlocked])
+
+  useEffect(() => {
+    const previousLevel = previousLevelRef.current
+    if (previousLevel === level) return
+
+    const previousDefault = getDefaultTeachingPointTemplate(previousLevel).trim()
+    const currentTeachingPoint = teachingPoint.trim()
+
+    if (
+      !currentTeachingPoint ||
+      currentTeachingPoint === previousDefault ||
+      currentTeachingPoint === DEFAULT_TEACHING_POINT_TEMPLATE.trim() ||
+      currentTeachingPoint === DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE.trim()
+    ) {
+      setTeachingPoint(getDefaultTeachingPointTemplate(level))
+    }
+
+    previousLevelRef.current = level
+  }, [level])
 
   useEffect(() => {
     if (!isUnlocked || typeof window === 'undefined') return
@@ -1050,6 +1071,39 @@ export default function AdminPage() {
       return !(item.case_date === caseDate && item.level === level)
     })
   }, [answer, caseDate, cases, level])
+
+  const filteredCategorySuggestions = useMemo(() => {
+    const counts = new Map<string, { label: string; count: number }>()
+
+    for (const item of cases) {
+      const label = item.category?.trim()
+      if (!label) continue
+      const key = label.toLowerCase()
+      const existing = counts.get(key)
+      if (existing) {
+        existing.count += 1
+      } else {
+        counts.set(key, { label, count: 1 })
+      }
+    }
+
+    if (level === 'attending' && !counts.has('surgical anatomy')) {
+      counts.set('surgical anatomy', { label: 'Surgical Anatomy', count: 0 })
+    }
+
+    const query = category.trim().toLowerCase()
+
+    return Array.from(counts.values())
+      .filter(item => !query || item.label.toLowerCase().includes(query))
+      .sort((a, b) => {
+        const aStarts = query ? a.label.toLowerCase().startsWith(query) : false
+        const bStarts = query ? b.label.toLowerCase().startsWith(query) : false
+        if (aStarts !== bStarts) return aStarts ? -1 : 1
+        if (b.count !== a.count) return b.count - a.count
+        return a.label.localeCompare(b.label)
+      })
+      .slice(0, 8)
+  }, [cases, category, level])
 
   const composerGuardrails = useMemo(() => {
     const issues: string[] = []
@@ -3825,12 +3879,44 @@ export default function AdminPage() {
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Category
-                <input
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
-                  placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Wrist / nerve'}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
+                <div className="relative">
+                  <input
+                    value={category}
+                    onChange={e => {
+                      setCategory(e.target.value)
+                      setShowCategorySuggestions(true)
+                    }}
+                    onFocus={() => setShowCategorySuggestions(true)}
+                    onBlur={() => {
+                      window.setTimeout(() => setShowCategorySuggestions(false), 120)
+                    }}
+                    placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Wrist / nerve'}
+                    className="w-full rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                  />
+                  {showCategorySuggestions && filteredCategorySuggestions.length > 0 ? (
+                    <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-xl border border-[#ded7ca] bg-white shadow-[0_16px_28px_rgba(16,32,24,0.08)]">
+                      {filteredCategorySuggestions.map(item => (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onMouseDown={event => {
+                            event.preventDefault()
+                            setCategory(item.label)
+                            setShowCategorySuggestions(false)
+                          }}
+                          className="flex w-full items-center justify-between gap-3 border-b border-[#f1ece2] px-3 py-2 text-left text-sm text-[#102018] transition hover:bg-[#fbfaf7] last:border-b-0"
+                        >
+                          <span>{item.label}</span>
+                          {item.count > 0 ? (
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a948d]">
+                              {item.count} used
+                            </span>
+                          ) : null}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
