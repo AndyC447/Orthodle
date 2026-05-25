@@ -3623,7 +3623,7 @@ function PlayPageContent() {
                 ) : null}
               </div>
 
-              <div className={`orthodle-home-input-shell relative z-20 ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-2' : 'mt-1.5'}`}>
+              <div className={`orthodle-home-input-shell relative z-20 ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-2.5' : 'mt-2.5'}`}>
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     <div className="relative">

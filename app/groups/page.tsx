@@ -3790,43 +3790,6 @@ export default function GroupsPage() {
               </button>
             </div>
 
-            {!viewerGroup ? (
-              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
-                      Start your group
-                    </div>
-                    <div className="mt-1 max-w-[470px] text-[12px] leading-5 text-[#637268]">
-                      Join a residency, class, or friend group to unlock member rankings, invite links, and your private team board.
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGroupActionMode('join')
-                        setShowJoinPanel(true)
-                      }}
-                      className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-white"
-                    >
-                      Join with code
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGroupActionMode('create')
-                        setShowJoinPanel(true)
-                      }}
-                      className="rounded-full border border-[#2d7651] bg-[#2d7651] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#255e42]"
-                    >
-                      Create group
-                    </button>
-                  </div>
-                </div>
-              </section>
-            ) : null}
-
             <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
@@ -3936,6 +3899,43 @@ export default function GroupsPage() {
                 )}
               </div>
             </section>
+
+            {!viewerGroup ? (
+              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
+                      Start your group
+                    </div>
+                    <div className="mt-1 max-w-[470px] text-[12px] leading-5 text-[#637268]">
+                      Join a residency, class, or friend group to unlock member rankings, invite links, and your private team board.
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGroupActionMode('join')
+                        setShowJoinPanel(true)
+                      }}
+                      className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-white"
+                    >
+                      Join with code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGroupActionMode('create')
+                        setShowJoinPanel(true)
+                      }}
+                      className="rounded-full border border-[#2d7651] bg-[#2d7651] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#255e42]"
+                    >
+                      Create group
+                    </button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
           </div>
         ) : null}
 
