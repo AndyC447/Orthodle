@@ -4354,7 +4354,7 @@ export default function AdminPage() {
 **<u>Tx</u>**
 
 **<u>Classic Pitfall</u>**`}
-                  rows={7}
+                  rows={10}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
               </label>
