@@ -4,7 +4,12 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
-import { normalizeAnswer, ORTHO_DIAGNOSIS_BANK } from '@/lib/utils'
+import {
+  normalizeAnswer,
+  ORTHO_DIAGNOSIS_BANK,
+  readHiddenDiagnosisAnswers,
+  writeHiddenDiagnosisAnswers,
+} from '@/lib/utils'
 
 type DiagnosisChoiceRow = {
   id: string
@@ -21,9 +26,10 @@ type UnifiedChoiceRow = {
   key: string
   label: string
   normalized: string
-  source: 'built_in' | 'case' | 'custom'
+  kind: 'built_in' | 'case' | 'custom'
   editable: boolean
   removable: boolean
+  usedCount: number
   id?: string
 }
 
@@ -34,12 +40,15 @@ export default function AdminAnswerChoicesPage() {
   const [caseAnswers, setCaseAnswers] = useState<CaseAnswerRow[]>([])
   const [newChoice, setNewChoice] = useState('')
   const [batchChoices, setBatchChoices] = useState('')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [hiddenAnswers, setHiddenAnswers] = useState<Set<string>>(new Set())
   const [status, setStatus] = useState('')
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
     setIsUnlocked(savedUnlock === 'true')
     setAuthReady(true)
+    setHiddenAnswers(readHiddenDiagnosisAnswers())
   }, [])
 
   useEffect(() => {
@@ -78,6 +87,13 @@ export default function AdminAnswerChoicesPage() {
 
   const allChoiceRows = useMemo(() => {
     const byNormalized = new Map<string, UnifiedChoiceRow>()
+    const usedCounts = new Map<string, number>()
+
+    for (const item of caseAnswers) {
+      const normalized = normalizeAnswer(item.answer?.trim() || '')
+      if (!normalized) continue
+      usedCounts.set(normalized, (usedCounts.get(normalized) || 0) + 1)
+    }
 
     for (const label of ORTHO_DIAGNOSIS_BANK) {
       const normalized = normalizeAnswer(label)
@@ -86,9 +102,10 @@ export default function AdminAnswerChoicesPage() {
         key: `built-in-${normalized}`,
         label,
         normalized,
-        source: 'built_in',
+        kind: 'built_in',
         editable: false,
-        removable: false,
+        removable: true,
+        usedCount: usedCounts.get(normalized) || 0,
       })
     }
 
@@ -100,9 +117,10 @@ export default function AdminAnswerChoicesPage() {
         key: `case-${item.id}`,
         label,
         normalized,
-        source: 'case',
+        kind: 'case',
         editable: false,
         removable: false,
+        usedCount: usedCounts.get(normalized) || 0,
       })
     }
 
@@ -113,7 +131,7 @@ export default function AdminAnswerChoicesPage() {
 
       const existing = byNormalized.get(normalized)
       if (existing) {
-        if (existing.source !== 'custom') continue
+        if (existing.kind !== 'custom') continue
       }
 
       byNormalized.set(normalized, {
@@ -121,25 +139,28 @@ export default function AdminAnswerChoicesPage() {
         id: item.id,
         label,
         normalized,
-        source: 'custom',
+        kind: 'custom',
         editable: true,
         removable: true,
+        usedCount: usedCounts.get(normalized) || 0,
       })
     }
 
-    return Array.from(byNormalized.values()).sort((a, b) => a.label.localeCompare(b.label))
-  }, [caseAnswers, choices])
+    return Array.from(byNormalized.values())
+      .filter(item => !hiddenAnswers.has(item.normalized))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [caseAnswers, choices, hiddenAnswers])
+
+  const filteredChoiceRows = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return allChoiceRows
+    return allChoiceRows.filter(item => item.label.toLowerCase().includes(query))
+  }, [allChoiceRows, searchQuery])
 
   const normalizedLabels = useMemo(
     () => new Set(allChoiceRows.map(item => item.normalized)),
     [allChoiceRows]
   )
-
-  function sourceLabel(source: UnifiedChoiceRow['source']) {
-    if (source === 'built_in') return 'Built-in'
-    if (source === 'case') return 'Case answer'
-    return 'Custom'
-  }
 
   async function addSingleChoice() {
     const label = newChoice.trim()
@@ -217,13 +238,19 @@ export default function AdminAnswerChoicesPage() {
     const trimmedLabel = label.trim()
     if (!trimmedLabel) {
       setStatus('Answer choices cannot be blank.')
+      void loadChoices()
       return
     }
+
+    const currentChoice = choices.find(choice => choice.id === id)
+    if (!currentChoice) return
+    if (currentChoice.label.trim() === trimmedLabel) return
 
     const normalized = normalizeAnswer(trimmedLabel)
     const existing = allChoiceRows.find(item => item.normalized === normalized && item.id !== id)
     if (existing) {
-      setStatus(`That answer choice already exists as a ${sourceLabel(existing.source).toLowerCase()}.`)
+      setStatus('That answer choice already exists in the master list.')
+      void loadChoices()
       return
     }
 
@@ -255,6 +282,17 @@ export default function AdminAnswerChoicesPage() {
 
     setChoices(prev => prev.filter(choice => choice.id !== id))
     setStatus('Answer choice removed.')
+  }
+
+  function hideAnswer(normalized: string, label: string) {
+    const next = new Set(hiddenAnswers)
+    next.add(normalized)
+    setHiddenAnswers(next)
+    writeHiddenDiagnosisAnswers(next)
+    try {
+      window.sessionStorage.removeItem('orthodle_play_bootstrap_v2')
+    } catch {}
+    setStatus(`${label} removed from the answer bank.`)
   }
 
   if (!authReady) {
@@ -383,28 +421,37 @@ Chondrosarcoma`}
                 All possible answers
               </h2>
               <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                {allChoiceRows.length} total
+                {filteredChoiceRows.length} shown
               </div>
             </div>
 
+            <div className="mt-3">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                placeholder="Search all possible answers"
+                className="w-full rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
+              />
+            </div>
+
             <div className="mt-4 overflow-hidden rounded-xl border border-[#e7e1d6]">
-              <div className="grid grid-cols-[minmax(0,1fr)_110px_92px_100px] border-b border-[#e7e1d6] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+              <div className="grid grid-cols-[minmax(0,1fr)_76px_100px] border-b border-[#e7e1d6] bg-[#fbfaf7] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                 <div>Diagnosis</div>
-                <div className="text-center">Source</div>
-                <div className="text-center">Save</div>
+                <div className="text-center">Used</div>
                 <div className="text-center">Remove</div>
               </div>
 
               <div className="max-h-[620px] overflow-y-auto">
-                {allChoiceRows.length === 0 ? (
+                {filteredChoiceRows.length === 0 ? (
                   <div className="px-3 py-4 text-sm text-[#637268]">
-                    No answer choices found yet.
+                    No matching answers found.
                   </div>
                 ) : (
-                  allChoiceRows.map(item => (
+                  filteredChoiceRows.map(item => (
                     <div
                       key={item.key}
-                      className="grid grid-cols-[minmax(0,1fr)_110px_92px_100px] items-center gap-2 border-b border-[#f1ece2] px-3 py-2.5 last:border-b-0"
+                      className="grid grid-cols-[minmax(0,1fr)_76px_100px] items-center gap-2 border-b border-[#f1ece2] px-3 py-2.5 last:border-b-0"
                     >
                       {item.editable ? (
                         <input
@@ -419,6 +466,14 @@ Chondrosarcoma`}
                               )
                             )
                           }
+                          onBlur={e => void updateChoice(item.id!, e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              void updateChoice(item.id!, e.currentTarget.value)
+                              e.currentTarget.blur()
+                            }
+                          }}
                           className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
                         />
                       ) : (
@@ -426,24 +481,21 @@ Chondrosarcoma`}
                           {item.label}
                         </div>
                       )}
-                      <div className="text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                        {sourceLabel(item.source)}
+                      <div className="text-center text-[12px] font-semibold text-[#637268]">
+                        {item.usedCount}
                       </div>
-                      {item.editable ? (
-                        <button
-                          type="button"
-                          onClick={() => updateChoice(item.id!, item.label)}
-                          className="rounded-lg border border-[#ded7ca] px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                        >
-                          Save
-                        </button>
-                      ) : (
-                        <div className="text-center text-[11px] text-[#9aa39c]">—</div>
-                      )}
-                      {item.removable ? (
+                      {item.id ? (
                         <button
                           type="button"
                           onClick={() => removeChoice(item.id!)}
+                          className="rounded-lg border border-[#f0d7c8] bg-[#fff1e8] px-3 py-2 text-sm font-semibold text-[#a24d24] transition hover:bg-[#ffe8da]"
+                        >
+                          Remove
+                        </button>
+                      ) : item.removable ? (
+                        <button
+                          type="button"
+                          onClick={() => hideAnswer(item.normalized, item.label)}
                           className="rounded-lg border border-[#f0d7c8] bg-[#fff1e8] px-3 py-2 text-sm font-semibold text-[#a24d24] transition hover:bg-[#ffe8da]"
                         >
                           Remove

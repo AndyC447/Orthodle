@@ -16,6 +16,7 @@ import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/s
 import {
   normalizeAnswer,
   ORTHO_DIAGNOSIS_BANK,
+  readHiddenDiagnosisAnswers,
   setTrackingDisabledForThisBrowser,
   todayISO,
 } from '@/lib/utils'
@@ -1039,9 +1040,13 @@ export default function AdminPage() {
   const composerGuardrails = useMemo(() => {
     const issues: string[] = []
     const answerPool = new Set<string>()
+    const hiddenAnswers = readHiddenDiagnosisAnswers()
 
     for (const label of ORTHO_DIAGNOSIS_BANK) {
-      answerPool.add(normalizeAnswer(label))
+      const normalized = normalizeAnswer(label)
+      if (!hiddenAnswers.has(normalized)) {
+        answerPool.add(normalized)
+      }
     }
 
     for (const item of diagnosisChoices) {
@@ -1352,6 +1357,34 @@ export default function AdminPage() {
     return metadata
   }
 
+  function applyMetadataCreditToEmptyImageFields(metadata: LinkMetadataResult) {
+    if (!metadata.creditLine) return 0
+
+    let appliedCount = 0
+
+    if (imageUrl.trim() && shouldAutofillCredit(imageCredit)) {
+      setImageCredit(metadata.creditLine)
+      appliedCount += 1
+    }
+
+    if (imageUrl2.trim() && shouldAutofillCredit(imageCredit2)) {
+      setImageCredit2(metadata.creditLine)
+      appliedCount += 1
+    }
+
+    if (learningImageUrl.trim() && shouldAutofillCredit(learningImageCredit)) {
+      setLearningImageCredit(metadata.creditLine)
+      appliedCount += 1
+    }
+
+    if (learningImageUrl2.trim() && shouldAutofillCredit(learningImageCredit2)) {
+      setLearningImageCredit2(metadata.creditLine)
+      appliedCount += 1
+    }
+
+    return appliedCount
+  }
+
   function clueMentionsShownAbove(value: string) {
     return value.toLowerCase().includes('shown above')
   }
@@ -1476,20 +1509,13 @@ export default function AdminPage() {
       const metadata = await fetchLinkMetadata(trimmedUrl)
       if (!metadata?.creditLine) return
 
-      let applied = false
-      if (learningImageUrl.trim() && shouldAutofillCredit(learningImageCredit)) {
-        setLearningImageCredit(metadata.creditLine)
-        applied = true
-      } else if (learningImageUrl2.trim() && shouldAutofillCredit(learningImageCredit2)) {
-        setLearningImageCredit2(metadata.creditLine)
-        applied = true
-      }
+      const appliedCount = applyMetadataCreditToEmptyImageFields(metadata)
 
-      if (applied) {
+      if (appliedCount > 0) {
         setStatus(
           metadata.author
-            ? `Reference link inserted. Teaching image credit filled from ${metadata.author}${metadata.siteName ? ` · ${metadata.siteName}` : ''}.`
-            : `Reference link inserted. Teaching image credit filled from ${metadata.siteName || 'the link'}.`
+            ? `Reference link inserted. ${appliedCount} image credit${appliedCount === 1 ? '' : 's'} filled from ${metadata.author}${metadata.siteName ? ` · ${metadata.siteName}` : ''}.`
+            : `Reference link inserted. ${appliedCount} image credit${appliedCount === 1 ? '' : 's'} filled from ${metadata.siteName || 'the link'}.`
         )
       }
     })()
@@ -3883,6 +3909,14 @@ export default function AdminPage() {
                             )
                           }
                         }}
+                        onBlur={() =>
+                          void maybeFillCreditFromUrl(
+                            imageUrl,
+                            imageCredit,
+                            setImageCredit,
+                            'Image 1'
+                          )
+                        }
                         placeholder="Paste a hosted x-ray or image URL"
                         className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />
@@ -3954,6 +3988,14 @@ export default function AdminPage() {
                             )
                           }
                         }}
+                        onBlur={() =>
+                          void maybeFillCreditFromUrl(
+                            imageUrl2,
+                            imageCredit2,
+                            setImageCredit2,
+                            'Image 2'
+                          )
+                        }
                         placeholder="Optional second hosted image URL"
                         className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       />

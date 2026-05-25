@@ -35,6 +35,7 @@ import {
   isAcceptedGuess,
   normalizeAnswer,
   ORTHO_DIAGNOSIS_BANK,
+  readHiddenDiagnosisAnswers,
   getRoundProgress,
   getSessionId,
   isTrackingDisabledForThisBrowser,
@@ -791,6 +792,8 @@ function PlayPageContent() {
       ])
       if (cancelled) return
 
+      const hiddenAnswers = readHiddenDiagnosisAnswers()
+
       const uniqueAnswers = Array.from(
         new Map(
           [
@@ -799,6 +802,7 @@ function PlayPageContent() {
             ...((customChoices || []).map(item => item.label?.trim()).filter(Boolean) as string[]),
           ]
             .filter(Boolean)
+            .filter(answer => !hiddenAnswers.has(normalizeAnswer(answer as string)))
             .map(answer => [normalizeAnswer(answer as string), answer as string])
         ).values()
       ).sort((a, b) => a.localeCompare(b))

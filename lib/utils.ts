@@ -13,6 +13,36 @@ export function normalizeAnswer(value: string) {
     .replace(/\s+/g, ' ')
 }
 
+export const HIDDEN_DIAGNOSIS_STORAGE_KEY = 'orthodle_hidden_diagnosis_answers_v1'
+
+export function readHiddenDiagnosisAnswers() {
+  if (typeof window === 'undefined') return new Set<string>()
+
+  try {
+    const raw = window.localStorage.getItem(HIDDEN_DIAGNOSIS_STORAGE_KEY)
+    if (!raw) return new Set<string>()
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return new Set<string>()
+    return new Set(
+      parsed
+        .map(item => (typeof item === 'string' ? normalizeAnswer(item) : ''))
+        .filter(Boolean)
+    )
+  } catch {
+    return new Set<string>()
+  }
+}
+
+export function writeHiddenDiagnosisAnswers(values: Iterable<string>) {
+  if (typeof window === 'undefined') return
+
+  const normalized = Array.from(
+    new Set(Array.from(values).map(value => normalizeAnswer(value)).filter(Boolean))
+  ).sort()
+
+  window.localStorage.setItem(HIDDEN_DIAGNOSIS_STORAGE_KEY, JSON.stringify(normalized))
+}
+
 export const ORTHO_DIAGNOSIS_BANK = [
   'Achilles tendon rupture',
   'Achilles tendinopathy',
