@@ -180,7 +180,7 @@ const DAILY_COMPLETE_DISMISS_KEY = 'orthodle_dismissed_daily_complete'
 const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
 const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
 const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
-const TODAYS_LINEUP_REVEAL_KEY_PREFIX = 'orthodle_todays_lineup_seen_'
+const TODAYS_LINEUP_REVEAL_KEY_PREFIX = 'orthodle_todays_lineup_seen_v2_'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -514,6 +514,7 @@ function PlayPageContent() {
   const [selectedLevel, setSelectedLevel] = useState<Level>(initialLevel)
   const [noResidentMode, setNoResidentMode] = useState(false)
   const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(null)
+  const [playModeReady, setPlayModeReady] = useState(false)
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
   const [guess, setGuess] = useState('')
@@ -552,6 +553,7 @@ function PlayPageContent() {
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [groupsTitle, setGroupsTitle] = useState('Groups')
   const [groupsSubtitle, setGroupsSubtitle] = useState('COMPETE')
+  const [playBootstrapReady, setPlayBootstrapReady] = useState(false)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
   const [dismissedResumeRoundToken, setDismissedResumeRoundToken] = useState<string | null>(null)
@@ -716,6 +718,7 @@ function PlayPageContent() {
       if (!cancelled && cachedSettings) {
         setNoResidentMode(Boolean(cachedSettings.no_resident_mode))
         setNoResidentModeStartDate(cachedSettings.no_resident_mode_start_date || null)
+        setPlayModeReady(true)
       }
 
       const { data } = await supabase
@@ -728,6 +731,7 @@ function PlayPageContent() {
       const row = (data as PlayModeSettingsRow | null) || null
       setNoResidentMode(Boolean(row?.no_resident_mode))
       setNoResidentModeStartDate(row?.no_resident_mode_start_date || null)
+      setPlayModeReady(true)
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(
           PLAY_MODE_SETTINGS_CACHE_KEY,
@@ -772,6 +776,7 @@ function PlayPageContent() {
         setLevelTitles(cached.levelTitles || DEFAULT_LEVEL_TITLES)
         setGroupsTitle(cached.groupsTitle ?? 'Groups')
         setGroupsSubtitle(cached.groupsSubtitle ?? 'COMPETE')
+        setPlayBootstrapReady(true)
         return
       }
 
@@ -851,6 +856,7 @@ function PlayPageContent() {
       setLevelTitles(resolvedTitles)
       setGroupsTitle(resolvedGroupsTitle)
       setGroupsSubtitle(resolvedGroupsSubtitle)
+      setPlayBootstrapReady(true)
       writeCachedLevelTitles(resolvedTitles)
       writePlayBootstrapCache({
         answerOptions: uniqueAnswers,
@@ -2637,6 +2643,7 @@ function PlayPageContent() {
     },
     [groupsSubtitle, groupsTitle, levelTitles, noResidentModeActiveToday]
   )
+  const homeBootReady = playModeReady && playBootstrapReady
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
     () =>
       noResidentModeActiveToday
@@ -2874,7 +2881,7 @@ function PlayPageContent() {
   }, [selectedLevel, selectedDate, dailyCase?.answer])
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !onTodayCard || isAdminPreview) return
+    if (typeof window === 'undefined' || !homeBootReady || !onTodayCard || isAdminPreview) return
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
     if (mediaQuery.matches) return
 
@@ -2892,7 +2899,7 @@ function PlayPageContent() {
       setShowDailyOpener(false)
       dailyOpenerTimeoutRef.current = null
     }, 1200)
-  }, [isAdminPreview, onTodayCard, today])
+  }, [homeBootReady, isAdminPreview, onTodayCard, today])
 
   return (
     <main className="app-surface home-surface min-h-screen">
@@ -3419,18 +3426,19 @@ function PlayPageContent() {
           </div>
         )}
 
-        {showDailyOpener ? (
+        {showDailyOpener && homeBootReady ? (
           <div className="orthodle-lineup-label mb-1 text-center text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8b785f] sm:text-[10px]">
             Today&apos;s lineup
           </div>
         ) : null}
 
-        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showDailyOpener ? 'orthodle-lineup-rail-glow' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
-          <div
-            className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
-            style={{ gridTemplateColumns: `repeat(${homeTabs.length}, minmax(0, 1fr))` }}
-          >
-            {homeTabs.map((item, index) => {
+        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showDailyOpener && homeBootReady ? 'orthodle-lineup-rail-glow' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+          {homeBootReady ? (
+            <div
+              className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
+              style={{ gridTemplateColumns: `repeat(${homeTabs.length}, minmax(0, 1fr))` }}
+            >
+              {homeTabs.map((item, index) => {
               if (item.type === 'link') {
                 return (
                   <Link
@@ -3502,8 +3510,18 @@ function PlayPageContent() {
                   ) : null}
                 </button>
               )
-            })}
-          </div>
+              })}
+            </div>
+          ) : (
+            <div className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="orthodle-skeleton min-h-[42px] rounded-[16px] sm:min-h-[44px]"
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         {showLocalhostReset && (
