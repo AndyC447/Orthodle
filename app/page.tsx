@@ -504,6 +504,10 @@ function PlayPageContent() {
   const confettiTimeoutRef = useRef<number | null>(null)
   const dailyOpenerTimeoutRef = useRef<number | null>(null)
   const lastConfettiAtRef = useRef<number>(0)
+  const streakIgnitionTimeoutRef = useRef<number | null>(null)
+  const railCompleteTimeoutRef = useRef<number | null>(null)
+  const previousStreakRef = useRef<number>(0)
+  const previousTodayCompleteRef = useRef(false)
   const imageTouchStartY = useRef<number | null>(null)
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
   const imagePinchStart = useRef<number | null>(null)
@@ -546,6 +550,10 @@ function PlayPageContent() {
   const [showOrthodleInsight, setShowOrthodleInsight] = useState(false)
   const [showLocalhostReset, setShowLocalhostReset] = useState(false)
   const [showDailyOpener, setShowDailyOpener] = useState(false)
+  const [showStreakIgnition, setShowStreakIgnition] = useState(false)
+  const [showRailCompleteMoment, setShowRailCompleteMoment] = useState(false)
+  const [showSolvedSeal, setShowSolvedSeal] = useState(false)
+  const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
@@ -2712,6 +2720,36 @@ function PlayPageContent() {
     Boolean(nextLevel) && onTodayCard && roundComplete && !caseParam && !imageExpanded
 
   useEffect(() => {
+    if (statsSummary.currentStreak > previousStreakRef.current && previousStreakRef.current > 0) {
+      setShowStreakIgnition(true)
+      if (streakIgnitionTimeoutRef.current) {
+        window.clearTimeout(streakIgnitionTimeoutRef.current)
+      }
+      streakIgnitionTimeoutRef.current = window.setTimeout(() => {
+        setShowStreakIgnition(false)
+        streakIgnitionTimeoutRef.current = null
+      }, 1800)
+    }
+
+    previousStreakRef.current = statsSummary.currentStreak
+  }, [statsSummary.currentStreak])
+
+  useEffect(() => {
+    if (todayComplete && !previousTodayCompleteRef.current) {
+      setShowRailCompleteMoment(true)
+      if (railCompleteTimeoutRef.current) {
+        window.clearTimeout(railCompleteTimeoutRef.current)
+      }
+      railCompleteTimeoutRef.current = window.setTimeout(() => {
+        setShowRailCompleteMoment(false)
+        railCompleteTimeoutRef.current = null
+      }, 2200)
+    }
+
+    previousTodayCompleteRef.current = todayComplete
+  }, [todayComplete])
+
+  useEffect(() => {
     if (!onTodayCard || !todayComplete || typeof window === 'undefined') return
     const celebrationKey = `orthodle_daily_complete_${today}`
     if (window.sessionStorage.getItem(celebrationKey)) return
@@ -2859,9 +2897,31 @@ function PlayPageContent() {
   }, [showCaseFeedback])
 
   useEffect(() => {
+    if (!roundComplete || !gameWon) return
+
+    setShowSolvedSeal(true)
+
+    if (useSurgicalAnatomyQuiz) {
+      setAnatomyRevealKey(current => current + 1)
+    }
+  }, [gameWon, roundComplete, useSurgicalAnatomyQuiz])
+
+  useEffect(() => {
+    setShowSolvedSeal(false)
+    setShowStreakIgnition(false)
+    setAnatomyRevealKey(0)
+  }, [dailyCase?.id, selectedDate, selectedLevel])
+
+  useEffect(() => {
     return () => {
       if (dailyOpenerTimeoutRef.current) {
         window.clearTimeout(dailyOpenerTimeoutRef.current)
+      }
+      if (streakIgnitionTimeoutRef.current) {
+        window.clearTimeout(streakIgnitionTimeoutRef.current)
+      }
+      if (railCompleteTimeoutRef.current) {
+        window.clearTimeout(railCompleteTimeoutRef.current)
       }
     }
   }, [])
@@ -3083,6 +3143,87 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-lineup-active-shimmer {
+          0% {
+            background-position: 180% 0;
+            box-shadow: 0 4px 10px rgba(16,32,24,0.08);
+          }
+          35% {
+            box-shadow:
+              0 8px 18px rgba(16,32,24,0.11),
+              0 0 0 1px rgba(234, 217, 183, 0.18);
+          }
+          100% {
+            background-position: -120% 0;
+            box-shadow: 0 4px 10px rgba(16,32,24,0.08);
+          }
+        }
+
+        @keyframes orthodle-streak-ignite {
+          0% {
+            transform: translateY(2px) scale(0.92);
+            box-shadow: 0 0 0 0 rgba(240, 194, 71, 0);
+            background-color: rgba(255,255,255,0.08);
+          }
+          35% {
+            transform: translateY(0) scale(1.06);
+            box-shadow: 0 0 0 10px rgba(240, 194, 71, 0.08);
+            background-color: rgba(240,194,71,0.14);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+            box-shadow: 0 0 0 0 rgba(240, 194, 71, 0);
+            background-color: rgba(255,255,255,0.1);
+          }
+        }
+
+        @keyframes orthodle-rail-complete {
+          0% {
+            box-shadow: 0 0 0 rgba(31, 100, 72, 0);
+            transform: translateY(0);
+          }
+          40% {
+            box-shadow:
+              0 12px 34px rgba(31, 100, 72, 0.11),
+              0 0 0 1px rgba(122, 177, 145, 0.2);
+            transform: translateY(-1px);
+          }
+          100% {
+            box-shadow: 0 0 0 rgba(31, 100, 72, 0);
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes orthodle-solved-seal {
+          0% {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.84) rotate(-8deg);
+          }
+          55% {
+            opacity: 1;
+            transform: translateY(0) scale(1.06) rotate(0deg);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1) rotate(0deg);
+          }
+        }
+
+        @keyframes orthodle-anatomy-flip {
+          0% {
+            opacity: 0.85;
+            transform: perspective(800px) rotateX(88deg) translateY(8px);
+          }
+          55% {
+            opacity: 1;
+            transform: perspective(800px) rotateX(-10deg) translateY(-1px);
+          }
+          100% {
+            opacity: 1;
+            transform: perspective(800px) rotateX(0deg) translateY(0);
+          }
+        }
+
         .orthodle-shake {
           animation: orthodle-shake 0.42s ease-in-out;
         }
@@ -3152,6 +3293,39 @@ function PlayPageContent() {
 
         .orthodle-lineup-rail-glow {
           animation: orthodle-lineup-rail-glow 1.45s ease-out both;
+        }
+
+        .orthodle-lineup-active-shimmer {
+          background-image:
+            linear-gradient(
+              110deg,
+              rgba(255,255,255,0) 0%,
+              rgba(255,255,255,0) 38%,
+              rgba(246, 225, 161, 0.18) 50%,
+              rgba(255,255,255,0) 62%,
+              rgba(255,255,255,0) 100%
+            );
+          background-size: 220% 100%;
+          background-repeat: no-repeat;
+          animation: orthodle-lineup-active-shimmer 0.95s ease-out forwards;
+        }
+
+        .orthodle-streak-ignite {
+          animation: orthodle-streak-ignite 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-rail-complete {
+          animation: orthodle-rail-complete 1.15s ease-out both;
+        }
+
+        .orthodle-solved-seal {
+          animation: orthodle-solved-seal 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-anatomy-choice-flip {
+          backface-visibility: hidden;
+          transform-style: preserve-3d;
+          animation: orthodle-anatomy-flip 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
       `}</style>
@@ -3438,7 +3612,7 @@ function PlayPageContent() {
           </div>
         ) : null}
 
-        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showDailyOpener && homeBootReady ? 'orthodle-lineup-rail-glow' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${(showDailyOpener && homeBootReady) || showRailCompleteMoment ? 'orthodle-lineup-rail-glow' : ''} ${showRailCompleteMoment ? 'orthodle-rail-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           {homeBootReady ? (
             <div
               className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
@@ -3482,7 +3656,7 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `orthodle-home-tab-active ${showDailyOpener ? 'orthodle-lineup-tab' : ''} rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      ? `orthodle-home-tab-active ${showDailyOpener ? 'orthodle-lineup-tab orthodle-lineup-active-shimmer' : ''} rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
@@ -3678,7 +3852,7 @@ function PlayPageContent() {
                                         : [letter]
                                   )
                                 }
-                                className={`orthodle-anatomy-choice rounded-2xl border px-3 py-3 text-left transition ${
+                                className={`orthodle-anatomy-choice ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} rounded-2xl border px-3 py-3 text-left transition ${
                                   choiceState === 'correct'
                                     ? 'orthodle-anatomy-choice-correct cursor-default border-[#cfe2d6] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
@@ -3689,6 +3863,11 @@ function PlayPageContent() {
                                         ? 'orthodle-anatomy-choice-idle cursor-default border-[#e5ddd0] bg-[#fbfaf7] text-[#102018]'
                                         : 'orthodle-anatomy-choice-idle border-[#e3dacb] bg-[#fffdfa] text-[#102018] shadow-[0_2px_8px_rgba(16,32,24,0.03)] hover:border-[#d4cab9] hover:bg-[#f7fbf8]'
                                 }`}
+                                style={
+                                  roundComplete && anatomyRevealKey > 0
+                                    ? { animationDelay: `${index * 0.08}s` }
+                                    : undefined
+                                }
                               >
                                 <div className="flex items-start gap-3">
                                   <div
@@ -3845,6 +4024,11 @@ function PlayPageContent() {
                       <div className="absolute inset-x-[28%] top-3 h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-70" />
                     </>
                   )}
+                  {showSolvedSeal && (
+                    <div className="orthodle-solved-seal absolute right-3 top-3 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#f6dfa0] shadow-[0_8px_18px_rgba(4,47,34,0.18)]">
+                      Solved
+                    </div>
+                  )}
                   <div className="relative">
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0c247] sm:text-[10px]">
                       Correct answer
@@ -3853,7 +4037,7 @@ function PlayPageContent() {
                       {dailyCase.answer}
                     </h3>
                     {onTodayCard && levelStreak >= 1 && (
-                      <div className="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95]">
+                      <div className={`mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95] ${showStreakIgnition ? 'orthodle-streak-ignite' : ''}`}>
                         <span aria-hidden="true">🔥</span>
                         <span>
                           {levelStreak}-day {formatLevel(selectedLevel)} streak
