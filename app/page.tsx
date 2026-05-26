@@ -2299,8 +2299,10 @@ function PlayPageContent() {
         : sections
     const compactTeaching = compactTeachingSections(allSections)
     const teachingImages = renderTeachingImages(caseItem)
+    const shouldMoveImagingToCaseImage =
+      roundComplete && Boolean(caseItem.image_url || caseItem.image_url_2)
     const imagingSectionIndex =
-      teachingImages
+      shouldMoveImagingToCaseImage
         ? compactTeaching.sections.findIndex(
             section => section.label.trim().toLowerCase() === 'imaging'
           )
@@ -2989,6 +2991,14 @@ function PlayPageContent() {
 
   const latestFindingIndex =
     !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
+  const solvedImagingSection = useMemo(() => {
+    if (!roundComplete || !dailyCase?.teaching_point || !(dailyCase.image_url || dailyCase.image_url_2)) {
+      return null
+    }
+
+    const sections = compactTeachingSections(parseTeachingPointSections(dailyCase.teaching_point)).sections
+    return sections.find(section => section.label.trim().toLowerCase() === 'imaging') || null
+  }, [dailyCase?.image_url, dailyCase?.image_url_2, dailyCase?.teaching_point, roundComplete])
   const homepageAnnouncementKey = homepageAnnouncement
     ? `${homepageAnnouncement.id}:${homepageAnnouncement.message}`
     : null
@@ -4017,6 +4027,34 @@ function PlayPageContent() {
                         </div>
                       ))}
                     </div>
+                    {solvedImagingSection ? (
+                      <div className="mt-2.5 border-t border-[#ebe5db] pt-2.5">
+                        <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+                          {renderFormattedLine(solvedImagingSection.label, 'solved-imaging-label')}
+                        </div>
+                        <div className="mt-1.5 space-y-1">
+                          {renderTeachingBody(solvedImagingSection.body, 'solved-imaging-body')}
+                          {solvedImagingSection.callouts.length > 0 ? (
+                            <div className="mt-1.5 space-y-1">
+                              {solvedImagingSection.callouts.map((callout, calloutIndex) => (
+                                <div
+                                  key={`solved-imaging-callout-${calloutIndex}`}
+                                  className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                                >
+                                  <span className="font-semibold text-[#315f4d]">
+                                    {callout.label}:
+                                  </span>{' '}
+                                  {renderFormattedLine(
+                                    callout.text,
+                                    `solved-imaging-callout-text-${calloutIndex}`
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
               )}
 
