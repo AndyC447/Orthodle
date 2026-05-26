@@ -68,6 +68,7 @@ export default function StudyModePage() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [showFullTeaching, setShowFullTeaching] = useState(false)
   const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
   const touchStartXRef = useRef<number | null>(null)
 
@@ -132,13 +133,20 @@ export default function StudyModePage() {
 
   useEffect(() => {
     setCurrentIndex(0)
+    setShowFullTeaching(false)
   }, [query])
+
+  useEffect(() => {
+    setShowFullTeaching(false)
+  }, [currentIndex])
 
   const currentCase = filteredCases[currentIndex] || null
   const sections = useMemo(
     () => (currentCase?.teaching_point ? parseTeachingPointSections(currentCase.teaching_point) : []),
     [currentCase]
   )
+  const visibleSections = showFullTeaching ? sections : sections.slice(0, 2)
+  const hiddenSectionCount = Math.max(0, sections.length - visibleSections.length)
 
   function isSurgicalAnatomyDate(dateText: string) {
     return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
@@ -290,11 +298,11 @@ export default function StudyModePage() {
                       <div className="mt-4 flex-1 overflow-y-auto pr-1">
                         <div className="rounded-[20px] bg-[#fcfbf8] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_12px_24px_rgba(16,32,24,0.035)]">
                           {sections.length > 0 ? (
-                            <div className="space-y-4">
-                              {sections.map((section, sectionIndex) => (
+                            <div className="space-y-3">
+                              {visibleSections.map((section, sectionIndex) => (
                                 <div
                                   key={`${section.label}-${sectionIndex}`}
-                                  className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-4' : ''}
+                                  className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-3' : ''}
                                 >
                                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                                     {renderFormattedLine(section.label, `study-label-${sectionIndex}`)}
@@ -307,6 +315,24 @@ export default function StudyModePage() {
                                   </div>
                                 </div>
                               ))}
+                              {hiddenSectionCount > 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowFullTeaching(true)}
+                                  className="orthodle-home-secondary-action inline-flex min-h-[38px] items-center rounded-[14px] border px-3 py-2 text-[11px] font-semibold text-[#1f6448]"
+                                >
+                                  Show {hiddenSectionCount} more section{hiddenSectionCount === 1 ? '' : 's'}
+                                </button>
+                              ) : null}
+                              {showFullTeaching && sections.length > 2 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowFullTeaching(false)}
+                                  className="orthodle-home-secondary-action inline-flex min-h-[38px] items-center rounded-[14px] border px-3 py-2 text-[11px] font-semibold text-[#1f6448]"
+                                >
+                                  Show less
+                                </button>
+                              ) : null}
                             </div>
                           ) : (
                             <p className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
