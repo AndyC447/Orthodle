@@ -180,7 +180,6 @@ const DAILY_COMPLETE_DISMISS_KEY = 'orthodle_dismissed_daily_complete'
 const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
 const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
 const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
-const TODAYS_LINEUP_REVEAL_KEY_PREFIX = 'orthodle_todays_lineup_seen_v2_'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -502,7 +501,6 @@ function PlayPageContent() {
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const confettiTimeoutRef = useRef<number | null>(null)
-  const dailyOpenerTimeoutRef = useRef<number | null>(null)
   const lastConfettiAtRef = useRef<number>(0)
   const streakIgnitionTimeoutRef = useRef<number | null>(null)
   const railCompleteTimeoutRef = useRef<number | null>(null)
@@ -549,7 +547,6 @@ function PlayPageContent() {
   const [showQuickTakeaway, setShowQuickTakeaway] = useState(true)
   const [showOrthodleInsight, setShowOrthodleInsight] = useState(false)
   const [showLocalhostReset, setShowLocalhostReset] = useState(false)
-  const [showDailyOpener, setShowDailyOpener] = useState(false)
   const [showStreakIgnition, setShowStreakIgnition] = useState(false)
   const [showRailCompleteMoment, setShowRailCompleteMoment] = useState(false)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
@@ -2914,9 +2911,6 @@ function PlayPageContent() {
 
   useEffect(() => {
     return () => {
-      if (dailyOpenerTimeoutRef.current) {
-        window.clearTimeout(dailyOpenerTimeoutRef.current)
-      }
       if (streakIgnitionTimeoutRef.current) {
         window.clearTimeout(streakIgnitionTimeoutRef.current)
       }
@@ -2939,27 +2933,6 @@ function PlayPageContent() {
     setShowQuickTakeaway(savedQuickTakeaway === 'false' ? false : true)
     setShowOrthodleInsight(savedInsight === 'true')
   }, [selectedLevel, selectedDate, dailyCase?.answer])
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !homeBootReady || !onTodayCard || isAdminPreview) return
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    if (mediaQuery.matches) return
-
-    const revealKey = `${TODAYS_LINEUP_REVEAL_KEY_PREFIX}${today}`
-    if (window.localStorage.getItem(revealKey) === 'true') return
-
-    window.localStorage.setItem(revealKey, 'true')
-    setShowDailyOpener(true)
-
-    if (dailyOpenerTimeoutRef.current) {
-      window.clearTimeout(dailyOpenerTimeoutRef.current)
-    }
-
-    dailyOpenerTimeoutRef.current = window.setTimeout(() => {
-      setShowDailyOpener(false)
-      dailyOpenerTimeoutRef.current = null
-    }, 2200)
-  }, [homeBootReady, isAdminPreview, onTodayCard, today])
 
   return (
     <main className="app-surface home-surface min-h-screen">
@@ -3093,42 +3066,6 @@ function PlayPageContent() {
           }
         }
 
-        @keyframes orthodle-lineup-label {
-          0% {
-            opacity: 0;
-            transform: translateY(8px);
-            letter-spacing: 0.34em;
-          }
-          22% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          88% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-4px);
-            letter-spacing: 0.22em;
-          }
-        }
-
-        @keyframes orthodle-lineup-tab-reveal {
-          0% {
-            opacity: 0;
-            transform: translateY(14px) scale(0.945);
-          }
-          58% {
-            opacity: 1;
-            transform: translateY(0) scale(1.02);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
         @keyframes orthodle-lineup-rail-glow {
           0% {
             box-shadow: 0 0 0 rgba(31, 100, 72, 0);
@@ -3140,22 +3077,6 @@ function PlayPageContent() {
           }
           100% {
             box-shadow: 0 0 0 rgba(31, 100, 72, 0);
-          }
-        }
-
-        @keyframes orthodle-lineup-active-shimmer {
-          0% {
-            background-position: 180% 0;
-            box-shadow: 0 4px 10px rgba(16,32,24,0.08);
-          }
-          35% {
-            box-shadow:
-              0 8px 18px rgba(16,32,24,0.11),
-              0 0 0 1px rgba(234, 217, 183, 0.18);
-          }
-          100% {
-            background-position: -120% 0;
-            box-shadow: 0 4px 10px rgba(16,32,24,0.08);
           }
         }
 
@@ -3339,32 +3260,8 @@ function PlayPageContent() {
           animation: orthodle-soft-shimmer 1.6s linear infinite;
         }
 
-        .orthodle-lineup-label {
-          animation: orthodle-lineup-label 1.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
-        .orthodle-lineup-tab {
-          opacity: 0;
-          animation: orthodle-lineup-tab-reveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-
         .orthodle-lineup-rail-glow {
           animation: orthodle-lineup-rail-glow 1.45s ease-out both;
-        }
-
-        .orthodle-lineup-active-shimmer {
-          background-image:
-            linear-gradient(
-              110deg,
-              rgba(255,255,255,0) 0%,
-              rgba(255,255,255,0) 38%,
-              rgba(246, 225, 161, 0.18) 50%,
-              rgba(255,255,255,0) 62%,
-              rgba(255,255,255,0) 100%
-            );
-          background-size: 220% 100%;
-          background-repeat: no-repeat;
-          animation: orthodle-lineup-active-shimmer 0.95s ease-out forwards;
         }
 
         .orthodle-streak-ignite {
@@ -3723,13 +3620,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        {showDailyOpener && homeBootReady ? (
-          <div className="orthodle-lineup-label mb-1 text-center text-[9px] font-semibold uppercase tracking-[0.22em] text-[#8b785f] sm:text-[10px]">
-            Today&apos;s lineup
-          </div>
-        ) : null}
-
-        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${(showDailyOpener && homeBootReady) || showRailCompleteMoment ? 'orthodle-lineup-rail-glow' : ''} ${showRailCompleteMoment ? 'orthodle-rail-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showRailCompleteMoment ? 'orthodle-lineup-rail-glow orthodle-rail-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           {homeBootReady ? (
             <div
               className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
@@ -3741,16 +3632,11 @@ function PlayPageContent() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`orthodle-home-tab ${showDailyOpener ? 'orthodle-lineup-tab' : ''} flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                    className={`orthodle-home-tab flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                       item.subtitle
                         ? 'min-h-[54px] flex-col justify-center py-1.5 sm:min-h-[56px] sm:py-2'
                         : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
                     }`}
-                    style={
-                      showDailyOpener
-                        ? { animationDelay: `${0.08 + index * 0.08}s` }
-                        : undefined
-                    }
                   >
                     <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
                       {item.label}
@@ -3773,21 +3659,16 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `orthodle-home-tab-active ${showDailyOpener ? 'orthodle-lineup-tab orthodle-lineup-active-shimmer' : ''} rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      ? `orthodle-home-tab-active rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
-                      : `orthodle-home-tab ${showDailyOpener ? 'orthodle-lineup-tab' : ''} rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      : `orthodle-home-tab rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
-                  }
-                  style={
-                    showDailyOpener
-                      ? { animationDelay: `${0.08 + index * 0.08}s` }
-                      : undefined
                   }
                 >
                   <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
@@ -4042,7 +3923,11 @@ function PlayPageContent() {
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className={`${index === latestFindingIndex ? 'orthodle-clue-pulse ring-2 ring-[#ead9b7]/70 shadow-[0_8px_18px_rgba(199,107,58,0.05)]' : ''} orthodle-finding-card orthodle-home-findings orthodle-reveal rounded-xl border px-3 py-2.5 text-[#102018] sm:px-4`}
+                        className={`${
+                          index === latestFindingIndex
+                            ? 'orthodle-clue-pulse ring-2 ring-[#ead9b7]/70 shadow-[0_8px_18px_rgba(199,107,58,0.05)]'
+                            : ''
+                        } orthodle-finding-card orthodle-home-findings rounded-xl border px-3 py-2.5 text-[#102018] sm:px-4`}
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
