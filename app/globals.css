@@ -44,6 +44,13 @@
   --button-bottom-shadow: rgba(0, 0, 0, 0.28);
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -124,6 +131,9 @@ body {
     radial-gradient(circle at 92% 3%, rgba(185, 117, 61, 0.028), transparent 18%),
     linear-gradient(180deg, #fafbf8 0%, #f2f4ee 100%);
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .home-surface {
