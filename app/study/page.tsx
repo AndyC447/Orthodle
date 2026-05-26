@@ -29,6 +29,12 @@ type TeachingPointSection = {
   body: string[]
 }
 
+type CompactStudySection = {
+  label: string
+  body: string[]
+  callouts: Array<{ label: string; text: string }>
+}
+
 type TeachingBodyBlock =
   | { type: 'paragraph'; key: string; text: string }
   | { type: 'bullets'; key: string; items: string[] }
@@ -145,8 +151,11 @@ export default function StudyModePage() {
     () => (currentCase?.teaching_point ? parseTeachingPointSections(currentCase.teaching_point) : []),
     [currentCase]
   )
-  const visibleSections = showFullTeaching ? sections : sections.slice(0, 2)
-  const hiddenSectionCount = Math.max(0, sections.length - visibleSections.length)
+  const compactTeaching = useMemo(() => compactStudySections(sections), [sections])
+  const visibleSections = showFullTeaching
+    ? compactTeaching.sections
+    : compactTeaching.sections.slice(0, 2)
+  const hiddenSectionCount = Math.max(0, compactTeaching.sections.length - visibleSections.length)
 
   function isSurgicalAnatomyDate(dateText: string) {
     return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
@@ -296,22 +305,46 @@ export default function StudyModePage() {
                       </div>
 
                       <div className="mt-4 flex-1 overflow-y-auto pr-1">
-                        <div className="rounded-[20px] bg-[#fcfbf8] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_12px_24px_rgba(16,32,24,0.035)]">
-                          {sections.length > 0 ? (
-                            <div className="space-y-3">
+                        <div className="rounded-[20px] bg-[#fcfbf8] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_12px_24px_rgba(16,32,24,0.035)]">
+                          {compactTeaching.sections.length > 0 ? (
+                            <div className="space-y-2.5">
                               {visibleSections.map((section, sectionIndex) => (
                                 <div
                                   key={`${section.label}-${sectionIndex}`}
-                                  className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-3' : ''}
+                                  className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
                                 >
-                                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
-                                    {renderFormattedLine(section.label, `study-label-${sectionIndex}`)}
-                                  </div>
-                                  <div className="mt-2 space-y-1.5">
+                                  {sectionIndex === 0 ? (
+                                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                                      Quick takeaway
+                                    </div>
+                                  ) : (
+                                    <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+                                      {renderFormattedLine(section.label, `study-label-${sectionIndex}`)}
+                                    </div>
+                                  )}
+                                  <div className="mt-1.5 space-y-1">
                                     {renderTeachingBody(
                                       section.body,
                                       `study-body-${currentCase.id}-${sectionIndex}`
                                     )}
+                                    {section.callouts.length > 0 ? (
+                                      <div className="mt-1.5 space-y-1">
+                                        {section.callouts.map((callout, calloutIndex) => (
+                                          <div
+                                            key={`${section.label}-callout-${calloutIndex}`}
+                                            className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                                          >
+                                            <span className="font-semibold text-[#315f4d]">
+                                              {callout.label}:
+                                            </span>{' '}
+                                            {renderFormattedLine(
+                                              callout.text,
+                                              `${section.label}-callout-text-${calloutIndex}`
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : null}
                                   </div>
                                 </div>
                               ))}
@@ -333,9 +366,23 @@ export default function StudyModePage() {
                                   Show less
                                 </button>
                               ) : null}
+                              {compactTeaching.footerLines.length > 0 ? (
+                                <div className="border-t border-dashed border-[#ded7ca] pt-2">
+                                  <div className="flex flex-wrap gap-2 text-[11px] leading-5 text-[#637268]">
+                                    {compactTeaching.footerLines.map((line, index) => (
+                                      <div
+                                        key={`footer-line-${index}`}
+                                        className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 shadow-[0_4px_10px_rgba(16,32,24,0.025)]"
+                                      >
+                                        {renderFormattedLine(line, `study-footer-${index}`)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : null}
                             </div>
                           ) : (
-                            <p className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
+                            <p className="font-serif text-[14px] leading-[1.55] tracking-[-0.01em] text-[#102018]">
                               {renderFormattedLine(currentCase.teaching_point || '')}
                             </p>
                           )}
@@ -515,6 +562,66 @@ function parseTeachingPointSections(text: string): TeachingPointSection[] {
   return sections.filter(section => section.body.some(line => line.trim()))
 }
 
+function isFooterLine(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  if (/^credit:/i.test(trimmed)) return true
+  if (/^\[[^\]]+\]\((https?:\/\/[^\s)]+)\)$/.test(trimmed)) return true
+  return false
+}
+
+function isInlineEligible(section: TeachingPointSection) {
+  const normalized = section.label.trim().toLowerCase()
+  if (normalized === 'quick takeaway') return false
+  if (section.body.length !== 1) return false
+  const line = section.body[0]?.trim() || ''
+  if (!line) return false
+  if (line.length > 150) return false
+  if (/^[-*•]\s+/.test(line)) return false
+  if (isFooterLine(line)) return false
+  return true
+}
+
+function compactStudySections(sections: TeachingPointSection[]) {
+  const compactSections: CompactStudySection[] = []
+  const footerLines: string[] = []
+
+  for (const section of sections) {
+    const contentLines: string[] = []
+
+    for (const line of section.body) {
+      if (isFooterLine(line)) {
+        footerLines.push(line.trim())
+      } else {
+        contentLines.push(line)
+      }
+    }
+
+    if (!contentLines.some(line => line.trim())) continue
+
+    const cleanedSection: TeachingPointSection = {
+      label: section.label,
+      body: contentLines,
+    }
+
+    if (isInlineEligible(cleanedSection) && compactSections.length > 0) {
+      compactSections[compactSections.length - 1].callouts.push({
+        label: section.label.replace(/:$/, '').trim(),
+        text: contentLines[0].trim(),
+      })
+      continue
+    }
+
+    compactSections.push({
+      label: section.label,
+      body: contentLines,
+      callouts: [],
+    })
+  }
+
+  return { sections: compactSections, footerLines }
+}
+
 function buildTeachingBodyBlocks(lines: string[], keyPrefix: string): TeachingBodyBlock[] {
   const blocks: TeachingBodyBlock[] = []
   let bulletItems: string[] = []
@@ -562,11 +669,11 @@ function renderTeachingBody(lines: string[], keyPrefix: string) {
 
     if (block.type === 'bullets') {
       return (
-        <ul key={block.key} className="space-y-1.5 pl-5">
+        <ul key={block.key} className="space-y-0.5 pl-4">
           {block.items.map((item, index) => (
             <li
               key={`${block.key}-${index}`}
-              className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+              className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018]"
             >
               {renderFormattedLine(item, `${block.key}-item-${index}`)}
             </li>
@@ -578,7 +685,7 @@ function renderTeachingBody(lines: string[], keyPrefix: string) {
     return (
       <p
         key={block.key}
-        className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+        className="font-serif text-[14px] leading-[1.55] tracking-[-0.01em] text-[#102018]"
       >
         {renderFormattedLine(block.text, `${block.key}-text`)}
       </p>
