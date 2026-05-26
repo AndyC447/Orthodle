@@ -316,16 +316,21 @@ function buildMemberStats(
 
   for (const [caseId, rows] of guessesByCase.entries()) {
     const caseInfo = caseLookup[caseId]
-    totalGuesses += rows.length
-    correctGuesses += rows.filter(row => row.is_correct).length
-    const firstCorrectIndex = rows.findIndex(row => row.is_correct)
+    const orderedRows = [...rows].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+    const firstCorrectIndex = orderedRows.findIndex(row => row.is_correct)
+    const scoredRows =
+      firstCorrectIndex === -1 ? orderedRows : orderedRows.slice(0, firstCorrectIndex + 1)
+    totalGuesses += scoredRows.length
+    correctGuesses += firstCorrectIndex === -1 ? 0 : 1
     if (firstCorrectIndex === -1) continue
     solves += 1
     totalGuessesToSolve += firstCorrectIndex + 1
     if (firstCorrectIndex === 0) {
       firstTrySolves += 1
     }
-    const correctGuess = rows[firstCorrectIndex]
+    const correctGuess = orderedRows[firstCorrectIndex]
     const solvedDate = caseInfo?.case_date || getLocalDateFromTimestamp(correctGuess?.created_at)
     if (solvedDate) {
       solvedDates.push(solvedDate)

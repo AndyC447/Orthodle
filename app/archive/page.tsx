@@ -35,8 +35,6 @@ type FeedbackLite = {
   feedback_tags: string[] | null
 }
 
-type ArchiveLevelFilter = 'all' | Level | 'anatomy'
-
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
@@ -60,17 +58,13 @@ export default function ArchivePage() {
   const [loading, setLoading] = useState(true)
   const [showCaseList, setShowCaseList] = useState(true)
   const [showAnswers, setShowAnswers] = useState(false)
-  const [selectedLevel, setSelectedLevel] = useState<ArchiveLevelFilter>('all')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [answerQuery, setAnswerQuery] = useState('')
-  const [imagingOnly, setImagingOnly] = useState(false)
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
   const [guessRows, setGuessRows] = useState<GuessLite[]>([])
   const [feedbackRows, setFeedbackRows] = useState<FeedbackLite[]>([])
   const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
-  const [levelMenuOpen, setLevelMenuOpen] = useState(false)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
-  const levelMenuRef = useRef<HTMLDivElement | null>(null)
   const categoryMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -83,9 +77,6 @@ export default function ArchivePage() {
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
-      if (levelMenuRef.current && !levelMenuRef.current.contains(event.target as Node)) {
-        setLevelMenuOpen(false)
-      }
       if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target as Node)) {
         setCategoryMenuOpen(false)
       }
@@ -170,13 +161,6 @@ export default function ArchivePage() {
 
     return cases.filter(item => {
       if (item.case_date === today) return false
-      if (selectedLevel === 'attending') {
-        if (item.level !== 'attending' || isSurgicalAnatomyDate(item.case_date)) return false
-      } else if (selectedLevel === 'anatomy') {
-        if (item.level !== 'attending' || !isSurgicalAnatomyDate(item.case_date)) return false
-      } else if (selectedLevel !== 'all' && item.level !== selectedLevel) {
-        return false
-      }
       if (selectedCategory !== 'all' && (item.category || '') !== selectedCategory) return false
       if (
         normalizedAnswerQuery &&
@@ -185,10 +169,9 @@ export default function ArchivePage() {
       ) {
         return false
       }
-      if (imagingOnly && !item.image_url) return false
       return true
     })
-  }, [answerQuery, cases, imagingOnly, selectedCategory, selectedLevel, today])
+  }, [answerQuery, cases, selectedCategory, today])
 
   const groupedDates = useMemo(() => {
     const grouped = new Map<string, ArchiveCase[]>()
@@ -234,8 +217,7 @@ export default function ArchivePage() {
     return trimmed ? toTitleCase(trimmed) : 'Case'
   }
 
-  const hasActiveFilters =
-    selectedLevel !== 'all' || selectedCategory !== 'all' || imagingOnly || Boolean(answerQuery.trim())
+  const hasActiveFilters = selectedCategory !== 'all' || Boolean(answerQuery.trim())
   const surprisePool = useMemo(() => {
     return filteredCases.filter(
       item => !completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
@@ -282,16 +264,6 @@ export default function ArchivePage() {
   const sectionLabelClass = 'text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]'
   const fieldLabelClass = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]'
   const caseMetaLabelClass = 'text-[10px] font-semibold tracking-[0.01em] text-[#637268]'
-  const levelOptions: Array<{ value: ArchiveLevelFilter; label: string }> = [
-    { value: 'all', label: 'All Levels' },
-    { value: 'med_student', label: formatLevel('med_student') },
-    { value: 'resident', label: formatLevel('resident') },
-    { value: 'attending', label: 'Attending' },
-    { value: 'anatomy', label: formatLevel('attending') },
-  ]
-  const selectedLevelLabel =
-    levelOptions.find(option => option.value === selectedLevel)?.label || 'All Levels'
-
   return (
     <main className="app-surface min-h-screen">
       <Header />
@@ -339,62 +311,13 @@ export default function ArchivePage() {
 
           <div className="mt-2.5 rounded-[18px] bg-[#fcfbf8] px-2 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70 sm:mt-3 sm:rounded-[20px] sm:px-3 sm:py-3">
             <div className="grid gap-2">
-              <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-2">
-                <label className="grid gap-1.5">
-                  <span className={fieldLabelClass}>Difficulty</span>
-                  <div className="relative" ref={levelMenuRef}>
-                    <button
-                      type="button"
-                      onClick={() => setLevelMenuOpen(current => !current)}
-                      className="flex min-h-[34px] w-full items-center justify-between rounded-[10px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-left text-[12px] font-medium text-[#102018] transition hover:bg-[#fbfaf7] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[13px]"
-                    >
-                      <span>{selectedLevelLabel}</span>
-                      <span className="ml-3 text-[10px] text-[#7a857c]">{levelMenuOpen ? '▲' : '▼'}</span>
-                    </button>
-                    {levelMenuOpen && (
-                      <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-xl border border-[#e7e1d6] bg-white shadow-[0_18px_40px_rgba(16,32,24,0.06)]">
-                        <div className="p-1.5">
-                          {levelOptions.map(option => (
-                            <button
-                              key={option.value}
-                              type="button"
-                              onClick={() => {
-                                setSelectedLevel(option.value)
-                                setLevelMenuOpen(false)
-                              }}
-                              className={`block w-full rounded-[10px] px-3 py-2 text-left text-[12px] transition sm:rounded-lg sm:text-[13px] ${
-                                selectedLevel === option.value
-                                  ? 'bg-[#f7fbf8] font-semibold text-[#1f6448]'
-                                  : 'text-[#102018] hover:bg-[#fbfaf7]'
-                              }`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </label>
-                <label className="grid gap-1.5 sm:pb-0">
-                  <span className={fieldLabelClass}>Extras</span>
-                  <button
-                    type="button"
-                    onClick={() => setImagingOnly(current => !current)}
-                    className={`${imagingOnly ? activeButtonClass : softButtonClass} w-full sm:w-auto`}
-                  >
-                    With imaging
-                  </button>
-                </label>
-              </div>
-
               <label className={`grid gap-1.5 ${fieldLabelClass}`}>
                 Diagnosis
                 <input
                   value={answerQuery}
                   onChange={e => setAnswerQuery(e.target.value)}
                   placeholder="Search diagnosis or answer"
-                  className="min-h-[34px] rounded-[10px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#102018] placeholder:text-[#8b938d] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[13px]"
+                  className="min-h-[34px] rounded-[10px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#102018] placeholder:text-[11px] placeholder:text-[#8b938d] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[12px] sm:placeholder:text-[12px]"
                 />
               </label>
 
@@ -459,10 +382,8 @@ export default function ArchivePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setSelectedLevel('all')
                     setSelectedCategory('all')
                     setAnswerQuery('')
-                    setImagingOnly(false)
                   }}
                   className={softButtonClass}
                 >

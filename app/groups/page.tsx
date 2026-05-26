@@ -1404,9 +1404,14 @@ function buildMemberStats(
 
   for (const [caseId, rows] of guessesByCase.entries()) {
     const caseInfo = caseLookup[caseId]
-    totalGuesses += rows.length
-    correctGuesses += rows.filter(row => row.is_correct).length
-    const firstCorrectIndex = rows.findIndex(row => row.is_correct)
+    const orderedRows = [...rows].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+    const firstCorrectIndex = orderedRows.findIndex(row => row.is_correct)
+    const scoredRows =
+      firstCorrectIndex === -1 ? orderedRows : orderedRows.slice(0, firstCorrectIndex + 1)
+    totalGuesses += scoredRows.length
+    correctGuesses += firstCorrectIndex === -1 ? 0 : 1
     if (firstCorrectIndex === -1) continue
     solves += 1
     totalGuessesToSolve += firstCorrectIndex + 1
@@ -1422,7 +1427,7 @@ function buildMemberStats(
     if (caseInfo?.category) {
       categorySolves[caseInfo.category] = (categorySolves[caseInfo.category] || 0) + 1
     }
-    const correctGuess = rows[firstCorrectIndex]
+    const correctGuess = orderedRows[firstCorrectIndex]
     if (correctGuess?.created_at) {
       const solvedHour = new Date(correctGuess.created_at).getHours()
       if (solvedHour >= 0 && solvedHour < 6) {
@@ -2356,13 +2361,16 @@ export default function GroupsPage() {
     }
 
     for (const [key, rows] of guessesBySolveKey.entries()) {
-      const firstCorrectIndex = rows.findIndex(row => row.is_correct)
+      const orderedRows = [...rows].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+      const firstCorrectIndex = orderedRows.findIndex(row => row.is_correct)
       if (firstCorrectIndex === -1) continue
 
       const [sessionIdForSolve, caseId] = key.split(':')
       const member = memberLookup.get(sessionIdForSolve)
       const caseInfo = caseLookup[caseId]
-      const solvedAt = rows[firstCorrectIndex]?.created_at
+      const solvedAt = orderedRows[firstCorrectIndex]?.created_at
 
       if (!member || !caseInfo || !solvedAt) continue
 
