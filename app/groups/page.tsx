@@ -1491,11 +1491,14 @@ export default function GroupsPage() {
   const [isEditingProfileName, setIsEditingProfileName] = useState(false)
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
+  const [showLeaderboardRise, setShowLeaderboardRise] = useState(false)
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
 
   useEffect(() => {
+    setShowLeaderboardRise(true)
     if (typeof window === 'undefined') return
+    const riseTimeout = window.setTimeout(() => setShowLeaderboardRise(false), 1400)
     const nextTab = normalizeGroupsTab(new URLSearchParams(window.location.search).get('tab'))
     setActiveGroupsTab(current => (current === nextTab ? current : nextTab))
     try {
@@ -1521,6 +1524,7 @@ export default function GroupsPage() {
     } catch {
       window.localStorage.removeItem(GROUP_DISMISSED_MESSAGES_KEY)
     }
+    return () => window.clearTimeout(riseTimeout)
   }, [])
 
   useEffect(() => {
@@ -5481,11 +5485,12 @@ export default function GroupsPage() {
                         onClick={() => {
                           router.push(`/groups/${group.id}`)
                         }}
-                        className={`orthodle-leaderboard-row grid w-full grid-cols-[22px_1fr] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
+                        className={`orthodle-leaderboard-row ${showLeaderboardRise ? 'orthodle-leaderboard-rise' : ''} grid w-full grid-cols-[22px_1fr] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
                           selectedGroupId === group.id
                             ? 'border-[#2d7651] bg-[#fcfbf8]'
                             : 'border-[#ece6db] bg-white'
                         }`}
+                        style={showLeaderboardRise ? { animationDelay: `${Math.min(index * 0.06, 0.3)}s` } : undefined}
                       >
                         <div className="text-[15px] font-semibold text-[#102018]">{rank}</div>
                         <div className="min-w-0">

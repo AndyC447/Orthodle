@@ -235,6 +235,54 @@ body {
     #ffffff;
 }
 
+@keyframes orthodle-archive-journal-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes orthodle-archive-entry-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes orthodle-leaderboard-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.992);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.orthodle-archive-group {
+  opacity: 0;
+  animation: orthodle-archive-journal-rise 0.46s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.orthodle-archive-entry {
+  opacity: 0;
+  animation: orthodle-archive-entry-rise 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.orthodle-leaderboard-rise {
+  opacity: 0;
+  animation: orthodle-leaderboard-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .orthodle-group-crest {
   background:
     radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.94), transparent 30%),
@@ -732,6 +780,16 @@ body {
   border-color: rgba(250, 245, 236, 0.12) !important;
   color: var(--muted) !important;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orthodle-archive-group,
+  .orthodle-archive-entry,
+  .orthodle-leaderboard-rise {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }
 
 :root[data-theme="dark"] .orthodle-home-feedback-input,

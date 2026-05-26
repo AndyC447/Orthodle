@@ -516,17 +516,18 @@ export default function ArchivePage() {
             </div>
           ) : (
             <div className="mt-3 space-y-2.5">
-              {groupedDates.map(group => (
+              {groupedDates.map((group, groupIndex) => (
                 <div
                   key={group.date}
-                  className="rounded-[20px] bg-[#fcfbf8] px-2.5 py-2.5 ring-1 ring-inset ring-[#e7e1d6] sm:px-3 sm:py-3"
+                  className="orthodle-archive-group rounded-[20px] bg-[#fcfbf8] px-2.5 py-2.5 ring-1 ring-inset ring-[#e7e1d6] sm:px-3 sm:py-3"
+                  style={{ animationDelay: `${Math.min(groupIndex * 0.04, 0.24)}s` }}
                 >
                   <div className={sectionLabelClass}>
                     {formatDate(group.date)}
                   </div>
 
                   <div className="mt-2 space-y-1.5 sm:grid sm:grid-cols-3 sm:gap-2 sm:space-y-0">
-                    {levelOrder.map(level => {
+                    {levelOrder.map((level, levelIndex) => {
                       const item = group.items.find(entry => entry.level === level)
                       if (!item) return null
 
@@ -538,7 +539,8 @@ export default function ArchivePage() {
                         <Link
                           key={`${group.date}-${level}`}
                           href={`/?case=${item.id}&date=${group.date}&level=${level}`}
-                          className="rounded-[16px] bg-white px-3 py-2.5 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9]"
+                          className="orthodle-archive-entry rounded-[16px] bg-white px-3 py-2.5 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9]"
+                          style={{ animationDelay: `${Math.min(groupIndex * 0.04 + levelIndex * 0.05, 0.34)}s` }}
                         >
                           <div className={caseMetaLabelClass}>
                             {toTitleCase(formatLevel(level, item.case_date))}

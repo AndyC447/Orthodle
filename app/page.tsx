@@ -552,7 +552,6 @@ function PlayPageContent() {
   const [showDailyOpener, setShowDailyOpener] = useState(false)
   const [showStreakIgnition, setShowStreakIgnition] = useState(false)
   const [showRailCompleteMoment, setShowRailCompleteMoment] = useState(false)
-  const [showSolvedSeal, setShowSolvedSeal] = useState(false)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
@@ -2263,7 +2262,7 @@ function PlayPageContent() {
                     </span>
                   </button>
                   {showOrthodleInsight && (
-                    <div className="mt-1.5 space-y-1.5">
+                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
                       {renderTeachingBody(section.body, `insight-${sectionIndex}`)}
                     </div>
                   )}
@@ -2283,7 +2282,7 @@ function PlayPageContent() {
                     </span>
                   </button>
                   {showQuickTakeaway && (
-                    <div className="mt-1.5 space-y-1.5">
+                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
                       {renderTeachingBody(section.body, `takeaway-${sectionIndex}`)}
                       {teachingImages}
                     </div>
@@ -2294,7 +2293,7 @@ function PlayPageContent() {
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                     {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                   </div>
-                  <div className="mt-1.5 space-y-1.5">
+                  <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
                     {renderTeachingBody(section.body, `section-${sectionIndex}`)}
                   </div>
                 </>
@@ -2711,6 +2710,10 @@ function PlayPageContent() {
     onTodayCard && statsSummary.currentStreak >= 2
       ? `${statsSummary.currentStreak}-DAY STREAK`
       : null
+  const hasAnswerBarTension =
+    !roundComplete &&
+    ((!isSurgicalAnatomyMode && guess.trim().length > 0) ||
+      (isSurgicalAnatomyMode && selectedAnatomyLetters.length > 0))
   const hasMobileInteraction =
     guesses.length > 0 ||
     guess.trim().length > 0 ||
@@ -2899,15 +2902,12 @@ function PlayPageContent() {
   useEffect(() => {
     if (!roundComplete || !gameWon) return
 
-    setShowSolvedSeal(true)
-
     if (useSurgicalAnatomyQuiz) {
       setAnatomyRevealKey(current => current + 1)
     }
   }, [gameWon, roundComplete, useSurgicalAnatomyQuiz])
 
   useEffect(() => {
-    setShowSolvedSeal(false)
     setShowStreakIgnition(false)
     setAnatomyRevealKey(0)
   }, [dailyCase?.id, selectedDate, selectedLevel])
@@ -3194,21 +3194,6 @@ function PlayPageContent() {
           }
         }
 
-        @keyframes orthodle-solved-seal {
-          0% {
-            opacity: 0;
-            transform: translateY(-10px) scale(0.84) rotate(-8deg);
-          }
-          55% {
-            opacity: 1;
-            transform: translateY(0) scale(1.06) rotate(0deg);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1) rotate(0deg);
-          }
-        }
-
         @keyframes orthodle-anatomy-flip {
           0% {
             opacity: 0.85;
@@ -3221,6 +3206,78 @@ function PlayPageContent() {
           100% {
             opacity: 1;
             transform: perspective(800px) rotateX(0deg) translateY(0);
+          }
+        }
+
+        @keyframes orthodle-clue-pulse {
+          0% {
+            transform: translateY(4px) scale(0.985);
+            box-shadow: 0 0 0 0 rgba(199, 107, 58, 0);
+          }
+          45% {
+            transform: translateY(0) scale(1.01);
+            box-shadow: 0 0 0 10px rgba(199, 107, 58, 0.06);
+          }
+          100% {
+            transform: translateY(0) scale(1);
+            box-shadow: 0 0 0 0 rgba(199, 107, 58, 0);
+          }
+        }
+
+        @keyframes orthodle-image-curtain {
+          0% {
+            opacity: 0;
+            clip-path: inset(0 0 100% 0 round 18px);
+            transform: translateY(10px);
+          }
+          100% {
+            opacity: 1;
+            clip-path: inset(0 0 0 0 round 18px);
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes orthodle-teaching-unfold {
+          0% {
+            opacity: 0;
+            transform: translateY(-6px) scaleY(0.96);
+            transform-origin: top center;
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scaleY(1);
+            transform-origin: top center;
+          }
+        }
+
+        @keyframes orthodle-ember-shimmer {
+          0% {
+            background-position: 180% 0;
+          }
+          100% {
+            background-position: -120% 0;
+          }
+        }
+
+        @keyframes orthodle-image-swap {
+          0% {
+            opacity: 0;
+            transform: translateX(10px) scale(0.985);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
+        }
+
+        @keyframes orthodle-journal-rise {
+          0% {
+            opacity: 0;
+            transform: translateY(12px) scale(0.99);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
           }
         }
 
@@ -3318,14 +3375,74 @@ function PlayPageContent() {
           animation: orthodle-rail-complete 1.15s ease-out both;
         }
 
-        .orthodle-solved-seal {
-          animation: orthodle-solved-seal 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
         .orthodle-anatomy-choice-flip {
           backface-visibility: hidden;
           transform-style: preserve-3d;
           animation: orthodle-anatomy-flip 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-clue-pulse {
+          animation: orthodle-clue-pulse 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-image-curtain {
+          animation: orthodle-image-curtain 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-answer-bar-tension {
+          transform: translateY(-1px);
+          box-shadow:
+            0 10px 24px rgba(31, 100, 72, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.75);
+        }
+
+        .orthodle-answer-bar-tension .orthodle-home-input {
+          border-color: rgba(31, 100, 72, 0.38) !important;
+        }
+
+        .orthodle-answer-bar-tension .orthodle-home-guess {
+          transform: translateY(-1px) scale(1.01);
+          box-shadow: 0 10px 20px rgba(31, 100, 72, 0.14);
+        }
+
+        .orthodle-micro-press {
+          transition:
+            transform 160ms ease,
+            box-shadow 200ms ease,
+            background-color 200ms ease,
+            border-color 200ms ease,
+            color 200ms ease;
+        }
+
+        .orthodle-micro-press:active {
+          transform: scale(0.985);
+        }
+
+        .orthodle-streak-ember {
+          background-image:
+            linear-gradient(
+              110deg,
+              rgba(255,255,255,0) 0%,
+              rgba(255,255,255,0) 35%,
+              rgba(240, 194, 71, 0.18) 50%,
+              rgba(255,255,255,0) 65%,
+              rgba(255,255,255,0) 100%
+            );
+          background-size: 220% 100%;
+          background-repeat: no-repeat;
+          animation: orthodle-ember-shimmer 2.8s linear infinite;
+        }
+
+        .orthodle-teaching-unfold {
+          animation: orthodle-teaching-unfold 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-image-swap {
+          animation: orthodle-image-swap 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-journal-rise {
+          animation: orthodle-journal-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
       `}</style>
@@ -3785,7 +3902,7 @@ function PlayPageContent() {
               )}
 
               {visibleImages.length > 0 && imageRevealed && !imageHidden && (
-                  <div className="orthodle-fade-up orthodle-imaging-shell mt-3 px-0.5">
+                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 px-0.5">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -3905,7 +4022,7 @@ function PlayPageContent() {
                                   selectedAnatomyLetters
                                 )
                               }
-                              className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:border-[#cbd6cf] disabled:bg-[#cbd6cf]"
+                              className="orthodle-micro-press rounded-lg border border-[#1f6448] bg-[#1f6448] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:border-[#cbd6cf] disabled:bg-[#cbd6cf]"
                             >
                               Submit
                             </button>
@@ -3925,7 +4042,7 @@ function PlayPageContent() {
                     {visibleFindings.map((finding, index) => (
                       <div
                         key={`${finding}-${index}`}
-                        className={`${index === latestFindingIndex ? 'ring-2 ring-[#ead9b7]/70 shadow-[0_8px_18px_rgba(199,107,58,0.05)]' : ''} orthodle-finding-card orthodle-home-findings orthodle-reveal rounded-xl border px-3 py-2.5 text-[#102018] sm:px-4`}
+                        className={`${index === latestFindingIndex ? 'orthodle-clue-pulse ring-2 ring-[#ead9b7]/70 shadow-[0_8px_18px_rgba(199,107,58,0.05)]' : ''} orthodle-finding-card orthodle-home-findings orthodle-reveal rounded-xl border px-3 py-2.5 text-[#102018] sm:px-4`}
                       >
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
@@ -3939,7 +4056,15 @@ function PlayPageContent() {
                 ) : null}
               </div>
 
-              <div className={`orthodle-home-input-shell relative z-20 ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-2.5' : 'mt-2.5'}`}>
+              <div
+                className={`orthodle-home-input-shell relative z-20 ${
+                  !roundComplete &&
+                  ((isSurgicalAnatomyMode && selectedAnatomyLetters.length > 0) ||
+                    (!isSurgicalAnatomyMode && guess.trim().length > 0))
+                    ? 'orthodle-answer-bar-tension'
+                    : ''
+                } ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-2.5' : 'mt-2.5'}`}
+              >
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     <div className="relative">
@@ -3971,7 +4096,7 @@ function PlayPageContent() {
                         <button
                           onClick={() => void submitGuess()}
                           disabled={!dailyCase}
-                          className="min-h-[44px] rounded-xl bg-[#1f6448] px-4 py-2 text-[11px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          className="orthodle-home-guess orthodle-micro-press min-h-[44px] rounded-xl bg-[#1f6448] px-4 py-2 text-[11px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                         >
                           Guess
                         </button>
@@ -4024,11 +4149,6 @@ function PlayPageContent() {
                       <div className="absolute inset-x-[28%] top-3 h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-70" />
                     </>
                   )}
-                  {showSolvedSeal && (
-                    <div className="orthodle-solved-seal absolute right-3 top-3 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#f6dfa0] shadow-[0_8px_18px_rgba(4,47,34,0.18)]">
-                      Solved
-                    </div>
-                  )}
                   <div className="relative">
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0c247] sm:text-[10px]">
                       Correct answer
@@ -4037,7 +4157,7 @@ function PlayPageContent() {
                       {dailyCase.answer}
                     </h3>
                     {onTodayCard && levelStreak >= 1 && (
-                      <div className={`mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95] ${showStreakIgnition ? 'orthodle-streak-ignite' : ''}`}>
+                      <div className={`mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95] ${showStreakIgnition ? 'orthodle-streak-ignite' : levelStreak >= 1 ? 'orthodle-streak-ember' : ''}`}>
                         <span aria-hidden="true">🔥</span>
                         <span>
                           {levelStreak}-day {formatLevel(selectedLevel)} streak
@@ -4263,7 +4383,7 @@ function PlayPageContent() {
             >
               {activeExpandedImage && (
                 <div className="space-y-3">
-                  <div>
+                  <div className="orthodle-image-swap">
                     <img
                       src={activeExpandedImage.url}
                       alt={activeExpandedImage.alt}
@@ -4291,7 +4411,7 @@ function PlayPageContent() {
                             current === 0 ? currentExpandedImages.length - 1 : current - 1
                           )
                         }}
-                        className="orthodle-image-modal-nav flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="orthodle-image-modal-nav orthodle-micro-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         aria-label="Previous image"
                       >
                         {'<'}
@@ -4305,7 +4425,7 @@ function PlayPageContent() {
                             resetExpandedImageView()
                             setExpandedImageIndex(index)
                           }}
-                          className={`orthodle-image-modal-thumb overflow-hidden rounded-xl border p-1 transition ${
+                          className={`orthodle-image-modal-thumb orthodle-micro-press overflow-hidden rounded-xl border p-1 transition ${
                             index === expandedImageIndex
                               ? 'border-[#1f6448] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.08)]'
                               : 'border-[#ded7ca] bg-white/80'
@@ -4325,7 +4445,7 @@ function PlayPageContent() {
                           resetExpandedImageView()
                           setExpandedImageIndex(current => (current + 1) % currentExpandedImages.length)
                         }}
-                        className="orthodle-image-modal-nav flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="orthodle-image-modal-nav orthodle-micro-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         aria-label="Next image"
                       >
                         {'>'}
