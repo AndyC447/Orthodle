@@ -38,6 +38,7 @@ type CaseRow = {
   image_url_2: string | null
   image_credit_2: string | null
   image_reveal_clue_2: number | null
+  image_findings: string | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
@@ -68,6 +69,7 @@ type SubmissionRow = {
   image_url_2: string | null
   image_credit_2: string | null
   image_reveal_clue_2: number | null
+  image_findings: string | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
@@ -403,6 +405,7 @@ type AdminCaseDraft = {
   imageUrl2: string
   imageCredit2: string
   imageRevealClue2: string
+  imageFindings: string
   learningImageUrl: string
   learningImageCredit: string
   learningImageUrl2: string
@@ -470,6 +473,7 @@ export default function AdminPage() {
   const [imageUrl2, setImageUrl2] = useState('')
   const [imageCredit2, setImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imageRevealClue2, setImageRevealClue2] = useState('none')
+  const [imageFindings, setImageFindings] = useState('')
   const [learningImageUrl, setLearningImageUrl] = useState('')
   const [learningImageCredit, setLearningImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [learningImageUrl2, setLearningImageUrl2] = useState('')
@@ -656,6 +660,7 @@ export default function AdminPage() {
           setImageUrl2(draft.imageUrl2 || '')
           setImageCredit2(draft.imageCredit2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
           setImageRevealClue2(draft.imageRevealClue2 || 'none')
+          setImageFindings(draft.imageFindings || '')
           setLearningImageUrl(draft.learningImageUrl || '')
           setLearningImageCredit(draft.learningImageCredit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
           setLearningImageUrl2(draft.learningImageUrl2 || '')
@@ -772,6 +777,7 @@ export default function AdminPage() {
         normalizeCreditValue(imageCredit) ||
         imageUrl2.trim() ||
         normalizeCreditValue(imageCredit2) ||
+        imageFindings.trim() ||
         learningImageUrl.trim() ||
         normalizeCreditValue(learningImageCredit) ||
         learningImageUrl2.trim() ||
@@ -806,6 +812,7 @@ export default function AdminPage() {
       imageUrl2,
       imageCredit2,
       imageRevealClue2,
+      imageFindings,
       learningImageUrl,
       learningImageCredit,
       learningImageUrl2,
@@ -839,6 +846,7 @@ export default function AdminPage() {
     imageUrl2,
     imageCredit2,
     imageRevealClue2,
+    imageFindings,
     learningImageUrl,
     learningImageCredit,
     learningImageUrl2,
@@ -1350,6 +1358,7 @@ export default function AdminPage() {
             ? 0
             : Number(imageRevealClue2)
           : null,
+      image_findings: imageFindings.trim() || null,
       clue_1: clue1.trim() || null,
       clue_2: clue2.trim() || null,
       clue_3: clue3.trim() || null,
@@ -1699,6 +1708,7 @@ export default function AdminPage() {
     setImageUrl2('')
     setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
+    setImageFindings('')
     setLearningImageUrl('')
     setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageUrl2('')
@@ -1767,6 +1777,7 @@ export default function AdminPage() {
     setImageUrl2(c.image_url_2 || '')
     setImageCredit2(c.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(normalizeImageRevealValueForEditor(c.image_reveal_clue_2))
+    setImageFindings(c.image_findings || '')
     setLearningImageUrl(c.learning_image_url || '')
     setLearningImageCredit(c.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageUrl2(c.learning_image_url_2 || '')
@@ -1802,6 +1813,7 @@ export default function AdminPage() {
     setImageUrl2(submission.image_url_2 || '')
     setImageCredit2(submission.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(normalizeImageRevealValueForEditor(submission.image_reveal_clue_2))
+    setImageFindings(submission.image_findings || '')
     setLearningImageUrl(submission.learning_image_url || '')
     setLearningImageCredit(submission.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageUrl2(submission.learning_image_url_2 || '')
@@ -2881,6 +2893,7 @@ export default function AdminPage() {
         image_url_2: imageUrl2 || null,
         image_credit_2: savedImageCredit2,
         image_reveal_clue_2: parsedImageRevealClue2,
+        image_findings: imageFindings.trim() || null,
         learning_image_url: learningImageUrl || null,
         learning_image_credit: savedLearningImageCredit,
         learning_image_url_2: learningImageUrl2 || null,
@@ -4147,6 +4160,17 @@ export default function AdminPage() {
                     </label>
                   </div>
                 </div>
+
+                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                  Image Findings
+                  <textarea
+                    value={imageFindings}
+                    onChange={e => setImageFindings(e.target.value)}
+                    placeholder="Optional solved-only imaging explanation shown beneath the case image credit."
+                    rows={4}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                  />
+                </label>
 
               <div className="rounded-xl bg-white/55 px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/55">
                   <div className="grid gap-3 sm:grid-cols-2">

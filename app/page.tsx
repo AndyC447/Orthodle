@@ -61,6 +61,7 @@ type Case = {
   image_url_2: string | null
   image_credit_2: string | null
   image_reveal_clue_2: number | null
+  image_findings?: string | null
   clue_1: string | null
   clue_2: string | null
   clue_3: string | null
@@ -2992,13 +2993,23 @@ function PlayPageContent() {
   const latestFindingIndex =
     !roundComplete && unlockedFindings > 0 ? visibleFindings.length - 1 : -1
   const solvedImagingSection = useMemo(() => {
-    if (!roundComplete || !dailyCase?.teaching_point || !(dailyCase.image_url || dailyCase.image_url_2)) {
+    if (!roundComplete || !(dailyCase?.image_url || dailyCase?.image_url_2)) {
       return null
     }
 
+    if (dailyCase.image_findings?.trim()) {
+      return {
+        label: 'Imaging Results',
+        body: [dailyCase.image_findings.trim()],
+        callouts: [],
+      }
+    }
+
+    if (!dailyCase.teaching_point) return null
+
     const sections = compactTeachingSections(parseTeachingPointSections(dailyCase.teaching_point)).sections
     return sections.find(section => section.label.trim().toLowerCase() === 'imaging') || null
-  }, [dailyCase?.image_url, dailyCase?.image_url_2, dailyCase?.teaching_point, roundComplete])
+  }, [dailyCase?.image_findings, dailyCase?.image_url, dailyCase?.image_url_2, dailyCase?.teaching_point, roundComplete])
   const homepageAnnouncementKey = homepageAnnouncement
     ? `${homepageAnnouncement.id}:${homepageAnnouncement.message}`
     : null
