@@ -219,6 +219,7 @@ type AdminSidebarSectionId =
   | 'button_subtitles'
   | 'case_stats'
   | 'email_reminders'
+  | 'study_mode'
   | 'analytics'
   | 'homepage_notes'
   | 'surveys'
@@ -359,6 +360,7 @@ const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'button_subtitles',
   'case_stats',
   'email_reminders',
+  'study_mode',
   'analytics',
   'homepage_notes',
   'surveys',
@@ -3022,6 +3024,13 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+      </section>
+    ),
+    study_mode: (
+      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+        <Link href="/study" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
+          Study Mode
+        </Link>
       </section>
     ),
     no_resident_mode: (
