@@ -3427,9 +3427,22 @@ function PlayPageContent() {
 
       <section className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {showDailyCompleteCard && (
-          <div className="orthodle-panel-shell mt-3 w-full rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-2.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.08)] sm:px-5 sm:py-3.5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1 text-center">
+          <div className="orthodle-panel-shell night-surface relative mt-3 w-full rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-3 text-center shadow-[0_12px_28px_rgba(16,32,24,0.08)] sm:px-5 sm:py-4">
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.localStorage.setItem(DAILY_COMPLETE_DISMISS_KEY, today)
+                }
+                setDismissedDailyCompleteDate(today)
+              }}
+              className="absolute right-3 top-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#cfded4] bg-white text-[#637268] shadow-[0_6px_14px_rgba(16,32,24,0.05)] transition hover:bg-[#f7fbf8] sm:right-4 sm:top-4"
+              aria-label="Dismiss daily complete card"
+            >
+              ×
+            </button>
+            <div className="px-8 sm:px-10">
+              <div className="min-w-0 text-center">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
                   Daily card complete
                 </div>
@@ -3437,58 +3450,45 @@ function PlayPageContent() {
                   Fresh cases drop tomorrow. Keep the streak alive.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.localStorage.setItem(DAILY_COMPLETE_DISMISS_KEY, today)
-                  }
-                  setDismissedDailyCompleteDate(today)
-                }}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#cfded4] bg-white text-[#637268] transition hover:bg-[#f7fbf8]"
-                aria-label="Dismiss daily complete card"
-              >
-                ×
-              </button>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-1.5 text-center">
-              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+            <div className="mt-2 grid grid-cols-3 gap-1.5 text-center sm:gap-2">
+              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_16px_rgba(16,32,24,0.04)]">
+                <div className="text-[8px] font-bold uppercase tracking-[0.15em] text-[#637268] sm:text-[8.5px]">
                   Solved
                 </div>
-                <div className="mt-0.5 font-serif text-[15px] font-bold text-[#1f6448]">
+                <div className="mt-0.5 font-serif text-[13px] font-bold text-[#1f6448] sm:text-[14px]">
                   {todaySolvedCount}/{requiredDailyLevels}
                 </div>
               </div>
-              <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+              <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_16px_rgba(16,32,24,0.04)]">
+                <div className="text-[8px] font-bold uppercase tracking-[0.15em] text-[#637268] sm:text-[8.5px]">
                   Case avg
                 </div>
-                <div className="mt-0.5 font-serif text-[15px] font-bold text-[#102018]">
+                <div className="mt-0.5 font-serif text-[13px] font-bold text-[#102018] sm:text-[14px]">
                   {dailySummary.standardCaseAverageGuesses !== null
                     ? dailySummary.standardCaseAverageGuesses.toFixed(1)
                     : '—'}
                 </div>
               </div>
-              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_16px_rgba(16,32,24,0.04)]">
+                <div className="text-[8px] font-bold uppercase tracking-[0.15em] text-[#637268] sm:text-[8.5px]">
                   Streak
                 </div>
-                <div className="mt-0.5 font-serif text-[15px] font-bold text-[#1f6448]">
+                <div className="mt-0.5 font-serif text-[13px] font-bold text-[#1f6448] sm:text-[14px]">
                   {statsSummary.currentStreak}
                 </div>
               </div>
             </div>
-            <div className="mt-2 flex flex-wrap justify-center gap-1.5">
+            <div className="mt-2.5 flex flex-wrap justify-center gap-2">
               <Link
                 href="/stats"
-                className="rounded-full border border-[#cfded4] bg-white px-2.5 py-1 text-[9.5px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
+                className="orthodle-home-secondary-action rounded-xl border px-3 py-1.5 text-[10px] font-semibold text-[#1f6448] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px]"
               >
                 View stats
               </Link>
               <Link
                 href="/archive"
-                className="rounded-full border border-[#cfded4] bg-white px-2.5 py-1 text-[9.5px] font-semibold text-[#1f6448] transition hover:bg-[#f7fbf8] sm:px-3.5 sm:py-1.5 sm:text-[11px]"
+                className="orthodle-home-secondary-action rounded-xl border px-3 py-1.5 text-[10px] font-semibold text-[#1f6448] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px]"
               >
                 Browse archive
               </Link>
@@ -3620,7 +3620,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`orthodle-animated-border orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showRailCompleteMoment ? 'orthodle-lineup-rail-glow orthodle-rail-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showRailCompleteMoment ? 'orthodle-lineup-rail-glow orthodle-rail-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           {homeBootReady ? (
             <div
               className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
@@ -3903,7 +3903,7 @@ function PlayPageContent() {
                                   selectedAnatomyLetters
                                 )
                               }
-                              className="orthodle-micro-press rounded-lg border border-[#1f6448] bg-[#1f6448] px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#174c37] disabled:cursor-not-allowed disabled:border-[#cbd6cf] disabled:bg-[#cbd6cf]"
+                              className="orthodle-primary-button orthodle-micro-press rounded-lg border px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] disabled:cursor-not-allowed"
                             >
                               Submit
                             </button>
@@ -3981,7 +3981,7 @@ function PlayPageContent() {
                         <button
                           onClick={() => void submitGuess()}
                           disabled={!dailyCase}
-                          className="orthodle-home-guess orthodle-micro-press min-h-[44px] rounded-xl bg-[#1f6448] px-4 py-2 text-[11px] font-bold text-white transition duration-200 hover:scale-[1.02] hover:bg-[#174c37] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          className="orthodle-primary-button orthodle-home-guess orthodle-micro-press min-h-[44px] rounded-xl px-4 py-2 text-[11px] font-bold duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                         >
                           Guess
                         </button>
@@ -4076,7 +4076,7 @@ function PlayPageContent() {
                       <button
                         type="button"
                         onClick={shareResult}
-                        className="w-full rounded-lg border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-[11px] font-semibold text-white transition hover:bg-[#174c37] sm:col-span-2"
+                        className="orthodle-primary-button w-full rounded-lg border px-4 py-2 text-[11px] font-semibold sm:col-span-2"
                       >
                         Share the case
                       </button>
@@ -4086,7 +4086,9 @@ function PlayPageContent() {
                           onClick={moveToNextLevel}
                           className="orthodle-home-secondary-action rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
                         >
-                          Try the {formatLevel(nextLevel)} case
+                          {nextLevel === 'attending'
+                            ? 'Try the Anatomy Quiz'
+                            : `Try the ${formatLevel(nextLevel)} case`}
                         </button>
                       ) : (
                         <Link

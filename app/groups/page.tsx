@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, BookOpen, Flame, Info, Pencil, Share2, Star, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
+import { Bell, BookOpen, Flame, Info, Menu, Moon, Pencil, Share2, Star, Sun, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
 import {
@@ -699,6 +699,7 @@ function GroupsTopBanner({
   unreadNotificationCount: number
 }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [menuOpen, setMenuOpen] = useState(false)
   const tabs: Array<{ id: GroupsTab; label: string }> = [
     { id: 'home', label: 'Home' },
     { id: 'my-group', label: 'My Group' },
@@ -720,25 +721,22 @@ function GroupsTopBanner({
   }
 
   const navItemClass =
-    'flex min-w-0 h-8 items-center justify-center rounded-[16px] border border-transparent px-1.5 text-center text-[11px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651] sm:px-2 sm:text-[11.5px]'
-  const inactiveNavItemClass =
-    theme === 'dark'
-      ? `${navItemClass} border-[#2f3b35] bg-[#1a241f] text-[#ecf1eb] hover:bg-[#202b25]`
-      : `${navItemClass} bg-[#fffdf8] text-[#102018] hover:bg-[#f7f5f0]`
+    'flex min-w-0 min-h-[42px] items-center justify-center rounded-[16px] border px-1.5 py-2 text-center text-[11px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition duration-200 hover:scale-[1.01] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651] sm:min-h-[44px] sm:px-2 sm:text-[11.5px]'
+  const inactiveNavItemClass = `orthodle-home-tab ${navItemClass}`
 
   return (
     <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
       <div className="mx-auto hidden max-w-[760px] items-center gap-4 px-4 py-2 sm:flex sm:px-5">
-        <Link href="/" className="font-serif text-xl font-semibold text-[#102018]">
+        <Link href="/" className="text-[#102018]">
           <span className="flex items-center gap-2">
-            <span className="text-lg text-[#c96b37]">●</span>
-            Orthodle
+            <span className="orthodle-wordmark-dot text-[1.05rem]">●</span>
+            <span className="orthodle-wordmark">Orthodle</span>
           </span>
         </Link>
 
         <nav className="flex flex-1 justify-center">
-          <div className="w-full max-w-[390px] rounded-[24px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
-            <div className="grid grid-cols-4 gap-1 rounded-[22px] bg-white p-1">
+          <div className="orthodle-home-rail w-full max-w-[390px] rounded-[24px] p-[1.25px]">
+            <div className="orthodle-home-rail-inner grid grid-cols-4 gap-1 rounded-[22px] p-1">
               <Link
                 href="/"
                 className={inactiveNavItemClass}
@@ -755,7 +753,7 @@ function GroupsTopBanner({
                     onClick={() => onTabChange(tab.id)}
                     className={`${
                       active
-                        ? `${navItemClass} border border-[#1f6448] bg-[#1f6448] text-white shadow-sm`
+                        ? `orthodle-home-tab-active ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
                         : inactiveNavItemClass
                     }`}
                   >
@@ -767,68 +765,95 @@ function GroupsTopBanner({
           </div>
         </nav>
 
-        <button
-          type="button"
-          onClick={onOpenHowItWorks}
-          aria-label="How it works"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3]"
-        >
-          <Info size={16} strokeWidth={2.2} />
-        </button>
-
-        <button
-          type="button"
-          onClick={onOpenUpdates}
-          aria-label="Updates"
-          className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3]"
-        >
-          <Bell size={16} strokeWidth={2.2} />
-          {unreadNotificationCount > 0 ? (
-            <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
-              {unreadNotificationCount}
-            </span>
-          ) : null}
-        </button>
-
-        <button
-          type="button"
-          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'}
-          onClick={toggleTheme}
-          className={`group flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3] ${
-            theme === 'dark'
-              ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
-              : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-          }`}
-        >
-          <span className="relative flex h-5 w-5 items-center justify-center overflow-hidden">
-            <span
-              className={`absolute text-[15px] leading-none transition-all duration-300 ${
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onOpenHowItWorks}
+            aria-label="How it works"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3]"
+          >
+            <Info size={16} strokeWidth={2.2} />
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              aria-expanded={menuOpen}
+              aria-label="Open groups menu"
+              onClick={() => setMenuOpen(prev => !prev)}
+              className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3] ${
                 theme === 'dark'
-                  ? 'translate-y-0 scale-100 opacity-100'
-                  : '-translate-y-5 scale-75 opacity-0'
+                  ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
+                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
               }`}
             >
-              ☀
-            </span>
-            <span
-              className={`absolute text-[15px] leading-none transition-all duration-300 ${
-                theme === 'dark'
-                  ? 'translate-y-5 scale-75 opacity-0'
-                  : 'translate-y-0 scale-100 opacity-100'
-              }`}
-            >
-              ☾
-            </span>
-          </span>
-        </button>
+              <Menu size={16} strokeWidth={2.2} />
+              {unreadNotificationCount > 0 ? (
+                <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+                  {unreadNotificationCount}
+                </span>
+              ) : null}
+            </button>
+
+            {menuOpen ? (
+              <div
+                className={`absolute right-0 top-[calc(100%+10px)] z-40 min-w-[190px] overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.06)] ${
+                  theme === 'dark'
+                    ? 'border-[#33453c] bg-[#18241f]'
+                    : 'border-[#e7e1d6] bg-white'
+                }`}
+              >
+              <div className="p-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onOpenUpdates()
+                  }}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
+                >
+                  <span>Notifications</span>
+                  {unreadNotificationCount > 0 ? (
+                    <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+                      {unreadNotificationCount}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleTheme()
+                    setMenuOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
+                >
+                  <span>{theme === 'dark' ? 'Light mode' : 'Night mode'}</span>
+                  {theme === 'dark' ? (
+                    <Sun size={15} strokeWidth={2} />
+                  ) : (
+                    <Moon size={15} strokeWidth={2} />
+                  )}
+                </button>
+              </div>
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
 
       <div className="mx-auto max-w-[760px] px-4 py-2 sm:hidden sm:px-5">
         <div className="flex items-center justify-between gap-3">
-          <Link href="/" className="font-serif text-xl font-semibold text-[#102018]">
+          <Link href="/" className="text-[#102018]">
             <span className="flex items-center gap-2">
-              <span className="text-lg text-[#c96b37]">●</span>
-              Orthodle
+              <span className="orthodle-wordmark-dot text-[1.05rem]">●</span>
+              <span className="orthodle-wordmark">Orthodle</span>
             </span>
           </Link>
 
@@ -841,56 +866,83 @@ function GroupsTopBanner({
             >
               <Info size={16} strokeWidth={2.2} />
             </button>
-            <button
-              type="button"
-              onClick={onOpenUpdates}
-              aria-label="Updates"
-              className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
-            >
-              <Bell size={16} strokeWidth={2.2} />
-              {unreadNotificationCount > 0 ? (
-                <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
-                  {unreadNotificationCount}
-                </span>
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={menuOpen}
+                aria-label="Open groups menu"
+                onClick={() => setMenuOpen(prev => !prev)}
+                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+                  theme === 'dark'
+                    ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
+                    : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                }`}
+              >
+                <Menu size={16} strokeWidth={2.2} />
+                {unreadNotificationCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+                    {unreadNotificationCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {menuOpen ? (
+                <div
+                  className={`absolute right-0 top-[calc(100%+10px)] z-40 min-w-[190px] overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.06)] ${
+                    theme === 'dark'
+                      ? 'border-[#33453c] bg-[#18241f]'
+                      : 'border-[#e7e1d6] bg-white'
+                  }`}
+                >
+                <div className="p-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      onOpenUpdates()
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                      theme === 'dark'
+                        ? 'text-[#f4efe6] hover:bg-[#213129]'
+                        : 'text-[#102018] hover:bg-[#fbfaf7]'
+                    }`}
+                  >
+                    <span>Notifications</span>
+                    {unreadNotificationCount > 0 ? (
+                      <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
+                        {unreadNotificationCount}
+                      </span>
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toggleTheme()
+                      setMenuOpen(false)
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                      theme === 'dark'
+                        ? 'text-[#f4efe6] hover:bg-[#213129]'
+                        : 'text-[#102018] hover:bg-[#fbfaf7]'
+                    }`}
+                  >
+                    <span>{theme === 'dark' ? 'Light mode' : 'Night mode'}</span>
+                    {theme === 'dark' ? (
+                      <Sun size={15} strokeWidth={2} />
+                    ) : (
+                      <Moon size={15} strokeWidth={2} />
+                    )}
+                  </button>
+                </div>
+                </div>
               ) : null}
-            </button>
-            <button
-              type="button"
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'}
-              onClick={toggleTheme}
-              className={`group flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
-                theme === 'dark'
-                  ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
-                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-              }`}
-            >
-              <span className="relative flex h-5 w-5 items-center justify-center overflow-hidden">
-                <span
-                  className={`absolute text-[15px] leading-none transition-all duration-300 ${
-                    theme === 'dark'
-                      ? 'translate-y-0 scale-100 opacity-100'
-                      : '-translate-y-5 scale-75 opacity-0'
-                  }`}
-                >
-                  ☀
-                </span>
-                <span
-                  className={`absolute text-[15px] leading-none transition-all duration-300 ${
-                    theme === 'dark'
-                      ? 'translate-y-5 scale-75 opacity-0'
-                      : 'translate-y-0 scale-100 opacity-100'
-                  }`}
-                >
-                  ☾
-                </span>
-              </span>
-            </button>
+            </div>
           </div>
         </div>
 
         <nav className="mt-2 flex justify-center">
-          <div className="w-full max-w-[430px] rounded-[26px] bg-gradient-to-r from-[#1f6448] via-[#c76b3a] to-[#ead9b7] p-[1.5px] shadow-[0_6px_14px_rgba(16,32,24,0.045)]">
-            <div className="grid grid-cols-4 gap-1 rounded-[24px] bg-white p-1">
+          <div className="orthodle-home-rail w-full max-w-[430px] rounded-[24px] p-[1.25px]">
+            <div className="orthodle-home-rail-inner grid grid-cols-4 gap-1 rounded-[22px] p-1">
               <Link
                 href="/"
                 className={inactiveNavItemClass}
@@ -907,7 +959,7 @@ function GroupsTopBanner({
                     onClick={() => onTabChange(tab.id)}
                     className={`${
                       active
-                        ? `${navItemClass} border border-[#1f6448] bg-[#1f6448] text-white shadow-sm`
+                        ? `orthodle-home-tab-active ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
                         : inactiveNavItemClass
                     }`}
                   >
@@ -3950,7 +4002,7 @@ export default function GroupsPage() {
                 <section className="overflow-hidden rounded-[24px] border border-[#d9c9a6] bg-[radial-gradient(circle_at_12%_18%,rgba(255,214,89,0.14),transparent_26%),radial-gradient(circle_at_88%_14%,rgba(255,255,255,0.08),transparent_22%),linear-gradient(145deg,#0e5a3f,#063928)] p-3 text-white shadow-[0_18px_38px_rgba(6,57,40,0.24)] sm:p-5">
                   <div className="flex flex-col gap-3 sm:gap-4">
                     <div className="flex flex-col gap-3.5 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="flex min-w-0 items-start gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3 sm:justify-center">
                         <button
                           type="button"
                           onClick={() => {
@@ -3971,7 +4023,7 @@ export default function GroupsPage() {
                             ) : null}
                           </div>
                         </button>
-                        <div className="min-w-0 flex-1 pt-0.5">
+                        <div className="min-w-0 flex-1 pt-0.5 text-center sm:max-w-[24rem]">
                           <h1 className="break-words font-serif text-[21px] font-bold leading-[1.02] tracking-[-0.05em] text-white sm:text-[31px] sm:leading-none">
                             {selectedGroup.name}
                           </h1>
@@ -4483,7 +4535,7 @@ export default function GroupsPage() {
                     setShowJoinPanel(true)
                     setGroupActionMode('join')
                   }}
-                  className="mt-4 rounded-xl bg-[#1f6448] px-4 py-2.5 text-xs font-bold text-white"
+                  className="orthodle-primary-button mt-4 rounded-xl border px-4 py-2.5 text-xs font-bold"
                 >
                   Join or create
                 </button>
@@ -4703,7 +4755,7 @@ export default function GroupsPage() {
                     type="button"
                     disabled={authSubmitting}
                     onClick={() => void submitAccountAuth()}
-                    className="rounded-xl bg-[#1f6448] px-4 py-2 text-[12px] font-bold text-white transition hover:bg-[#174c37] disabled:opacity-50"
+                    className="orthodle-primary-button rounded-xl border px-4 py-2 text-[12px] font-bold disabled:opacity-50"
                   >
                     {authSubmitting
                       ? authMode === 'signup'
@@ -5040,7 +5092,7 @@ export default function GroupsPage() {
                     type="button"
                     disabled={creating || !createName.trim() || !createDisplayName.trim()}
                     onClick={() => void submitGroupForm()}
-                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[#2d7651] px-4 text-[12px] font-bold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="orthodle-primary-button inline-flex h-10 items-center justify-center rounded-xl border px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {creating ? 'Creating...' : 'Create'}
                   </button>

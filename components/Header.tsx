@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, Menu, Moon, Sun } from 'lucide-react'
+import { Menu, Moon, Sun } from 'lucide-react'
 import { formatFeedbackLevel } from '@/lib/feedback-messages'
 import type { MessagingPayload } from '@/lib/messaging'
 import { getAccountSession, getSessionId } from '@/lib/utils'
@@ -281,11 +281,11 @@ export function Header() {
         <Link
           href="/"
           onClick={handleHomeClick}
-          className="font-serif text-xl font-semibold text-[#102018]"
+          className="text-[#102018]"
         >
           <span className="flex items-center gap-2">
-            <span className="text-[#c96b37] text-lg">●</span>
-            Orthodle
+            <span className="orthodle-wordmark-dot text-[1.05rem]">●</span>
+            <span className="orthodle-wordmark">Orthodle</span>
           </span>
         </Link>
 
@@ -294,35 +294,15 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          {showNotifications && (
+          {showNotifications && notificationsOpen && (
             <div className="relative" ref={notificationPanelRef}>
-              <button
-                type="button"
-                aria-expanded={notificationsOpen}
-                aria-label="Open messages"
-                onClick={() => setNotificationsOpen(prev => !prev)}
-                className={`group relative flex h-10 w-10 items-center justify-center rounded-full border transition ${
+              <div
+                className={`fixed left-4 right-4 top-[72px] z-50 overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.08)] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[320px] sm:max-w-[calc(100vw-32px)] ${
                   theme === 'dark'
-                    ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
-                    : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                    ? 'border-[#33453c] bg-[#18241f]'
+                    : 'border-[#e7e1d6] bg-white'
                 }`}
               >
-                <Bell className="h-[18px] w-[18px]" strokeWidth={2} />
-                {unreadCount > 0 && (
-                  <span className="absolute right-1.5 top-1.5 inline-flex min-h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#c96b37] px-1 text-[10px] font-bold text-white">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {notificationsOpen && (
-                <div
-                  className={`fixed left-4 right-4 top-[72px] z-50 overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.08)] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[320px] sm:max-w-[calc(100vw-32px)] ${
-                    theme === 'dark'
-                      ? 'border-[#33453c] bg-[#18241f]'
-                      : 'border-[#e7e1d6] bg-white'
-                  }`}
-                >
                   <div
                     className={`border-b px-4 py-3 ${
                       theme === 'dark' ? 'border-[#24342d]' : 'border-[#f3eee5]'
@@ -367,7 +347,7 @@ export function Header() {
                           type="button"
                           onClick={() => void subscribeToReminder()}
                           disabled={isSavingReminder}
-                          className="min-h-[34px] shrink-0 rounded-xl border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-[10px] font-semibold leading-none text-white transition hover:bg-[#174c37] disabled:opacity-60"
+                          className="orthodle-primary-button min-h-[34px] shrink-0 rounded-xl border px-3 py-2 text-[10px] font-semibold leading-none disabled:opacity-60"
                         >
                           {isSavingReminder ? 'Saving...' : 'Notify me'}
                         </button>
@@ -519,7 +499,7 @@ export function Header() {
                                       type="button"
                                       onClick={() => void sendThreadReply(thread.feedbackId, recipientSessionId)}
                                       disabled={sendingReplyThreadId === thread.feedbackId}
-                                      className="rounded-lg bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-70"
+                                      className="orthodle-primary-button rounded-lg border px-3 py-2 text-sm font-semibold disabled:opacity-70"
                                     >
                                       {sendingReplyThreadId === thread.feedbackId ? 'Sending...' : 'Send reply'}
                                     </button>
@@ -534,39 +514,8 @@ export function Header() {
                     )}
                   </div>
                 </div>
-              )}
             </div>
           )}
-
-          <button
-            type="button"
-            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'}
-            onClick={toggleTheme}
-            className={`group flex h-10 w-10 items-center justify-center rounded-full border transition ${
-              theme === 'dark'
-                ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
-                : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-            }`}
-          >
-            <span className="relative flex h-5 w-5 items-center justify-center overflow-hidden">
-              <Sun
-                className={`absolute h-[18px] w-[18px] transition-all duration-300 ${
-                  theme === 'dark'
-                    ? 'translate-y-0 scale-100 opacity-100'
-                    : '-translate-y-5 scale-75 opacity-0'
-                }`}
-                strokeWidth={2}
-              />
-              <Moon
-                className={`absolute h-[18px] w-[18px] transition-all duration-300 ${
-                  theme === 'dark'
-                    ? 'translate-y-5 scale-75 opacity-0'
-                    : 'translate-y-0 scale-100 opacity-100'
-                }`}
-                strokeWidth={2}
-              />
-            </span>
-          </button>
 
           <div
             className="relative -m-2 p-2"
@@ -585,6 +534,11 @@ export function Header() {
             }`}
           >
             <Menu className="h-[18px] w-[18px]" strokeWidth={2.2} />
+            {showNotifications && unreadCount > 0 && (
+              <span className="absolute right-1.5 top-1.5 inline-flex min-h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#c96b37] px-1 text-[10px] font-bold text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
           </button>
 
           {menuOpen && (
@@ -595,16 +549,6 @@ export function Header() {
                   : 'border-[#e7e1d6] bg-white'
               }`}
             >
-              <div
-                className={`border-b px-4 py-3 text-[10px] font-semibold uppercase tracking-[0.22em] ${
-                  theme === 'dark'
-                    ? 'border-[#24342d] text-[#9fb4a7]'
-                    : 'border-[#f3eee5] text-[#7a857c]'
-                }`}
-              >
-                Navigation
-              </div>
-
               <div className="p-2">
                 {showPlayLink && (
                   <Link
@@ -641,6 +585,46 @@ export function Header() {
                 >
                   Archive
                 </Link>
+                {showNotifications ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setNotificationsOpen(true)
+                    }}
+                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                      theme === 'dark'
+                        ? 'text-[#f4efe6] hover:bg-[#213129]'
+                        : 'text-[#102018] hover:bg-[#fbfaf7]'
+                    }`}
+                  >
+                    <span>Notifications</span>
+                    {unreadCount > 0 ? (
+                      <span className="inline-flex min-h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[#c96b37] px-1 text-[10px] font-bold text-white">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    ) : null}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleTheme()
+                    setMenuOpen(false)
+                  }}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
+                >
+                  <span>{theme === 'dark' ? 'Light mode' : 'Night mode'}</span>
+                  {theme === 'dark' ? (
+                    <Sun className="h-[15px] w-[15px]" strokeWidth={2} />
+                  ) : (
+                    <Moon className="h-[15px] w-[15px]" strokeWidth={2} />
+                  )}
+                </button>
               </div>
             </div>
           )}
