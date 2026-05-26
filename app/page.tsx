@@ -2112,7 +2112,6 @@ function PlayPageContent() {
     const trimmed = line.trim()
     if (!trimmed) return false
     if (/^credit:/i.test(trimmed)) return true
-    if (/^\[[^\]]+\]\((https?:\/\/[^\s)]+)\)$/.test(trimmed)) return true
     return false
   }
 
@@ -2300,8 +2299,20 @@ function PlayPageContent() {
         : sections
     const compactTeaching = compactTeachingSections(allSections)
     const teachingImages = renderTeachingImages(caseItem)
+    const imagingSectionIndex =
+      teachingImages
+        ? compactTeaching.sections.findIndex(
+            section => section.label.trim().toLowerCase() === 'imaging'
+          )
+        : -1
+    const imagingSection =
+      imagingSectionIndex >= 0 ? compactTeaching.sections[imagingSectionIndex] : null
+    const visibleSections =
+      imagingSectionIndex >= 0
+        ? compactTeaching.sections.filter((_, index) => index !== imagingSectionIndex)
+        : compactTeaching.sections
 
-    if (compactTeaching.sections.length === 0) {
+    if (visibleSections.length === 0 && !imagingSection) {
       return (
         <p className="font-serif text-[14px] leading-[1.55] tracking-[-0.01em] text-[#102018]">
           {renderFormattedLine(text)}
@@ -2312,7 +2323,7 @@ function PlayPageContent() {
     return (
       <div className="orthodle-teaching-card rounded-xl bg-[#fcfbf8] px-3 py-2.5">
         <div className="space-y-2.5">
-          {compactTeaching.sections.map((section, sectionIndex) => (
+          {visibleSections.map((section, sectionIndex) => (
             <div
               key={`${section.label}-${sectionIndex}`}
               className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
@@ -2391,6 +2402,34 @@ function PlayPageContent() {
                         </div>
                       ) : null}
                       {teachingImages}
+                      {imagingSection ? (
+                        <div className="mt-2 border-t border-[#ebe5db] pt-2">
+                          <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+                            {renderFormattedLine(imagingSection.label, 'imaging-below-image-label')}
+                          </div>
+                          <div className="mt-1.5 space-y-1">
+                            {renderTeachingBody(imagingSection.body, 'imaging-below-image')}
+                            {imagingSection.callouts.length > 0 ? (
+                              <div className="mt-1.5 space-y-1">
+                                {imagingSection.callouts.map((callout, calloutIndex) => (
+                                  <div
+                                    key={`${imagingSection.label}-callout-${calloutIndex}`}
+                                    className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                                  >
+                                    <span className="font-semibold text-[#315f4d]">
+                                      {callout.label}:
+                                    </span>{' '}
+                                    {renderFormattedLine(
+                                      callout.text,
+                                      `${imagingSection.label}-callout-text-${calloutIndex}`
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </>
@@ -2439,6 +2478,30 @@ function PlayPageContent() {
             </div>
           ) : null}
           {!hasQuickTakeawaySection && teachingImages}
+          {!hasQuickTakeawaySection && imagingSection ? (
+            <div className="space-y-1 border-t border-[#ebe5db] pt-2">
+              <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+                {renderFormattedLine(imagingSection.label, 'imaging-standalone-label')}
+              </div>
+              {renderTeachingBody(imagingSection.body, 'imaging-standalone')}
+              {imagingSection.callouts.length > 0 ? (
+                <div className="mt-1.5 space-y-1">
+                  {imagingSection.callouts.map((callout, calloutIndex) => (
+                    <div
+                      key={`${imagingSection.label}-standalone-callout-${calloutIndex}`}
+                      className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                    >
+                      <span className="font-semibold text-[#315f4d]">{callout.label}:</span>{' '}
+                      {renderFormattedLine(
+                        callout.text,
+                        `${imagingSection.label}-standalone-callout-text-${calloutIndex}`
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     )
