@@ -275,7 +275,7 @@ export default function ArchivePage() {
       .sort((a, b) => (caseDifficultyMap.get(b.id) || 0) - (caseDifficultyMap.get(a.id) || 0))[0] || null
   }, [caseDifficultyMap, filteredCases])
   const actionButtonClass =
-    'inline-flex min-h-[34px] items-center justify-center rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition'
+    'inline-flex min-h-[30px] items-center justify-center rounded-[12px] border px-2.5 py-1 text-[10px] font-semibold transition sm:min-h-[34px] sm:rounded-lg sm:px-3 sm:py-1.5 sm:text-[11px]'
   const softButtonClass = `${actionButtonClass} border-[#ded7ca] bg-white text-[#55645b] hover:bg-[#fbfaf7]`
   const activeButtonClass = `${actionButtonClass} border-[#1f6448] bg-[#1f6448] text-white hover:bg-[#174c37]`
   const accentButtonClass = `${actionButtonClass} border-[#d9c7a6] bg-[#fffaf1] text-[#8a5a2b] hover:bg-[#fff3e0]`
@@ -296,17 +296,17 @@ export default function ArchivePage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-5">
-        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4.5">
+      <section className="mx-auto max-w-4xl px-2.5 py-3 sm:px-6 sm:py-5">
+        <div className="night-surface rounded-[22px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:rounded-[24px] sm:p-4.5">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
             Archive
           </div>
-          <h1 className="mt-1.5 font-serif text-[23px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:text-[28px]">
+          <h1 className="mt-1 font-serif text-[21px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:mt-1.5 sm:text-[28px]">
             Browse older cases
           </h1>
 
           {(surpriseTarget || filteredCases.length > 0) && (
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-2.5 sm:flex sm:flex-wrap">
               {surpriseTarget ? (
                 <Link
                   href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
@@ -333,27 +333,27 @@ export default function ArchivePage() {
                   clearStatsSummary()
                   setCompletedArchiveKeys(new Set())
                 }}
-                className={softButtonClass}
+                className={`${softButtonClass} col-span-2 sm:col-span-1`}
               >
                 Reset cases
               </button>
             </div>
           )}
 
-          <div className="mt-3 rounded-[20px] bg-[#fcfbf8] px-2.5 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70 sm:px-3 sm:py-3">
+          <div className="mt-2.5 rounded-[18px] bg-[#fcfbf8] px-2 py-2 ring-1 ring-inset ring-[#ebe5db]/70 sm:mt-3 sm:rounded-[20px] sm:px-3 sm:py-3">
             <div className={sectionLabelClass}>
               Filters
             </div>
 
-            <div className="mt-2.5 space-y-2">
-              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <div className="mt-2 space-y-1.5 sm:mt-2.5 sm:space-y-2">
+              <div className="grid gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end sm:gap-2">
                 <label className="grid gap-1.5">
                   <span className={fieldLabelClass}>Difficulty</span>
                   <div className="relative" ref={levelMenuRef}>
                     <button
                       type="button"
                       onClick={() => setLevelMenuOpen(current => !current)}
-                      className="flex min-h-[38px] w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7]"
+                      className="flex min-h-[34px] w-full items-center justify-between rounded-[12px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-left text-[12px] text-[#102018] transition hover:bg-[#fbfaf7] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[13px]"
                     >
                       <span>{selectedLevelLabel}</span>
                       <span className="ml-3 text-[10px] text-[#7a857c]">{levelMenuOpen ? '▲' : '▼'}</span>
@@ -390,7 +390,7 @@ export default function ArchivePage() {
                   <button
                     type="button"
                     onClick={() => setImagingOnly(current => !current)}
-                    className={imagingOnly ? activeButtonClass : softButtonClass}
+                    className={`${imagingOnly ? activeButtonClass : softButtonClass} w-full sm:w-auto`}
                   >
                     Imaging
                   </button>
@@ -403,7 +403,7 @@ export default function ArchivePage() {
                   value={answerQuery}
                   onChange={e => setAnswerQuery(e.target.value)}
                   placeholder="Search diagnosis or answer"
-                  className="min-h-[38px] rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-[13px] font-medium text-[#102018] placeholder:text-[#8b938d]"
+                  className="min-h-[34px] rounded-[12px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[12px] font-medium text-[#102018] placeholder:text-[#8b938d] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[13px]"
                 />
               </label>
 
@@ -413,7 +413,7 @@ export default function ArchivePage() {
                   <button
                     type="button"
                     onClick={() => setCategoryMenuOpen(current => !current)}
-                    className="flex min-h-[38px] w-full items-center justify-between rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7]"
+                    className="flex min-h-[34px] w-full items-center justify-between rounded-[12px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-left text-[12px] text-[#102018] transition hover:bg-[#fbfaf7] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[13px]"
                   >
                     <span>{selectedCategory === 'all' ? 'All categories' : formatCategoryLabel(selectedCategory)}</span>
                     <span className="ml-3 text-[10px] text-[#7a857c]">{categoryMenuOpen ? '▲' : '▼'}</span>
@@ -463,8 +463,8 @@ export default function ArchivePage() {
             </div>
 
             {hasActiveFilters && (
-              <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-[#eee8de] pt-2.5">
-                <p className="text-[11px] text-[#637268]">
+              <div className="mt-2 flex items-center justify-between gap-2 border-t border-[#eee8de] pt-2 sm:mt-2.5 sm:pt-2.5">
+                <p className="text-[10px] text-[#637268] sm:text-[11px]">
                   {filteredCases.length} case{filteredCases.length === 1 ? '' : 's'}
                 </p>
 
@@ -484,11 +484,11 @@ export default function ArchivePage() {
             )}
           </div>
 
-          <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
+          <div className="mt-3 flex items-center justify-between gap-2 sm:mt-3.5">
             <div className={sectionLabelClass}>
               Previous cases
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <button
                 type="button"
                 onClick={() => setShowAnswers(current => !current)}
@@ -515,18 +515,18 @@ export default function ArchivePage() {
               {groupedDates.length} dates ready. Expand to browse the full archive.
             </div>
           ) : (
-            <div className="mt-3 space-y-2.5">
+            <div className="mt-2.5 space-y-2 sm:mt-3 sm:space-y-2.5">
               {groupedDates.map((group, groupIndex) => (
                 <div
                   key={group.date}
-                  className="orthodle-archive-group rounded-[20px] bg-[#fcfbf8] px-2.5 py-2.5 ring-1 ring-inset ring-[#e7e1d6] sm:px-3 sm:py-3"
+                  className="orthodle-archive-group rounded-[18px] bg-[#fcfbf8] px-2 py-2 ring-1 ring-inset ring-[#e7e1d6] sm:rounded-[20px] sm:px-3 sm:py-3"
                   style={{ animationDelay: `${Math.min(groupIndex * 0.04, 0.24)}s` }}
                 >
                   <div className={sectionLabelClass}>
                     {formatDate(group.date)}
                   </div>
 
-                  <div className="mt-2 space-y-1.5 sm:grid sm:grid-cols-3 sm:gap-2 sm:space-y-0">
+                  <div className="mt-1.5 space-y-1.5 sm:mt-2 sm:grid sm:grid-cols-3 sm:gap-2 sm:space-y-0">
                     {levelOrder.map((level, levelIndex) => {
                       const item = group.items.find(entry => entry.level === level)
                       if (!item) return null
@@ -539,21 +539,21 @@ export default function ArchivePage() {
                         <Link
                           key={`${group.date}-${level}`}
                           href={`/?case=${item.id}&date=${group.date}&level=${level}`}
-                          className="orthodle-archive-entry rounded-[16px] bg-white px-3 py-2.5 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9]"
+                          className="orthodle-archive-entry rounded-[14px] bg-white px-2.5 py-2 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9] sm:rounded-[16px] sm:px-3 sm:py-2.5"
                           style={{ animationDelay: `${Math.min(groupIndex * 0.04 + levelIndex * 0.05, 0.34)}s` }}
                         >
                           <div className={caseMetaLabelClass}>
                             {toTitleCase(formatLevel(level, item.case_date))}
                           </div>
-                          <div className="mt-1 line-clamp-2 font-serif text-[13px] font-bold leading-tight tracking-[-0.01em] text-[#102018]">
+                          <div className="mt-0.5 line-clamp-2 font-serif text-[12.5px] font-bold leading-tight tracking-[-0.01em] text-[#102018] sm:mt-1 sm:text-[13px]">
                             {showAnswers ? item.answer : formatCategoryLabel(item.category)}
                           </div>
                           {showAnswers && item.category && (
-                            <div className="mt-0.5 text-[10px] tracking-[0.01em] text-[#8b938d]">
+                            <div className="mt-0.5 text-[9px] tracking-[0.01em] text-[#8b938d] sm:text-[10px]">
                               {formatCategoryLabel(item.category)}
                             </div>
                           )}
-                          <div className={`mt-1.5 text-[10px] font-semibold ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
+                          <div className={`mt-1 text-[9px] font-semibold sm:mt-1.5 sm:text-[10px] ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
                             {isCompleted ? 'Completed case' : 'Open case'}
                           </div>
                         </Link>
