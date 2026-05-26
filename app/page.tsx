@@ -4040,7 +4040,7 @@ function PlayPageContent() {
                     </div>
                     {solvedImagingSection ? (
                       <div className="mt-2.5 border-t border-[#ebe5db] pt-2.5">
-                        <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+                        <div className="text-[13px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/65 underline-offset-2">
                           {renderFormattedLine(solvedImagingSection.label, 'solved-imaging-label')}
                         </div>
                         <div className="mt-1.5 space-y-1">
