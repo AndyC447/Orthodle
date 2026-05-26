@@ -74,7 +74,6 @@ export default function StudyModePage() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [showFullTeaching, setShowFullTeaching] = useState(false)
   const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
   const touchStartXRef = useRef<number | null>(null)
 
@@ -139,12 +138,7 @@ export default function StudyModePage() {
 
   useEffect(() => {
     setCurrentIndex(0)
-    setShowFullTeaching(false)
   }, [query])
-
-  useEffect(() => {
-    setShowFullTeaching(false)
-  }, [currentIndex])
 
   const currentCase = filteredCases[currentIndex] || null
   const sections = useMemo(
@@ -152,10 +146,6 @@ export default function StudyModePage() {
     [currentCase]
   )
   const compactTeaching = useMemo(() => compactStudySections(sections), [sections])
-  const visibleSections = showFullTeaching
-    ? compactTeaching.sections
-    : compactTeaching.sections.slice(0, 2)
-  const hiddenSectionCount = Math.max(0, compactTeaching.sections.length - visibleSections.length)
 
   function isSurgicalAnatomyDate(dateText: string) {
     return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
@@ -308,7 +298,7 @@ export default function StudyModePage() {
                         <div className="rounded-[20px] bg-[#fcfbf8] px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_12px_24px_rgba(16,32,24,0.035)]">
                           {compactTeaching.sections.length > 0 ? (
                             <div className="space-y-2.5">
-                              {visibleSections.map((section, sectionIndex) => (
+                              {compactTeaching.sections.map((section, sectionIndex) => (
                                 <div
                                   key={`${section.label}-${sectionIndex}`}
                                   className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
@@ -348,24 +338,6 @@ export default function StudyModePage() {
                                   </div>
                                 </div>
                               ))}
-                              {hiddenSectionCount > 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowFullTeaching(true)}
-                                  className="orthodle-home-secondary-action inline-flex min-h-[38px] items-center rounded-[14px] border px-3 py-2 text-[11px] font-semibold text-[#1f6448]"
-                                >
-                                  Show {hiddenSectionCount} more section{hiddenSectionCount === 1 ? '' : 's'}
-                                </button>
-                              ) : null}
-                              {showFullTeaching && sections.length > 2 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => setShowFullTeaching(false)}
-                                  className="orthodle-home-secondary-action inline-flex min-h-[38px] items-center rounded-[14px] border px-3 py-2 text-[11px] font-semibold text-[#1f6448]"
-                                >
-                                  Show less
-                                </button>
-                              ) : null}
                               {compactTeaching.footerLines.length > 0 ? (
                                 <div className="border-t border-dashed border-[#ded7ca] pt-2">
                                   <div className="flex flex-wrap gap-2 text-[11px] leading-5 text-[#637268]">

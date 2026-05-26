@@ -100,6 +100,12 @@ type TeachingPointSection = {
   body: string[]
 }
 
+type CompactTeachingSection = {
+  label: string
+  body: string[]
+  callouts: Array<{ label: string; text: string }>
+}
+
 type TeachingBodyBlock =
   | { type: 'spacer'; key: string }
   | { type: 'paragraph'; key: string; text: string }
@@ -112,18 +118,24 @@ type ExpandableImage = {
 }
 
 const TEACHING_POINT_LABELS = new Map<string, string>([
+  ['quick takeaway', 'Quick Takeaway'],
   ['clinical context', 'Clinical Context'],
   ['who', 'Who'],
   ['pathophys', 'Pathophys'],
+  ['pathophysiology', 'Pathophysiology'],
   ['key clues', 'Key Clues'],
   ['presentation', 'Presentation'],
   ['exam', 'Exam'],
   ['imaging', 'Imaging'],
   ['tx', 'Tx'],
+  ['treatment', 'Treatment'],
   ['dont miss', "Don't Miss"],
   ['don’t miss', "Don't Miss"],
   ['classic pitfall', 'Classic Pitfall'],
   ['board pearl', 'Board Pearl'],
+  ['explanation', 'Explanation'],
+  ['clinical pearl', 'Clinical Pearl'],
+  ['why not the others', 'Why not the others?'],
   ['orthodle insight', 'Orthodle Insight'],
   ['ddx', 'DDx'],
 ])
@@ -2096,6 +2108,66 @@ function PlayPageContent() {
     return sections.filter(section => section.body.some(line => line.trim()))
   }
 
+  function isFooterLine(line: string) {
+    const trimmed = line.trim()
+    if (!trimmed) return false
+    if (/^credit:/i.test(trimmed)) return true
+    if (/^\[[^\]]+\]\((https?:\/\/[^\s)]+)\)$/.test(trimmed)) return true
+    return false
+  }
+
+  function isInlineEligible(section: TeachingPointSection) {
+    const normalized = section.label.trim().toLowerCase()
+    if (normalized === 'quick takeaway' || normalized === 'orthodle insight') return false
+    if (section.body.length !== 1) return false
+    const line = section.body[0]?.trim() || ''
+    if (!line) return false
+    if (line.length > 150) return false
+    if (/^[-*•]\s+/.test(line)) return false
+    if (isFooterLine(line)) return false
+    return true
+  }
+
+  function compactTeachingSections(sections: TeachingPointSection[]) {
+    const compactSections: CompactTeachingSection[] = []
+    const footerLines: string[] = []
+
+    for (const section of sections) {
+      const contentLines: string[] = []
+
+      for (const line of section.body) {
+        if (isFooterLine(line)) {
+          footerLines.push(line.trim())
+        } else {
+          contentLines.push(line)
+        }
+      }
+
+      if (!contentLines.some(line => line.trim())) continue
+
+      const cleanedSection: TeachingPointSection = {
+        label: section.label,
+        body: contentLines,
+      }
+
+      if (isInlineEligible(cleanedSection) && compactSections.length > 0) {
+        compactSections[compactSections.length - 1].callouts.push({
+          label: section.label.replace(/:$/, '').trim(),
+          text: contentLines[0].trim(),
+        })
+        continue
+      }
+
+      compactSections.push({
+        label: section.label,
+        body: contentLines,
+        callouts: [],
+      })
+    }
+
+    return { sections: compactSections, footerLines }
+  }
+
   function buildTeachingBodyBlocks(lines: string[], keyPrefix: string): TeachingBodyBlock[] {
     const blocks: TeachingBodyBlock[] = []
     let bulletItems: string[] = []
@@ -2143,11 +2215,11 @@ function PlayPageContent() {
 
       if (block.type === 'bullets') {
         return (
-          <ul key={block.key} className="space-y-1.5 pl-5">
+          <ul key={block.key} className="space-y-0.5 pl-4">
             {block.items.map((item, index) => (
               <li
                 key={`${block.key}-${index}`}
-                className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+                className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018]"
               >
                 {renderFormattedLine(item, `${block.key}-item-${index}`)}
               </li>
@@ -2159,7 +2231,7 @@ function PlayPageContent() {
       return (
         <p
           key={block.key}
-          className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]"
+          className="font-serif text-[14px] leading-[1.55] tracking-[-0.01em] text-[#102018]"
         >
           {renderFormattedLine(block.text, `${block.key}-text`)}
         </p>
@@ -2226,11 +2298,12 @@ function PlayPageContent() {
       !hasInsightSection && insightLines.length > 0
         ? [...sections, { label: 'Orthodle Insight', body: insightLines }]
         : sections
+    const compactTeaching = compactTeachingSections(allSections)
     const teachingImages = renderTeachingImages(caseItem)
 
-    if (allSections.length === 0) {
+    if (compactTeaching.sections.length === 0) {
       return (
-        <p className="font-serif text-[15px] leading-6 tracking-[-0.01em] text-[#102018]">
+        <p className="font-serif text-[14px] leading-[1.55] tracking-[-0.01em] text-[#102018]">
           {renderFormattedLine(text)}
         </p>
       )
@@ -2238,11 +2311,11 @@ function PlayPageContent() {
 
     return (
       <div className="orthodle-teaching-card rounded-xl bg-[#fcfbf8] px-3 py-2.5">
-        <div className="space-y-3">
-          {allSections.map((section, sectionIndex) => (
+        <div className="space-y-2.5">
+          {compactTeaching.sections.map((section, sectionIndex) => (
             <div
-              key={section.label}
-              className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-3' : ''}
+              key={`${section.label}-${sectionIndex}`}
+              className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
             >
               {section.label.toLowerCase() === 'orthodle insight' ? (
                 <>
@@ -2259,8 +2332,26 @@ function PlayPageContent() {
                     </span>
                   </button>
                   {showOrthodleInsight && (
-                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
+                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1">
                       {renderTeachingBody(section.body, `insight-${sectionIndex}`)}
+                      {section.callouts.length > 0 ? (
+                        <div className="mt-1.5 space-y-1">
+                          {section.callouts.map((callout, calloutIndex) => (
+                            <div
+                              key={`${section.label}-callout-${calloutIndex}`}
+                              className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                            >
+                              <span className="font-semibold text-[#315f4d]">
+                                {callout.label}:
+                              </span>{' '}
+                              {renderFormattedLine(
+                                callout.text,
+                                `${section.label}-callout-text-${calloutIndex}`
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </>
@@ -2279,24 +2370,74 @@ function PlayPageContent() {
                     </span>
                   </button>
                   {showQuickTakeaway && (
-                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
+                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1">
                       {renderTeachingBody(section.body, `takeaway-${sectionIndex}`)}
+                      {section.callouts.length > 0 ? (
+                        <div className="mt-1.5 space-y-1">
+                          {section.callouts.map((callout, calloutIndex) => (
+                            <div
+                              key={`${section.label}-callout-${calloutIndex}`}
+                              className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                            >
+                              <span className="font-semibold text-[#315f4d]">
+                                {callout.label}:
+                              </span>{' '}
+                              {renderFormattedLine(
+                                callout.text,
+                                `${section.label}-callout-text-${calloutIndex}`
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                       {teachingImages}
                     </div>
                   )}
                 </>
               ) : (
                 <>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                  <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                     {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                   </div>
-                  <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
+                  <div className="orthodle-teaching-unfold mt-1.5 space-y-1">
                     {renderTeachingBody(section.body, `section-${sectionIndex}`)}
+                    {section.callouts.length > 0 ? (
+                      <div className="mt-1.5 space-y-1">
+                        {section.callouts.map((callout, calloutIndex) => (
+                          <div
+                            key={`${section.label}-callout-${calloutIndex}`}
+                            className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                          >
+                            <span className="font-semibold text-[#315f4d]">
+                              {callout.label}:
+                            </span>{' '}
+                            {renderFormattedLine(
+                              callout.text,
+                              `${section.label}-callout-text-${calloutIndex}`
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </>
               )}
             </div>
           ))}
+          {compactTeaching.footerLines.length > 0 ? (
+            <div className="border-t border-dashed border-[#ded7ca] pt-2">
+              <div className="flex flex-wrap gap-2 text-[11px] leading-5 text-[#637268]">
+                {compactTeaching.footerLines.map((line, index) => (
+                  <div
+                    key={`footer-line-${index}`}
+                    className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 shadow-[0_4px_10px_rgba(16,32,24,0.025)]"
+                  >
+                    {renderFormattedLine(line, `teaching-footer-${index}`)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {!hasQuickTakeawaySection && teachingImages}
         </div>
       </div>
