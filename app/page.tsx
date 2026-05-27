@@ -523,6 +523,10 @@ function PlayPageContent() {
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
   const imagePinchStart = useRef<number | null>(null)
   const imageScaleStart = useRef<number>(1)
+  const teachingImageSectionRef = useRef<HTMLDivElement | null>(null)
+  const hasShownTeachingImageSpotlightRef = useRef(false)
+  const orthodleInsightSectionRef = useRef<HTMLDivElement | null>(null)
+  const hasShownInsightWakeRef = useRef(false)
   const today = todayISO()
   const initialLevel = getInitialLevelFromParams(searchParams.get('level'), null, today)
   const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
@@ -562,6 +566,9 @@ function PlayPageContent() {
   const [showLocalhostReset, setShowLocalhostReset] = useState(false)
   const [showStreakIgnition, setShowStreakIgnition] = useState(false)
   const [showRailCompleteMoment, setShowRailCompleteMoment] = useState(false)
+  const [showTeachingImageSpotlight, setShowTeachingImageSpotlight] = useState(false)
+  const [showOrthodleInsightWake, setShowOrthodleInsightWake] = useState(false)
+  const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
@@ -1321,12 +1328,17 @@ function PlayPageContent() {
     async function loadCase() {
       setLoading(true)
       setDailyCase(null)
-          setGuess('')
+        setGuess('')
           setGuesses([])
           setSelectedAnatomyLetters([])
-          setGameWon(false)
-          setGameOver(false)
-          setMessage('')
+      setGameWon(false)
+      setGameOver(false)
+      setMessage('')
+      setShowTeachingImageSpotlight(false)
+      setShowOrthodleInsightWake(false)
+      setShowSolvedTeachingStep(false)
+      hasShownTeachingImageSpotlightRef.current = false
+      hasShownInsightWakeRef.current = false
       setShakeInput(false)
       setPulseSuccess(false)
       setShowConfetti(false)
@@ -2325,11 +2337,12 @@ function PlayPageContent() {
 
     return (
       <div className="orthodle-teaching-card rounded-xl bg-[#fcfbf8] px-3 py-2.5">
-        <div className="space-y-2.5">
+        <div className={`space-y-2.5 ${showSolvedTeachingStep ? 'orthodle-solved-step-in' : 'opacity-0 translate-y-2'}`}>
           {visibleSections.map((section, sectionIndex) => (
             <div
               key={`${section.label}-${sectionIndex}`}
-              className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
+              ref={section.label.toLowerCase() === 'orthodle insight' ? orthodleInsightSectionRef : undefined}
+              className={`${section.label.toLowerCase() === 'orthodle insight' && showOrthodleInsightWake ? 'orthodle-insight-wake' : ''} ${sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}`}
             >
               {section.label.toLowerCase() === 'orthodle insight' ? (
                 <>
@@ -2341,7 +2354,10 @@ function PlayPageContent() {
                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                       {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                     </div>
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
+                    <span
+                      data-insight-toggle-icon
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]"
+                    >
                       {showOrthodleInsight ? '▴' : '▾'}
                     </span>
                   </button>
@@ -2543,7 +2559,12 @@ function PlayPageContent() {
     if (learningImages.length === 0) return null
 
     return (
-      <div className="rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
+      <div
+        ref={teachingImageSectionRef}
+        className={`rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5 ${
+          showTeachingImageSpotlight ? 'orthodle-teaching-image-spotlight' : ''
+        }`}
+      >
         <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
           Teaching Images
         </div>
@@ -2650,36 +2671,47 @@ function PlayPageContent() {
     if (typeof window !== 'undefined' && window.innerWidth < 640) {
       setShowSuggestions(false)
     }
-    const data = isAdminPreview
-      ? (() => {
-          const accepted = [dailyCase.answer, ...(dailyCase.synonyms || [])]
-          const isAnatomyPreview = dailyCase.level === 'attending' && surgicalAnatomyChoices.length >= 2
-          const correct = isAnatomyPreview
-            ? isCorrectAnatomySelection(
-                currentGuess,
-                surgicalAnatomyChoices,
-                dailyCase.answer,
-                dailyCase.synonyms || []
-              )
-            : isAcceptedGuess(currentGuess, accepted)
-          return { correct, remaining: Math.max(0, maxGuessesForCurrentCase - (guesses.length + 1)) }
-        })()
-      : await (async () => {
-          const sessionId = getSessionId()
-          const res = await fetch('/api/guess', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              caseId: dailyCase.id,
-              guess: currentGuess,
-              sessionId,
-              doNotTrack: isTrackingDisabledForThisBrowser(),
-              preview: isAdminPreview,
-            }),
-          })
+    let data: { correct: boolean; remaining: number }
+    try {
+      data = isAdminPreview
+        ? (() => {
+            const accepted = [dailyCase.answer, ...(dailyCase.synonyms || [])]
+            const isAnatomyPreview =
+              dailyCase.level === 'attending' && surgicalAnatomyChoices.length >= 2
+            const correct = isAnatomyPreview
+              ? isCorrectAnatomySelection(
+                  currentGuess,
+                  surgicalAnatomyChoices,
+                  dailyCase.answer,
+                  dailyCase.synonyms || []
+                )
+              : isAcceptedGuess(currentGuess, accepted)
+            return {
+              correct,
+              remaining: Math.max(0, maxGuessesForCurrentCase - (guesses.length + 1)),
+            }
+          })()
+        : await (async () => {
+            const sessionId = getSessionId()
+            const res = await fetch('/api/guess', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                caseId: dailyCase.id,
+                guess: currentGuess,
+                sessionId,
+                doNotTrack: isTrackingDisabledForThisBrowser(),
+                preview: isAdminPreview,
+              }),
+            })
 
-          return res.json()
-        })()
+            return res.json()
+          })()
+    } catch {
+      setGuess('')
+      setMessage('Could not check that guess right now.')
+      return
+    }
     const nextGuessCount = guesses.length + 1
 
     const nextGuesses = [...guesses, { text: displayedGuess, correct: data.correct }]
@@ -2709,7 +2741,7 @@ function PlayPageContent() {
           gameWon: true,
           gameOver: false,
           message: nextMessage,
-        })
+      })
       }
       triggerSuccessPulse()
       return
@@ -2838,6 +2870,79 @@ function PlayPageContent() {
 
     return () => window.clearTimeout(timeoutId)
   }, [gameWon, justCompletedRound, roundComplete])
+
+  useEffect(() => {
+    if (!roundComplete || !justCompletedRound || typeof window === 'undefined') return
+
+    setShowSolvedTeachingStep(false)
+    const teachingTimeout = window.setTimeout(() => {
+      setShowSolvedTeachingStep(true)
+    }, 220)
+
+    return () => {
+      window.clearTimeout(teachingTimeout)
+    }
+  }, [justCompletedRound, roundComplete])
+
+  useEffect(() => {
+    if (
+      !roundComplete ||
+      !justCompletedRound ||
+      !gameWon ||
+      hasShownTeachingImageSpotlightRef.current ||
+      !(dailyCase?.learning_image_url || dailyCase?.learning_image_url_2) ||
+      typeof window === 'undefined'
+    ) {
+      return
+    }
+
+    const target = teachingImageSectionRef.current
+    if (!target) return
+
+    const observer = new window.IntersectionObserver(
+      entries => {
+        const entry = entries[0]
+        if (!entry?.isIntersecting || hasShownTeachingImageSpotlightRef.current) return
+        hasShownTeachingImageSpotlightRef.current = true
+        setShowTeachingImageSpotlight(true)
+        window.setTimeout(() => setShowTeachingImageSpotlight(false), 1700)
+        observer.disconnect()
+      },
+      { threshold: 0.22 }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [dailyCase?.learning_image_url, dailyCase?.learning_image_url_2, gameWon, justCompletedRound, roundComplete])
+
+  useEffect(() => {
+    if (
+      !roundComplete ||
+      !showOrthodleInsight ||
+      hasShownInsightWakeRef.current ||
+      typeof window === 'undefined'
+    ) {
+      return
+    }
+
+    const target = orthodleInsightSectionRef.current
+    if (!target) return
+
+    const observer = new window.IntersectionObserver(
+      entries => {
+        const entry = entries[0]
+        if (!entry?.isIntersecting || hasShownInsightWakeRef.current) return
+        hasShownInsightWakeRef.current = true
+        setShowOrthodleInsightWake(true)
+        window.setTimeout(() => setShowOrthodleInsightWake(false), 1400)
+        observer.disconnect()
+      },
+      { threshold: 0.18 }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [roundComplete, showOrthodleInsight])
 
   const homeTabs = useMemo(
     () => {
@@ -3340,6 +3445,45 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-rail-settle-sheen {
+          0% {
+            background-position: 140% 0;
+          }
+          100% {
+            background-position: -40% 0;
+          }
+        }
+
+        @keyframes orthodle-teaching-spotlight {
+          0% {
+            opacity: 0.86;
+            box-shadow:
+              0 0 0 0 rgba(240, 194, 71, 0),
+              inset 0 0 0 1px rgba(255,255,255,0);
+            transform: translateY(12px) scale(0.985);
+            filter: saturate(0.94);
+          }
+          45% {
+            opacity: 1;
+            box-shadow:
+              0 20px 40px rgba(240, 194, 71, 0.14),
+              0 0 0 1px rgba(240, 194, 71, 0.2),
+              0 0 0 10px rgba(240, 194, 71, 0.08),
+              inset 0 1px 0 rgba(255,255,255,0.78);
+            transform: translateY(0) scale(1.01);
+            filter: saturate(1.02);
+          }
+          100% {
+            opacity: 1;
+            box-shadow:
+              0 12px 26px rgba(16, 32, 24, 0.06),
+              0 0 0 1px rgba(240, 194, 71, 0.1),
+              inset 0 1px 0 rgba(255,255,255,0.72);
+            transform: translateY(0) scale(1);
+            filter: saturate(1);
+          }
+        }
+
         @keyframes orthodle-anatomy-flip {
           0% {
             opacity: 0.85;
@@ -3357,16 +3501,92 @@ function PlayPageContent() {
 
         @keyframes orthodle-clue-pulse {
           0% {
-            transform: translateY(4px) scale(0.985);
+            opacity: 0;
+            transform: translateY(-12px) scale(0.98);
             box-shadow: 0 0 0 0 rgba(199, 107, 58, 0);
           }
+          60% {
+            opacity: 1;
+            transform: translateY(2px) scale(1.01);
+            box-shadow: 0 10px 20px rgba(199, 107, 58, 0.08);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            box-shadow: 0 0 0 0 rgba(199, 107, 58, 0);
+          }
+        }
+
+        @keyframes orthodle-choice-settle {
+          0% {
+            transform: translateY(0) scale(1);
+          }
           45% {
-            transform: translateY(0) scale(1.01);
-            box-shadow: 0 0 0 10px rgba(199, 107, 58, 0.06);
+            transform: translateY(-2px) scale(1.02);
           }
           100% {
             transform: translateY(0) scale(1);
-            box-shadow: 0 0 0 0 rgba(199, 107, 58, 0);
+          }
+        }
+
+        @keyframes orthodle-step-in {
+          0% {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes orthodle-scroll-wake {
+          0% {
+            transform: translateY(10px) scale(0.985);
+            opacity: 0.82;
+            box-shadow: 0 0 0 0 rgba(240, 194, 71, 0);
+            background-color: rgba(255, 250, 241, 0);
+          }
+          42% {
+            transform: translateY(0) scale(1.008);
+            opacity: 1;
+            box-shadow:
+              0 0 0 1px rgba(240, 194, 71, 0.42),
+              0 16px 32px rgba(16, 32, 24, 0.08),
+              0 0 0 10px rgba(240, 194, 71, 0.08);
+            background-color: rgba(255, 250, 241, 0.96);
+          }
+          100% {
+            transform: translateY(0);
+            opacity: 1;
+            box-shadow:
+              0 0 0 1px rgba(240, 194, 71, 0.16),
+              0 8px 18px rgba(16, 32, 24, 0.04);
+            background-color: rgba(255, 250, 241, 0.72);
+          }
+        }
+
+        @keyframes orthodle-insight-icon-bob {
+          0%,
+          100% {
+            transform: translateY(0);
+          }
+          35% {
+            transform: translateY(-2px) scale(1.06);
+          }
+          70% {
+            transform: translateY(1px);
+          }
+        }
+
+        @keyframes orthodle-mobile-sheet-rise {
+          0% {
+            opacity: 0;
+            transform: translateY(18px) scale(0.985);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
           }
         }
 
@@ -3497,14 +3717,58 @@ function PlayPageContent() {
           animation: orthodle-rail-complete 1.15s ease-out both;
         }
 
+        .orthodle-rail-settled-complete {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .orthodle-rail-settled-complete::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          pointer-events: none;
+          background:
+            linear-gradient(
+              110deg,
+              rgba(255,255,255,0) 0%,
+              rgba(255,255,255,0) 38%,
+              rgba(240, 194, 71, 0.14) 50%,
+              rgba(255,255,255,0) 62%,
+              rgba(255,255,255,0) 100%
+            );
+          background-size: 180% 100%;
+          background-repeat: no-repeat;
+          animation: orthodle-rail-settle-sheen 4.8s linear infinite;
+          opacity: 0.85;
+        }
+
         .orthodle-anatomy-choice-flip {
           backface-visibility: hidden;
           transform-style: preserve-3d;
           animation: orthodle-anatomy-flip 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
+        .orthodle-anatomy-choice-magnetic:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 24px rgba(16, 32, 24, 0.08);
+        }
+
+        .orthodle-anatomy-choice-magnetic:active {
+          transform: translateY(0) scale(0.988);
+        }
+
+        .orthodle-anatomy-choice-selected {
+          animation: orthodle-choice-settle 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-anatomy-choice-faded {
+          opacity: 0.52;
+          filter: saturate(0.8);
+        }
+
         .orthodle-clue-pulse {
-          animation: orthodle-clue-pulse 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: orthodle-clue-pulse 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .orthodle-image-curtain {
@@ -3540,6 +3804,32 @@ function PlayPageContent() {
           transform: scale(0.985);
         }
 
+        .orthodle-thumb-confirm:active {
+          transform: scale(0.96) translateY(1px);
+          box-shadow: inset 0 2px 6px rgba(16, 32, 24, 0.14);
+        }
+
+        .orthodle-tap-ripple {
+          position: relative;
+          overflow: hidden;
+        }
+
+        .orthodle-tap-ripple::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at center, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 62%);
+          opacity: 0;
+          transform: scale(0.35);
+          transition: opacity 180ms ease, transform 220ms ease;
+          pointer-events: none;
+        }
+
+        .orthodle-tap-ripple:active::after {
+          opacity: 1;
+          transform: scale(1);
+        }
+
         .orthodle-streak-ember {
           background-image:
             linear-gradient(
@@ -3559,12 +3849,52 @@ function PlayPageContent() {
           animation: orthodle-teaching-unfold 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
+        .orthodle-teaching-image-spotlight {
+          position: relative;
+          animation: orthodle-teaching-spotlight 1.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+          box-shadow:
+            0 0 0 1px rgba(240, 194, 71, 0.22),
+            0 18px 34px rgba(16, 32, 24, 0.1),
+            0 0 0 10px rgba(240, 194, 71, 0.08);
+        }
+
+        .orthodle-teaching-image-spotlight::after {
+          content: '';
+          position: absolute;
+          inset: -12% -4% auto;
+          height: 62%;
+          pointer-events: none;
+          background: radial-gradient(circle at 50% 20%, rgba(240, 194, 71, 0.18) 0%, rgba(240, 194, 71, 0.08) 24%, rgba(255,255,255,0) 66%);
+          opacity: 0.9;
+        }
+
+        .orthodle-insight-wake {
+          border-radius: 16px;
+          animation: orthodle-scroll-wake 0.92s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-insight-wake [data-insight-toggle-icon] {
+          animation: orthodle-insight-icon-bob 0.62s ease-out 0.16s 2;
+        }
+
+        .orthodle-solved-step-in {
+          animation: orthodle-step-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-scroll-wake {
+          animation: orthodle-scroll-wake 0.92s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
         .orthodle-image-swap {
           animation: orthodle-image-swap 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .orthodle-journal-rise {
           animation: orthodle-journal-rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-mobile-sheet {
+          animation: orthodle-mobile-sheet-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
       `}</style>
@@ -3613,7 +3943,8 @@ function PlayPageContent() {
 
       {showTutorial && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#102018]/60 px-4">
-          <div className="w-full max-w-sm rounded-[24px] border border-[#e7e1d6] bg-white p-4 shadow-[0_18px_40px_rgba(16,32,24,0.18)]">
+          <div className="orthodle-mobile-sheet w-full max-w-sm rounded-[24px] border border-[#e7e1d6] bg-white p-4 shadow-[0_18px_40px_rgba(16,32,24,0.18)]">
+            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="mt-1.5 font-serif text-[25px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
@@ -3845,7 +4176,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showRailCompleteMoment ? 'orthodle-lineup-rail-glow orthodle-rail-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showRailCompleteMoment ? 'orthodle-lineup-rail-glow orthodle-rail-complete' : ''} ${onTodayCard && todayComplete ? 'orthodle-rail-settled-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           {homeBootReady ? (
             <div
               className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
@@ -3857,7 +4188,7 @@ function PlayPageContent() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`orthodle-home-tab flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                    className={`orthodle-home-tab orthodle-tap-ripple flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                       item.subtitle
                         ? 'min-h-[54px] flex-col justify-center py-1.5 sm:min-h-[56px] sm:py-2'
                         : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
@@ -3884,12 +4215,12 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `orthodle-home-tab-active rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      ? `orthodle-home-tab-active orthodle-tap-ripple rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
-                      : `orthodle-home-tab rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      : `orthodle-home-tab orthodle-tap-ripple rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
@@ -4103,7 +4434,7 @@ function PlayPageContent() {
                                         : [letter]
                                   )
                                 }
-                                className={`orthodle-anatomy-choice ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} rounded-2xl border px-3 py-3 text-left transition ${
+                                className={`orthodle-anatomy-choice orthodle-anatomy-choice-magnetic orthodle-micro-press orthodle-tap-ripple ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} ${!roundComplete && isChosenChoice ? 'orthodle-anatomy-choice-selected' : ''} ${roundComplete && !isCorrectChoice && !isChosenChoice ? 'orthodle-anatomy-choice-faded' : ''} rounded-2xl border px-3 py-3 text-left transition ${
                                   choiceState === 'correct'
                                     ? 'orthodle-anatomy-choice-correct cursor-default border-[#cfe2d6] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
@@ -4156,20 +4487,20 @@ function PlayPageContent() {
                                   selectedAnatomyLetters
                                 )
                               }
-                              className="orthodle-primary-button orthodle-micro-press rounded-lg border px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] disabled:cursor-not-allowed"
+                              className="orthodle-primary-button orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple rounded-lg border px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] disabled:cursor-not-allowed"
                             >
                               Submit
                             </button>
                           </div>
                         )}
                       </>
-                    ) : (
+                    ) : isAdminPreview ? (
                       <div className="mt-3 rounded-2xl border border-dashed border-[#d9cfbf] bg-[#fbfaf7] px-4 py-4 text-center">
                         <p className="text-[12px] leading-5 text-[#6d766f]">
                           This anatomy case needs at least two saved answer choices before it can run as a quiz.
                         </p>
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 ) : visibleFindings.length > 0 ? (
                   <div className="space-y-2.5">
@@ -4218,7 +4549,11 @@ function PlayPageContent() {
                             setShowSuggestions(true)
                             keepMobileInputInView()
                           }}
-                          onBlur={() => window.setTimeout(() => setShowSuggestions(false), 120)}
+                          onBlur={() =>
+                            window.setTimeout(() => {
+                              setShowSuggestions(false)
+                            }, 120)
+                          }
                           onKeyDown={e => e.key === 'Enter' && submitGuess()}
                           autoCapitalize="none"
                           autoCorrect="off"
@@ -4234,7 +4569,7 @@ function PlayPageContent() {
                         <button
                           onClick={() => void submitGuess()}
                           disabled={!dailyCase}
-                          className="orthodle-primary-button orthodle-home-guess orthodle-micro-press min-h-[44px] rounded-xl px-4 py-2 text-[11px] font-bold duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
+                          className="orthodle-primary-button orthodle-home-guess orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple min-h-[44px] rounded-xl px-4 py-2 text-[11px] font-bold duration-200 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:scale-100"
                         >
                           Guess
                         </button>
@@ -4446,7 +4781,8 @@ function PlayPageContent() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8"
           onClick={closeExpandedImage}
         >
-          <div className="orthodle-image-modal w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
+          <div className="orthodle-image-modal orthodle-mobile-sheet w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
+            <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
             <div className="orthodle-image-modal-header flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                 Imaging
