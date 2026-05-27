@@ -2872,7 +2872,15 @@ function PlayPageContent() {
   }, [gameWon, justCompletedRound, roundComplete])
 
   useEffect(() => {
-    if (!roundComplete || !justCompletedRound || typeof window === 'undefined') return
+    if (!roundComplete) {
+      setShowSolvedTeachingStep(false)
+      return
+    }
+
+    if (!justCompletedRound || typeof window === 'undefined') {
+      setShowSolvedTeachingStep(true)
+      return
+    }
 
     setShowSolvedTeachingStep(false)
     const teachingTimeout = window.setTimeout(() => {
