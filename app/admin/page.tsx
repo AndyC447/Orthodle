@@ -453,6 +453,7 @@ const EMAIL_REMINDERS_SEEN_AT_KEY = 'orthodle_seen_email_reminders_at'
 
 export default function AdminPage() {
   const teachingPointRef = useRef<HTMLTextAreaElement | null>(null)
+  const clueTextareaRefs = useRef<Array<HTMLTextAreaElement | null>>([])
   const previousLevelRef = useRef<Level>('med_student')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
@@ -970,9 +971,17 @@ export default function AdminPage() {
 
   function autoGrowTextarea(event: React.FormEvent<HTMLTextAreaElement>) {
     const element = event.currentTarget
-    element.style.height = '0px'
-    element.style.height = `${element.scrollHeight}px`
+    element.style.height = 'auto'
+    element.style.height = `${Math.max(element.scrollHeight, element.clientHeight, 46)}px`
   }
+
+  useEffect(() => {
+    for (const textarea of clueTextareaRefs.current) {
+      if (!textarea) continue
+      textarea.style.height = 'auto'
+      textarea.style.height = `${Math.max(textarea.scrollHeight, textarea.clientHeight, 46)}px`
+    }
+  }, [clue1, clue2, clue3, clue4, clue5, clue6, level])
 
   useEffect(() => {
     if (!isUnlocked) return
@@ -3607,8 +3616,6 @@ export default function AdminPage() {
                   <div className="mt-3 grid gap-2">
                     {browsedLevelOrder.map(levelValue => {
                       const item = browsedCases.find(entry => entry.level === levelValue)
-                      const nextMissing = nextMissingLevelForDate(browseDate)
-
                       return (
                         <div
                           key={`browse-${browseDate}-${levelValue}`}
@@ -3639,7 +3646,7 @@ export default function AdminPage() {
                               >
                                 Edit
                               </button>
-                            ) : nextMissing === levelValue ? (
+                            ) : (
                               <button
                                 type="button"
                                 onClick={() => startCaseFor(browseDate, levelValue)}
@@ -3647,7 +3654,7 @@ export default function AdminPage() {
                               >
                                 Add
                               </button>
-                            ) : null}
+                            )}
                           </div>
                         </div>
                       )
@@ -3678,8 +3685,6 @@ export default function AdminPage() {
     const readyCount = levelOrderForSection.filter(levelValue =>
       cases.some(item => item.level === levelValue)
     ).length
-    const nextMissing = nextMissingLevelForDate(dateText)
-
     return (
       <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <div className="flex items-center justify-between gap-3">
@@ -3756,7 +3761,7 @@ export default function AdminPage() {
                     >
                       Edit
                     </button>
-                  ) : nextMissing === levelValue ? (
+                  ) : (
                     <button
                       type="button"
                       onClick={() => startCaseFor(dateText, levelValue)}
@@ -3764,7 +3769,7 @@ export default function AdminPage() {
                     >
                       Add
                     </button>
-                  ) : null}
+                  )}
                 </div>
               </div>
             )
@@ -4350,68 +4355,86 @@ export default function AdminPage() {
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'A' : 'Clue 1'}
                     <textarea
+                      ref={element => {
+                        clueTextareaRefs.current[0] = element
+                      }}
                       value={clue1}
                       onChange={e => updateClueAt(0, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
-                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'B' : 'Clue 2'}
                     <textarea
+                      ref={element => {
+                        clueTextareaRefs.current[1] = element
+                      }}
                       value={clue2}
                       onChange={e => updateClueAt(1, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
-                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'C' : 'Clue 3'}
                     <textarea
+                      ref={element => {
+                        clueTextareaRefs.current[2] = element
+                      }}
                       value={clue3}
                       onChange={e => updateClueAt(2, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
-                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'D' : 'Clue 4'}
                     <textarea
+                      ref={element => {
+                        clueTextareaRefs.current[3] = element
+                      }}
                       value={clue4}
                       onChange={e => updateClueAt(3, e.target.value)}
                       onInput={autoGrowTextarea}
                       rows={1}
-                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'E' : 'Clue 5'}
                     <textarea
+                      ref={element => {
+                        clueTextareaRefs.current[4] = element
+                      }}
                       value={clue5}
                       onChange={e => updateClueAt(4, e.target.value)}
                       placeholder="Optional"
                       onInput={autoGrowTextarea}
                       rows={1}
-                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'F' : 'Clue 6'}
                     <textarea
+                      ref={element => {
+                        clueTextareaRefs.current[5] = element
+                      }}
                       value={clue6}
                       onChange={e => updateClueAt(5, e.target.value)}
                       placeholder="Optional"
                       onInput={autoGrowTextarea}
                       rows={1}
-                      className="min-h-[46px] resize-none overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                   </label>
                 </div>
