@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import { isAnatomyQuizCaseRecord } from '@/lib/anatomy-quiz'
 import {
   DEFAULT_LEVEL_TITLES,
   normalizeLevelTitles,
@@ -21,8 +22,15 @@ type ArchiveCase = {
   case_date: string
   level: Level
   answer: string
+  synonyms: string[] | null
   category: string | null
   image_url: string | null
+  clue_1: string | null
+  clue_2: string | null
+  clue_3: string | null
+  clue_4: string | null
+  clue_5: string | null
+  clue_6: string | null
 }
 
 type GuessLite = {
@@ -92,7 +100,7 @@ export default function ArchivePage() {
         fetchExcludedStatsSessionIds(),
         supabase
           .from('cases')
-          .select('id, case_date, level, answer, category, image_url')
+          .select('id, case_date, level, answer, synonyms, category, image_url, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
           .gte('case_date', LAUNCH_DATE)
           .lte('case_date', today)
           .order('case_date', { ascending: false })
@@ -206,9 +214,10 @@ export default function ArchivePage() {
     return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
   }
 
-  function formatLevel(level: Level, dateText = today) {
+  function formatLevel(level: Level, dateText = today, caseItem: ArchiveCase | null = null) {
     if (level === 'med_student') return levelTitles.med_student
     if (level === 'resident') return levelTitles.resident
+    if (caseItem && !isAnatomyQuizCaseRecord(caseItem)) return 'Attending'
     return isSurgicalAnatomyDate(dateText) ? levelTitles.attending : 'Attending'
   }
 
@@ -452,7 +461,7 @@ export default function ArchivePage() {
                           style={{ animationDelay: `${Math.min(groupIndex * 0.04 + levelIndex * 0.05, 0.34)}s` }}
                         >
                           <div className={caseMetaLabelClass}>
-                            {toTitleCase(formatLevel(level, item.case_date))}
+                            {toTitleCase(formatLevel(level, item.case_date, item))}
                           </div>
                           <div className="mt-0.5 line-clamp-2 font-serif text-[12.5px] font-bold leading-tight tracking-[-0.01em] text-[#102018] sm:mt-1 sm:text-[13px]">
                             {showAnswers ? item.answer : formatCategoryLabel(item.category)}

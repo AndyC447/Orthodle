@@ -119,3 +119,38 @@ export function isCorrectAnatomySelection(
   const selectedSet = new Set(selectedLetters)
   return correctLetters.every(letter => selectedSet.has(letter))
 }
+
+type AnatomyQuizCaseLike = {
+  answer?: string | null
+  synonyms?: string[] | null
+  clue_1?: string | null
+  clue_2?: string | null
+  clue_3?: string | null
+  clue_4?: string | null
+  clue_5?: string | null
+  clue_6?: string | null
+}
+
+export function isAnatomyQuizCaseRecord(caseLike: AnatomyQuizCaseLike | null | undefined) {
+  if (!caseLike) return false
+
+  const choiceSource = [
+    caseLike.clue_1,
+    caseLike.clue_2,
+    caseLike.clue_3,
+    caseLike.clue_4,
+    caseLike.clue_5,
+    caseLike.clue_6,
+  ]
+
+  const choiceItems = getAnatomyChoiceItems(choiceSource)
+  if (choiceItems.length < 2) return false
+
+  return (
+    getCorrectAnatomyChoiceLetters(
+      choiceSource,
+      caseLike.answer || '',
+      caseLike.synonyms || []
+    ).length > 0
+  )
+}

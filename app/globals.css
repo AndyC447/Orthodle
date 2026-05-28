@@ -1,24 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #eef2ec;
+  --bg: #f4f1ea;
   --ink: #18231c;
   --green: #16392a;
-  --green-2: #335f4b;
-  --green-3: #426d57;
-  --muted: #66746a;
-  --line: #c8d0c4;
-  --card: #f7faf6;
-  --card-strong: #fffefa;
-  --orange: #b9753d;
-  --shadow: 0 16px 34px rgba(16, 32, 24, 0.08);
-  --shadow-soft: 0 12px 24px rgba(16, 32, 24, 0.06);
-  --paper-grid: rgba(34, 59, 46, 0.046);
-  --panel-border-strong: rgba(250, 245, 236, 0.82);
-  --gold-line: rgba(209, 170, 93, 0.34);
-  --paper-speck: rgba(31, 48, 38, 0.022);
-  --surface-top-highlight: rgba(255, 255, 255, 0.78);
-  --surface-bottom-shadow: rgba(137, 156, 141, 0.16);
+  --green-2: #2f5e49;
+  --green-3: #3f6d55;
+  --muted: #6f756e;
+  --line: #ddd3c4;
+  --card: #fbf8f2;
+  --card-strong: #fffdf8;
+  --orange: #c9773e;
+  --shadow: 0 16px 34px rgba(31, 33, 24, 0.07);
+  --shadow-soft: 0 12px 24px rgba(31, 33, 24, 0.05);
+  --paper-grid: rgba(124, 111, 87, 0.024);
+  --panel-border-strong: rgba(247, 239, 226, 0.9);
+  --gold-line: rgba(215, 177, 108, 0.38);
+  --paper-speck: rgba(90, 77, 53, 0.022);
+  --surface-top-highlight: rgba(255, 255, 255, 0.8);
+  --surface-bottom-shadow: rgba(192, 177, 152, 0.14);
   --button-top-highlight: rgba(255, 255, 255, 0.22);
   --button-bottom-shadow: rgba(11, 28, 20, 0.2);
 }
@@ -127,10 +127,10 @@ body {
 
 .app-surface {
   background:
-    radial-gradient(circle at 10% 0%, rgba(66, 109, 87, 0.08), transparent 24%),
-    radial-gradient(circle at 96% 4%, rgba(185, 117, 61, 0.05), transparent 18%),
-    radial-gradient(circle at 55% 100%, rgba(110, 140, 125, 0.05), transparent 28%),
-    linear-gradient(180deg, #f8fbf8 0%, #edf2ec 54%, #e8efe8 100%);
+    radial-gradient(circle at 10% 0%, rgba(221, 204, 178, 0.14), transparent 24%),
+    radial-gradient(circle at 96% 4%, rgba(201, 107, 55, 0.055), transparent 18%),
+    radial-gradient(circle at 55% 100%, rgba(230, 219, 198, 0.12), transparent 28%),
+    linear-gradient(180deg, #fbf8f2 0%, #f4efe6 54%, #f0e9df 100%);
   position: relative;
   width: 100%;
   max-width: 100%;
@@ -139,9 +139,9 @@ body {
 
 .home-surface {
   background:
-    radial-gradient(circle at 12% 0%, rgba(66, 109, 87, 0.055), transparent 22%),
-    radial-gradient(circle at 90% 3%, rgba(185, 117, 61, 0.03), transparent 16%),
-    linear-gradient(180deg, #fbfdfb 0%, #f0f5ef 100%);
+    radial-gradient(circle at 12% 0%, rgba(226, 212, 191, 0.18), transparent 24%),
+    radial-gradient(circle at 90% 3%, rgba(201, 107, 55, 0.042), transparent 16%),
+    linear-gradient(180deg, #fffdf9 0%, #f5f0e7 100%);
 }
 
 .home-surface::before {
@@ -165,8 +165,8 @@ body {
 .night-surface {
   background:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.5), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 250, 246, 0.98));
-  border-color: rgba(186, 197, 187, 0.62);
+    linear-gradient(180deg, rgba(255, 254, 251, 0.985), rgba(251, 247, 240, 0.982));
+  border-color: rgba(216, 205, 187, 0.72);
   box-shadow:
     inset 0 1px 0 var(--surface-top-highlight),
     inset 0 -1px 0 var(--surface-bottom-shadow),
@@ -181,8 +181,8 @@ body {
 
 .night-soft-surface {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 246, 0.94));
-  border-color: rgba(188, 198, 188, 0.4);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.986), rgba(252, 248, 242, 0.95));
+  border-color: rgba(221, 210, 192, 0.5);
   transition:
     background-color 300ms ease,
     border-color 300ms ease,
@@ -206,9 +206,10 @@ body {
 
 .orthodle-podium-card {
   background:
-    radial-gradient(circle at 50% -12%, rgba(231, 184, 63, 0.2), transparent 34%),
-    linear-gradient(180deg, #fffdf8, #fbf7ef);
-  border-color: #e0d7c8;
+    radial-gradient(circle at 50% -12%, rgba(231, 184, 63, 0.18), transparent 34%),
+    radial-gradient(circle at 15% 0%, rgba(62, 127, 91, 0.045), transparent 28%),
+    linear-gradient(180deg, #fffefd, #f3f8f4);
+  border-color: #d6e1d7;
   transition:
     background-color 300ms ease,
     border-color 300ms ease,
@@ -238,9 +239,9 @@ body {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 10% 0%, rgba(45, 118, 81, 0.085), transparent 28%),
-    radial-gradient(circle at 92% 8%, rgba(201, 107, 55, 0.05), transparent 22%),
-    linear-gradient(180deg, rgba(255,255,255,0.98), rgba(247,250,246,0.98));
+    radial-gradient(circle at 10% 0%, rgba(45, 118, 81, 0.12), transparent 28%),
+    radial-gradient(circle at 92% 8%, rgba(201, 107, 55, 0.07), transparent 22%),
+    linear-gradient(180deg, rgba(255,255,255,0.985), rgba(241,248,243,0.985));
 }
 
 .orthodle-groups-shell::before {
@@ -671,11 +672,11 @@ body {
 
 .orthodle-panel-shell {
   position: relative;
-  border-color: rgba(193, 203, 194, 0.72) !important;
+  border-color: rgba(220, 209, 192, 0.82) !important;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(248, 251, 247, 0.98)) !important;
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(251, 247, 240, 0.985)) !important;
   box-shadow:
-    0 18px 34px rgba(16, 32, 24, 0.045),
+    0 18px 34px rgba(31, 33, 24, 0.042),
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
   transition:
     background-color 300ms ease,
@@ -703,8 +704,8 @@ body {
 }
 
 .orthodle-finding-card {
-  background: rgba(250, 252, 249, 0.86) !important;
-  border-color: rgba(211, 220, 211, 0.88) !important;
+  background: rgba(255, 252, 246, 0.94) !important;
+  border-color: rgba(224, 210, 188, 0.92) !important;
   box-shadow: none;
   transition:
     background-color 300ms ease,
@@ -720,10 +721,8 @@ body {
 
 .orthodle-home-rail {
   position: relative;
-  background: linear-gradient(135deg, rgba(197, 209, 198, 0.9), rgba(214, 194, 162, 0.72));
-  box-shadow:
-    0 10px 22px rgba(16, 32, 24, 0.04),
-    0 0 0 1px rgba(191, 202, 191, 0.58);
+  background: linear-gradient(135deg, rgba(220, 207, 189, 0.92), rgba(234, 223, 207, 0.82));
+  box-shadow: 0 6px 16px rgba(31, 33, 24, 0.025);
 }
 
 .orthodle-home-rail::before {
@@ -731,27 +730,24 @@ body {
   position: absolute;
   inset: 1px;
   border-radius: 21px;
-  border: 1px solid rgba(251, 249, 243, 0.82);
+  border: 1px solid rgba(248, 238, 223, 0.78);
   pointer-events: none;
-  opacity: 0.72;
+  opacity: 0.58;
 }
 
 .orthodle-home-rail-inner {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.995), rgba(247, 250, 246, 0.98));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.84),
-    inset 0 0 0 1px rgba(212, 221, 212, 0.38);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.996), rgba(252, 248, 241, 0.988));
+  box-shadow: inset 0 0 0 1px rgba(231, 220, 204, 0.3);
 }
 
 .orthodle-home-tab {
-  border-color: rgba(215, 223, 214, 0.92) !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 247, 0.94)) !important;
+  border-color: rgba(224, 212, 192, 0.96) !important;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.994), rgba(250, 246, 239, 0.974)) !important;
   color: #102018 !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.78),
-    inset 0 -1px 0 rgba(192, 204, 193, 0.18),
-    0 4px 10px rgba(16, 32, 24, 0.03);
+    0 2px 8px rgba(31, 33, 24, 0.02);
 }
 
 .orthodle-home-tab-active {
@@ -761,8 +757,7 @@ body {
     linear-gradient(180deg, var(--green-3), #1f6448 34%, #184f39) !important;
   color: #ffffff !important;
   box-shadow:
-    0 12px 22px rgba(16, 32, 24, 0.12),
-    0 2px 0 rgba(11, 28, 20, 0.12),
+    0 8px 18px rgba(16, 32, 24, 0.1),
     inset 0 1px 0 var(--button-top-highlight),
     inset 0 -1px 0 var(--button-bottom-shadow);
 }
@@ -804,13 +799,15 @@ body {
 }
 
 .orthodle-home-card {
-  border-color: rgba(196, 184, 165, 0.44) !important;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.985), rgba(252, 249, 243, 0.975)) !important;
+  border-color: rgba(224, 212, 192, 0.88) !important;
+  background:
+    radial-gradient(circle at top left, rgba(241, 227, 203, 0.18), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.992), rgba(251, 247, 240, 0.986)) !important;
   box-shadow:
-    0 18px 36px rgba(16, 32, 24, 0.05),
-    0 4px 12px rgba(16, 32, 24, 0.025),
+    0 18px 36px rgba(31, 33, 24, 0.045),
+    0 4px 12px rgba(31, 33, 24, 0.022),
     inset 0 1px 0 rgba(255, 255, 255, 0.82),
-    inset 0 -1px 0 rgba(214, 197, 170, 0.16) !important;
+    inset 0 -1px 0 rgba(220, 203, 175, 0.18) !important;
 }
 
 .orthodle-home-card::before {
@@ -822,11 +819,11 @@ body {
 }
 
 .orthodle-home-findings {
-  background: linear-gradient(180deg, rgba(255, 252, 246, 0.78), rgba(255, 251, 245, 0.56)) !important;
-  border-color: rgba(225, 214, 195, 0.78) !important;
+  background: linear-gradient(180deg, rgba(255, 252, 246, 0.96), rgba(252, 247, 239, 0.9)) !important;
+  border-color: rgba(226, 212, 191, 0.9) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.64),
-    0 8px 16px rgba(16, 32, 24, 0.028);
+    0 8px 16px rgba(31, 33, 24, 0.024);
 }
 
 .orthodle-home-input-shell {
@@ -835,10 +832,10 @@ body {
 
 .orthodle-home-input {
   background: rgba(255, 255, 255, 0.94) !important;
-  border-color: rgba(214, 204, 188, 0.88) !important;
+  border-color: rgba(221, 208, 188, 0.9) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.74),
-    0 6px 14px rgba(16, 32, 24, 0.03);
+    0 6px 14px rgba(31, 33, 24, 0.026);
 }
 
 .orthodle-home-input:focus {
@@ -851,20 +848,16 @@ body {
 
 :root[data-theme="dark"] .orthodle-home-rail {
   background: rgba(120, 111, 93, 0.52);
-  box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.2),
-    0 0 0 1px rgba(206, 188, 152, 0.12);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
 :root[data-theme="dark"] .orthodle-home-rail::before {
-  border-color: rgba(248, 241, 226, 0.12);
+  border-color: rgba(248, 241, 226, 0.09);
 }
 
 :root[data-theme="dark"] .orthodle-home-rail-inner {
   background: linear-gradient(180deg, rgba(22, 31, 27, 0.98), rgba(17, 24, 21, 0.98));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.045);
 }
 
 :root[data-theme="dark"] .orthodle-home-tab {
@@ -873,8 +866,7 @@ body {
   color: var(--ink) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.16),
-    0 6px 14px rgba(0, 0, 0, 0.14);
+    0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 :root[data-theme="dark"] .orthodle-home-tab:hover {
@@ -886,8 +878,7 @@ body {
   background: linear-gradient(180deg, var(--green-3), #1f6448 34%, #184f39) !important;
   color: #f4faf6 !important;
   box-shadow:
-    0 12px 24px rgba(0, 0, 0, 0.24),
-    0 2px 0 rgba(0, 0, 0, 0.18),
+    0 8px 18px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     inset 0 -1px 0 rgba(0, 0, 0, 0.28) !important;
 }
@@ -926,22 +917,25 @@ body {
 }
 
 .orthodle-home-secondary-action {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(247, 250, 246, 0.94));
-  border-color: rgba(213, 221, 213, 1);
+  background:
+    radial-gradient(circle at top left, rgba(239, 226, 202, 0.16), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 246, 239, 0.965));
+  border-color: rgba(223, 210, 190, 1);
   color: #102018;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    inset 0 -1px 0 rgba(191, 204, 193, 0.14),
-    0 8px 16px rgba(16, 32, 24, 0.035);
+    inset 0 -1px 0 rgba(212, 198, 175, 0.16),
+    0 8px 16px rgba(31, 33, 24, 0.03);
 }
 
 .orthodle-home-feedback-shell {
   background:
-    radial-gradient(circle at top left, rgba(66, 109, 87, 0.045), transparent 28%),
-    linear-gradient(180deg, #fdfefd, #f4f8f3);
+    radial-gradient(circle at top left, rgba(239, 226, 202, 0.24), transparent 28%),
+    radial-gradient(circle at bottom right, rgba(201, 107, 55, 0.065), transparent 24%),
+    linear-gradient(180deg, #fffefa, #f8f3ea);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.76),
-    0 12px 24px rgba(16, 32, 24, 0.035);
+    0 12px 24px rgba(31, 33, 24, 0.03);
 }
 
 .orthodle-home-toggle-chip,
@@ -1237,23 +1231,23 @@ a {
 }
 
 .orthodle-stat-tile {
-  border-color: rgba(191, 181, 166, 0.52) !important;
+  border-color: rgba(222, 210, 192, 0.76) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 12px 24px rgba(16, 32, 24, 0.04);
+    0 12px 24px rgba(31, 33, 24, 0.035);
 }
 
 .orthodle-stats-shell {
-  border-color: rgba(191, 181, 166, 0.52) !important;
+  border-color: rgba(222, 210, 192, 0.78) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.68),
-    0 16px 30px rgba(16, 32, 24, 0.04);
+    0 16px 30px rgba(31, 33, 24, 0.035);
 }
 
 .orthodle-anatomy-quiz-shell {
   background:
-    radial-gradient(circle at top left, rgba(233, 189, 106, 0.08), transparent 20%),
-    linear-gradient(180deg, rgba(255, 253, 247, 0.68) 0%, rgba(251, 247, 239, 0.42) 100%) !important;
+    radial-gradient(circle at top left, rgba(233, 189, 106, 0.1), transparent 20%),
+    linear-gradient(180deg, rgba(255, 253, 247, 0.9) 0%, rgba(252, 247, 239, 0.68) 100%) !important;
   border-color: transparent !important;
   box-shadow: none !important;
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isCorrectAnatomySelection } from '@/lib/anatomy-quiz'
+import { isAnatomyQuizCaseRecord, isCorrectAnatomySelection } from '@/lib/anatomy-quiz'
 import { supabase } from '@/lib/supabase'
 import { isAcceptedGuess } from '@/lib/utils'
 
@@ -32,10 +32,8 @@ export async function POST(req: Request) {
     caseRow.clue_5,
     caseRow.clue_6,
   ]
-  const anatomyChoiceCount = anatomyChoices.filter(
-    choice => typeof choice === 'string' && choice.trim().length > 0
-  ).length
-  const shouldUseStrictAnatomyMatching = caseRow.level === 'attending' && anatomyChoiceCount >= 2
+  const shouldUseStrictAnatomyMatching =
+    caseRow.level === 'attending' && isAnatomyQuizCaseRecord(caseRow)
   const correct = shouldUseStrictAnatomyMatching
     ? isCorrectAnatomySelection(normalizedGuess, anatomyChoices, caseRow.answer, caseRow.synonyms || [])
     : isAcceptedGuess(normalizedGuess, accepted)

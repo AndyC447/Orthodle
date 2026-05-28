@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   getAnatomyChoiceItems,
+  isAnatomyQuizCaseRecord,
   getCorrectAnatomyChoiceLetters,
   isCorrectAnatomySelection,
   parseAnatomyGuessLetters,
@@ -526,8 +527,6 @@ function PlayPageContent() {
   const imageScaleStart = useRef<number>(1)
   const teachingImageSectionRef = useRef<HTMLDivElement | null>(null)
   const hasShownTeachingImageSpotlightRef = useRef(false)
-  const orthodleInsightSectionRef = useRef<HTMLDivElement | null>(null)
-  const hasShownInsightWakeRef = useRef(false)
   const today = todayISO()
   const initialLevel = getInitialLevelFromParams(searchParams.get('level'), null, today)
   const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
@@ -540,6 +539,7 @@ function PlayPageContent() {
   const [guess, setGuess] = useState('')
   const [answerOptions, setAnswerOptions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionCursor, setSuggestionCursor] = useState(-1)
   const [guesses, setGuesses] = useState<Guess[]>([])
   const [selectedAnatomyLetters, setSelectedAnatomyLetters] = useState<string[]>([])
   const [message, setMessage] = useState('')
@@ -568,7 +568,6 @@ function PlayPageContent() {
   const [showStreakIgnition, setShowStreakIgnition] = useState(false)
   const [showRailCompleteMoment, setShowRailCompleteMoment] = useState(false)
   const [showTeachingImageSpotlight, setShowTeachingImageSpotlight] = useState(false)
-  const [showOrthodleInsightWake, setShowOrthodleInsightWake] = useState(false)
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [imageScale, setImageScale] = useState(1)
@@ -1336,10 +1335,8 @@ function PlayPageContent() {
       setGameOver(false)
       setMessage('')
       setShowTeachingImageSpotlight(false)
-      setShowOrthodleInsightWake(false)
       setShowSolvedTeachingStep(false)
       hasShownTeachingImageSpotlightRef.current = false
-      hasShownInsightWakeRef.current = false
       setShakeInput(false)
       setPulseSuccess(false)
       setShowConfetti(false)
@@ -1399,12 +1396,9 @@ function PlayPageContent() {
           setSelectedLevel(data.level)
         }
 
-        const loadedQuizChoices = [data.clue_1, data.clue_2, data.clue_3, data.clue_4, data.clue_5, data.clue_6].filter(
-          (item): item is string => Boolean(item && item.trim())
-        )
         const isAnatomyModeForLoadedCase =
-          data.level === 'attending' && canUseSurgicalAnatomyQuiz(data.case_date)
-        const useQuizMode = isAnatomyModeForLoadedCase && loadedQuizChoices.length >= 2
+          data.level === 'attending' && isAnatomyQuizCaseRecord(data)
+        const useQuizMode = isAnatomyModeForLoadedCase
         const maxGuessesForLoadedCase = isAnatomyModeForLoadedCase ? 1 : MAX_GUESSES
 
         if (
@@ -1599,7 +1593,7 @@ function PlayPageContent() {
             : null
 
         const anatomyChoiceStats =
-          data.level === 'attending' && canUseSurgicalAnatomyQuiz(data.case_date)
+          data.level === 'attending' && isAnatomyQuizCaseRecord(data)
             ? buildAnatomyChoiceBreakdown(
                 [data.clue_1, data.clue_2, data.clue_3, data.clue_4, data.clue_5, data.clue_6],
                 publicGuessRows,
@@ -1639,9 +1633,10 @@ function PlayPageContent() {
     }
   }, [caseParam, isAdminPreview, selectedLevel, selectedDate, today])
 
-  function formatLevel(level: Level, dateText = selectedDate) {
+  function formatLevel(level: Level, dateText = selectedDate, caseItem: Case | null = null) {
     if (level === 'med_student') return levelTitles.med_student
     if (level === 'resident') return levelTitles.resident
+    if (caseItem && !isAnatomyQuizCaseRecord(caseItem)) return 'Attending'
     return isSurgicalAnatomyDate(dateText) ? levelTitles.attending : 'Attending'
   }
 
@@ -1677,7 +1672,7 @@ function PlayPageContent() {
   )
 
   const isSurgicalAnatomyMode =
-    selectedLevel === 'attending' && canUseSurgicalAnatomyQuiz(dailyCase?.case_date || selectedDate)
+    selectedLevel === 'attending' && isAnatomyQuizCaseRecord(dailyCase)
   const hasValidSurgicalAnatomyChoices = surgicalAnatomyChoices.length >= 2
   const useSurgicalAnatomyQuiz = isSurgicalAnatomyMode && hasValidSurgicalAnatomyChoices
   const maxGuessesForCurrentCase = isSurgicalAnatomyMode ? 1 : MAX_GUESSES
@@ -1846,8 +1841,8 @@ function PlayPageContent() {
     return [
       `ORTHODLE${archiveLabel.toUpperCase()} ${score}`,
       selectedTaglines[selectedLevel]
-        ? `${formatLevel(selectedLevel).toUpperCase()} • ${selectedTaglines[selectedLevel]}`
-        : formatLevel(selectedLevel).toUpperCase(),
+        ? `${formatLevel(selectedLevel, selectedDate, dailyCase).toUpperCase()} • ${selectedTaglines[selectedLevel]}`
+        : formatLevel(selectedLevel, selectedDate, dailyCase).toUpperCase(),
       prettyDate,
       boxes,
       'orthodle.com',
@@ -2423,8 +2418,7 @@ function PlayPageContent() {
           {visibleSections.map((section, sectionIndex) => (
             <div
               key={`${section.label}-${sectionIndex}`}
-              ref={section.label.toLowerCase() === 'orthodle insight' ? orthodleInsightSectionRef : undefined}
-              className={`${section.label.toLowerCase() === 'orthodle insight' && showOrthodleInsightWake ? 'orthodle-insight-wake' : ''} ${sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}`}
+              className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
             >
               {section.label.toLowerCase() === 'orthodle insight' ? (
                 <>
@@ -2436,36 +2430,38 @@ function PlayPageContent() {
                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
                       {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                     </div>
-                    <span
-                      data-insight-toggle-icon
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]"
-                    >
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
                       {showOrthodleInsight ? '▴' : '▾'}
                     </span>
                   </button>
-                  {showOrthodleInsight && (
-                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1">
-                      {renderTeachingBody(section.body, `insight-${sectionIndex}`)}
-                      {section.callouts.length > 0 ? (
-                        <div className="mt-1.5 space-y-1">
-                          {section.callouts.map((callout, calloutIndex) => (
-                            <div
-                              key={`${section.label}-callout-${calloutIndex}`}
-                              className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
-                            >
-                              <span className="font-semibold text-[#315f4d]">
-                                {callout.label}:
-                              </span>{' '}
-                              {renderFormattedLine(
-                                callout.text,
-                                `${section.label}-callout-text-${calloutIndex}`
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
+                  <div
+                    aria-hidden={!showOrthodleInsight}
+                    className={`orthodle-collapsible-shell ${showOrthodleInsight ? 'orthodle-collapsible-shell-open mt-1.5' : 'mt-0.5'}`}
+                  >
+                    <div className="orthodle-collapsible-body">
+                      <div className="space-y-1">
+                        {renderTeachingBody(section.body, `insight-${sectionIndex}`)}
+                        {section.callouts.length > 0 ? (
+                          <div className="mt-1.5 space-y-1">
+                            {section.callouts.map((callout, calloutIndex) => (
+                              <div
+                                key={`${section.label}-callout-${calloutIndex}`}
+                                className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                              >
+                                <span className="font-semibold text-[#315f4d]">
+                                  {callout.label}:
+                                </span>{' '}
+                                {renderFormattedLine(
+                                  callout.text,
+                                  `${section.label}-callout-text-${calloutIndex}`
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </>
               ) : section.label.toLowerCase() === 'quick takeaway' ? (
                 <>
@@ -2481,58 +2477,63 @@ function PlayPageContent() {
                       {showQuickTakeaway ? '▴' : '▾'}
                     </span>
                   </button>
-                  {showQuickTakeaway && (
-                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1">
-                      {renderTeachingBody(section.body, `takeaway-${sectionIndex}`)}
-                      {section.callouts.length > 0 ? (
-                        <div className="mt-1.5 space-y-1">
-                          {section.callouts.map((callout, calloutIndex) => (
-                            <div
-                              key={`${section.label}-callout-${calloutIndex}`}
-                              className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
-                            >
-                              <span className="font-semibold text-[#315f4d]">
-                                {callout.label}:
-                              </span>{' '}
-                              {renderFormattedLine(
-                                callout.text,
-                                `${section.label}-callout-text-${calloutIndex}`
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : null}
-                      {teachingImages}
-                      {imagingSection ? (
-                        <div className="mt-2 border-t border-[#ebe5db] pt-2">
-                          <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
-                            {renderFormattedLine(imagingSection.label, 'imaging-below-image-label')}
-                          </div>
+                  <div
+                    aria-hidden={!showQuickTakeaway}
+                    className={`orthodle-collapsible-shell ${showQuickTakeaway ? 'orthodle-collapsible-shell-open mt-1.5' : 'mt-0.5'}`}
+                  >
+                    <div className="orthodle-collapsible-body">
+                      <div className="space-y-1">
+                        {renderTeachingBody(section.body, `takeaway-${sectionIndex}`)}
+                        {section.callouts.length > 0 ? (
                           <div className="mt-1.5 space-y-1">
-                            {renderTeachingBody(imagingSection.body, 'imaging-below-image')}
-                            {imagingSection.callouts.length > 0 ? (
-                              <div className="mt-1.5 space-y-1">
-                                {imagingSection.callouts.map((callout, calloutIndex) => (
-                                  <div
-                                    key={`${imagingSection.label}-callout-${calloutIndex}`}
-                                    className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
-                                  >
-                                    <span className="font-semibold text-[#315f4d]">
-                                      {callout.label}:
-                                    </span>{' '}
-                                    {renderFormattedLine(
-                                      callout.text,
-                                      `${imagingSection.label}-callout-text-${calloutIndex}`
-                                    )}
-                                  </div>
-                                ))}
+                            {section.callouts.map((callout, calloutIndex) => (
+                              <div
+                                key={`${section.label}-callout-${calloutIndex}`}
+                                className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                              >
+                                <span className="font-semibold text-[#315f4d]">
+                                  {callout.label}:
+                                </span>{' '}
+                                {renderFormattedLine(
+                                  callout.text,
+                                  `${section.label}-callout-text-${calloutIndex}`
+                                )}
                               </div>
-                            ) : null}
+                            ))}
                           </div>
-                        </div>
-                      ) : null}
+                        ) : null}
+                        {teachingImages}
+                        {imagingSection ? (
+                          <div className="mt-2 border-t border-[#ebe5db] pt-2">
+                            <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+                              {renderFormattedLine(imagingSection.label, 'imaging-below-image-label')}
+                            </div>
+                            <div className="mt-1.5 space-y-1">
+                              {renderTeachingBody(imagingSection.body, 'imaging-below-image')}
+                              {imagingSection.callouts.length > 0 ? (
+                                <div className="mt-1.5 space-y-1">
+                                  {imagingSection.callouts.map((callout, calloutIndex) => (
+                                    <div
+                                      key={`${imagingSection.label}-callout-${calloutIndex}`}
+                                      className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                                    >
+                                      <span className="font-semibold text-[#315f4d]">
+                                        {callout.label}:
+                                      </span>{' '}
+                                      {renderFormattedLine(
+                                        callout.text,
+                                        `${imagingSection.label}-callout-text-${calloutIndex}`
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </>
               ) : (() => {
                 const normalizedLabel = normalizeTeachingSectionLabel(section.label)
@@ -2796,9 +2797,63 @@ function PlayPageContent() {
     return [...startsWith, ...includes].slice(0, 12)
   }, [answerOptions, guess])
 
+  useEffect(() => {
+    if (!showSuggestions) {
+      setSuggestionCursor(-1)
+      return
+    }
+
+    if (filteredAnswerOptions.length === 0) {
+      setSuggestionCursor(-1)
+      return
+    }
+
+    setSuggestionCursor(current =>
+      current >= filteredAnswerOptions.length ? filteredAnswerOptions.length - 1 : current
+    )
+  }, [filteredAnswerOptions, showSuggestions])
+
   function selectSuggestion(option: string) {
     setGuess(option)
     setShowSuggestions(false)
+    setSuggestionCursor(-1)
+  }
+
+  function moveSuggestionCursor(direction: 1 | -1) {
+    if (filteredAnswerOptions.length === 0) return
+
+    setSuggestionCursor(current => {
+      return (
+        current < 0
+          ? direction > 0
+            ? 0
+            : filteredAnswerOptions.length - 1
+          : (current + direction + filteredAnswerOptions.length) % filteredAnswerOptions.length
+      )
+    })
+  }
+
+  function handleGuessInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Tab' && showSuggestions && filteredAnswerOptions.length > 0) {
+      event.preventDefault()
+      moveSuggestionCursor(event.shiftKey ? -1 : 1)
+      return
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault()
+
+      if (
+        showSuggestions &&
+        suggestionCursor >= 0 &&
+        suggestionCursor < filteredAnswerOptions.length
+      ) {
+        selectSuggestion(filteredAnswerOptions[suggestionCursor])
+        return
+      }
+
+      void submitGuess()
+    }
   }
 
   function renderSuggestionList(className: string) {
@@ -2808,7 +2863,7 @@ function PlayPageContent() {
       <div
         className={className}
       >
-        {filteredAnswerOptions.map(option => (
+        {filteredAnswerOptions.map((option, index) => (
           <button
             key={option}
             type="button"
@@ -2816,13 +2871,54 @@ function PlayPageContent() {
               e.preventDefault()
               selectSuggestion(option)
             }}
-            className="w-full border-b border-[#f0ebe1] px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7] last:border-b-0"
+            className={`w-full border-b border-[#f0ebe1] px-3 py-2 text-left text-[13px] text-[#102018] transition last:border-b-0 ${
+              index === suggestionCursor ? 'bg-[#f3f7f2]' : 'hover:bg-[#fbfaf7]'
+            }`}
           >
             {option}
           </button>
         ))}
       </div>
     )
+  }
+
+  function updateSelectedAnatomyLetters(letter: string) {
+    setSelectedAnatomyLetters(current =>
+      isMultiSelectAnatomy
+        ? current.includes(letter)
+          ? current.filter(item => item !== letter)
+          : [...current, letter].sort()
+        : current.includes(letter)
+          ? []
+          : [letter]
+    )
+  }
+
+  function submitSelectedAnatomyGuess() {
+    if (selectedAnatomyLetters.length === 0) return
+
+    return submitGuess(
+      serializeAnatomyGuessLetters(selectedAnatomyLetters),
+      selectedAnatomyLetters.join(', '),
+      selectedAnatomyLetters
+    )
+  }
+
+  function handleAnatomyChoiceKeyDown(
+    event: React.KeyboardEvent<HTMLButtonElement>,
+    letter: string,
+    isChosenChoice: boolean
+  ) {
+    if (roundComplete || event.key !== 'Enter') return
+
+    event.preventDefault()
+
+    if (!isMultiSelectAnatomy && isChosenChoice && selectedAnatomyLetters.length > 0) {
+      void submitSelectedAnatomyGuess()
+      return
+    }
+
+    updateSelectedAnatomyLetters(letter)
   }
 
   async function submitGuess(
@@ -3102,41 +3198,17 @@ function PlayPageContent() {
     return () => observer.disconnect()
   }, [dailyCase?.learning_image_url, dailyCase?.learning_image_url_2, gameWon, justCompletedRound, roundComplete])
 
-  useEffect(() => {
-    if (
-      !roundComplete ||
-      !showOrthodleInsight ||
-      hasShownInsightWakeRef.current ||
-      typeof window === 'undefined'
-    ) {
-      return
-    }
-
-    const target = orthodleInsightSectionRef.current
-    if (!target) return
-
-    const observer = new window.IntersectionObserver(
-      entries => {
-        const entry = entries[0]
-        if (!entry?.isIntersecting || hasShownInsightWakeRef.current) return
-        hasShownInsightWakeRef.current = true
-        setShowOrthodleInsightWake(true)
-        window.setTimeout(() => setShowOrthodleInsightWake(false), 1400)
-        observer.disconnect()
-      },
-      { threshold: 0.18 }
-    )
-
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [roundComplete, showOrthodleInsight])
-
   const homeTabs = useMemo(
     () => {
+      const attendingTabLabel =
+        dailyCase?.level === 'attending' && !isAnatomyQuizCaseRecord(dailyCase)
+          ? 'Attending'
+          : levelTitles.attending
+
       const tabs = [
         { type: 'level' as const, key: 'med_student' as const, label: levelTitles.med_student },
         { type: 'level' as const, key: 'resident' as const, label: levelTitles.resident },
-        { type: 'level' as const, key: 'attending' as const, label: levelTitles.attending },
+        { type: 'level' as const, key: 'attending' as const, label: attendingTabLabel },
         { type: 'link' as const, href: '/groups', label: groupsTitle, subtitle: groupsSubtitle },
       ]
 
@@ -3144,7 +3216,7 @@ function PlayPageContent() {
         ? tabs.filter(item => !(item.type === 'level' && item.key === 'resident'))
         : tabs
     },
-    [groupsSubtitle, groupsTitle, levelTitles, noResidentModeActiveToday]
+    [dailyCase, groupsSubtitle, groupsTitle, levelTitles, noResidentModeActiveToday]
   )
   const homeBootReady = playModeReady && playBootstrapReady
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
@@ -3195,9 +3267,12 @@ function PlayPageContent() {
       ({
         med_student: levelTaglines.med_student[0] || '',
         resident: levelTaglines.resident[0] || '',
-        attending: levelTaglines.attending[0] || '',
+        attending:
+          dailyCase?.level === 'attending' && !isAnatomyQuizCaseRecord(dailyCase)
+            ? ''
+            : levelTaglines.attending[0] || '',
       }) as Record<Level, string>,
-    [levelTaglines]
+    [dailyCase, levelTaglines]
   )
   const levelStreak = statsSummary.levelStreaks[selectedLevel]?.current || 0
   const activeExpandedImage =
@@ -3548,21 +3623,6 @@ function PlayPageContent() {
           }
         }
 
-        @keyframes orthodle-answer-pop {
-          0% {
-            opacity: 0;
-            transform: translateY(6px) scale(0.98);
-          }
-          60% {
-            opacity: 1;
-            transform: translateY(0) scale(1.02);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
         @keyframes orthodle-fade-up {
           0% {
             opacity: 0;
@@ -3727,45 +3787,6 @@ function PlayPageContent() {
           }
         }
 
-        @keyframes orthodle-scroll-wake {
-          0% {
-            transform: translateY(10px) scale(0.985);
-            opacity: 0.82;
-            box-shadow: 0 0 0 0 rgba(240, 194, 71, 0);
-            background-color: rgba(255, 250, 241, 0);
-          }
-          42% {
-            transform: translateY(0) scale(1.008);
-            opacity: 1;
-            box-shadow:
-              0 0 0 1px rgba(240, 194, 71, 0.42),
-              0 16px 32px rgba(16, 32, 24, 0.08),
-              0 0 0 10px rgba(240, 194, 71, 0.08);
-            background-color: rgba(255, 250, 241, 0.96);
-          }
-          100% {
-            transform: translateY(0);
-            opacity: 1;
-            box-shadow:
-              0 0 0 1px rgba(240, 194, 71, 0.16),
-              0 8px 18px rgba(16, 32, 24, 0.04);
-            background-color: rgba(255, 250, 241, 0.72);
-          }
-        }
-
-        @keyframes orthodle-insight-icon-bob {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          35% {
-            transform: translateY(-2px) scale(1.06);
-          }
-          70% {
-            transform: translateY(1px);
-          }
-        }
-
         @keyframes orthodle-mobile-sheet-rise {
           0% {
             opacity: 0;
@@ -3873,10 +3894,6 @@ function PlayPageContent() {
           animation: orthodle-celebration-sparkle 1.2s ease-out forwards;
         }
 
-        .orthodle-answer-pop {
-          animation: orthodle-answer-pop 0.5s ease-out both;
-        }
-
         .orthodle-fade-up {
           animation: orthodle-fade-up 0.32s ease-out both;
         }
@@ -3963,19 +3980,20 @@ function PlayPageContent() {
         }
 
         .orthodle-answer-bar-tension {
-          transform: translateY(-1px);
-          box-shadow:
-            0 10px 24px rgba(31, 100, 72, 0.08),
-            inset 0 1px 0 rgba(255, 255, 255, 0.75);
+          transform: none;
+          box-shadow: none;
         }
 
         .orthodle-answer-bar-tension .orthodle-home-input {
           border-color: rgba(31, 100, 72, 0.38) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.74),
+            0 8px 18px rgba(31, 100, 72, 0.05);
         }
 
         .orthodle-answer-bar-tension .orthodle-home-guess {
-          transform: translateY(-1px) scale(1.01);
-          box-shadow: 0 10px 20px rgba(31, 100, 72, 0.14);
+          transform: scale(1.01);
+          box-shadow: 0 8px 18px rgba(31, 100, 72, 0.12);
         }
 
         .orthodle-micro-press {
@@ -4036,6 +4054,26 @@ function PlayPageContent() {
           animation: orthodle-teaching-unfold 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
+        .orthodle-collapsible-shell {
+          display: grid;
+          grid-template-rows: 0fr;
+          opacity: 0;
+          transition:
+            grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1),
+            opacity 220ms ease,
+            margin-top 220ms ease;
+        }
+
+        .orthodle-collapsible-shell-open {
+          grid-template-rows: 1fr;
+          opacity: 1;
+        }
+
+        .orthodle-collapsible-body {
+          min-height: 0;
+          overflow: hidden;
+        }
+
         .orthodle-teaching-image-spotlight {
           position: relative;
           animation: orthodle-teaching-spotlight 1.45s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -4055,21 +4093,8 @@ function PlayPageContent() {
           opacity: 0.9;
         }
 
-        .orthodle-insight-wake {
-          border-radius: 16px;
-          animation: orthodle-scroll-wake 0.92s cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
-        .orthodle-insight-wake [data-insight-toggle-icon] {
-          animation: orthodle-insight-icon-bob 0.62s ease-out 0.16s 2;
-        }
-
         .orthodle-solved-step-in {
           animation: orthodle-step-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
-        .orthodle-scroll-wake {
-          animation: orthodle-scroll-wake 0.92s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .orthodle-image-swap {
@@ -4469,7 +4494,7 @@ function PlayPageContent() {
                     Archive case
                   </div>
                   <p className="mt-1 text-[12px] leading-5 text-[#6d665d] sm:text-[13px]">
-                    You’re viewing the {formatLevel(selectedLevel)} case from {formatArchiveDate(selectedDate)}.
+                    You’re viewing the {formatLevel(selectedLevel, selectedDate, dailyCase)} case from {formatArchiveDate(selectedDate)}.
                     Refresh the page or tap Orthodle to jump back to today.
                   </p>
                 </div>
@@ -4493,7 +4518,7 @@ function PlayPageContent() {
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
-                  <span>{dailyCase?.category || formatLevel(selectedLevel)}</span>
+                  <span>{dailyCase?.category || formatLevel(selectedLevel, selectedDate, dailyCase)}</span>
                 </div>
               </div>
 
@@ -4610,18 +4635,12 @@ function PlayPageContent() {
                                 key={`${choice}-${index}`}
                                 type="button"
                                 disabled={roundComplete}
-                                onClick={() =>
-                                  setSelectedAnatomyLetters(current =>
-                                    isMultiSelectAnatomy
-                                      ? current.includes(letter)
-                                        ? current.filter(item => item !== letter)
-                                        : [...current, letter].sort()
-                                      : current.includes(letter)
-                                        ? []
-                                        : [letter]
-                                  )
+                                aria-pressed={isChosenChoice}
+                                onClick={() => updateSelectedAnatomyLetters(letter)}
+                                onKeyDown={event =>
+                                  handleAnatomyChoiceKeyDown(event, letter, isChosenChoice)
                                 }
-                                className={`orthodle-anatomy-choice orthodle-anatomy-choice-magnetic orthodle-micro-press orthodle-tap-ripple ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} ${!roundComplete && isChosenChoice ? 'orthodle-anatomy-choice-selected' : ''} ${roundComplete && !isCorrectChoice && !isChosenChoice ? 'orthodle-anatomy-choice-faded' : ''} rounded-2xl border px-3 py-3 text-left transition ${
+                                className={`orthodle-anatomy-choice orthodle-anatomy-choice-magnetic orthodle-micro-press orthodle-tap-ripple ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} ${!roundComplete && isChosenChoice ? 'orthodle-anatomy-choice-selected' : ''} ${roundComplete && !isCorrectChoice && !isChosenChoice ? 'orthodle-anatomy-choice-faded' : ''} rounded-2xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448]/25 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf8] ${
                                   choiceState === 'correct'
                                     ? 'orthodle-anatomy-choice-correct cursor-default border-[#cfe2d6] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
@@ -4667,13 +4686,7 @@ function PlayPageContent() {
                             <button
                               type="button"
                               disabled={selectedAnatomyLetters.length === 0}
-                              onClick={() =>
-                                void submitGuess(
-                                  serializeAnatomyGuessLetters(selectedAnatomyLetters),
-                                  selectedAnatomyLetters.join(', '),
-                                  selectedAnatomyLetters
-                                )
-                              }
+                              onClick={() => void submitSelectedAnatomyGuess()}
                               className="orthodle-primary-button orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple rounded-lg border px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] disabled:cursor-not-allowed"
                             >
                               Submit
@@ -4731,17 +4744,20 @@ function PlayPageContent() {
                           onChange={e => {
                             setGuess(e.target.value)
                             setShowSuggestions(true)
+                            setSuggestionCursor(-1)
                           }}
                           onFocus={() => {
                             setShowSuggestions(true)
+                            setSuggestionCursor(-1)
                             keepMobileInputInView()
                           }}
                           onBlur={() =>
                             window.setTimeout(() => {
                               setShowSuggestions(false)
+                              setSuggestionCursor(-1)
                             }, 120)
                           }
-                          onKeyDown={e => e.key === 'Enter' && submitGuess()}
+                          onKeyDown={handleGuessInputKeyDown}
                           autoCapitalize="none"
                           autoCorrect="off"
                           autoComplete="off"
@@ -4803,24 +4819,18 @@ function PlayPageContent() {
               <div className="mt-1">
                 <div className="relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_26%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-4 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.16)] sm:px-5 sm:py-5">
                   <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.4px,transparent_1.4px)] [background-size:32px_32px]" />
-                  {showConfetti && (
-                    <>
-                      <div className="absolute inset-x-[18%] top-0 h-px bg-gradient-to-r from-transparent via-[#f0c247] to-transparent opacity-70" />
-                      <div className="absolute inset-x-[28%] top-3 h-[1px] bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-70" />
-                    </>
-                  )}
                   <div className="relative">
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0c247] sm:text-[10px]">
                       Correct answer
                     </div>
-                    <h3 className="orthodle-answer-pop mt-2 font-serif text-[23px] font-bold leading-tight tracking-[-0.04em] text-white sm:text-[29px]">
+                    <h3 className="mt-2 font-serif text-[23px] font-bold leading-tight tracking-[-0.04em] text-white sm:text-[29px]">
                       {dailyCase.answer}
                     </h3>
                     {onTodayCard && levelStreak >= 1 && (
                       <div className={`mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95] ${showStreakIgnition ? 'orthodle-streak-ignite' : levelStreak >= 1 ? 'orthodle-streak-ember' : ''}`}>
                         <span aria-hidden="true">🔥</span>
                         <span>
-                          {levelStreak}-day {formatLevel(selectedLevel)} streak
+                          {levelStreak}-day {formatLevel(selectedLevel, selectedDate, dailyCase)} streak
                         </span>
                       </div>
                     )}
@@ -4896,7 +4906,11 @@ function PlayPageContent() {
                       {showCaseFeedback ? '▴' : '▾'}
                     </span>
                   </button>
-                  {showCaseFeedback && (
+                  <div
+                    aria-hidden={!showCaseFeedback}
+                    className={`orthodle-collapsible-shell ${showCaseFeedback ? 'orthodle-collapsible-shell-open mt-2' : 'mt-0.5'}`}
+                  >
+                    <div className="orthodle-collapsible-body">
                     <>
                       <div className="mx-auto mt-2 grid max-w-[260px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
                         {FEEDBACK_TAG_OPTIONS.map(tag => {
@@ -4952,7 +4966,8 @@ function PlayPageContent() {
                         <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
                       )}
                     </>
-                  )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
