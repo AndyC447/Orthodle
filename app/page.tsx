@@ -128,6 +128,7 @@ const TEACHING_POINT_LABELS = new Map<string, string>([
   ['presentation', 'Presentation'],
   ['exam', 'Exam'],
   ['imaging', 'Imaging'],
+  ['imaging findings', 'Imaging Findings'],
   ['tx', 'Tx'],
   ['treatment', 'Treatment'],
   ['dont miss', "Don't Miss"],
@@ -2251,6 +2252,87 @@ function PlayPageContent() {
     })
   }
 
+  function normalizeTeachingSectionLabel(label: string) {
+    return label
+      .trim()
+      .replace(/<\/?u>/gi, '')
+      .replace(/\*\*/g, '')
+      .replace(/\*(?!\*)/g, '')
+      .replace(/:+$/, '')
+      .trim()
+      .toLowerCase()
+      .replace(/[’']/g, "'")
+  }
+
+  function renderTeachingCallouts(
+    callouts: CompactTeachingSection['callouts'],
+    keyPrefix: string,
+    tone: 'default' | 'pearl' = 'default'
+  ) {
+    if (callouts.length === 0) return null
+
+    const className =
+      tone === 'pearl'
+        ? 'rounded-[14px] border border-[#ead9b7] bg-white/80 px-3 py-2 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.74),0_8px_18px_rgba(16,32,24,0.04)]'
+        : 'rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]'
+
+    return (
+      <div className="mt-1.5 space-y-1.5">
+        {callouts.map((callout, calloutIndex) => (
+          <div key={`${keyPrefix}-callout-${calloutIndex}`} className={className}>
+            <span className="font-semibold text-[#315f4d]">{callout.label}:</span>{' '}
+            {renderFormattedLine(callout.text, `${keyPrefix}-callout-text-${calloutIndex}`)}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  function renderDifferentialRows(lines: string[], keyPrefix: string) {
+    const entries = lines
+      .map((line, index) => {
+        const trimmed = line.trim().replace(/^[-*•]\s+/, '')
+        if (!trimmed) return null
+        const match = trimmed.match(/^([^:]+):\s*(.+)$/)
+        if (!match) {
+          return {
+            key: `${keyPrefix}-row-${index}`,
+            label: null,
+            text: trimmed,
+          }
+        }
+        return {
+          key: `${keyPrefix}-row-${index}`,
+          label: match[1].trim(),
+          text: match[2].trim(),
+        }
+      })
+      .filter(Boolean) as Array<{ key: string; label: string | null; text: string }>
+
+    if (entries.length === 0) return null
+
+    return (
+      <div className="mt-2 space-y-2">
+        {entries.map(entry => (
+          <div
+            key={entry.key}
+            className="rounded-[14px] border border-[#e7dfd2] bg-white/86 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_14px_rgba(16,32,24,0.03)]"
+          >
+            <div className="font-serif text-[14px] leading-[1.58] tracking-[-0.01em] text-[#102018]">
+              {entry.label ? (
+                <>
+                  <span className="font-bold">{renderFormattedLine(entry.label, `${entry.key}-label`)}</span>
+                  <span className="text-[#637268]"> — </span>
+                </>
+              ) : null}
+              {renderFormattedLine(entry.text, `${entry.key}-text`)}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   function getOrthodleInsightLines() {
     if (!communityStats) return []
 
@@ -2336,7 +2418,7 @@ function PlayPageContent() {
     }
 
     return (
-      <div className="orthodle-teaching-card rounded-xl bg-[#fcfbf8] px-3 py-2.5">
+      <div className="orthodle-teaching-card rounded-[18px] border border-[#dbe4db] bg-[linear-gradient(180deg,#fbfefb_0%,#f1f7f1_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_12px_24px_rgba(16,32,24,0.035)]">
         <div className={`space-y-2.5 ${showSolvedTeachingStep ? 'orthodle-solved-step-in' : 'opacity-0 translate-y-2'}`}>
           {visibleSections.map((section, sectionIndex) => (
             <div
@@ -2452,34 +2534,131 @@ function PlayPageContent() {
                     </div>
                   )}
                 </>
-              ) : (
-                <>
-                  <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
-                    {renderFormattedLine(section.label, `label-${sectionIndex}`)}
-                  </div>
-                  <div className="orthodle-teaching-unfold mt-1.5 space-y-1">
-                    {renderTeachingBody(section.body, `section-${sectionIndex}`)}
-                    {section.callouts.length > 0 ? (
-                      <div className="mt-1.5 space-y-1">
-                        {section.callouts.map((callout, calloutIndex) => (
-                          <div
-                            key={`${section.label}-callout-${calloutIndex}`}
-                            className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
-                          >
-                            <span className="font-semibold text-[#315f4d]">
-                              {callout.label}:
-                            </span>{' '}
-                            {renderFormattedLine(
-                              callout.text,
-                              `${section.label}-callout-text-${calloutIndex}`
-                            )}
-                          </div>
-                        ))}
+              ) : (() => {
+                const normalizedLabel = normalizeTeachingSectionLabel(section.label)
+                const isPearlSection = normalizedLabel === 'clinical pearl'
+                const isDifferentialSection = normalizedLabel === 'why not the others?'
+                const isExplanationSection = normalizedLabel === 'explanation'
+                const isKeyCluesSection = normalizedLabel === 'key clues'
+                const isPitfallSection = normalizedLabel === 'classic pitfall' || normalizedLabel === "don't miss"
+                const isRegularStudySection =
+                  normalizedLabel === 'who' ||
+                  normalizedLabel === 'pathophys' ||
+                  normalizedLabel === 'pathophysiology' ||
+                  normalizedLabel === 'tx' ||
+                  normalizedLabel === 'treatment' ||
+                  normalizedLabel === 'presentation' ||
+                  normalizedLabel === 'exam' ||
+                  normalizedLabel === 'clinical context' ||
+                  normalizedLabel === 'board pearl' ||
+                  normalizedLabel === 'ddx' ||
+                  normalizedLabel === 'imaging findings'
+                const sectionBody = renderTeachingBody(section.body, `section-${sectionIndex}`)
+                const sectionCallouts = renderTeachingCallouts(
+                  section.callouts,
+                  `${section.label}-${sectionIndex}`,
+                  isPearlSection ? 'pearl' : 'default'
+                )
+
+                if (isExplanationSection) {
+                  return (
+                    <div className="rounded-[16px] border border-[#d7e3db] bg-[linear-gradient(180deg,#ffffff_0%,#f5faf6_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_10px_22px_rgba(16,32,24,0.035)]">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                        {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                       </div>
-                    ) : null}
-                  </div>
-                </>
-              )}
+                      <div className="orthodle-teaching-unfold mt-2 space-y-1.5">
+                        {sectionBody}
+                        {sectionCallouts}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isPearlSection) {
+                  return (
+                    <div className="rounded-[18px] border border-[#ecd7aa] bg-[linear-gradient(180deg,#fff8ea_0%,#fff1d8_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_12px_26px_rgba(16,32,24,0.045)]">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex h-2 w-2 rounded-full bg-[#d39a2f]" />
+                        <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a56d14]">
+                          {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                        </div>
+                      </div>
+                      <div className="orthodle-teaching-unfold mt-2 space-y-1.5">
+                        {sectionBody}
+                        {sectionCallouts}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isDifferentialSection) {
+                  return (
+                    <div className="rounded-[18px] border border-[#e2e7df] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf7_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.82),0_10px_22px_rgba(16,32,24,0.03)]">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                      </div>
+                      <div className="orthodle-teaching-unfold mt-2">
+                        {renderDifferentialRows(section.body, `differential-${sectionIndex}`) || sectionBody}
+                        {sectionCallouts}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isKeyCluesSection) {
+                  return (
+                    <div className="rounded-[18px] border border-[#cadbce] bg-[linear-gradient(180deg,#f9fdfa_0%,#ecf5ee_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_12px_24px_rgba(16,32,24,0.04)]">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                        {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                      </div>
+                      <div className="orthodle-teaching-unfold mt-2 space-y-1.5">
+                        {sectionBody}
+                        {sectionCallouts}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isPitfallSection) {
+                  return (
+                    <div className="rounded-[18px] border border-[#ecd8b5] bg-[linear-gradient(180deg,#fffaf3_0%,#fff0de_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_10px_22px_rgba(16,32,24,0.04)]">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a86a21]">
+                        {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                      </div>
+                      <div className="orthodle-teaching-unfold mt-2 space-y-1.5">
+                        {sectionBody}
+                        {sectionCallouts}
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (isRegularStudySection) {
+                  return (
+                    <div className="rounded-[16px] border border-[#dfe6df] bg-[linear-gradient(180deg,#ffffff_0%,#f7faf7_100%)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_18px_rgba(16,32,24,0.028)]">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#7a857c]">
+                        {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                      </div>
+                      <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
+                        {sectionBody}
+                        {sectionCallouts}
+                      </div>
+                    </div>
+                  )
+                }
+
+                return (
+                  <>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#7a857c]">
+                      {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                    </div>
+                    <div className="orthodle-teaching-unfold mt-1.5 space-y-1.5">
+                      {sectionBody}
+                      {sectionCallouts}
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           ))}
           {compactTeaching.footerLines.length > 0 ? (
@@ -4361,12 +4540,12 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`}>
                           <button
                             onClick={() => openExpandedImage(index)}
-                            className="orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg bg-[#f8f3e8] px-2 py-2 sm:px-2.5 sm:py-2.5"
+                            className="orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-1"
                           >
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="block max-h-[220px] max-w-full rounded-md bg-white object-contain shadow-[0_8px_18px_rgba(16,32,24,0.06)] transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
+                              className="block max-h-[220px] max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
                             />
                           </button>
                           {image.credit && (
