@@ -2227,11 +2227,11 @@ function PlayPageContent() {
 
       if (block.type === 'bullets') {
         return (
-          <ul key={block.key} className="space-y-0.5 pl-4">
+          <ul key={block.key} className="space-y-1.5 pl-5">
             {block.items.map((item, index) => (
               <li
                 key={`${block.key}-${index}`}
-                className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018]"
+                className="font-serif text-[14px] leading-[1.6] tracking-[-0.01em] text-[#102018]"
               >
                 {renderFormattedLine(item, `${block.key}-item-${index}`)}
               </li>
@@ -4347,7 +4347,7 @@ function PlayPageContent() {
               )}
 
               {visibleImages.length > 0 && imageRevealed && !imageHidden && (
-                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 px-0.5">
+                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 rounded-[20px] px-2 pb-3 pt-1 sm:px-3 sm:pb-4">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -4361,12 +4361,12 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`}>
                           <button
                             onClick={() => openExpandedImage(index)}
-                            className="orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-1"
+                            className="orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg bg-[#f8f3e8] px-2 py-2 sm:px-2.5 sm:py-2.5"
                           >
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="block max-h-[220px] max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
+                              className="block max-h-[220px] max-w-full rounded-md bg-white object-contain shadow-[0_8px_18px_rgba(16,32,24,0.06)] transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
                             />
                           </button>
                           {image.credit && (

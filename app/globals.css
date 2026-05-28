@@ -1121,6 +1121,24 @@ body {
     transform 300ms ease;
 }
 
+.orthodle-imaging-shell {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(252, 250, 245, 0.78) 72%, rgba(247, 243, 235, 0.96) 100%);
+}
+
+.orthodle-imaging-shell::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 24px;
+  border-radius: 0 0 18px 18px;
+  background: linear-gradient(180deg, rgba(247, 243, 235, 0) 0%, rgba(247, 243, 235, 0.92) 100%);
+  pointer-events: none;
+}
+
 .orthodle-image-tile {
   box-shadow: 0 10px 20px rgba(16, 32, 24, 0.06);
 }
@@ -1136,6 +1154,15 @@ body {
 
 :root[data-theme="dark"] .orthodle-image-tile {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="dark"] .orthodle-imaging-shell {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(18, 24, 21, 0.74) 72%, rgba(13, 18, 16, 0.94) 100%);
+}
+
+:root[data-theme="dark"] .orthodle-imaging-shell::after {
+  background: linear-gradient(180deg, rgba(13, 18, 16, 0) 0%, rgba(13, 18, 16, 0.94) 100%);
 }
 
 header,
