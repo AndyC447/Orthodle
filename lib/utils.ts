@@ -139,12 +139,28 @@ function levenshteinDistance(a: string, b: string) {
   return matrix[a.length][b.length]
 }
 
+const INITIALISM_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'by',
+  'for',
+  'from',
+  'in',
+  'of',
+  'on',
+  'the',
+  'to',
+  'with',
+  'without',
+])
+
 function buildInitialism(value: string) {
-  return value
-    .split(' ')
-    .filter(Boolean)
-    .map(word => word[0])
-    .join('')
+  const words = value.split(' ').filter(Boolean)
+  const significantWords = words.filter(word => !INITIALISM_STOP_WORDS.has(word))
+  const sourceWords = significantWords.length > 0 ? significantWords : words
+
+  return sourceWords.map(word => word[0]).join('')
 }
 
 export function isAcceptedGuess(guess: string, acceptedAnswers: string[]) {

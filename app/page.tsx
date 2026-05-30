@@ -1555,6 +1555,7 @@ function PlayPageContent() {
         let firstTrySolves = 0
         let totalGuessesBeforeSolve = 0
         const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
+        const acceptedGuesses = [data.answer, ...(data.synonyms || [])]
 
         for (const sessionGuesses of guessesBySession.values()) {
           const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
@@ -1575,6 +1576,7 @@ function PlayPageContent() {
           const rawGuess = guessRow.guess_text?.trim()
 
           if (!normalizedGuess || !rawGuess) continue
+          if (isAcceptedGuess(rawGuess, acceptedGuesses)) continue
 
           const existing = incorrectGuessCounts.get(normalizedGuess)
           if (existing) {

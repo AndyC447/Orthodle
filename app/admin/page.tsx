@@ -14,6 +14,7 @@ import {
 import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
+  isAcceptedGuess,
   normalizeAnswer,
   ORTHO_DIAGNOSIS_BANK,
   readHiddenDiagnosisAnswers,
@@ -2700,6 +2701,7 @@ export default function AdminPage() {
     let totalGuessesBeforeSolve = 0
     const solveClueCounts = new Map<number, number>()
     const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
+    const acceptedGuesses = [matchingCase.answer, ...(matchingCase.synonyms || [])]
 
     for (const sessionGuesses of guessesBySession.values()) {
       const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
@@ -2722,6 +2724,7 @@ export default function AdminPage() {
       const rawGuess = guessRow.guess_text?.trim()
 
       if (!normalizedGuess || !rawGuess) continue
+      if (isAcceptedGuess(rawGuess, acceptedGuesses)) continue
 
       const existing = incorrectGuessCounts.get(normalizedGuess)
       if (existing) {
