@@ -2388,12 +2388,16 @@ function PlayPageContent() {
   function getOrthodleInsightLines() {
     if (!communityStats) return []
 
+    const solvedOnClueLine =
+      gameWon && guesses.length > 0 ? `Solved on clue: **${guesses.length}**` : null
+
     if (useSurgicalAnatomyQuiz) {
       if (communityStats.anatomyChoiceBreakdown.length === 0) return []
       const correctRate =
         communityStats.solveRate !== null ? `${Math.round(communityStats.solveRate)}%` : '—'
 
       return [
+        ...(solvedOnClueLine ? [solvedOnClueLine] : []),
         `Correct pick rate: **${correctRate}**`,
         'Answer distribution:',
         ...communityStats.anatomyChoiceBreakdown.map(
@@ -2421,22 +2425,10 @@ function PlayPageContent() {
       else difficultyRead = 'Tougher-than-usual case'
     }
 
-    const solvedGuessCount = gameWon ? guesses.length : null
-    const solvedFasterThanPlayers =
-      solvedGuessCount !== null && communityStats.solvedGuessCounts.length > 0
-        ? Math.round(
-            (communityStats.solvedGuessCounts.filter(count => count > solvedGuessCount).length /
-              communityStats.solvedGuessCounts.length) *
-              100
-          )
-        : null
-
     return [
+      ...(solvedOnClueLine ? [solvedOnClueLine] : []),
       `Solve rate: **${solveRate}**`,
       `Average solve: **${averageSolveLine}**`,
-      ...(solvedFasterThanPlayers !== null
-        ? [`You solved faster than **${solvedFasterThanPlayers}%** of players`]
-        : []),
       `First-try solves: **${firstTry}**`,
       ...(communityStats.mostCommonIncorrectGuess
         ? [`Most common wrong guess: **${communityStats.mostCommonIncorrectGuess}**`]
@@ -2446,16 +2438,15 @@ function PlayPageContent() {
   }
 
   function renderTeachingPoint(text: string, caseItem: Case) {
-    const sections = parseTeachingPointSections(text)
-    const insightLines = getOrthodleInsightLines()
-    const hasInsightSection = sections.some(
-      section => section.label.toLowerCase() === 'orthodle insight'
+    const sections = parseTeachingPointSections(text).filter(
+      section => section.label.toLowerCase() !== 'orthodle insight'
     )
+    const insightLines = getOrthodleInsightLines()
     const hasQuickTakeawaySection = sections.some(
       section => section.label.toLowerCase() === 'quick takeaway'
     )
     const allSections =
-      !hasInsightSection && insightLines.length > 0
+      insightLines.length > 0
         ? [...sections, { label: 'Orthodle Insight', body: insightLines }]
         : sections
     const compactTeaching = compactTeachingSections(allSections)
@@ -2579,7 +2570,7 @@ function PlayPageContent() {
                             <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                               {renderFormattedLine(imagingSection.label, 'imaging-below-image-label')}
                             </div>
-                            <div className="mt-1.5 space-y-1">
+                            <div className="mx-auto mt-1.5 max-w-[62ch] space-y-1 text-left">
                               {renderTeachingBody(imagingSection.body, 'imaging-below-image')}
                               {imagingSection.callouts.length > 0 ? (
                                 <div className="mt-1.5 space-y-1">
@@ -2753,23 +2744,25 @@ function PlayPageContent() {
               <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                 {renderFormattedLine(imagingSection.label, 'imaging-standalone-label')}
               </div>
-              {renderTeachingBody(imagingSection.body, 'imaging-standalone')}
-              {imagingSection.callouts.length > 0 ? (
-                <div className="mt-1.5 space-y-1">
-                  {imagingSection.callouts.map((callout, calloutIndex) => (
-                    <div
-                      key={`${imagingSection.label}-standalone-callout-${calloutIndex}`}
-                      className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
-                    >
-                      <span className="font-semibold text-[#315f4d]">{callout.label}:</span>{' '}
-                      {renderFormattedLine(
-                        callout.text,
-                        `${imagingSection.label}-standalone-callout-text-${calloutIndex}`
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              <div className="mx-auto max-w-[62ch] space-y-1 text-left">
+                {renderTeachingBody(imagingSection.body, 'imaging-standalone')}
+                {imagingSection.callouts.length > 0 ? (
+                  <div className="mt-1.5 space-y-1">
+                    {imagingSection.callouts.map((callout, calloutIndex) => (
+                      <div
+                        key={`${imagingSection.label}-standalone-callout-${calloutIndex}`}
+                        className="rounded-[12px] bg-white/85 px-2.5 py-1.5 text-[13px] leading-5 text-[#355542] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_4px_10px_rgba(16,32,24,0.025)]"
+                      >
+                        <span className="font-semibold text-[#315f4d]">{callout.label}:</span>{' '}
+                        {renderFormattedLine(
+                          callout.text,
+                          `${imagingSection.label}-standalone-callout-text-${calloutIndex}`
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>
@@ -3348,10 +3341,10 @@ function PlayPageContent() {
     resumeRoundDismissToken !== dismissedResumeRoundToken
   const nextLevel = nextLevelMap[selectedLevel]
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
+  const formatCelebrationStreakText = (count: number) =>
+    count <= 1 ? '1 day streak started' : `${count} day streak!`
   const dailyCompleteStreakText =
-    statsSummary.currentStreak <= 1
-      ? '1-day streak started'
-      : `${statsSummary.currentStreak}-day streak alive`
+    formatCelebrationStreakText(statsSummary.currentStreak)
   const selectedTaglines = useMemo(
     () =>
       ({
@@ -3816,6 +3809,18 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-anatomy-breathe {
+          0%,
+          100% {
+            transform: scale(1);
+            box-shadow: 0 2px 8px rgba(16, 32, 24, 0.03);
+          }
+          50% {
+            transform: scale(0.985);
+            box-shadow: 0 4px 12px rgba(16, 32, 24, 0.05);
+          }
+        }
+
         @keyframes orthodle-teaching-spotlight {
           0% {
             opacity: 0.86;
@@ -4133,6 +4138,12 @@ function PlayPageContent() {
           animation: orthodle-choice-settle 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
+        .orthodle-anatomy-choice-breathe {
+          animation: orthodle-anatomy-breathe 2.8s ease-in-out infinite;
+          transform-origin: center;
+          will-change: transform, box-shadow;
+        }
+
         .orthodle-case-card-settle {
           animation: orthodle-case-settle-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
@@ -4303,6 +4314,7 @@ function PlayPageContent() {
           .orthodle-rail-complete,
           .orthodle-rail-settled-complete::after,
           .orthodle-anatomy-choice-selected,
+          .orthodle-anatomy-choice-breathe,
           .orthodle-mobile-sheet,
           .orthodle-solved-step-in,
           .orthodle-teaching-image-spotlight,
@@ -4759,7 +4771,7 @@ function PlayPageContent() {
                         <div className="text-center text-[13px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/65 underline-offset-2">
                           {renderFormattedLine(solvedImagingSection.label, 'solved-imaging-label')}
                         </div>
-                        <div className="mt-1.5 space-y-1">
+                        <div className="mx-auto mt-1.5 max-w-[62ch] space-y-1 text-left">
                           {renderTeachingBody(solvedImagingSection.body, 'solved-imaging-body')}
                           {solvedImagingSection.callouts.length > 0 ? (
                             <div className="mt-1.5 space-y-1">
@@ -5003,7 +5015,7 @@ function PlayPageContent() {
                       <div className={`orthodle-streak-chip mt-2 inline-flex items-center justify-center gap-1.5 border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95] ${showStreakIgnition ? 'orthodle-streak-ignite' : levelStreak >= 1 ? 'orthodle-streak-ember' : ''}`}>
                         <span aria-hidden="true">🔥</span>
                         <span>
-                          {levelStreak}-day {formatLevel(selectedLevel, selectedDate, dailyCase)} streak
+                          {formatCelebrationStreakText(levelStreak)}
                         </span>
                       </div>
                     )}
