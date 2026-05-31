@@ -798,6 +798,108 @@ body {
   box-shadow: none !important;
 }
 
+.orthodle-solved-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.orthodle-streak-chip {
+  border-radius: 9px;
+}
+
+.orthodle-daily-complete-shell {
+  position: relative;
+  border: 1.5px solid rgba(214, 149, 79, 0.88);
+  background:
+    radial-gradient(circle at top left, rgba(239, 226, 202, 0.18), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.994), rgba(251, 247, 240, 0.988));
+  box-shadow:
+    0 18px 36px rgba(154, 76, 23, 0.1),
+    0 4px 12px rgba(31, 33, 24, 0.025),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.orthodle-daily-complete-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background:
+    linear-gradient(
+      115deg,
+      rgba(255, 244, 220, 0) 0%,
+      rgba(255, 224, 164, 0.42) 22%,
+      rgba(255, 244, 220, 0.06) 48%,
+      rgba(255, 224, 164, 0.44) 74%,
+      rgba(255, 244, 220, 0) 100%
+    );
+  background-size: 220% 100%;
+  animation: orthodle-daily-border-sheen 4.8s linear infinite;
+  pointer-events: none;
+  opacity: 0.95;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+
+.orthodle-daily-complete-shell::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  box-shadow: 0 0 22px rgba(212, 123, 42, 0.12);
+  pointer-events: none;
+}
+
+@keyframes orthodle-daily-border-sheen {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+.orthodle-winner-button {
+  border-color: #e2b670 !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 240, 214, 0.22), transparent 34%),
+    linear-gradient(145deg, #d47b2a, #b95f1f 52%, #8f4316) !important;
+  color: #fffaf4 !important;
+  box-shadow:
+    0 14px 28px rgba(143, 67, 22, 0.18),
+    0 2px 0 rgba(103, 44, 15, 0.16),
+    inset 0 1px 0 rgba(255, 245, 226, 0.34),
+    inset 0 -1px 0 rgba(103, 44, 15, 0.22);
+  transition:
+    transform 200ms ease,
+    box-shadow 240ms ease,
+    background-color 240ms ease,
+    border-color 240ms ease,
+    color 240ms ease;
+}
+
+.orthodle-winner-button:hover {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 240, 214, 0.26), transparent 34%),
+    linear-gradient(145deg, #dc8533, #c36724 52%, #954718) !important;
+  box-shadow:
+    0 18px 32px rgba(143, 67, 22, 0.22),
+    0 3px 0 rgba(103, 44, 15, 0.18),
+    inset 0 1px 0 rgba(255, 245, 226, 0.38),
+    inset 0 -1px 0 rgba(103, 44, 15, 0.24);
+}
+
 .orthodle-home-card {
   border-color: rgba(224, 212, 192, 0.88) !important;
   background:
@@ -905,6 +1007,38 @@ body {
     0 3px 0 rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     inset 0 -1px 0 rgba(0, 0, 0, 0.32) !important;
+}
+
+:root[data-theme="dark"] .orthodle-winner-button {
+  border-color: rgba(244, 203, 135, 0.54) !important;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 240, 214, 0.16), transparent 34%),
+    linear-gradient(145deg, #c7742d, #9c531f 52%, #743d16) !important;
+  color: #fff8ef !important;
+  box-shadow:
+    0 16px 28px rgba(0, 0, 0, 0.26),
+    0 2px 0 rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 245, 226, 0.14),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="dark"] .orthodle-winner-button:hover {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 240, 214, 0.2), transparent 34%),
+    linear-gradient(145deg, #d28037, #a85c24 52%, #804318) !important;
+  box-shadow:
+    0 18px 30px rgba(0, 0, 0, 0.3),
+    0 3px 0 rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 245, 226, 0.18),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+:root[data-theme="dark"] .orthodle-daily-complete-shell {
+  border-color: rgba(214, 149, 79, 0.76);
+  background: linear-gradient(180deg, rgba(27, 24, 20, 0.98), rgba(21, 19, 16, 0.98));
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 
 :root[data-theme="dark"] .orthodle-home-findings {

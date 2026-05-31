@@ -87,6 +87,7 @@ type CommunityCaseStats = {
   averageGuessesToSolve: number | null
   firstTrySolveRate: number | null
   mostCommonIncorrectGuess: string | null
+  solvedGuessCounts: number[]
   anatomyResponseCount: number
   anatomyChoiceBreakdown: Array<{
     letter: string
@@ -95,6 +96,17 @@ type CommunityCaseStats = {
     rate: number
     isCorrect: boolean
   }>
+}
+
+type CommunityVisitRow = {
+  session_id: string
+}
+
+type CommunityGuessRow = {
+  session_id: string
+  is_correct: boolean | null
+  created_at: string
+  guess_text: string | null
 }
 
 type TeachingPointSection = {
@@ -191,7 +203,6 @@ const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcem
 const HOMEPAGE_SURVEY_DISMISS_KEY = 'orthodle_dismissed_homepage_survey'
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
 const RESUME_ROUND_DISMISS_KEY = 'orthodle_dismissed_resume_round'
-const DAILY_COMPLETE_DISMISS_KEY = 'orthodle_dismissed_daily_complete'
 const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
 const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
 const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
@@ -587,7 +598,6 @@ function PlayPageContent() {
   const [dismissedResumeRoundToken, setDismissedResumeRoundToken] = useState<string | null>(null)
   const [homepageSurvey, setHomepageSurvey] = useState<HomepageSurveyRow | null>(null)
   const [dismissedHomepageSurveyKey, setDismissedHomepageSurveyKey] = useState<string | null>(null)
-  const [dismissedDailyCompleteDate, setDismissedDailyCompleteDate] = useState<string | null>(null)
   const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
   const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
   const [homepageSurveyStatus, setHomepageSurveyStatus] = useState('')
@@ -665,9 +675,6 @@ function PlayPageContent() {
     )
     setDismissedHomepageSurveyKey(
       window.localStorage.getItem(HOMEPAGE_SURVEY_DISMISS_KEY)
-    )
-    setDismissedDailyCompleteDate(
-      window.localStorage.getItem(DAILY_COMPLETE_DISMISS_KEY)
     )
     setShowTutorial(!window.localStorage.getItem(TUTORIAL_DISMISS_KEY))
     setResumeRound(getLatestUnfinishedRoundProgress())
@@ -1326,6 +1333,134 @@ function PlayPageContent() {
     }
   }, [today, selectedLevel, selectedDate, dailyCase?.id])
 
+  function buildCommunityStats(
+    caseItem: Case,
+    visitRows: CommunityVisitRow[] | null | undefined,
+    guessRows: CommunityGuessRow[] | null | undefined,
+    excludedSessionIds: string[]
+  ): CommunityCaseStats {
+    const excludedSessionIdSet = new Set(excludedSessionIds)
+    const publicVisitRows = filterExcludedSessionRows(visitRows, excludedSessionIdSet)
+    const publicGuessRows = filterExcludedSessionRows(guessRows, excludedSessionIdSet)
+
+    const players = new Set<string>([
+      ...publicVisitRows.map(item => item.session_id),
+      ...publicGuessRows.map(item => item.session_id),
+    ])
+
+    const guessesBySession = new Map<
+      string,
+      Array<{ is_correct: boolean; created_at: string }>
+    >()
+
+    for (const guessRow of publicGuessRows) {
+      const existing = guessesBySession.get(guessRow.session_id)
+      const item = {
+        is_correct: Boolean(guessRow.is_correct),
+        created_at: guessRow.created_at,
+      }
+
+      if (existing) {
+        existing.push(item)
+      } else {
+        guessesBySession.set(guessRow.session_id, [item])
+      }
+    }
+
+    let solvedPlayers = 0
+    let firstTrySolves = 0
+    let totalGuessesBeforeSolve = 0
+    const solvedGuessCounts: number[] = []
+    const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
+    const acceptedGuesses = [caseItem.answer, ...(caseItem.synonyms || [])]
+
+    for (const sessionGuesses of guessesBySession.values()) {
+      const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
+      if (solvedIndex === -1) continue
+
+      solvedPlayers += 1
+      totalGuessesBeforeSolve += solvedIndex + 1
+      solvedGuessCounts.push(solvedIndex + 1)
+
+      if (solvedIndex === 0) {
+        firstTrySolves += 1
+      }
+    }
+
+    for (const guessRow of publicGuessRows) {
+      if (guessRow.is_correct) continue
+
+      const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
+      const rawGuess = guessRow.guess_text?.trim()
+
+      if (!normalizedGuess || !rawGuess) continue
+      if (isAcceptedGuess(rawGuess, acceptedGuesses)) continue
+
+      const existing = incorrectGuessCounts.get(normalizedGuess)
+      if (existing) {
+        existing.count += 1
+      } else {
+        incorrectGuessCounts.set(normalizedGuess, { label: rawGuess, count: 1 })
+      }
+    }
+
+    const mostCommonIncorrectGuess =
+      incorrectGuessCounts.size > 0
+        ? [...incorrectGuessCounts.values()].sort((a, b) => {
+            if (b.count !== a.count) return b.count - a.count
+            return a.label.localeCompare(b.label)
+          })[0].label
+        : null
+
+    const anatomyChoiceStats =
+      caseItem.level === 'attending' && isAnatomyQuizCaseRecord(caseItem)
+        ? buildAnatomyChoiceBreakdown(
+            [caseItem.clue_1, caseItem.clue_2, caseItem.clue_3, caseItem.clue_4, caseItem.clue_5, caseItem.clue_6],
+            publicGuessRows,
+            caseItem.answer,
+            caseItem.synonyms || []
+          )
+        : { responseCount: 0, breakdown: [] }
+
+    return {
+      solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
+      averageGuessesPerPlayer:
+        players.size > 0 ? publicGuessRows.length / players.size : null,
+      averageGuessesToSolve:
+        solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
+      firstTrySolveRate:
+        solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
+      mostCommonIncorrectGuess,
+      solvedGuessCounts,
+      anatomyResponseCount: anatomyChoiceStats.responseCount,
+      anatomyChoiceBreakdown: anatomyChoiceStats.breakdown,
+    }
+  }
+
+  async function refreshCommunityStats(caseItem: Case) {
+    const [excludedSessionIds, { data: visitRows }, { data: guessRows }] = await Promise.all([
+      fetchExcludedStatsSessionIds(),
+      supabase
+        .from('visits')
+        .select('session_id')
+        .eq('path', `/${caseItem.level}/${caseItem.case_date}`),
+      supabase
+        .from('guesses')
+        .select('session_id, is_correct, created_at, guess_text')
+        .eq('case_id', caseItem.id)
+        .order('created_at', { ascending: true }),
+    ])
+
+    setCommunityStats(
+      buildCommunityStats(
+        caseItem,
+        (visitRows as CommunityVisitRow[] | null | undefined) || [],
+        (guessRows as CommunityGuessRow[] | null | undefined) || [],
+        excludedSessionIds
+      )
+    )
+  }
+
   useEffect(() => {
     let cancelled = false
 
@@ -1455,9 +1590,6 @@ function PlayPageContent() {
 
         if (cancelled) return
 
-        const excludedSessionIdSet = new Set(excludedSessionIds)
-        const publicVisitRows = filterExcludedSessionRows(visitRows, excludedSessionIdSet)
-        const publicGuessRows = filterExcludedSessionRows(guessRows, excludedSessionIdSet)
         const viewerGuessRows = (guessRows || []).filter(row => row.session_id === sessionId)
         const serverGuesses = viewerGuessRows.map(row => ({
           text: row.guess_text || '',
@@ -1531,95 +1663,14 @@ function PlayPageContent() {
           setPendingResumeKey(null)
         }
 
-        const players = new Set<string>([
-          ...publicVisitRows.map(item => item.session_id),
-          ...publicGuessRows.map(item => item.session_id),
-        ])
-
-        const guessesBySession = new Map<
-          string,
-          Array<{ is_correct: boolean; created_at: string }>
-        >()
-
-        for (const guessRow of publicGuessRows) {
-          const existing = guessesBySession.get(guessRow.session_id)
-          const item = {
-            is_correct: Boolean(guessRow.is_correct),
-            created_at: guessRow.created_at,
-          }
-
-          if (existing) {
-            existing.push(item)
-          } else {
-            guessesBySession.set(guessRow.session_id, [item])
-          }
-        }
-
-        let solvedPlayers = 0
-        let firstTrySolves = 0
-        let totalGuessesBeforeSolve = 0
-        const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
-        const acceptedGuesses = [data.answer, ...(data.synonyms || [])]
-
-        for (const sessionGuesses of guessesBySession.values()) {
-          const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
-          if (solvedIndex === -1) continue
-
-          solvedPlayers += 1
-          totalGuessesBeforeSolve += solvedIndex + 1
-
-          if (solvedIndex === 0) {
-            firstTrySolves += 1
-          }
-        }
-
-        for (const guessRow of publicGuessRows) {
-          if (guessRow.is_correct) continue
-
-          const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
-          const rawGuess = guessRow.guess_text?.trim()
-
-          if (!normalizedGuess || !rawGuess) continue
-          if (isAcceptedGuess(rawGuess, acceptedGuesses)) continue
-
-          const existing = incorrectGuessCounts.get(normalizedGuess)
-          if (existing) {
-            existing.count += 1
-          } else {
-            incorrectGuessCounts.set(normalizedGuess, { label: rawGuess, count: 1 })
-          }
-        }
-
-        const mostCommonIncorrectGuess =
-          incorrectGuessCounts.size > 0
-            ? [...incorrectGuessCounts.values()].sort((a, b) => {
-                if (b.count !== a.count) return b.count - a.count
-                return a.label.localeCompare(b.label)
-              })[0].label
-            : null
-
-        const anatomyChoiceStats =
-          data.level === 'attending' && isAnatomyQuizCaseRecord(data)
-            ? buildAnatomyChoiceBreakdown(
-                [data.clue_1, data.clue_2, data.clue_3, data.clue_4, data.clue_5, data.clue_6],
-                publicGuessRows,
-                data.answer,
-                data.synonyms || []
-              )
-            : { responseCount: 0, breakdown: [] }
-
-        setCommunityStats({
-          solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
-          averageGuessesPerPlayer:
-            players.size > 0 ? publicGuessRows.length / players.size : null,
-          averageGuessesToSolve:
-            solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
-          firstTrySolveRate:
-            solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
-          mostCommonIncorrectGuess,
-          anatomyResponseCount: anatomyChoiceStats.responseCount,
-          anatomyChoiceBreakdown: anatomyChoiceStats.breakdown,
-        })
+        setCommunityStats(
+          buildCommunityStats(
+            data,
+            (visitRows as CommunityVisitRow[] | null | undefined) || [],
+            (guessRows as CommunityGuessRow[] | null | undefined) || [],
+            excludedSessionIds
+          )
+        )
       } catch {
         if (cancelled) return
 
@@ -2357,6 +2408,7 @@ function PlayPageContent() {
       communityStats.averageGuessesToSolve !== null
         ? communityStats.averageGuessesToSolve.toFixed(1)
         : '—'
+    const averageSolveLine = avgToSolve === '—' ? '—' : `${avgToSolve} clues`
     const firstTry =
       communityStats.firstTrySolveRate !== null
         ? `${Math.round(communityStats.firstTrySolveRate)}%`
@@ -2369,9 +2421,22 @@ function PlayPageContent() {
       else difficultyRead = 'Tougher-than-usual case'
     }
 
+    const solvedGuessCount = gameWon ? guesses.length : null
+    const solvedFasterThanPlayers =
+      solvedGuessCount !== null && communityStats.solvedGuessCounts.length > 0
+        ? Math.round(
+            (communityStats.solvedGuessCounts.filter(count => count > solvedGuessCount).length /
+              communityStats.solvedGuessCounts.length) *
+              100
+          )
+        : null
+
     return [
       `Solve rate: **${solveRate}**`,
-      `Avg to solve: **${avgToSolve}**`,
+      `Average solve: **${averageSolveLine}**`,
+      ...(solvedFasterThanPlayers !== null
+        ? [`You solved faster than **${solvedFasterThanPlayers}%** of players`]
+        : []),
       `First-try solves: **${firstTry}**`,
       ...(communityStats.mostCommonIncorrectGuess
         ? [`Most common wrong guess: **${communityStats.mostCommonIncorrectGuess}**`]
@@ -2511,7 +2576,7 @@ function PlayPageContent() {
                         {teachingImages}
                         {imagingSection ? (
                           <div className="mt-2 border-t border-[#ebe5db] pt-2">
-                            <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+                            <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                               {renderFormattedLine(imagingSection.label, 'imaging-below-image-label')}
                             </div>
                             <div className="mt-1.5 space-y-1">
@@ -2685,7 +2750,7 @@ function PlayPageContent() {
           {!hasQuickTakeawaySection && teachingImages}
           {!hasQuickTakeawaySection && imagingSection ? (
             <div className="space-y-1 border-t border-[#ebe5db] pt-2">
-              <div className="text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
+              <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                 {renderFormattedLine(imagingSection.label, 'imaging-standalone-label')}
               </div>
               {renderTeachingBody(imagingSection.body, 'imaging-standalone')}
@@ -3035,6 +3100,9 @@ function PlayPageContent() {
           message: nextMessage,
       })
       }
+      if (!isAdminPreview) {
+        void refreshCommunityStats(dailyCase)
+      }
       triggerSuccessPulse()
       return
     }
@@ -3074,6 +3142,9 @@ function PlayPageContent() {
         gameOver: false,
         message: nextMessage,
       })
+    }
+    if (!isAdminPreview) {
+      void refreshCommunityStats(dailyCase)
     }
     refocusGuessInput()
   }
@@ -3260,12 +3331,10 @@ function PlayPageContent() {
       )
       .map(item => item.level)
   ).size
-  const todaySolvedCount = dailySummary.levels.filter(
-    item => visibleTodayLevels.includes(item.level) && item.won
-  ).length
   const todayComplete = todayCompletedLevels >= requiredDailyLevels
+  const dailyCompleteHeading = 'Daily cases complete'
   const onTodayCard = selectedDate === todayISO()
-  const showDailyCompleteCard = onTodayCard && todayComplete && dismissedDailyCompleteDate !== today
+  const showDailyCompleteCard = onTodayCard && todayComplete
   const resumeRoundIsCurrent = Boolean(
     resumeRound &&
       resumeRound.caseDate === selectedDate &&
@@ -3279,6 +3348,10 @@ function PlayPageContent() {
     resumeRoundDismissToken !== dismissedResumeRoundToken
   const nextLevel = nextLevelMap[selectedLevel]
   const statsSummary = useMemo(() => getStatsSummary(), [dailySummary])
+  const dailyCompleteStreakText =
+    statsSummary.currentStreak <= 1
+      ? '1-day streak started'
+      : `${statsSummary.currentStreak}-day streak alive`
   const selectedTaglines = useMemo(
     () =>
       ({
@@ -3909,6 +3982,24 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-daily-complete-bloom {
+          0% {
+            opacity: 0;
+            transform: translateY(10px) scale(0.985);
+            box-shadow: 0 0 0 rgba(143, 67, 22, 0);
+          }
+          55% {
+            opacity: 1;
+            transform: translateY(-2px) scale(1.006);
+            box-shadow: 0 18px 38px rgba(143, 67, 22, 0.22);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            box-shadow: 0 18px 38px rgba(143, 67, 22, 0.28);
+          }
+        }
+
         @keyframes orthodle-image-swap {
           0% {
             opacity: 0;
@@ -4134,6 +4225,10 @@ function PlayPageContent() {
           animation: orthodle-ember-shimmer 2.8s linear infinite;
         }
 
+        .orthodle-daily-complete-bloom {
+          animation: orthodle-daily-complete-bloom 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
         .orthodle-teaching-unfold {
           animation: orthodle-teaching-unfold 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
@@ -4304,72 +4399,41 @@ function PlayPageContent() {
 
       <section className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {showDailyCompleteCard && (
-          <div className={`orthodle-panel-shell night-surface relative mt-3 w-full rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-3 text-center shadow-[0_12px_28px_rgba(16,32,24,0.08)] sm:px-5 sm:py-4 ${showRailCompleteMoment ? 'orthodle-rail-complete' : ''}`}>
-            <button
-              type="button"
-              onClick={() => {
-                if (typeof window !== 'undefined') {
-                  window.localStorage.setItem(DAILY_COMPLETE_DISMISS_KEY, today)
-                }
-                setDismissedDailyCompleteDate(today)
-              }}
-              className="absolute right-3 top-3 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#cfded4] bg-white text-[#637268] shadow-[0_6px_14px_rgba(16,32,24,0.05)] transition hover:bg-[#f7fbf8] sm:right-4 sm:top-4"
-              aria-label="Dismiss daily complete card"
-            >
-              ×
-            </button>
+          <div
+            className={`orthodle-daily-complete-shell orthodle-daily-complete-bloom relative mt-3 w-full overflow-hidden rounded-[22px] px-3.5 py-3 text-center text-[#102018] sm:px-5 sm:py-4 ${showRailCompleteMoment ? 'orthodle-rail-complete' : ''}`}
+          >
             <div className="px-8 sm:px-10">
               <div className="min-w-0 text-center">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
-                  Daily card complete
+                <div className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#a76325] sm:text-[12.5px]">
+                  {dailyCompleteHeading}
                 </div>
-                <p className="mt-1.5 text-[11px] leading-4.5 text-[#637268] sm:text-[12px]">
-                  Fresh cases drop tomorrow. Keep the streak alive.
+                <div className="mt-2 flex justify-center">
+                  <div className={`orthodle-streak-chip inline-flex items-center justify-center gap-1.5 border border-[#dfb574] bg-[#fff8eb] px-3 py-1 text-[10px] font-semibold text-[#a76325] shadow-[0_8px_18px_rgba(103,44,15,0.08)] ${showStreakIgnition ? 'orthodle-streak-ignite' : statsSummary.currentStreak >= 1 ? 'orthodle-streak-ember' : ''}`}>
+                    <span aria-hidden="true">🔥</span>
+                    <span>{dailyCompleteStreakText}</span>
+                  </div>
+                </div>
+                <p className="mt-2 text-[12px] font-medium text-[#6c5642] sm:text-[12.5px]">
+                  Fresh cases drop tomorrow
                 </p>
               </div>
             </div>
-            <div className="mt-2 grid grid-cols-3 gap-1.5 text-center sm:gap-2">
-              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_16px_rgba(16,32,24,0.04)]">
-                <div className="text-[8px] font-bold uppercase tracking-[0.15em] text-[#637268] sm:text-[8.5px]">
-                  Solved
-                </div>
-                <div className="mt-0.5 font-serif text-[13px] font-bold text-[#1f6448] sm:text-[14px]">
-                  {todaySolvedCount}/{requiredDailyLevels}
-                </div>
+            {requiredDailyLevels > 2 && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Link
+                  href="/stats"
+                  className="orthodle-home-secondary-action rounded-xl px-3.5 py-1.5 text-[10px] font-semibold text-[#102018] shadow-[0_10px_20px_rgba(103,44,15,0.08)] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px]"
+                >
+                  View stats
+                </Link>
+                <Link
+                  href="/archive"
+                  className="orthodle-home-secondary-action rounded-xl px-3.5 py-1.5 text-[10px] font-semibold text-[#102018] shadow-[0_10px_20px_rgba(103,44,15,0.08)] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px]"
+                >
+                  Browse archive
+                </Link>
               </div>
-              <div className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_16px_rgba(16,32,24,0.04)]">
-                <div className="text-[8px] font-bold uppercase tracking-[0.15em] text-[#637268] sm:text-[8.5px]">
-                  Case avg
-                </div>
-                <div className="mt-0.5 font-serif text-[13px] font-bold text-[#102018] sm:text-[14px]">
-                  {dailySummary.standardCaseAverageGuesses !== null
-                    ? dailySummary.standardCaseAverageGuesses.toFixed(1)
-                    : '—'}
-                </div>
-              </div>
-              <div className="rounded-lg border border-[#cfded4] bg-white px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_8px_16px_rgba(16,32,24,0.04)]">
-                <div className="text-[8px] font-bold uppercase tracking-[0.15em] text-[#637268] sm:text-[8.5px]">
-                  Streak
-                </div>
-                <div className="mt-0.5 font-serif text-[13px] font-bold text-[#1f6448] sm:text-[14px]">
-                  {statsSummary.currentStreak}
-                </div>
-              </div>
-            </div>
-            <div className="mt-2.5 flex flex-wrap justify-center gap-2">
-              <Link
-                href="/stats"
-                className="orthodle-home-secondary-action rounded-xl border px-3 py-1.5 text-[10px] font-semibold text-[#1f6448] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px]"
-              >
-                View stats
-              </Link>
-              <Link
-                href="/archive"
-                className="orthodle-home-secondary-action rounded-xl border px-3 py-1.5 text-[10px] font-semibold text-[#1f6448] transition hover:bg-white sm:px-4 sm:py-2 sm:text-[11px]"
-              >
-                Browse archive
-              </Link>
-            </div>
+            )}
           </div>
         )}
 
@@ -4497,7 +4561,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${showRailCompleteMoment ? 'orthodle-lineup-rail-glow orthodle-rail-complete' : ''} ${onTodayCard && todayComplete ? 'orthodle-rail-settled-complete' : ''} ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
           {homeBootReady ? (
             <div
               className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
@@ -4660,7 +4724,7 @@ function PlayPageContent() {
               )}
 
               {visibleImages.length > 0 && imageRevealed && !imageHidden && (
-                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 rounded-[20px] px-2 pb-5 pt-1.5 sm:px-3 sm:pb-6">
+                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 mb-2 rounded-[20px] px-2.5 pb-7 pt-2 sm:px-4 sm:pb-9">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -4674,16 +4738,16 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`}>
                           <button
                             onClick={() => openExpandedImage(index)}
-                            className="orthodle-image-tile group flex w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-1"
+                            className="orthodle-image-tile group flex min-h-[240px] w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-2 sm:min-h-[320px] sm:py-3"
                           >
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="block max-h-[220px] max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[320px]"
+                              className="block max-h-[300px] w-auto max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[420px]"
                             />
                           </button>
                           {image.credit && (
-                            <p className="mt-2 text-center text-[10px] leading-4 text-[#8a948d]">
+                            <p className="mt-2.5 text-center text-[10px] leading-4 text-[#8a948d]">
                               {image.credit}
                             </p>
                           )}
@@ -4692,7 +4756,7 @@ function PlayPageContent() {
                     </div>
                     {solvedImagingSection ? (
                       <div className="mt-2.5 border-t border-[#ebe5db] pt-2.5">
-                        <div className="text-[13px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/65 underline-offset-2">
+                        <div className="text-center text-[13px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/65 underline-offset-2">
                           {renderFormattedLine(solvedImagingSection.label, 'solved-imaging-label')}
                         </div>
                         <div className="mt-1.5 space-y-1">
@@ -4936,7 +5000,7 @@ function PlayPageContent() {
                       {dailyCase.answer}
                     </h3>
                     {onTodayCard && levelStreak >= 1 && (
-                      <div className={`mt-2 inline-flex items-center justify-center gap-1.5 rounded-full border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95] ${showStreakIgnition ? 'orthodle-streak-ignite' : levelStreak >= 1 ? 'orthodle-streak-ember' : ''}`}>
+                      <div className={`orthodle-streak-chip mt-2 inline-flex items-center justify-center gap-1.5 border border-[#f0c247]/40 bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-[#f7df95] ${showStreakIgnition ? 'orthodle-streak-ignite' : levelStreak >= 1 ? 'orthodle-streak-ember' : ''}`}>
                         <span aria-hidden="true">🔥</span>
                         <span>
                           {levelStreak}-day {formatLevel(selectedLevel, selectedDate, dailyCase)} streak
@@ -4967,37 +5031,54 @@ function PlayPageContent() {
                 {roundComplete && (
                   <div className="mx-auto mt-2 w-full max-w-[460px]">
                     <div className="grid gap-2 sm:grid-cols-2">
-                      <button
-                        type="button"
-                        onClick={shareResult}
-                        className="orthodle-primary-button orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 text-[11px] font-semibold sm:col-span-2"
-                      >
-                        Share the case
-                      </button>
                       {canAdvanceToNextLevel && nextLevel ? (
-                        <button
-                          type="button"
-                          onClick={moveToNextLevel}
-                          className="orthodle-home-secondary-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
-                        >
-                          {nextLevel === 'attending'
-                            ? 'Try the Anatomy Quiz'
-                            : `Try the ${formatLevel(nextLevel)} case`}
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={moveToNextLevel}
+                            className="orthodle-primary-button orthodle-solved-action orthodle-streak-ember orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 font-semibold sm:col-span-2"
+                          >
+                            {nextLevel === 'attending'
+                              ? 'Try the Anatomy Quiz'
+                              : `Try the ${formatLevel(nextLevel)} case`}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={shareResult}
+                            className="orthodle-winner-button orthodle-solved-action orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple rounded-lg border px-4 py-2 font-semibold"
+                          >
+                            Share the case
+                          </button>
+                          <Link
+                            href="/stats"
+                            className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                          >
+                            View your stats
+                          </Link>
+                        </>
                       ) : (
-                        <Link
-                          href="/archive"
-                          className="orthodle-home-secondary-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                        >
-                          Browse archive
-                        </Link>
+                        <>
+                          <button
+                            type="button"
+                            onClick={shareResult}
+                            className="orthodle-winner-button orthodle-solved-action orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 font-semibold sm:col-span-2"
+                          >
+                            Share the case
+                          </button>
+                          <Link
+                            href="/archive"
+                            className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                          >
+                            Browse archive
+                          </Link>
+                          <Link
+                            href="/stats"
+                            className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                          >
+                            View your stats
+                          </Link>
+                        </>
                       )}
-                      <Link
-                        href="/stats"
-                        className="orthodle-home-secondary-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                      >
-                        View your stats
-                      </Link>
                     </div>
                   </div>
                 )}
