@@ -519,6 +519,8 @@ function PlayPageContent() {
   const lastConfettiAtRef = useRef<number>(0)
   const streakIgnitionTimeoutRef = useRef<number | null>(null)
   const railCompleteTimeoutRef = useRef<number | null>(null)
+  const caseCardSettleTimeoutRef = useRef<number | null>(null)
+  const anatomyChoiceSettleTimeoutRef = useRef<number | null>(null)
   const previousStreakRef = useRef<number>(0)
   const previousTodayCompleteRef = useRef(false)
   const imageTouchStartY = useRef<number | null>(null)
@@ -567,9 +569,11 @@ function PlayPageContent() {
   const [showLocalhostReset, setShowLocalhostReset] = useState(false)
   const [showStreakIgnition, setShowStreakIgnition] = useState(false)
   const [showRailCompleteMoment, setShowRailCompleteMoment] = useState(false)
+  const [showCaseCardSettle, setShowCaseCardSettle] = useState(false)
   const [showTeachingImageSpotlight, setShowTeachingImageSpotlight] = useState(false)
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
+  const [activeAnatomyChoiceSettleLetter, setActiveAnatomyChoiceSettleLetter] = useState<string | null>(null)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
@@ -2885,6 +2889,17 @@ function PlayPageContent() {
   }
 
   function updateSelectedAnatomyLetters(letter: string) {
+    setActiveAnatomyChoiceSettleLetter(letter)
+    if (typeof window !== 'undefined') {
+      if (anatomyChoiceSettleTimeoutRef.current) {
+        window.clearTimeout(anatomyChoiceSettleTimeoutRef.current)
+      }
+      anatomyChoiceSettleTimeoutRef.current = window.setTimeout(() => {
+        setActiveAnatomyChoiceSettleLetter(current => (current === letter ? null : current))
+        anatomyChoiceSettleTimeoutRef.current = null
+      }, 320)
+    }
+
     setSelectedAnatomyLetters(current =>
       isMultiSelectAnatomy
         ? current.includes(letter)
@@ -3162,7 +3177,7 @@ function PlayPageContent() {
     setShowSolvedTeachingStep(false)
     const teachingTimeout = window.setTimeout(() => {
       setShowSolvedTeachingStep(true)
-    }, 220)
+    }, 320)
 
     return () => {
       window.clearTimeout(teachingTimeout)
@@ -3319,20 +3334,38 @@ function PlayPageContent() {
       railCompleteTimeoutRef.current = window.setTimeout(() => {
         setShowRailCompleteMoment(false)
         railCompleteTimeoutRef.current = null
-      }, 2200)
+      }, 2600)
     }
 
     previousTodayCompleteRef.current = todayComplete
   }, [todayComplete])
 
   useEffect(() => {
-    if (!onTodayCard || !todayComplete || typeof window === 'undefined') return
-    const celebrationKey = `orthodle_daily_complete_${today}`
-    if (window.sessionStorage.getItem(celebrationKey)) return
-    window.sessionStorage.setItem(celebrationKey, 'true')
-    triggerConfetti()
-    triggerSuccessPulse()
-  }, [onTodayCard, todayComplete, today])
+    if (typeof window === 'undefined' || loading || !dailyCase) {
+      setShowCaseCardSettle(false)
+      return
+    }
+
+    setShowCaseCardSettle(false)
+    const frameId = window.requestAnimationFrame(() => {
+      setShowCaseCardSettle(true)
+      if (caseCardSettleTimeoutRef.current) {
+        window.clearTimeout(caseCardSettleTimeoutRef.current)
+      }
+      caseCardSettleTimeoutRef.current = window.setTimeout(() => {
+        setShowCaseCardSettle(false)
+        caseCardSettleTimeoutRef.current = null
+      }, 760)
+    })
+
+    return () => {
+      window.cancelAnimationFrame(frameId)
+      if (caseCardSettleTimeoutRef.current) {
+        window.clearTimeout(caseCardSettleTimeoutRef.current)
+        caseCardSettleTimeoutRef.current = null
+      }
+    }
+  }, [dailyCase?.id, loading, selectedDate, selectedLevel])
 
   function moveToNextLevel() {
     if (!nextLevel) return
@@ -3501,6 +3534,7 @@ function PlayPageContent() {
   useEffect(() => {
     setShowStreakIgnition(false)
     setAnatomyRevealKey(0)
+    setActiveAnatomyChoiceSettleLetter(null)
   }, [dailyCase?.id, selectedDate, selectedLevel])
 
   useEffect(() => {
@@ -3510,6 +3544,12 @@ function PlayPageContent() {
       }
       if (railCompleteTimeoutRef.current) {
         window.clearTimeout(railCompleteTimeoutRef.current)
+      }
+      if (caseCardSettleTimeoutRef.current) {
+        window.clearTimeout(caseCardSettleTimeoutRef.current)
+      }
+      if (anatomyChoiceSettleTimeoutRef.current) {
+        window.clearTimeout(anatomyChoiceSettleTimeoutRef.current)
       }
     }
   }, [])
@@ -3768,12 +3808,42 @@ function PlayPageContent() {
 
         @keyframes orthodle-choice-settle {
           0% {
-            transform: translateY(0) scale(1);
+            transform: translateY(1px) scale(0.982);
           }
-          45% {
-            transform: translateY(-2px) scale(1.02);
+          40% {
+            transform: translateY(-4px) scale(1.028);
           }
           100% {
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes orthodle-case-settle-in {
+          0% {
+            opacity: 0;
+            transform: translateY(14px) scale(0.985);
+          }
+          55% {
+            opacity: 1;
+            transform: translateY(-2px) scale(1.004);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes orthodle-answer-hero-reveal {
+          0% {
+            opacity: 0;
+            transform: translateY(12px) scale(0.985);
+          }
+          58% {
+            opacity: 1;
+            transform: translateY(-2px) scale(1.01);
+          }
+          100% {
+            opacity: 1;
             transform: translateY(0) scale(1);
           }
         }
@@ -3792,7 +3862,11 @@ function PlayPageContent() {
         @keyframes orthodle-mobile-sheet-rise {
           0% {
             opacity: 0;
-            transform: translateY(18px) scale(0.985);
+            transform: translateY(28px) scale(0.985);
+          }
+          72% {
+            opacity: 1;
+            transform: translateY(-3px) scale(1.002);
           }
           100% {
             opacity: 1;
@@ -3968,6 +4042,14 @@ function PlayPageContent() {
           animation: orthodle-choice-settle 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
+        .orthodle-case-card-settle {
+          animation: orthodle-case-settle-in 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-answer-hero-reveal {
+          animation: orthodle-answer-hero-reveal 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
         .orthodle-anatomy-choice-faded {
           opacity: 0.52;
           filter: saturate(0.8);
@@ -4025,16 +4107,16 @@ function PlayPageContent() {
           content: '';
           position: absolute;
           inset: 0;
-          background: radial-gradient(circle at center, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0) 62%);
+          background: radial-gradient(circle at center, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.08) 36%, rgba(255,255,255,0) 68%);
           opacity: 0;
-          transform: scale(0.35);
-          transition: opacity 180ms ease, transform 220ms ease;
+          transform: scale(0.24);
+          transition: opacity 210ms ease, transform 260ms ease;
           pointer-events: none;
         }
 
         .orthodle-tap-ripple:active::after {
           opacity: 1;
-          transform: scale(1);
+          transform: scale(1.12);
         }
 
         .orthodle-streak-ember {
@@ -4111,6 +4193,31 @@ function PlayPageContent() {
           animation: orthodle-mobile-sheet-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
+        .orthodle-bottom-sheet {
+          transform-origin: bottom center;
+        }
+
+        .orthodle-bottom-sheet-handle {
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .orthodle-case-card-settle,
+          .orthodle-answer-hero-reveal,
+          .orthodle-lineup-rail-glow,
+          .orthodle-rail-complete,
+          .orthodle-rail-settled-complete::after,
+          .orthodle-anatomy-choice-selected,
+          .orthodle-mobile-sheet,
+          .orthodle-solved-step-in,
+          .orthodle-teaching-image-spotlight,
+          .orthodle-image-curtain,
+          .orthodle-tap-ripple::after {
+            animation: none !important;
+            transition: none !important;
+          }
+        }
+
       `}</style>
 
       {showConfetti && (
@@ -4156,9 +4263,9 @@ function PlayPageContent() {
       )}
 
       {showTutorial && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#102018]/60 px-4">
-          <div className="orthodle-mobile-sheet w-full max-w-sm rounded-[24px] border border-[#e7e1d6] bg-white p-4 shadow-[0_18px_40px_rgba(16,32,24,0.18)]">
-            <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#102018]/60 px-4 pt-10 sm:items-center sm:pt-0">
+          <div className="orthodle-mobile-sheet orthodle-bottom-sheet w-full max-w-sm max-h-[88vh] overflow-y-auto rounded-t-[28px] border border-[#e7e1d6] bg-white p-4 shadow-[0_18px_40px_rgba(16,32,24,0.18)] sm:max-h-none sm:rounded-[24px]">
+            <div className="orthodle-bottom-sheet-handle mx-auto mb-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="mt-1.5 font-serif text-[25px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
@@ -4187,7 +4294,7 @@ function PlayPageContent() {
             <button
               type="button"
               onClick={dismissTutorial}
-              className="mt-4 w-full rounded-xl bg-[#1f6448] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+              className="orthodle-primary-button orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37]"
             >
               Start playing
             </button>
@@ -4197,7 +4304,7 @@ function PlayPageContent() {
 
       <section className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {showDailyCompleteCard && (
-          <div className="orthodle-panel-shell night-surface relative mt-3 w-full rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-3 text-center shadow-[0_12px_28px_rgba(16,32,24,0.08)] sm:px-5 sm:py-4">
+          <div className={`orthodle-panel-shell night-surface relative mt-3 w-full rounded-2xl border border-[#d8e5dd] bg-[#f8fbf9] px-3.5 py-3 text-center shadow-[0_12px_28px_rgba(16,32,24,0.08)] sm:px-5 sm:py-4 ${showRailCompleteMoment ? 'orthodle-rail-complete' : ''}`}>
             <button
               type="button"
               onClick={() => {
@@ -4516,7 +4623,7 @@ function PlayPageContent() {
             </div>
           )}
 
-          <div className={`orthodle-panel-shell orthodle-home-card relative z-20 rounded-[24px] border bg-white px-3 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-5 sm:py-5 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'}`}>
+          <div className={`orthodle-panel-shell orthodle-home-card relative z-20 rounded-[24px] border bg-white px-3 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-5 sm:py-5 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'} ${showCaseCardSettle ? 'orthodle-case-card-settle' : ''}`}>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
@@ -4642,7 +4749,7 @@ function PlayPageContent() {
                                 onKeyDown={event =>
                                   handleAnatomyChoiceKeyDown(event, letter, isChosenChoice)
                                 }
-                                className={`orthodle-anatomy-choice orthodle-anatomy-choice-magnetic orthodle-micro-press orthodle-tap-ripple ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} ${!roundComplete && isChosenChoice ? 'orthodle-anatomy-choice-selected' : ''} ${roundComplete && !isCorrectChoice && !isChosenChoice ? 'orthodle-anatomy-choice-faded' : ''} rounded-2xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448]/25 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf8] ${
+                                className={`orthodle-anatomy-choice orthodle-anatomy-choice-magnetic orthodle-micro-press orthodle-tap-ripple ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} ${!roundComplete && activeAnatomyChoiceSettleLetter === letter ? 'orthodle-anatomy-choice-selected' : ''} ${roundComplete && !isCorrectChoice && !isChosenChoice ? 'orthodle-anatomy-choice-faded' : ''} rounded-2xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448]/25 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf8] ${
                                   choiceState === 'correct'
                                     ? 'orthodle-anatomy-choice-correct cursor-default border-[#cfe2d6] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
@@ -4819,7 +4926,7 @@ function PlayPageContent() {
               }
             >
               <div className="mt-1">
-                <div className="relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_26%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-4 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.16)] sm:px-5 sm:py-5">
+                <div className={`relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_26%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-4 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.16)] sm:px-5 sm:py-5 ${justCompletedRound ? 'orthodle-answer-hero-reveal' : ''}`}>
                   <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.4px,transparent_1.4px)] [background-size:32px_32px]" />
                   <div className="relative">
                     <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0c247] sm:text-[10px]">
@@ -4863,7 +4970,7 @@ function PlayPageContent() {
                       <button
                         type="button"
                         onClick={shareResult}
-                        className="orthodle-primary-button w-full rounded-lg border px-4 py-2 text-[11px] font-semibold sm:col-span-2"
+                        className="orthodle-primary-button orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 text-[11px] font-semibold sm:col-span-2"
                       >
                         Share the case
                       </button>
@@ -4871,7 +4978,7 @@ function PlayPageContent() {
                         <button
                           type="button"
                           onClick={moveToNextLevel}
-                          className="orthodle-home-secondary-action rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
+                          className="orthodle-home-secondary-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#cfded4] bg-[#f7fbf8] px-4 py-2 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
                         >
                           {nextLevel === 'attending'
                             ? 'Try the Anatomy Quiz'
@@ -4880,17 +4987,17 @@ function PlayPageContent() {
                       ) : (
                         <Link
                           href="/archive"
-                          className="orthodle-home-secondary-action rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                          className="orthodle-home-secondary-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         >
                           Browse archive
                         </Link>
                       )}
                       <Link
                         href="/stats"
-                        className="orthodle-home-secondary-action rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                        >
-                          View your stats
-                        </Link>
+                        className="orthodle-home-secondary-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                      >
+                        View your stats
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -4982,11 +5089,11 @@ function PlayPageContent() {
 
       {currentExpandedImages.length > 0 && imageExpanded && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#102018]/75 px-4 py-8"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[#102018]/75 px-4 py-8 sm:items-center"
           onClick={closeExpandedImage}
         >
-          <div className="orthodle-image-modal orthodle-mobile-sheet w-full max-w-5xl overflow-hidden rounded-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl">
-            <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
+          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-t-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl sm:max-h-[calc(100vh-4rem)] sm:rounded-[28px]">
+            <div className="orthodle-bottom-sheet-handle mx-auto mt-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
             <div className="orthodle-image-modal-header flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                 Imaging
