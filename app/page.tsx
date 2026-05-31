@@ -4553,7 +4553,7 @@ function PlayPageContent() {
               )}
 
               {visibleImages.length > 0 && imageRevealed && !imageHidden && (
-                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 rounded-[20px] px-2 pb-3 pt-1 sm:px-3 sm:pb-4">
+                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 rounded-[20px] px-2 pb-5 pt-1.5 sm:px-3 sm:pb-6">
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -4576,7 +4576,7 @@ function PlayPageContent() {
                             />
                           </button>
                           {image.credit && (
-                            <p className="mt-1.5 text-center text-[10px] leading-4 text-[#8a948d]">
+                            <p className="mt-2 text-center text-[10px] leading-4 text-[#8a948d]">
                               {image.credit}
                             </p>
                           )}
