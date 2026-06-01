@@ -453,6 +453,7 @@ const ADMIN_ANALYTICS_CACHE_TTL_MS = 1000 * 60 * 5
 const EMAIL_REMINDERS_SEEN_AT_KEY = 'orthodle_seen_email_reminders_at'
 
 export default function AdminPage() {
+  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const teachingPointRef = useRef<HTMLTextAreaElement | null>(null)
   const clueTextareaRefs = useRef<Array<HTMLTextAreaElement | null>>([])
   const previousLevelRef = useRef<Level>('med_student')
@@ -481,6 +482,7 @@ export default function AdminPage() {
   const [learningImageUrl2, setLearningImageUrl2] = useState('')
   const [learningImageCredit2, setLearningImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imagesCollapsed, setImagesCollapsed] = useState(true)
+  const [activeClueIndex, setActiveClueIndex] = useState<number | null>(null)
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
@@ -1527,6 +1529,45 @@ export default function AdminPage() {
     syncImageRevealFromClues(nextClues)
   }
 
+  function wrapBasicTextSelection(
+    textarea: HTMLTextAreaElement | null,
+    value: string,
+    onChange: (nextValue: string) => void,
+    format: 'bold' | 'italic'
+  ) {
+    if (!textarea) return
+
+    const markers = format === 'bold' ? { open: '**', close: '**' } : { open: '*', close: '*' }
+    const selectionStart = textarea.selectionStart
+    const selectionEnd = textarea.selectionEnd
+    const selectedText = value.slice(selectionStart, selectionEnd)
+    const wrapped = `${markers.open}${selectedText || 'text'}${markers.close}`
+    const nextValue = value.slice(0, selectionStart) + wrapped + value.slice(selectionEnd)
+
+    onChange(nextValue)
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const start = selectionStart + markers.open.length
+      const end = start + (selectedText || 'text').length
+      textarea.setSelectionRange(start, end)
+    })
+  }
+
+  function wrapPromptSelection(format: 'bold' | 'italic') {
+    wrapBasicTextSelection(promptTextareaRef.current, prompt, setPrompt, format)
+  }
+
+  function wrapActiveClueSelection(format: 'bold' | 'italic') {
+    if (activeClueIndex === null) return
+    wrapBasicTextSelection(
+      clueTextareaRefs.current[activeClueIndex],
+      [clue1, clue2, clue3, clue4, clue5, clue6][activeClueIndex] || '',
+      nextValue => updateClueAt(activeClueIndex, nextValue),
+      format
+    )
+  }
+
   function normalizeImageRevealValueForEditor(value: number | null | undefined) {
     if (value === 0) return 'after'
     if (value && value >= 1 && value <= 6) return String(value)
@@ -1660,6 +1701,24 @@ export default function AdminPage() {
     if (key === 'u') {
       event.preventDefault()
       wrapTeachingPointSelection('underline')
+    }
+  }
+
+  function handlePromptOrClueKeyDown(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    applyFormatting: (format: 'bold' | 'italic') => void
+  ) {
+    if (!(event.metaKey || event.ctrlKey)) return
+
+    const key = event.key.toLowerCase()
+    if (key === 'b') {
+      event.preventDefault()
+      applyFormatting('bold')
+    }
+
+    if (key === 'i') {
+      event.preventDefault()
+      applyFormatting('italic')
     }
   }
 
@@ -3950,14 +4009,35 @@ export default function AdminPage() {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Case Prompt
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>Case Prompt</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => wrapPromptSelection('bold')}
+                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                    >
+                      Bold
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => wrapPromptSelection('italic')}
+                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                    >
+                      Italic
+                    </button>
+                  </div>
+                </div>
                 <textarea
+                  ref={promptTextareaRef}
                   value={prompt}
                   onChange={e => setPrompt(e.target.value)}
+                  onKeyDown={event => handlePromptOrClueKeyDown(event, wrapPromptSelection)}
                   placeholder="Write the case stem..."
                   rows={4}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
+                <p className="text-[11px] font-normal text-[#7b857d]">Use Cmd/Ctrl + B or I to format the prompt.</p>
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -4351,9 +4431,32 @@ export default function AdminPage() {
               </div>
 
               <div className="rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/65">
-                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                  {level === 'attending' ? 'Answer choices' : 'Clinical clues'}
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    {level === 'attending' ? 'Answer choices' : 'Clinical clues'}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => wrapActiveClueSelection('bold')}
+                      disabled={activeClueIndex === null}
+                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Bold
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => wrapActiveClueSelection('italic')}
+                      disabled={activeClueIndex === null}
+                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Italic
+                    </button>
+                  </div>
                 </div>
+                <p className="mb-3 text-[11px] font-normal text-[#7b857d]">
+                  Focus a clue first, then use Cmd/Ctrl + B or I.
+                </p>
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'A' : 'Clue 1'}
@@ -4363,6 +4466,12 @@ export default function AdminPage() {
                       }}
                       value={clue1}
                       onChange={e => updateClueAt(0, e.target.value)}
+                      onFocus={() => setActiveClueIndex(0)}
+                      onKeyDown={event =>
+                        handlePromptOrClueKeyDown(event, format =>
+                          wrapBasicTextSelection(clueTextareaRefs.current[0], clue1, nextValue => updateClueAt(0, nextValue), format)
+                        )
+                      }
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4377,6 +4486,12 @@ export default function AdminPage() {
                       }}
                       value={clue2}
                       onChange={e => updateClueAt(1, e.target.value)}
+                      onFocus={() => setActiveClueIndex(1)}
+                      onKeyDown={event =>
+                        handlePromptOrClueKeyDown(event, format =>
+                          wrapBasicTextSelection(clueTextareaRefs.current[1], clue2, nextValue => updateClueAt(1, nextValue), format)
+                        )
+                      }
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4391,6 +4506,12 @@ export default function AdminPage() {
                       }}
                       value={clue3}
                       onChange={e => updateClueAt(2, e.target.value)}
+                      onFocus={() => setActiveClueIndex(2)}
+                      onKeyDown={event =>
+                        handlePromptOrClueKeyDown(event, format =>
+                          wrapBasicTextSelection(clueTextareaRefs.current[2], clue3, nextValue => updateClueAt(2, nextValue), format)
+                        )
+                      }
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4405,6 +4526,12 @@ export default function AdminPage() {
                       }}
                       value={clue4}
                       onChange={e => updateClueAt(3, e.target.value)}
+                      onFocus={() => setActiveClueIndex(3)}
+                      onKeyDown={event =>
+                        handlePromptOrClueKeyDown(event, format =>
+                          wrapBasicTextSelection(clueTextareaRefs.current[3], clue4, nextValue => updateClueAt(3, nextValue), format)
+                        )
+                      }
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4420,6 +4547,12 @@ export default function AdminPage() {
                       value={clue5}
                       onChange={e => updateClueAt(4, e.target.value)}
                       placeholder="Optional"
+                      onFocus={() => setActiveClueIndex(4)}
+                      onKeyDown={event =>
+                        handlePromptOrClueKeyDown(event, format =>
+                          wrapBasicTextSelection(clueTextareaRefs.current[4], clue5, nextValue => updateClueAt(4, nextValue), format)
+                        )
+                      }
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4435,6 +4568,12 @@ export default function AdminPage() {
                       value={clue6}
                       onChange={e => updateClueAt(5, e.target.value)}
                       placeholder="Optional"
+                      onFocus={() => setActiveClueIndex(5)}
+                      onKeyDown={event =>
+                        handlePromptOrClueKeyDown(event, format =>
+                          wrapBasicTextSelection(clueTextareaRefs.current[5], clue6, nextValue => updateClueAt(5, nextValue), format)
+                        )
+                      }
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"

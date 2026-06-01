@@ -2105,6 +2105,20 @@ function PlayPageContent() {
     return nodes
   }
 
+  function renderFormattedTextWithBreaks(text: string, keyPrefix = 'inline-breaks'): React.ReactNode[] {
+    const lines = text.split('\n')
+    const nodes: React.ReactNode[] = []
+
+    lines.forEach((line, index) => {
+      if (index > 0) {
+        nodes.push(<br key={`${keyPrefix}-break-${index}`} />)
+      }
+      nodes.push(...renderFormattedLine(line, `${keyPrefix}-line-${index}`))
+    })
+
+    return nodes
+  }
+
   function parseTeachingPointSections(text: string): TeachingPointSection[] {
     const lines = text.split('\n')
     const sections: TeachingPointSection[] = []
@@ -2397,7 +2411,6 @@ function PlayPageContent() {
         communityStats.solveRate !== null ? `${Math.round(communityStats.solveRate)}%` : '—'
 
       return [
-        ...(solvedOnClueLine ? [solvedOnClueLine] : []),
         `Correct pick rate: **${correctRate}**`,
         'Answer distribution:',
         ...communityStats.anatomyChoiceBreakdown.map(
@@ -2774,7 +2787,7 @@ function PlayPageContent() {
     return text.split('\n').map((line, index) =>
       line.trim() ? (
         <p key={index} className="font-serif text-[15px] leading-[1.55] tracking-[-0.01em] text-[#102018] sm:text-[17px]">
-          {line}
+          {renderFormattedLine(line, `case-prompt-${index}`)}
         </p>
       ) : (
         <div key={index} className="h-4" />
@@ -4858,7 +4871,7 @@ function PlayPageContent() {
                                   </div>
                                   <div className="min-w-0">
                                     <p className="font-serif text-[14px] leading-5 tracking-[-0.01em] sm:text-[15px]">
-                                      {choice}
+                                      {renderFormattedTextWithBreaks(choice, `anatomy-choice-${index}`)}
                                     </p>
                                   </div>
                                 </div>
@@ -4901,7 +4914,7 @@ function PlayPageContent() {
                         <div className="flex gap-3">
                           <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#c76b3a]" />
                           <p className="font-serif text-[13.5px] leading-5 tracking-[-0.01em] sm:text-[15px]">
-                            {finding}
+                            {renderFormattedTextWithBreaks(finding, `finding-${index}`)}
                           </p>
                         </div>
                       </div>
