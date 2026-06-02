@@ -3657,7 +3657,7 @@ export default function GroupsPage() {
                   {latestCompletedHonor.group_name}
                 </div>
                 <div className="mt-1 text-[12px] text-[#fff0df]">
-                  Group of the Week · {formatWeekRangeLabel(latestCompletedHonor.week_start, latestCompletedHonor.week_end)}
+                  {formatWeekRangeLabel(latestCompletedHonor.week_start, latestCompletedHonor.week_end)}
                 </div>
               </div>
               <div className="flex items-center justify-center gap-2 text-[12px] text-[#fff6ea]">
@@ -3665,7 +3665,7 @@ export default function GroupsPage() {
                   MVP
                 </span>
                 <span className="text-[18px] leading-none">{latestCompletedHonor.mvp_icon || '🏆'}</span>
-                <span className="font-semibold text-white">
+                <span className="orthodle-mvp-name-ember font-semibold text-white">
                   {latestCompletedHonor.mvp_display_name || 'No MVP recorded'}
                 </span>
               </div>
@@ -5518,7 +5518,7 @@ export default function GroupsPage() {
                         onClick={() => {
                           router.push(`/groups/${group.id}`)
                         }}
-                        className={`orthodle-leaderboard-row ${showLeaderboardRise ? 'orthodle-leaderboard-rise' : ''} grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2 rounded-[14px] border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
+                        className={`orthodle-leaderboard-row ${showLeaderboardRise ? 'orthodle-leaderboard-rise' : ''} grid w-full grid-cols-[22px_minmax(0,1fr)] items-center gap-2 rounded-[14px] border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
                           selectedGroupId === group.id
                             ? 'border-[#2d7651] bg-[#fcfbf8]'
                             : 'border-[#ece6db] bg-white'
@@ -5527,8 +5527,18 @@ export default function GroupsPage() {
                       >
                         <div className="text-[15px] font-semibold text-[#102018]">{rank}</div>
                         <div className="min-w-0">
-                          <div className="line-clamp-2 pr-1 font-serif text-[15px] font-semibold leading-tight tracking-[-0.03em] text-[#102018]">
-                            {group.name}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="line-clamp-2 pr-1 font-serif text-[15px] font-semibold leading-tight tracking-[-0.03em] text-[#102018]">
+                              {group.name}
+                            </div>
+                            <div className="shrink-0 whitespace-nowrap text-right">
+                              <span className="font-serif text-[17px] font-semibold leading-none text-[#102018]">
+                                {formatScore(group.score)}
+                              </span>
+                              <span className="ml-1 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                                pts
+                              </span>
+                            </div>
                           </div>
                           <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
                             {formatMemberCount(group.members)}
@@ -5541,14 +5551,6 @@ export default function GroupsPage() {
                                 {scoreDelta} pts back
                               </span>
                             )}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-serif text-[18px] font-semibold leading-none text-[#102018]">
-                            {formatScore(group.score)}
-                          </div>
-                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
-                            pts
                           </div>
                         </div>
                       </button>
