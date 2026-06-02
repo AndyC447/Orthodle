@@ -385,7 +385,13 @@ const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Who</u>**
 
 **<u>Classic Pitfall</u>**`
 
-const DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE = `<u>**Explanation**:</u>
+const DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE = `<u>**Explanation**</u>
+
+**<u>Clinical Pearl</u>**
+
+<u>**Why not the others?**</u>`
+
+const LEGACY_ANATOMY_TEACHING_POINT_TEMPLATE = `<u>**Explanation**:</u>
 
 **<u>Clinical Pearl:</u>**
 
@@ -445,6 +451,17 @@ function timestampToLocalISO(timestamp: string) {
   const date = new Date(timestamp)
   const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
   return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 10)
+}
+
+function extractFirstMarkdownLink(text: string | null | undefined) {
+  if (!text) return null
+  const match = text.match(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/i)
+  if (!match) return null
+  return {
+    label: match[1] || 'Link to reference',
+    url: match[2] || '',
+    markdown: `[${match[1] || 'Link to reference'}](${match[2] || ''})`,
+  }
 }
 
 const ANALYTICS_PAGE_SIZE = 1000
@@ -702,7 +719,8 @@ export default function AdminPage() {
       !currentTeachingPoint ||
       currentTeachingPoint === previousDefault ||
       currentTeachingPoint === DEFAULT_TEACHING_POINT_TEMPLATE.trim() ||
-      currentTeachingPoint === DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE.trim()
+      currentTeachingPoint === DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE.trim() ||
+      currentTeachingPoint === LEGACY_ANATOMY_TEACHING_POINT_TEMPLATE.trim()
     ) {
       setTeachingPoint(getDefaultTeachingPointTemplate(level))
     }
@@ -1093,6 +1111,22 @@ export default function AdminPage() {
       return !(item.case_date === caseDate && item.level === level)
     })
   }, [answer, caseDate, cases, level])
+
+  const copyableImageSourceCases = useMemo(
+    () =>
+      cases
+        .filter(item => {
+          if (item.case_date !== caseDate || item.level === level) return false
+          return Boolean(
+            item.image_url ||
+              item.image_url_2 ||
+              item.image_findings ||
+              extractFirstMarkdownLink(item.teaching_point)
+          )
+        })
+        .sort((a, b) => levelOrder.indexOf(a.level) - levelOrder.indexOf(b.level)),
+    [caseDate, cases, level]
+  )
 
   const filteredCategorySuggestions = useMemo(() => {
     const counts = new Map<string, { label: string; count: number }>()
@@ -1720,6 +1754,55 @@ export default function AdminPage() {
       event.preventDefault()
       applyFormatting('italic')
     }
+  }
+
+  function formatCopySourceLevel(levelValue: Level) {
+    if (levelValue === 'med_student') return 'Daily Case'
+    if (levelValue === 'resident') return 'Resident'
+    return 'Anatomy Quiz'
+  }
+
+  function upsertReferenceLinkInTeachingPoint(currentValue: string, markdownLink: string) {
+    const lines = currentValue.split('\n')
+    let replaced = false
+    const nextLines = lines.map(line => {
+      if (!replaced && /\[[^\]]+\]\((https?:\/\/[^\s)]+)\)/i.test(line)) {
+        replaced = true
+        return markdownLink
+      }
+      return line
+    })
+
+    if (replaced) return nextLines.join('\n')
+
+    const trimmed = currentValue.trimEnd()
+    return trimmed ? `${trimmed}\n\n${markdownLink}` : markdownLink
+  }
+
+  function copyImageBundleFromCase(sourceCase: CaseRow) {
+    const sourceLink = extractFirstMarkdownLink(sourceCase.teaching_point)
+
+    setImageUrl(sourceCase.image_url || '')
+    setImageCredit(sourceCase.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setImageUrl2(sourceCase.image_url_2 || '')
+    setImageCredit2(sourceCase.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setImageFindings(sourceCase.image_findings || '')
+
+    if (sourceLink?.markdown) {
+      setTeachingPoint(currentValue =>
+        upsertReferenceLinkInTeachingPoint(currentValue, sourceLink.markdown)
+      )
+    }
+
+    const copiedParts = [
+      sourceCase.image_url || sourceCase.image_url_2 ? 'image' : null,
+      sourceCase.image_findings ? 'image findings' : null,
+      sourceLink ? 'reference link' : null,
+    ].filter(Boolean)
+
+    setStatus(
+      `Copied ${copiedParts.join(', ') || 'image details'} from ${formatCopySourceLevel(sourceCase.level)} on ${sourceCase.case_date}.`
+    )
   }
 
   function nextMissingLevelForDate(dateText: string): Level | null {
@@ -4101,6 +4184,21 @@ export default function AdminPage() {
                     {imagesCollapsed ? 'Expand' : 'Collapse'}
                   </div>
                 </button>
+
+                {copyableImageSourceCases.length > 0 ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {copyableImageSourceCases.map(sourceCase => (
+                      <button
+                        key={sourceCase.id}
+                        type="button"
+                        onClick={() => copyImageBundleFromCase(sourceCase)}
+                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                      >
+                        Copy image bundle from {formatCopySourceLevel(sourceCase.level)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
 
                 {!imagesCollapsed && (
                   <div className="mt-3 space-y-4">
