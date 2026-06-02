@@ -468,7 +468,7 @@ function IconPicker({
           onClick={onToggle}
           disabled={disabled}
           aria-expanded={isOpen}
-          className="inline-flex h-8 items-center gap-2 rounded-full border border-[#e0d8ca] bg-white px-2 text-[11px] font-semibold text-[#102018] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] disabled:cursor-not-allowed disabled:opacity-50"
+          className="orthodle-groups-button min-h-[32px] gap-2 px-2 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="orthodle-member-avatar flex h-6 w-6 items-center justify-center overflow-hidden rounded-full border border-[#e0d7c8] text-[14px]">
             <IconMark value={currentIcon} fallback={DEFAULT_MEMBER_ICON} />
@@ -770,7 +770,7 @@ function GroupsTopBanner({
             type="button"
             onClick={onOpenHowItWorks}
             aria-label="How it works"
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3]"
+            className="orthodle-groups-icon-button h-9 w-9 shrink-0 text-[#102018] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3]"
           >
             <Info size={16} strokeWidth={2.2} />
           </button>
@@ -780,10 +780,10 @@ function GroupsTopBanner({
               aria-expanded={menuOpen}
               aria-label="Open groups menu"
               onClick={() => setMenuOpen(prev => !prev)}
-              className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3] ${
+              className={`orthodle-groups-icon-button relative h-9 w-9 shrink-0 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#9ad0b3] ${
                 theme === 'dark'
                   ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
-                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                  : 'text-[#102018] hover:bg-[#fbfaf7]'
               }`}
             >
               <Menu size={16} strokeWidth={2.2} />
@@ -862,7 +862,7 @@ function GroupsTopBanner({
               type="button"
               onClick={onOpenHowItWorks}
               aria-label="How it works"
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+              className="orthodle-groups-icon-button h-9 w-9 shrink-0 text-[#102018]"
             >
               <Info size={16} strokeWidth={2.2} />
             </button>
@@ -872,10 +872,10 @@ function GroupsTopBanner({
                 aria-expanded={menuOpen}
                 aria-label="Open groups menu"
                 onClick={() => setMenuOpen(prev => !prev)}
-                className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition ${
+                className={`orthodle-groups-icon-button relative h-9 w-9 shrink-0 transition ${
                   theme === 'dark'
                     ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
-                    : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                    : 'text-[#102018] hover:bg-[#fbfaf7]'
                 }`}
               >
                 <Menu size={16} strokeWidth={2.2} />
@@ -1059,7 +1059,7 @@ function TrophyCase({
               <button
                 type="button"
                 onClick={() => setSelectedTrophy(null)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                className="orthodle-groups-icon-button shrink-0"
                 aria-label="Close trophy details"
               >
                 <X size={15} />
@@ -3448,7 +3448,7 @@ export default function GroupsPage() {
 
       {groupAnnouncement && groupAnnouncementKey !== dismissedGroupAnnouncementKey ? (
         <section className="mx-auto max-w-[760px] px-4 pt-3 sm:px-5">
-          <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 text-[13px] leading-5 text-[#102018] shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="orthodle-groups-card px-4 py-3 text-[13px] leading-5 text-[#102018]">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -3459,7 +3459,7 @@ export default function GroupsPage() {
               <button
                 type="button"
                 onClick={dismissGroupAnnouncement}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e2d5bb] bg-white/70 text-[#637268] transition hover:bg-white"
+                className="orthodle-groups-icon-button h-7 w-7 shrink-0 border-[#e2d5bb] bg-white/70 text-[#637268] hover:bg-white"
                 aria-label="Dismiss groups announcement"
               >
                 <X size={14} />
@@ -3471,7 +3471,7 @@ export default function GroupsPage() {
 
       {showGroupsExplainer ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-[420px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+          <div className="orthodle-groups-card w-full max-w-[420px] p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
@@ -3487,7 +3487,7 @@ export default function GroupsPage() {
                   window.localStorage.setItem(GROUPS_EXPLAINER_STORAGE_KEY, 'true')
                   setShowGroupsExplainer(false)
                 }}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                className="orthodle-groups-icon-button shrink-0"
                 aria-label="Close groups explanation"
               >
                 <X size={15} strokeWidth={2} />
@@ -3507,7 +3507,7 @@ export default function GroupsPage() {
                 window.localStorage.setItem(GROUPS_EXPLAINER_STORAGE_KEY, 'true')
                 setShowGroupsExplainer(false)
               }}
-              className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] text-[13px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#255e42]"
+              className="orthodle-groups-button orthodle-groups-button-primary mt-5 min-h-[40px] w-full text-[13px]"
             >
               Got it
             </button>
@@ -3517,7 +3517,7 @@ export default function GroupsPage() {
 
       {showLeaderboardScoringGuide ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#0b130fcc] px-3 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-[430px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
+          <div className="orthodle-groups-card w-full max-w-[430px] p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
@@ -3530,7 +3530,7 @@ export default function GroupsPage() {
               <button
                 type="button"
                 onClick={() => setShowLeaderboardScoringGuide(false)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                className="orthodle-groups-icon-button shrink-0"
                 aria-label="Close scoring guide"
               >
                 <X size={15} strokeWidth={2} />
@@ -3581,7 +3581,7 @@ export default function GroupsPage() {
             <button
               type="button"
               onClick={() => setShowLeaderboardScoringGuide(false)}
-              className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] text-[13px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#255e42]"
+              className="orthodle-groups-button orthodle-groups-button-primary mt-5 min-h-[40px] w-full text-[13px]"
             >
               Got it
             </button>
@@ -3591,13 +3591,13 @@ export default function GroupsPage() {
 
       <section className="mx-auto max-w-[760px] px-2.5 py-2.5 sm:px-5 sm:py-5">
         {message && !dismissedMessages.includes(message) ? (
-          <div className="mb-3 rounded-2xl border border-[#e7e1d6] bg-white px-3 py-2.5 text-[13px] text-[#355542] shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
+          <div className="orthodle-groups-card mb-3 px-3 py-2.5 text-[13px] text-[#355542] sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">{message}</div>
               <button
                 type="button"
                 onClick={dismissTopMessage}
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-[#fbfaf7] text-[#637268] transition hover:bg-white"
+                className="orthodle-groups-icon-button h-7 w-7 shrink-0 bg-[#fbfaf7] text-[#637268] hover:bg-white"
                 aria-label="Dismiss message"
               >
                 <X size={14} />
@@ -3607,7 +3607,7 @@ export default function GroupsPage() {
         ) : null}
 
         {groupHeaderSurvey.survey && !groupHeaderSurvey.submittedChoice ? (
-          <div className="mb-3 rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:mb-4 sm:px-4">
+          <div className="orthodle-groups-card mb-3 px-3 py-3 text-center sm:mb-4 sm:px-4">
             <div className="mx-auto max-w-[620px]">
               <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                 Groups survey
@@ -3628,10 +3628,8 @@ export default function GroupsPage() {
                       type="button"
                       onClick={() => void submitGroupHeaderSurvey(option)}
                       disabled={Boolean(groupHeaderSurvey.submittedChoice) || groupHeaderSurvey.isSubmitting}
-                      className={`rounded-xl border px-3 py-2 text-[11px] font-semibold transition ${
-                        isSelected
-                          ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                          : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
+                      className={`orthodle-groups-button min-h-[38px] w-full text-[11px] ${
+                        isSelected ? 'orthodle-groups-button-soft' : ''
                       } disabled:cursor-not-allowed disabled:opacity-80`}
                     >
                       {option}
@@ -3678,7 +3676,7 @@ export default function GroupsPage() {
             type="button"
             onClick={() => setShowGroupsExplainer(true)}
             aria-label="How it works"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+            className="orthodle-groups-icon-button h-9 w-9 text-[#102018]"
           >
             <Info size={14} strokeWidth={2.2} />
           </button>
@@ -3686,7 +3684,7 @@ export default function GroupsPage() {
             type="button"
             onClick={openNotificationsPanel}
             aria-label="Updates"
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[#102018] transition hover:bg-[#fbfaf7]"
+            className="orthodle-groups-icon-button relative h-9 w-9 text-[#102018]"
           >
             <Bell size={14} strokeWidth={2.2} />
             {unreadNotificationCount > 0 ? (
@@ -3698,7 +3696,7 @@ export default function GroupsPage() {
         </div>
 
         {loading ? (
-          <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-4 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
+          <section className="orthodle-groups-card p-4 text-center">
             <div className="mx-auto h-2 w-24 rounded-full bg-[#e8e1d6]" />
             <div className="mx-auto mt-3 h-2 w-36 rounded-full bg-[#f1ece3]" />
             <p className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-[#637268]">
@@ -3838,7 +3836,7 @@ export default function GroupsPage() {
               </button>
             </div>
 
-            <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+            <section className="orthodle-groups-card p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
                   Leaderboard
@@ -3849,14 +3847,14 @@ export default function GroupsPage() {
                     onClick={() =>
                         setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
                       }
-                      className="rounded-full border border-[#e6dfd3] px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                      className="orthodle-groups-button px-3 text-xs"
                     >
                       {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                     </button>
                   <button
                     type="button"
                     onClick={() => setShowLeaderboardScoringGuide(true)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:bg-[#fbfaf7]"
+                    className="orthodle-groups-icon-button h-8 w-8"
                     aria-label="Show leaderboard scoring guide"
                   >
                     <Info size={14} />
@@ -3886,7 +3884,7 @@ export default function GroupsPage() {
                           setSelectedGroupId(group.id)
                           setActiveGroupsTab('my-group')
                         }}
-                        className={`grid w-full grid-cols-[30px_34px_minmax(0,1fr)] items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[42px_46px_minmax(0,1fr)_86px_86px_76px] sm:gap-2.5 sm:px-3.5 ${
+                        className={`grid w-full grid-cols-[30px_34px_minmax(0,1fr)] items-center gap-2 rounded-[16px] border px-2.5 py-2 text-left transition hover:-translate-y-0.5 sm:grid-cols-[42px_46px_minmax(0,1fr)_86px_76px] sm:gap-2.5 sm:px-3.5 ${
                           rank === 1 ? 'border-[#e7b83f] bg-[#fffdf8]' : 'border-[#ece6db] bg-white'
                         }`}
                       >
@@ -3895,19 +3893,21 @@ export default function GroupsPage() {
                         </div>
                         <GroupCrest group={group} size="xs" />
                         <div className="min-w-0">
-                          <div className="line-clamp-2 pr-1 font-serif text-[14px] font-bold leading-tight text-[#102018] sm:truncate sm:text-[17px]">
-                            {group.name}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="line-clamp-2 pr-1 font-serif text-[14px] font-bold leading-tight text-[#102018] sm:truncate sm:text-[17px]">
+                              {group.name}
+                            </div>
+                            <div className="shrink-0 whitespace-nowrap text-right">
+                              <span className="font-serif text-[16px] font-bold leading-none text-[#102018] sm:text-[18px]">
+                                {formatScore(group.score)}
+                              </span>
+                              <span className="ml-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-[#637268]">
+                                pts
+                              </span>
+                            </div>
                           </div>
                           <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
                             {formatMemberCount(group.members)}
-                          </div>
-                        </div>
-                        <div className="col-span-2 col-start-2 mt-1 flex items-center justify-end border-t border-[#f1ece2] pt-1.5 sm:col-span-1 sm:col-start-auto sm:mt-0 sm:border-t-0 sm:pt-0 sm:text-right">
-                          <div className="font-serif text-[17px] font-bold leading-none text-[#102018] sm:text-[21px]">
-                            {formatScore(group.score)}
-                            <span className="ml-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#637268] sm:text-[9px]">
-                              pts
-                            </span>
                           </div>
                         </div>
                         <div className="hidden text-center sm:block">
@@ -3938,7 +3938,7 @@ export default function GroupsPage() {
             </section>
 
             {!viewerGroup ? (
-              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+              <section className="orthodle-groups-card p-3 sm:p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
@@ -3955,7 +3955,7 @@ export default function GroupsPage() {
                         setGroupActionMode('join')
                         setShowJoinPanel(true)
                       }}
-                      className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-white"
+                      className="orthodle-groups-button text-[11px]"
                     >
                       Join with code
                     </button>
@@ -3965,7 +3965,7 @@ export default function GroupsPage() {
                         setGroupActionMode('create')
                         setShowJoinPanel(true)
                       }}
-                      className="rounded-full border border-[#2d7651] bg-[#2d7651] px-3 py-1.5 text-[11px] font-semibold text-white transition hover:bg-[#255e42]"
+                      className="orthodle-groups-button orthodle-groups-button-primary text-[11px]"
                     >
                       Create group
                     </button>
@@ -4023,14 +4023,14 @@ export default function GroupsPage() {
                         onClick={() =>
                           setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
                         }
-                          className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
+                          className="orthodle-groups-button h-9 min-w-0 border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
                         >
                           {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowLeaderboardScoringGuide(true)}
-                        className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 text-white transition hover:bg-white/12 sm:h-10 sm:w-10"
+                        className="orthodle-groups-icon-button h-9 w-9 shrink-0 border-[#e7d4a7]/50 bg-white/8 text-white sm:h-10 sm:w-10"
                         aria-label="Show leaderboard scoring guide"
                       >
                         <Info size={14} />
@@ -4040,7 +4040,7 @@ export default function GroupsPage() {
                         <button
                           type="button"
                           onClick={() => void shareInviteLink(selectedGroup)}
-                          className="inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
+                          className="orthodle-groups-button h-9 min-w-0 gap-1.5 border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white sm:h-10 sm:flex-none sm:gap-2 sm:px-4 sm:text-xs"
                         >
                           <Share2 size={13} strokeWidth={2} />
                           {copiedCode === selectedGroup.id ? 'Copied' : 'Invite'}
@@ -4049,7 +4049,7 @@ export default function GroupsPage() {
                           type="button"
                           onClick={() => void leaveCurrentGroup()}
                           disabled={leavingGroup}
-                          className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#f2d4c2]/70 bg-white/10 px-3 text-[11px] font-bold text-[#fff2ea] transition hover:bg-white/16 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
+                          className="orthodle-groups-button h-9 min-w-0 border-[#f2d4c2]/70 bg-white/10 px-3 text-[11px] font-bold text-[#fff2ea] sm:h-10 sm:flex-none sm:px-4 sm:text-xs disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           {leavingGroup ? 'Leaving...' : 'Leave'}
                         </button>
@@ -4062,7 +4062,7 @@ export default function GroupsPage() {
                             setGroupActionMode('request')
                             setShowJoinPanel(true)
                           }}
-                          className="inline-flex h-9 min-w-0 items-center justify-center rounded-full border border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white transition hover:bg-white/12 sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
+                          className="orthodle-groups-button h-9 min-w-0 border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
                         >
                           Request invite
                         </button>
@@ -4117,10 +4117,10 @@ export default function GroupsPage() {
 
                 {weeklyHonorsEnabled &&
                 (selectedGroupMvpHistory.length > 0 || selectedGroupBannerHistory.length > 0) ? (
-                  <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                  <section className="orthodle-groups-card p-3 sm:p-4">
                     <div className={`grid gap-2.5 ${selectedGroupMvpHistory.length > 0 && selectedGroupBannerHistory.length > 0 ? 'lg:grid-cols-[1.1fr_0.9fr]' : ''}`}>
                       {selectedGroupMvpHistory.length > 0 ? (
-                      <div className="rounded-[18px] border border-[#eadfca] bg-[linear-gradient(135deg,#fffaf0,#fcfbf8)] px-3 py-3">
+                      <div className="orthodle-groups-subcard px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#d69a28]">
@@ -4130,7 +4130,7 @@ export default function GroupsPage() {
                               MVP winners in {selectedGroup.name}
                             </div>
                           </div>
-                          <div className="rounded-full border border-[#edd39b] bg-[#fff7df] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#7d5a12]">
+                          <div className="orthodle-groups-button orthodle-groups-button-warm min-h-[30px] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#7d5a12]">
                             {selectedGroupMvpHistory.length} winner{selectedGroupMvpHistory.length === 1 ? '' : 's'}
                           </div>
                         </div>
@@ -4140,7 +4140,7 @@ export default function GroupsPage() {
                             {selectedGroupMvpHistory.map(winner => (
                               <div
                                 key={winner.sessionId}
-                                className="flex items-center justify-between gap-3 rounded-[16px] border border-[#ece6db] bg-white px-3 py-2.5"
+                              className="orthodle-groups-subcard flex items-center justify-between gap-3 px-3 py-2.5"
                               >
                                 <div className="min-w-0 font-semibold text-[#102018]">
                                   {winner.name}
@@ -4157,7 +4157,7 @@ export default function GroupsPage() {
                       ) : null}
 
                       {selectedGroupBannerHistory.length > 0 ? (
-                      <div className="rounded-[18px] border border-[#dfe9e2] bg-[linear-gradient(135deg,#f7fbf8,#fffdf8)] px-3 py-3">
+                      <div className="orthodle-groups-subcard px-3 py-3">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
@@ -4167,7 +4167,7 @@ export default function GroupsPage() {
                               {selectedGroupTitleCount} group title{selectedGroupTitleCount === 1 ? '' : 's'}
                             </div>
                           </div>
-                          <div className="rounded-full border border-[#dfe9e2] bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#2d7651]">
+                          <div className="orthodle-groups-button orthodle-groups-button-soft min-h-[30px] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[#2d7651]">
                             Legacy
                           </div>
                         </div>
@@ -4177,7 +4177,7 @@ export default function GroupsPage() {
                             {selectedGroupBannerHistory.slice(0, 4).map((banner, index) => (
                               <div
                                 key={banner.id}
-                                className="rounded-[16px] border border-[#dfe9e2] bg-[linear-gradient(90deg,rgba(45,118,81,0.08),rgba(231,184,63,0.12))] px-3 py-2.5"
+                              className="orthodle-groups-subcard px-3 py-2.5"
                               >
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="min-w-0">
@@ -4201,7 +4201,7 @@ export default function GroupsPage() {
                 ) : null}
 
                 {isViewingOwnGroup && viewerGroup && viewerGroupAggregate ? (
-                  <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                  <section className="orthodle-groups-card p-3 sm:p-4">
                     <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <div className="mt-1 font-serif text-[18px] font-bold tracking-[-0.03em] text-[#102018] sm:text-[20px]">
@@ -4212,14 +4212,14 @@ export default function GroupsPage() {
                         <button
                           type="button"
                           onClick={() => void shareInviteLink(viewerGroup)}
-                          className="rounded-full border border-[#d9eadf] bg-[#eef8f2] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448] transition hover:bg-white"
+                          className="orthodle-groups-button orthodle-groups-button-soft text-[11px]"
                         >
                           {copiedCode === viewerGroup.id ? 'Invite copied' : 'Invite teammates'}
                         </button>
                         <button
                           type="button"
                           onClick={() => setActiveGroupsTab('profile')}
-                          className="rounded-full border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-white"
+                          className="orthodle-groups-button text-[11px]"
                         >
                           Open profile
                         </button>
@@ -4265,7 +4265,7 @@ export default function GroupsPage() {
                     {viewerGroupChallenge || viewerGroupRecap ? (
                       <div className="mt-3 grid gap-2.5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                         {viewerGroupChallenge ? (
-                          <section className="rounded-[18px] border border-[#e6dfd3] bg-[linear-gradient(180deg,#fcfcfa_0%,#f8fbf9_100%)] px-3 py-3">
+                          <section className="orthodle-groups-subcard px-3 py-3">
                             <div className="flex items-start justify-between gap-3">
                               <div>
                                 <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
@@ -4275,7 +4275,7 @@ export default function GroupsPage() {
                                   {viewerGroupChallenge.title}
                                 </div>
                               </div>
-                              <div className="rounded-full border border-[#d9eadf] bg-[#eef8f2] px-2.5 py-1 text-[11px] font-semibold text-[#1f6448]">
+                              <div className="orthodle-groups-button orthodle-groups-button-soft min-h-[32px] px-2.5 py-1 text-[11px] font-semibold text-[#1f6448]">
                                 {viewerGroupChallenge.progress}/{viewerGroupChallenge.goal}
                               </div>
                             </div>
@@ -4303,7 +4303,7 @@ export default function GroupsPage() {
                         ) : null}
 
                         {viewerGroupRecap ? (
-                          <section className="rounded-[18px] border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-3">
+                          <section className="orthodle-groups-subcard px-3 py-3">
                             <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                               Team pulse
                             </div>
@@ -4314,11 +4314,11 @@ export default function GroupsPage() {
                               {viewerGroupRecap.detail}
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
-                              <span className="inline-flex rounded-full border border-[#dfe9e2] bg-[#f7fbf8] px-2.5 py-1 text-[11px] font-semibold text-[#2d7651]">
+                              <span className="orthodle-groups-button orthodle-groups-button-soft min-h-[30px] px-2.5 py-1 text-[11px] font-semibold text-[#2d7651]">
                                 {viewerGroupRecap.accent}
                               </span>
                               {viewerGroupMomentum ? (
-                                <span className="inline-flex rounded-full border border-[#ece6db] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#102018]">
+                                <span className="orthodle-groups-button min-h-[30px] px-2.5 py-1 text-[11px] font-semibold text-[#102018]">
                                   {viewerGroupMomentum}
                                 </span>
                               ) : null}
@@ -4328,7 +4328,7 @@ export default function GroupsPage() {
                       </div>
                     ) : null}
 
-                    <div className="mt-3 flex flex-col gap-2.5 rounded-[18px] border border-[#e6dfd3] bg-[#fcfbf8] px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="orthodle-groups-subcard mt-3 flex flex-col gap-2.5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                           Today&apos;s check-in
@@ -4339,7 +4339,7 @@ export default function GroupsPage() {
                             : 'Nobody from your group has checked in yet today.'}
                         </div>
                       </div>
-                      <div className="inline-flex rounded-full border border-[#d9eadf] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]">
+                      <div className="orthodle-groups-button orthodle-groups-button-soft min-h-[34px] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]">
                         {viewerGroupTodaySolvers.length}/{viewerGroupAggregate.members.length} members active
                       </div>
                     </div>
@@ -4350,7 +4350,7 @@ export default function GroupsPage() {
                 {!isViewingOwnGroup ? (
                   <div className="grid gap-2.5 sm:grid-cols-2">
                     {selectedGroupChallenge ? (
-                      <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                      <section className="orthodle-groups-card p-3 sm:p-4">
                         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#2d7651]">
                           Weekly challenge
                         </div>
@@ -4384,7 +4384,7 @@ export default function GroupsPage() {
                     ) : null}
 
                     {selectedGroupRecap ? (
-                      <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                      <section className="orthodle-groups-card p-3 sm:p-4">
                         <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                           Weekly recap
                         </div>
@@ -4402,7 +4402,7 @@ export default function GroupsPage() {
                   </div>
                 ) : null}
 
-                <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                <section className="orthodle-groups-card p-3 sm:p-4">
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
                     Member leaderboard
                   </div>
@@ -4454,7 +4454,7 @@ export default function GroupsPage() {
                                   event.stopPropagation()
                                   void removeMemberFromGroup(entry.member)
                                 }}
-                                className="rounded-full border border-[#f0d7c8] px-2.5 py-1 text-[10px] font-bold text-[#a24d24] transition hover:bg-[#fff1e8] disabled:opacity-50"
+                                className="orthodle-groups-button orthodle-groups-button-warm min-h-[30px] px-2.5 py-1 text-[10px] font-bold disabled:opacity-50"
                               >
                                 {removingMemberId === entry.member.id ? 'Removing' : 'Remove'}
                               </button>
@@ -4470,7 +4470,7 @@ export default function GroupsPage() {
                   </div>
                 </section>
 
-                <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+                <section className="orthodle-groups-card p-3 sm:p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
                       Activity feed
@@ -4505,7 +4505,7 @@ export default function GroupsPage() {
                 </section>
               </>
             ) : (
-              <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-5 text-center shadow-[0_14px_34px_rgba(16,32,24,0.05)]">
+              <section className="orthodle-groups-card p-5 text-center">
                 <h1 className="font-serif text-2xl font-bold text-[#102018]">No group yet</h1>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#637268]">
                   Create or join a group to unlock your private leaderboard.
@@ -4668,7 +4668,7 @@ export default function GroupsPage() {
               </div>
             </section>
 
-            <section className="mt-3 rounded-[20px] border border-[#e7e1d6] bg-white p-3 shadow-[0_14px_34px_rgba(16,32,24,0.05)] sm:p-4">
+            <section className="orthodle-groups-card mt-3 p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -4679,13 +4679,13 @@ export default function GroupsPage() {
                   </div>
                 </div>
                 {accountSession ? (
-                  <button
-                    type="button"
-                    onClick={logoutAccount}
-                    className="rounded-full border border-[#ded7ca] px-3 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                  >
-                    Sign out
-                  </button>
+                <button
+                  type="button"
+                  onClick={logoutAccount}
+                  className="orthodle-groups-button text-[11px]"
+                >
+                  Sign out
+                </button>
                 ) : null}
               </div>
 
@@ -4699,18 +4699,18 @@ export default function GroupsPage() {
                     Create a username and password to keep your progress if your browser gets cleared and to pick up where you left off on another computer.
                   </div>
 
-                  <div className="inline-flex rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[11px] font-semibold">
+                  <div className="orthodle-groups-segment-shell text-[11px] font-semibold">
                     <button
                       type="button"
                       onClick={() => setAuthMode('signup')}
-                      className={`rounded-full px-3 py-1 transition ${authMode === 'signup' ? 'bg-[#1f6448] text-white' : 'text-[#637268]'}`}
+                      className={`orthodle-groups-segment-button ${authMode === 'signup' ? 'orthodle-groups-segment-button-active' : ''}`}
                     >
                       Create login
                     </button>
                     <button
                       type="button"
                       onClick={() => setAuthMode('login')}
-                      className={`rounded-full px-3 py-1 transition ${authMode === 'login' ? 'bg-[#1f6448] text-white' : 'text-[#637268]'}`}
+                      className={`orthodle-groups-segment-button ${authMode === 'login' ? 'orthodle-groups-segment-button-active' : ''}`}
                     >
                       Sign in
                     </button>
@@ -4770,7 +4770,7 @@ export default function GroupsPage() {
                 <button
                   type="button"
                   onClick={() => setShowNotificationsPanel(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                  className="orthodle-groups-icon-button"
                   aria-label="Close updates"
                 >
                   <X size={15} />
@@ -4824,7 +4824,7 @@ export default function GroupsPage() {
                 <button
                   type="button"
                   onClick={() => setShowProfileStatGuide(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                  className="orthodle-groups-icon-button"
                   aria-label="Close stat guide"
                 >
                   <X size={15} />
@@ -4886,7 +4886,7 @@ export default function GroupsPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedMemberStats(null)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e0d8ca] bg-white text-[#637268] transition hover:bg-[#fcfbf8]"
+                  className="orthodle-groups-icon-button"
                   aria-label="Close player profile"
                 >
                   <X size={15} />
@@ -4930,7 +4930,7 @@ export default function GroupsPage() {
         ) : null}
 
         {showJoinPanel ? (
-          <section className="mt-5 rounded-[22px] border border-[#e6dfd3] bg-white px-4 py-4 shadow-[0_12px_30px_rgba(16,32,24,0.05)]">
+          <section className="orthodle-groups-card mt-5 px-4 py-4">
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
@@ -4943,38 +4943,30 @@ export default function GroupsPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="grid grid-cols-2 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setGroupActionMode('join')}
-                    className={`rounded-full px-2.5 py-1 transition ${
-                      groupActionMode === 'join'
-                        ? 'bg-[#2d7651] text-white'
-                        : 'text-[#637268] hover:text-[#102018]'
-                    }`}
-                  >
-                    Join
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setGroupActionMode('create')}
-                    className={`rounded-full px-2.5 py-1 transition ${
-                      groupActionMode === 'create'
-                        ? 'bg-[#2d7651] text-white'
-                        : 'text-[#637268] hover:text-[#102018]'
-                    }`}
-                  >
-                    Create
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowJoinPanel(false)}
-                  className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:bg-[#fcfbf8]"
-                  aria-label="Close group form"
-                >
-                  <X size={13} strokeWidth={2} />
-                </button>
+                    <div className="orthodle-groups-segment-shell grid grid-cols-2 text-[10px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setGroupActionMode('join')}
+                        className={`orthodle-groups-segment-button ${groupActionMode === 'join' ? 'orthodle-groups-segment-button-active' : ''}`}
+                      >
+                        Join
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGroupActionMode('create')}
+                        className={`orthodle-groups-segment-button ${groupActionMode === 'create' ? 'orthodle-groups-segment-button-active' : ''}`}
+                      >
+                        Create
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowJoinPanel(false)}
+                      className="orthodle-groups-icon-button h-7 w-7"
+                      aria-label="Close group form"
+                    >
+                      <X size={13} strokeWidth={2} />
+                    </button>
               </div>
             </div>
 
@@ -5015,7 +5007,7 @@ export default function GroupsPage() {
                       Boolean(normalizedJoinCode && !joinTargetGroup)
                     }
                     onClick={() => void submitGroupForm()}
-                    className="inline-flex h-10 items-center justify-center rounded-xl bg-[#2d7651] px-4 text-[12px] font-bold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="orthodle-groups-button orthodle-groups-button-primary min-h-[40px] px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {joining ? 'Joining...' : alreadyInJoinTarget ? 'Update' : 'Join'}
                   </button>
@@ -5073,7 +5065,7 @@ export default function GroupsPage() {
                     type="button"
                     disabled={creating || !createName.trim() || !createDisplayName.trim()}
                     onClick={() => void submitGroupForm()}
-                    className="orthodle-primary-button inline-flex h-10 items-center justify-center rounded-xl border px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                    className="orthodle-groups-button orthodle-groups-button-primary min-h-[40px] px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {creating ? 'Creating...' : 'Create'}
                   </button>
@@ -5101,7 +5093,7 @@ export default function GroupsPage() {
                   <button
                     type="button"
                     onClick={() => setShowGroupsExplainer(true)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#e4ddd0] bg-white text-[#637268] transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"
+                    className="orthodle-groups-icon-button h-7 w-7"
                     aria-label="How groups work"
                   >
                     <Info size={14} strokeWidth={2} />
@@ -5180,7 +5172,7 @@ export default function GroupsPage() {
                                 type="button"
                                 disabled={savingGroupName || !editGroupName.trim()}
                                 onClick={() => void updateSelectedGroupName()}
-                                className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="orthodle-groups-button orthodle-groups-button-primary min-h-[36px] px-4 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {savingGroupName ? 'Saving...' : 'Save group'}
                               </button>
@@ -5213,7 +5205,7 @@ export default function GroupsPage() {
                                 type="button"
                                 disabled={savingDisplayName || !editDisplayName.trim()}
                                 onClick={() => void updateMyDisplayName()}
-                                className="inline-flex h-9 items-center justify-center rounded-full border border-[#e0d8ca] bg-[#fcfbf8] px-4 text-[11px] font-semibold text-[#102018] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                                className="orthodle-groups-button min-h-[36px] px-4 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {savingDisplayName ? 'Saving...' : 'Save name'}
                               </button>
@@ -5467,13 +5459,13 @@ export default function GroupsPage() {
                           <div className="mt-1 sm:mt-2">
                             <GroupCrest group={group} size="xs" />
                           </div>
-                          <div className="mt-1 line-clamp-2 min-h-[28px] font-serif text-[12px] font-semibold leading-tight text-[#102018] sm:mt-2 sm:text-[14px]">
-                            {group.name}
-                          </div>
-                          <div className="mt-0.5 text-[14px] font-semibold leading-none text-[#2d7651] sm:mt-1.5 sm:text-[16px]">
-                            {formatScore(group.score)}
-                            <span className="ml-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-[#8a9389] sm:text-[9px]">
-                              pts
+                          <div className="mt-1 min-h-[28px] font-serif text-[12px] font-semibold leading-tight text-[#102018] sm:mt-2 sm:text-[14px]">
+                            <span className="line-clamp-2">{group.name}</span>
+                            <span className="ml-1 whitespace-nowrap text-[11px] font-semibold text-[#2d7651] sm:text-[12px]">
+                              {formatScore(group.score)}
+                              <span className="ml-1 text-[7px] font-semibold uppercase tracking-[0.12em] text-[#8a9389] sm:text-[8px]">
+                                pts
+                              </span>
                             </span>
                           </div>
                         </button>
@@ -5640,37 +5632,25 @@ export default function GroupsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="grid grid-cols-3 rounded-full border border-[#e6dfd3] bg-[#fcfbf8] p-0.5 text-[10px] font-semibold">
+                    <div className="orthodle-groups-segment-shell grid grid-cols-3 text-[10px] font-semibold">
                       <button
                         type="button"
                         onClick={() => setGroupActionMode('join')}
-                        className={`rounded-full px-2.5 py-1 transition ${
-                          groupActionMode === 'join'
-                            ? 'bg-[#2d7651] text-white'
-                            : 'text-[#637268] hover:text-[#102018]'
-                        }`}
+                        className={`orthodle-groups-segment-button ${groupActionMode === 'join' ? 'orthodle-groups-segment-button-active' : ''}`}
                       >
                         Join
                       </button>
                       <button
                         type="button"
                         onClick={() => setGroupActionMode('request')}
-                        className={`rounded-full px-2.5 py-1 transition ${
-                          groupActionMode === 'request'
-                            ? 'bg-[#2d7651] text-white'
-                            : 'text-[#637268] hover:text-[#102018]'
-                        }`}
+                        className={`orthodle-groups-segment-button ${groupActionMode === 'request' ? 'orthodle-groups-segment-button-active' : ''}`}
                       >
                         Request
                       </button>
                       <button
                         type="button"
                         onClick={() => setGroupActionMode('create')}
-                        className={`rounded-full px-2.5 py-1 transition ${
-                          groupActionMode === 'create'
-                            ? 'bg-[#2d7651] text-white'
-                            : 'text-[#637268] hover:text-[#102018]'
-                        }`}
+                        className={`orthodle-groups-segment-button ${groupActionMode === 'create' ? 'orthodle-groups-segment-button-active' : ''}`}
                       >
                         Create
                       </button>
@@ -5678,7 +5658,7 @@ export default function GroupsPage() {
                     <button
                       type="button"
                       onClick={() => setShowJoinPanel(false)}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border border-[#e6dfd3] text-[#637268] transition hover:bg-[#fcfbf8]"
+                      className="orthodle-groups-icon-button h-7 w-7"
                       aria-label="Close group form"
                     >
                       <X size={13} strokeWidth={2} />
@@ -5723,7 +5703,7 @@ export default function GroupsPage() {
                           Boolean(normalizedJoinCode && !joinTargetGroup)
                         }
                         onClick={() => void submitGroupForm()}
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="orthodle-groups-button orthodle-groups-button-primary min-h-[36px] px-4 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {joining ? 'Joining...' : alreadyInJoinTarget ? 'Update' : 'Join'}
                       </button>
@@ -5799,7 +5779,7 @@ export default function GroupsPage() {
                         type="button"
                         disabled={requestingInvite || !requestGroupId || !requestDisplayName.trim()}
                         onClick={() => void submitGroupForm()}
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="orthodle-groups-button orthodle-groups-button-primary min-h-[36px] px-4 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {requestingInvite ? 'Sending...' : 'Request invite'}
                       </button>
@@ -5859,7 +5839,7 @@ export default function GroupsPage() {
                         type="button"
                         disabled={creating || !createName.trim() || !createDisplayName.trim()}
                         onClick={() => void submitGroupForm()}
-                        className="inline-flex h-9 items-center justify-center rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[11px] font-semibold text-white transition hover:bg-[#255e42] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="orthodle-groups-button orthodle-groups-button-primary min-h-[36px] px-4 text-[11px] disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {creating ? 'Creating...' : 'Create'}
                       </button>

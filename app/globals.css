@@ -271,6 +271,114 @@ body {
     transform 160ms ease;
 }
 
+.orthodle-groups-card {
+  border: 1px solid #e7e1d6;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(45, 118, 81, 0.035), transparent 28%),
+    linear-gradient(180deg, #fffefb, #ffffff);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    0 14px 34px rgba(16, 32, 24, 0.05);
+}
+
+.orthodle-groups-subcard {
+  border: 1px solid #ece6db;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(252, 251, 248, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.orthodle-groups-button,
+.orthodle-groups-icon-button,
+.orthodle-groups-segment-button {
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    color 160ms ease,
+    transform 160ms ease;
+}
+
+.orthodle-groups-button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid #ded7ca;
+  padding: 0 14px;
+  background: #ffffff;
+  color: #102018;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.orthodle-groups-button:hover,
+.orthodle-groups-icon-button:hover,
+.orthodle-groups-segment-button:hover {
+  transform: translateY(-1px);
+}
+
+.orthodle-groups-button-primary {
+  border-color: #2d7651;
+  background: linear-gradient(180deg, #2d7651, #245f42);
+  color: #ffffff;
+}
+
+.orthodle-groups-button-soft {
+  border-color: #d9eadf;
+  background: linear-gradient(180deg, #eef8f2, #f8fcf9);
+  color: #1f6448;
+}
+
+.orthodle-groups-button-warm {
+  border-color: #f0d7c8;
+  background: linear-gradient(180deg, #fff6ee, #fffdf9);
+  color: #a24d24;
+}
+
+.orthodle-groups-icon-button {
+  display: inline-flex;
+  height: 36px;
+  width: 36px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  border: 1px solid #e6dfd3;
+  background: #ffffff;
+  color: #637268;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.84);
+}
+
+.orthodle-groups-segment-shell {
+  display: inline-grid;
+  gap: 2px;
+  border-radius: 14px;
+  border: 1px solid #e6dfd3;
+  background: #fcfbf8;
+  padding: 2px;
+}
+
+.orthodle-groups-segment-button {
+  border: 0;
+  border-radius: 11px;
+  padding: 6px 12px;
+  background: transparent;
+  color: #637268;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.orthodle-groups-segment-button-active {
+  background: #2d7651;
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(45, 118, 81, 0.14);
+}
+
 .orthodle-group-detail-hero {
   background:
     radial-gradient(circle at 12% 0%, rgba(45, 118, 81, 0.07), transparent 32%),
@@ -617,6 +725,63 @@ body {
     linear-gradient(135deg, rgba(94, 168, 132, 0.16), rgba(227, 151, 100, 0.08)),
     var(--card-strong) !important;
   border-color: rgba(250, 245, 236, 0.22) !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-card {
+  border-color: rgba(250, 245, 236, 0.16) !important;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(94, 168, 132, 0.08), transparent 28%),
+    linear-gradient(180deg, #18231f, #111915 72%) !important;
+  box-shadow: 0 18px 38px rgba(0, 0, 0, 0.24) !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-subcard {
+  border-color: rgba(250, 245, 236, 0.12) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)) !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-button {
+  border-color: rgba(250, 245, 236, 0.16) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f4efe6 !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-button-primary {
+  border-color: rgba(176, 221, 195, 0.22) !important;
+  background: linear-gradient(180deg, #2c7f59, #235f43) !important;
+  color: #ffffff !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-button-soft {
+  border-color: rgba(176, 221, 195, 0.22) !important;
+  background: rgba(44, 127, 89, 0.18) !important;
+  color: #dff0e7 !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-button-warm {
+  border-color: rgba(240, 183, 120, 0.22) !important;
+  background: rgba(185, 109, 63, 0.16) !important;
+  color: #ffe8d9 !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-icon-button {
+  border-color: rgba(250, 245, 236, 0.16) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: #f4efe6 !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-segment-shell {
+  border-color: rgba(250, 245, 236, 0.16) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-segment-button {
+  color: #d6e7df !important;
+}
+
+:root[data-theme="dark"] .orthodle-groups-segment-button-active {
+  background: #2c7f59 !important;
+  color: #ffffff !important;
 }
 
 :root[data-theme="dark"] .shadow-\[0_10px_30px_rgba\(16\,32\,24\,0\.06\)\],
