@@ -1508,7 +1508,6 @@ export default function GroupsPage() {
   const [copiedCode, setCopiedCode] = useState('')
   const [leavingGroup, setLeavingGroup] = useState(false)
   const [urlJoinCode, setUrlJoinCode] = useState('')
-  const [leaderboardSearch, setLeaderboardSearch] = useState('')
   const [showJoinPanel, setShowJoinPanel] = useState(false)
   const [groupActionMode, setGroupActionMode] = useState<'join' | 'create' | 'request'>('join')
   const [yourGroupOpen, setYourGroupOpen] = useState(false)
@@ -2568,22 +2567,7 @@ export default function GroupsPage() {
           longestStreak: entry.longestStreak,
         }))
       : []
-  const leaderboardEntries = useMemo(() => {
-    const query = leaderboardSearch.trim().toLowerCase()
-    if (!query) return displayLeaderboard
-
-    return displayLeaderboard.filter(group => {
-      const aggregate = activeGroupAggregates.find(entry => entry.group.id === group.id)
-      const haystack = [
-        group.name,
-        ...((aggregate?.memberStats || []).map(entry => entry.member.display_name)),
-      ]
-        .join(' ')
-        .toLowerCase()
-
-      return haystack.includes(query)
-    })
-  }, [activeGroupAggregates, displayLeaderboard, leaderboardSearch])
+  const leaderboardEntries = useMemo(() => displayLeaderboard, [displayLeaderboard])
 
   function openGroupInspection(groupId: string) {
     setSelectedMemberStats(null)
@@ -3785,7 +3769,7 @@ export default function GroupsPage() {
                           className="text-[34px] sm:text-[48px]"
                         />
                       </div>
-                      <h2 className="mt-2 font-serif text-[18px] font-bold tracking-[-0.05em] text-[#102018] sm:mt-2.5 sm:text-[22px]">
+                      <h2 className="orthodle-mvp-name-ember mt-2 font-serif text-[18px] font-bold tracking-[-0.05em] text-[#102018] sm:mt-2.5 sm:text-[22px]">
                         {mvpEntry.stats.member.display_name}
                       </h2>
                       <p className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.14em] text-[#637268] sm:text-[10px]">
@@ -3880,13 +3864,7 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              <div className="mt-2.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <input
-                  value={leaderboardSearch}
-                  onChange={event => setLeaderboardSearch(event.target.value)}
-                  placeholder="Search groups or members"
-                  className="w-full rounded-[12px] border border-[#dfd8cb] bg-[#fcfbf8] px-3 py-2 text-[12px] text-[#102018] outline-none transition placeholder:text-[#8b938d] focus:border-[#2d7651] sm:max-w-[270px]"
-                />
+              <div className="mt-2.5 flex justify-end">
                 <div className="text-[10px] text-[#637268] sm:text-[11px]">
                   {leaderboardEntries.length} {leaderboardEntries.length === 1 ? 'group' : 'groups'}
                 </div>
@@ -3924,15 +3902,12 @@ export default function GroupsPage() {
                             {formatMemberCount(group.members)}
                           </div>
                         </div>
-                        <div className="col-span-2 col-start-2 mt-1 flex items-center justify-between border-t border-[#f1ece2] pt-1.5 sm:col-span-1 sm:col-start-auto sm:mt-0 sm:block sm:border-t-0 sm:pt-0 sm:text-right">
-                          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:hidden">
-                            team score
-                          </div>
+                        <div className="col-span-2 col-start-2 mt-1 flex items-center justify-end border-t border-[#f1ece2] pt-1.5 sm:col-span-1 sm:col-start-auto sm:mt-0 sm:border-t-0 sm:pt-0 sm:text-right">
                           <div className="font-serif text-[17px] font-bold leading-none text-[#102018] sm:text-[21px]">
                             {formatScore(group.score)}
-                          </div>
-                          <div className="mt-0.5 hidden text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:block">
-                            team score
+                            <span className="ml-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[#637268] sm:text-[9px]">
+                              pts
+                            </span>
                           </div>
                         </div>
                         <div className="hidden text-center sm:block">
@@ -3956,9 +3931,7 @@ export default function GroupsPage() {
                   })
                 ) : (
                   <div className="rounded-2xl border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#637268]">
-                    {leaderboardSearch.trim()
-                      ? 'No groups match that search yet.'
-                      : 'No groups yet. Create one and take the crown.'}
+                    No groups yet. Create one and take the crown.
                   </div>
                 )}
               </div>
@@ -5499,9 +5472,9 @@ export default function GroupsPage() {
                           </div>
                           <div className="mt-0.5 text-[14px] font-semibold leading-none text-[#2d7651] sm:mt-1.5 sm:text-[16px]">
                             {formatScore(group.score)}
-                          </div>
-                          <div className="mt-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#8a9389]">
-                            avg
+                            <span className="ml-1 text-[8px] font-semibold uppercase tracking-[0.12em] text-[#8a9389] sm:text-[9px]">
+                              pts
+                            </span>
                           </div>
                         </button>
                       )
@@ -5545,7 +5518,7 @@ export default function GroupsPage() {
                         onClick={() => {
                           router.push(`/groups/${group.id}`)
                         }}
-                        className={`orthodle-leaderboard-row ${showLeaderboardRise ? 'orthodle-leaderboard-rise' : ''} grid w-full grid-cols-[22px_1fr] items-center gap-2 rounded-[14px] border px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
+                        className={`orthodle-leaderboard-row ${showLeaderboardRise ? 'orthodle-leaderboard-rise' : ''} grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-2 rounded-[14px] border px-3 py-2 text-left transition hover:-translate-y-0.5 hover:bg-[#fcfbf8] ${
                           selectedGroupId === group.id
                             ? 'border-[#2d7651] bg-[#fcfbf8]'
                             : 'border-[#ece6db] bg-white'
@@ -5570,12 +5543,12 @@ export default function GroupsPage() {
                             )}
                           </div>
                         </div>
-                        <div className="col-start-2 mt-1 flex items-center justify-between border-t border-[#f1ece2] pt-1.5 text-right">
-                          <div className="text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
-                            score
-                          </div>
+                        <div className="text-right">
                           <div className="font-serif text-[18px] font-semibold leading-none text-[#102018]">
                             {formatScore(group.score)}
+                          </div>
+                          <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268]">
+                            pts
                           </div>
                         </div>
                       </button>

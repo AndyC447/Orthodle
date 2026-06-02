@@ -290,6 +290,23 @@ body {
     0 8px 18px rgba(16, 32, 24, 0.035);
 }
 
+@keyframes orthodle-mvp-name-glow {
+  0%, 100% {
+    text-shadow:
+      0 0 0 rgba(214, 154, 40, 0),
+      0 0 0 rgba(240, 194, 71, 0);
+  }
+  50% {
+    text-shadow:
+      0 0 10px rgba(214, 154, 40, 0.18),
+      0 0 18px rgba(240, 194, 71, 0.14);
+  }
+}
+
+.orthodle-mvp-name-ember {
+  animation: orthodle-mvp-name-glow 2.8s ease-in-out infinite;
+}
+
 .orthodle-group-action-tile {
   background:
     linear-gradient(135deg, rgba(45, 118, 81, 0.045), rgba(234, 217, 183, 0.16)),
@@ -567,6 +584,10 @@ body {
     linear-gradient(145deg, #18231f, #111915 58%, #1a241f) !important;
   border-color: rgba(250, 245, 236, 0.44) !important;
   box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28) !important;
+}
+
+:root[data-theme="dark"] .orthodle-mvp-name-ember {
+  color: #f4efe6;
 }
 
 :root[data-theme="dark"] .orthodle-mvp-avatar {

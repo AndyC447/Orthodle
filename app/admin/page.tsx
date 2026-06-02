@@ -4037,7 +4037,6 @@ export default function AdminPage() {
                   rows={4}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
-                <p className="text-[11px] font-normal text-[#7b857d]">Use Cmd/Ctrl + B or I to format the prompt.</p>
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -4454,9 +4453,6 @@ export default function AdminPage() {
                     </button>
                   </div>
                 </div>
-                <p className="mb-3 text-[11px] font-normal text-[#7b857d]">
-                  Focus a clue first, then use Cmd/Ctrl + B or I.
-                </p>
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     {level === 'attending' ? 'A' : 'Clue 1'}
