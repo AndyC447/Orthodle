@@ -601,7 +601,7 @@ export default function AdminCaseStatsPage() {
 
               <div className="mt-4 grid grid-cols-2 gap-2.5">
                 <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">Avg users / category</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">Avg solvers / category</div>
                   <div className="mt-2 font-serif text-2xl font-bold text-[#102018]">
                     {formatAverage(level.avgUsersPerCategory)}
                   </div>
@@ -617,14 +617,14 @@ export default function AdminCaseStatsPage() {
                   <div className="mt-2 font-serif text-2xl font-bold text-[#102018]">{level.caseCount}</div>
                 </div>
                 <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">Unique players</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">Unique guessers</div>
                   <div className="mt-2 font-serif text-2xl font-bold text-[#102018]">{level.uniquePlayers}</div>
                 </div>
               </div>
 
               <div className="mt-5">
                 <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-                  Past week trend
+                  Past week solves
                 </div>
                 <div className="mt-3 grid grid-cols-7 gap-2">
                   {level.trend.map(day => (
@@ -643,7 +643,7 @@ export default function AdminCaseStatsPage() {
                       </div>
                       <div className="mt-1 text-sm font-semibold text-[#102018]">{day.solves}</div>
                       <div className="text-[10px] text-[#8a948d]">
-                        {day.activeUsers} users · {formatPercent(day.firstTryRate)}
+                        {day.activeUsers} solved · {formatPercent(day.firstTryRate)} first try
                       </div>
                     </div>
                   ))}
@@ -672,7 +672,7 @@ export default function AdminCaseStatsPage() {
                             {formatAverage(category.avgPlayers)}
                           </div>
                           <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                            avg users
+                            avg solvers
                           </div>
                         </div>
                       </div>
