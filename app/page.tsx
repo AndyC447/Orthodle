@@ -2583,7 +2583,7 @@ function PlayPageContent() {
                             <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                               {renderFormattedLine(imagingSection.label, 'imaging-below-image-label')}
                             </div>
-                            <div className="mx-auto mt-1.5 max-w-[62ch] space-y-1 text-left">
+                            <div className="mx-auto mt-1.5 max-w-[68ch] space-y-1 text-left">
                               {renderTeachingBody(imagingSection.body, 'imaging-below-image')}
                               {imagingSection.callouts.length > 0 ? (
                                 <div className="mt-1.5 space-y-1">
@@ -2757,7 +2757,7 @@ function PlayPageContent() {
               <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                 {renderFormattedLine(imagingSection.label, 'imaging-standalone-label')}
               </div>
-              <div className="mx-auto max-w-[62ch] space-y-1 text-left">
+              <div className="mx-auto max-w-[68ch] space-y-1 text-left">
                 {renderTeachingBody(imagingSection.body, 'imaging-standalone')}
                 {imagingSection.callouts.length > 0 ? (
                   <div className="mt-1.5 space-y-1">
@@ -4784,7 +4784,7 @@ function PlayPageContent() {
                         <div className="text-center text-[13px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/65 underline-offset-2">
                           {renderFormattedLine(solvedImagingSection.label, 'solved-imaging-label')}
                         </div>
-                        <div className="mx-auto mt-1.5 max-w-[62ch] space-y-1 text-left">
+                        <div className="mx-auto mt-1.5 max-w-[68ch] space-y-1 text-left">
                           {renderTeachingBody(solvedImagingSection.body, 'solved-imaging-body')}
                           {solvedImagingSection.callouts.length > 0 ? (
                             <div className="mt-1.5 space-y-1">
