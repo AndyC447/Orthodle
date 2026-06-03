@@ -2795,15 +2795,11 @@ export default function AdminPage() {
       return
     }
 
-    const casePath = `/${level}/${caseDate}`
-    const [{ data: visitRows }, { data: guessRows, error: guessError }] = await Promise.all([
-      supabase.from('visits').select('session_id').eq('path', casePath),
-      supabase
-        .from('guesses')
-        .select('session_id, is_correct, created_at, guess_text')
-        .eq('case_id', matchingCase.id)
-        .order('created_at', { ascending: true }),
-    ])
+    const { data: guessRows, error: guessError } = await supabase
+      .from('guesses')
+      .select('session_id, is_correct, created_at, guess_text')
+      .eq('case_id', matchingCase.id)
+      .order('created_at', { ascending: true })
 
     if (guessError) {
       setStatus(`Could not load case stats: ${guessError.message}`)
@@ -2811,13 +2807,8 @@ export default function AdminPage() {
       return
     }
 
-    const publicVisitRows = filterExcludedSessionRows(visitRows || [], excludedSessionIdSet)
     const publicGuessRows = filterExcludedSessionRows(guessRows || [], excludedSessionIdSet)
-
-    const players = new Set<string>([
-      ...publicVisitRows.map(item => item.session_id),
-      ...publicGuessRows.map(item => item.session_id),
-    ])
+    const players = new Set<string>(publicGuessRows.map(item => item.session_id))
 
     const guessesBySession = new Map<
       string,
