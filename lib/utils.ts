@@ -163,6 +163,13 @@ function buildInitialism(value: string) {
   return sourceWords.map(word => word[0]).join('')
 }
 
+function hasAbbreviationLikeToken(value: string) {
+  return value
+    .split(' ')
+    .filter(Boolean)
+    .some(word => /^[a-z]{2,5}$/.test(word) && !/[aeiou]/.test(word))
+}
+
 export function isAcceptedGuess(guess: string, acceptedAnswers: string[]) {
   const normalizedGuess = normalizeAnswer(guess)
   if (!normalizedGuess) return false
@@ -179,8 +186,10 @@ export function isAcceptedGuess(guess: string, acceptedAnswers: string[]) {
     }
 
     if (
-      accepted.length >= 8 &&
-      normalizedGuess.length >= 8 &&
+      accepted.length >= 10 &&
+      normalizedGuess.length >= 10 &&
+      !hasAbbreviationLikeToken(accepted) &&
+      !hasAbbreviationLikeToken(normalizedGuess) &&
       levenshteinDistance(normalizedGuess, accepted) <= 1
     ) {
       return true

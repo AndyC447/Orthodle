@@ -200,7 +200,7 @@ const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
 const GROUP_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_group_announcement'
 const GROUP_NOTIFICATIONS_SEEN_KEY = 'orthodle_groups_notifications_seen_v1'
 const GROUP_DISMISSED_MESSAGES_KEY = 'orthodle_groups_dismissed_messages_v1'
-const GROUPS_SWIPE_PEEK_HINT_KEY = 'orthodle_groups_swipe_peek_hint_v1'
+const SWIPE_NAV_TRANSITION_KEY = 'orthodle_swipe_nav_transition_v1'
 
 function getGroupSurveyStorageKey(surveyId: string) {
   return `${SITE_SURVEY_STORAGE_PREFIX}:${surveyId}`
@@ -1549,7 +1549,13 @@ export default function GroupsPage() {
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
   const [showLeaderboardRise, setShowLeaderboardRise] = useState(false)
-  const [groupsSwipePeekDirection, setGroupsSwipePeekDirection] = useState<-1 | 0 | 1>(0)
+  const [groupsSwipeOffset, setGroupsSwipeOffset] = useState(0)
+  const [groupsSwipePreviewDirection, setGroupsSwipePreviewDirection] = useState<-1 | 0 | 1>(0)
+  const [groupsSwipePreviewTarget, setGroupsSwipePreviewTarget] = useState<
+    { kind: 'cases'; label: string } | { kind: 'tab'; label: string; tab?: GroupsTab } | null
+  >(null)
+  const [groupsPageEnterOffset, setGroupsPageEnterOffset] = useState(0)
+  const [groupsPageEnterOpacity, setGroupsPageEnterOpacity] = useState(1)
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
   const tabSwipeStartRef = useRef<{ x: number; y: number; at: number; allow: boolean } | null>(null)
@@ -3455,6 +3461,74 @@ export default function GroupsPage() {
     currentGroupsSwipeIndex > 0 ? groupsSwipeTargets[currentGroupsSwipeIndex - 1] : null
   const nextGroupsSwipeTarget =
     currentGroupsSwipeIndex >= 0 ? groupsSwipeTargets[currentGroupsSwipeIndex + 1] || null : null
+  const activeGroupsSwipeTarget = groupsSwipePreviewTarget
+  const groupsSwipeProgress =
+    groupsSwipePreviewDirection === 0 ? 0 : Math.min(1, Math.abs(groupsSwipeOffset) / 112)
+  const groupsSwipeBodyOpacity = Math.max(0.8, groupsPageEnterOpacity - groupsSwipeProgress * 0.24)
+  const groupsSwipePreview =
+    activeGroupsSwipeTarget && groupsSwipeProgress > 0 ? (
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 px-2.5 sm:hidden">
+        <div className="relative mx-auto max-w-[760px]">
+          <div
+            className="orthodle-swipe-preview-page"
+            style={{
+              opacity: Math.min(0.96, 0.2 + groupsSwipeProgress * 0.76),
+              transform: `translateX(${groupsSwipePreviewDirection * -22 * (1 - groupsSwipeProgress)}px) scale(${0.982 + groupsSwipeProgress * 0.018})`,
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-left">
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Up next
+                </div>
+                <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
+                  {activeGroupsSwipeTarget.label}
+                </div>
+              </div>
+              <div className="orthodle-swipe-peek-chip">
+                {groupsSwipePreviewDirection === -1 ? 'Swipe left' : 'Swipe right'}
+              </div>
+            </div>
+
+            {activeGroupsSwipeTarget.kind === 'cases' ? (
+              <div className="mt-3 space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="h-11 rounded-[16px] bg-[#195b41] shadow-[0_10px_22px_rgba(16,32,24,0.12)]" />
+                  <div className="h-11 rounded-[16px] border border-[#e7e1d6] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.05)]" />
+                  <div className="h-11 rounded-[16px] border border-[#e7e1d6] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.05)]" />
+                </div>
+                <div className="rounded-[22px] border border-[#e7e1d6] bg-white px-4 py-4 shadow-[0_16px_34px_rgba(16,32,24,0.08)]">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    <span className="inline-block h-2 w-2 rounded-full bg-[#c76b3a]" />
+                    Daily Case
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="h-4 w-[88%] rounded-full bg-[#ece5d9]" />
+                    <div className="h-4 w-[94%] rounded-full bg-[#f2ede3]" />
+                    <div className="h-4 w-[56%] rounded-full bg-[#f2ede3]" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-[20px] border border-[#e2b670] bg-[radial-gradient(circle,rgba(255,240,214,0.14)_1.2px,transparent_1.2px),linear-gradient(145deg,#d47b2a,#b95f1f_52%,#8f4316)] [background-size:26px_26px,auto] px-4 py-4 text-white shadow-[0_16px_34px_rgba(143,67,22,0.16)]">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#fff1c9]">
+                    Winners banner
+                  </div>
+                  <div className="mt-2 h-5 w-40 rounded-full bg-white/22" />
+                  <div className="mt-2 h-3.5 w-28 rounded-full bg-white/16" />
+                </div>
+                <div className="grid gap-2">
+                  <div className="h-16 rounded-[18px] border border-[#e7e1d6] bg-white shadow-[0_12px_26px_rgba(16,32,24,0.05)]" />
+                  <div className="h-16 rounded-[18px] border border-[#e7e1d6] bg-white shadow-[0_12px_26px_rgba(16,32,24,0.05)]" />
+                  <div className="h-16 rounded-[18px] border border-[#e7e1d6] bg-white shadow-[0_12px_26px_rgba(16,32,24,0.05)]" />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : null
 
   const groupsSwipeDisabled =
     showGroupsExplainer ||
@@ -3475,6 +3549,14 @@ export default function GroupsPage() {
     )
   }
 
+  function setSwipeTransitionTarget(target: 'home' | 'groups', direction: 'from-left' | 'from-right') {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(
+      SWIPE_NAV_TRANSITION_KEY,
+      JSON.stringify({ target, direction, at: Date.now() })
+    )
+  }
+
   function handleGroupsSwipeStart(event: React.TouchEvent<HTMLElement>) {
     if (groupsSwipeDisabled) {
       tabSwipeStartRef.current = null
@@ -3489,12 +3571,55 @@ export default function GroupsPage() {
     const touch = event.touches[0]
     if (!touch) return
 
+    setGroupsSwipeOffset(0)
+    setGroupsSwipePreviewDirection(0)
+    setGroupsSwipePreviewTarget(null)
     tabSwipeStartRef.current = {
       x: touch.clientX,
       y: touch.clientY,
       at: Date.now(),
       allow: shouldAllowGroupsSwipeStart(event.target),
     }
+  }
+
+  function handleGroupsSwipeMove(event: React.TouchEvent<HTMLElement>) {
+    const swipeStart = tabSwipeStartRef.current
+    if (!swipeStart?.allow || groupsSwipeDisabled) return
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) return
+
+    const touch = event.touches[0]
+    if (!touch) return
+
+    const deltaX = touch.clientX - swipeStart.x
+    const deltaY = touch.clientY - swipeStart.y
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+
+    if (absY > 68 && absY > absX) {
+      swipeStart.allow = false
+      setGroupsSwipeOffset(0)
+      setGroupsSwipePreviewDirection(0)
+      setGroupsSwipePreviewTarget(null)
+      return
+    }
+
+    if (absX < 18 || absX < absY * 1.2) return
+
+    const direction = deltaX < 0 ? -1 : 1
+    const nextIndex = currentGroupsSwipeIndex + (direction < 0 ? 1 : -1)
+    const nextTarget = groupsSwipeTargets[nextIndex]
+    if (!nextTarget) {
+      setGroupsSwipePreviewTarget(null)
+      return
+    }
+
+    if (event.cancelable) {
+      event.preventDefault()
+    }
+
+    setGroupsSwipePreviewDirection(direction)
+    setGroupsSwipePreviewTarget(nextTarget)
+    setGroupsSwipeOffset(Math.max(-128, Math.min(128, deltaX * 0.54)))
   }
 
   function handleGroupsSwipeEnd(event: React.TouchEvent<HTMLElement>) {
@@ -3514,103 +3639,98 @@ export default function GroupsPage() {
     const absY = Math.abs(deltaY)
     const elapsed = Date.now() - swipeStart.at
 
-    if (elapsed > 700 || absX < 120 || absY > 72 || absX < absY * 1.9) return
-    if (Date.now() - lastTabSwipeAtRef.current < 450) return
-
     if (currentGroupsSwipeIndex < 0) return
 
-    const nextIndex = currentGroupsSwipeIndex + (deltaX < 0 ? 1 : -1)
+    const direction = deltaX < 0 ? -1 : 1
+    const nextIndex = currentGroupsSwipeIndex + (direction < 0 ? 1 : -1)
     const nextTarget = groupsSwipeTargets[nextIndex]
-    if (!nextTarget) return
+    if (!nextTarget) {
+      setGroupsSwipeOffset(0)
+      window.setTimeout(() => {
+        setGroupsSwipePreviewDirection(0)
+        setGroupsSwipePreviewTarget(null)
+      }, 220)
+      return
+    }
+
+    const shouldCommit =
+      elapsed <= 700 && absX >= 120 && absY <= 72 && absX >= absY * 1.9
+
+    if (!shouldCommit || Date.now() - lastTabSwipeAtRef.current < 450) {
+      setGroupsSwipeOffset(0)
+      window.setTimeout(() => {
+        setGroupsSwipePreviewDirection(0)
+        setGroupsSwipePreviewTarget(null)
+      }, 220)
+      return
+    }
 
     lastTabSwipeAtRef.current = Date.now()
+    setGroupsSwipePreviewDirection(direction)
+    setGroupsSwipePreviewTarget(nextTarget)
+    setGroupsSwipeOffset(direction * 122)
 
     if (nextTarget.kind === 'cases') {
-      router.push('/')
+      setSwipeTransitionTarget('home', direction < 0 ? 'from-right' : 'from-left')
+      window.setTimeout(() => {
+        router.push('/')
+      }, 170)
       return
     }
 
     if (nextTarget.tab) {
-      handleGroupsTabChange(nextTarget.tab)
+      window.setTimeout(() => {
+        handleGroupsTabChange(nextTarget.tab as GroupsTab)
+        setGroupsSwipeOffset(direction * -28)
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            setGroupsSwipeOffset(0)
+          })
+        })
+      }, 150)
+      window.setTimeout(() => {
+        setGroupsSwipePreviewDirection(0)
+        setGroupsSwipePreviewTarget(null)
+      }, 560)
     }
   }
 
   useEffect(() => {
-    if (groupsSwipeDisabled || loading || showJoinPanel || typeof window === 'undefined') return
-    if (window.innerWidth >= 1024) return
-    if (window.localStorage.getItem(GROUPS_SWIPE_PEEK_HINT_KEY)) return
-    if (activeGroupsTab !== 'home') return
-    if (message || groupAnnouncement || groupHeaderSurvey.survey) return
-    if (!previousGroupsSwipeTarget && !nextGroupsSwipeTarget) return
+    if (typeof window === 'undefined') return
 
-    window.localStorage.setItem(GROUPS_SWIPE_PEEK_HINT_KEY, 'seen')
+    try {
+      const raw = window.sessionStorage.getItem(SWIPE_NAV_TRANSITION_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        target?: string
+        direction?: 'from-left' | 'from-right'
+        at?: number
+      }
+      window.sessionStorage.removeItem(SWIPE_NAV_TRANSITION_KEY)
+      if (parsed.target !== 'groups') return
+      if (typeof parsed.at === 'number' && Date.now() - parsed.at > 3000) return
 
-    const timers: number[] = []
-    const sequence: Array<-1 | 0 | 1> = []
-
-    if (nextGroupsSwipeTarget) {
-      sequence.push(-1, 0)
+      const entryOffset = parsed.direction === 'from-right' ? 28 : -28
+      setGroupsPageEnterOffset(entryOffset)
+      setGroupsPageEnterOpacity(0.74)
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setGroupsPageEnterOffset(0)
+          setGroupsPageEnterOpacity(1)
+        })
+      })
+    } catch {
+      window.sessionStorage.removeItem(SWIPE_NAV_TRANSITION_KEY)
     }
-    if (previousGroupsSwipeTarget) {
-      sequence.push(1, 0)
-    }
-
-    let accumulatedDelay = 900
-    sequence.forEach(direction => {
-      timers.push(
-        window.setTimeout(() => {
-          setGroupsSwipePeekDirection(direction)
-        }, accumulatedDelay)
-      )
-      accumulatedDelay += direction === 0 ? 240 : 780
-    })
-
-    return () => {
-      timers.forEach(timer => window.clearTimeout(timer))
-      setGroupsSwipePeekDirection(0)
-    }
-  }, [
-    activeGroupsTab,
-    groupAnnouncement,
-    groupHeaderSurvey.survey,
-    groupsSwipeDisabled,
-    loading,
-    message,
-    nextGroupsSwipeTarget,
-    previousGroupsSwipeTarget,
-    showJoinPanel,
-  ])
+  }, [])
 
   return (
     <main
       className="app-surface relative min-h-screen overflow-x-hidden"
       onTouchStart={handleGroupsSwipeStart}
+      onTouchMove={handleGroupsSwipeMove}
       onTouchEnd={handleGroupsSwipeEnd}
     >
-      {groupsSwipePeekDirection !== 0 ? (
-        <div className="pointer-events-none absolute inset-x-0 top-3 z-20 px-2.5 sm:hidden">
-          <div className="relative mx-auto max-w-[760px]">
-            {previousGroupsSwipeTarget ? (
-              <div
-                className={`orthodle-swipe-peek-chip absolute left-0 ${groupsSwipePeekDirection === 1 ? 'opacity-100' : 'opacity-0'}`}
-              >
-                {previousGroupsSwipeTarget.label}
-              </div>
-            ) : null}
-            {nextGroupsSwipeTarget ? (
-              <div
-                className={`orthodle-swipe-peek-chip absolute right-0 ${groupsSwipePeekDirection === -1 ? 'opacity-100' : 'opacity-0'}`}
-              >
-                {nextGroupsSwipeTarget.label}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-      <div
-        className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-        style={{ transform: `translateX(${groupsSwipePeekDirection * 30}px)` }}
-      >
       <GroupsTopBanner
         activeTab={activeGroupsTab}
         onOpenHowItWorks={() => setShowGroupsExplainer(true)}
@@ -3618,6 +3738,15 @@ export default function GroupsPage() {
         unreadNotificationCount={unreadNotificationCount}
         onTabChange={handleGroupsTabChange}
       />
+      <div className="relative">
+        {groupsSwipePreview}
+        <div
+          className="relative z-10 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity]"
+          style={{
+            transform: `translateX(${groupsPageEnterOffset + groupsSwipeOffset}px)`,
+            opacity: groupsSwipeBodyOpacity,
+          }}
+        >
 
       {groupAnnouncement && groupAnnouncementKey !== dismissedGroupAnnouncementKey ? (
         <section className="mx-auto max-w-[760px] px-4 pt-3 sm:px-5">
@@ -6027,9 +6156,10 @@ export default function GroupsPage() {
           </div>
         </div>
       </section>
-      </div>
+        </div>
 
-      <PublicFooter />
+        <PublicFooter />
+      </div>
     </main>
   )
 }

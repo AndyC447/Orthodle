@@ -1687,12 +1687,55 @@ a {
   transition: opacity 240ms ease;
 }
 
+.orthodle-swipe-preview-shell {
+  min-height: 116px;
+  border-radius: 22px;
+  border: 1px solid rgba(231, 225, 214, 0.95);
+  background:
+    radial-gradient(circle at 50% 12%, rgba(255, 255, 255, 0.82), transparent 42%),
+    linear-gradient(180deg, rgba(252, 251, 248, 0.98), rgba(248, 244, 236, 0.98));
+  box-shadow:
+    0 16px 34px rgba(16, 32, 24, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  padding: 14px 16px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  transition:
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.orthodle-swipe-preview-page {
+  border-radius: 26px;
+  border: 1px solid rgba(231, 225, 214, 0.96);
+  background:
+    radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.84), transparent 44%),
+    linear-gradient(180deg, rgba(252, 251, 248, 0.98), rgba(248, 244, 236, 0.98));
+  box-shadow:
+    0 20px 42px rgba(16, 32, 24, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  padding: 14px 14px 18px;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  transition:
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orthodle-animated-border {
     animation: none;
   }
 
   .orthodle-swipe-peek-chip {
+    transition: none;
+  }
+
+  .orthodle-swipe-preview-shell {
+    transition: none;
+  }
+
+  .orthodle-swipe-preview-page {
     transition: none;
   }
 }

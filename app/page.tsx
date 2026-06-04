@@ -209,7 +209,7 @@ const RESUME_ROUND_DISMISS_KEY = 'orthodle_dismissed_resume_round'
 const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
 const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
 const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
-const HOME_SWIPE_PEEK_HINT_KEY = 'orthodle_home_swipe_peek_hint_v1'
+const SWIPE_NAV_TRANSITION_KEY = 'orthodle_swipe_nav_transition_v1'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -590,7 +590,13 @@ function PlayPageContent() {
   const [showCaseCardSettle, setShowCaseCardSettle] = useState(false)
   const [showTeachingImageSpotlight, setShowTeachingImageSpotlight] = useState(false)
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
-  const [homeSwipePeekDirection, setHomeSwipePeekDirection] = useState<-1 | 0 | 1>(0)
+  const [homeSwipeOffset, setHomeSwipeOffset] = useState(0)
+  const [homeSwipePreviewDirection, setHomeSwipePreviewDirection] = useState<-1 | 0 | 1>(0)
+  const [homeSwipePreviewTarget, setHomeSwipePreviewTarget] = useState<
+    { type: 'level'; key: Level; label: string } | { type: 'link'; href: string; label: string } | null
+  >(null)
+  const [homePageEnterOffset, setHomePageEnterOffset] = useState(0)
+  const [homePageEnterOpacity, setHomePageEnterOpacity] = useState(1)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [activeAnatomyChoiceSettleLetter, setActiveAnatomyChoiceSettleLetter] = useState<string | null>(null)
   const [imageScale, setImageScale] = useState(1)
@@ -3578,11 +3584,97 @@ function PlayPageContent() {
     currentHomeSwipeIndex > 0 ? homeSwipeTargets[currentHomeSwipeIndex - 1] : null
   const nextHomeSwipeTarget =
     currentHomeSwipeIndex >= 0 ? homeSwipeTargets[currentHomeSwipeIndex + 1] || null : null
+  const activeHomeSwipeTarget = homeSwipePreviewTarget
+  const homeSwipeProgress =
+    homeSwipePreviewDirection === 0 ? 0 : Math.min(1, Math.abs(homeSwipeOffset) / 112)
+  const homeSwipeBodyOpacity = Math.max(0.8, homePageEnterOpacity - homeSwipeProgress * 0.24)
+  const homeSwipePreview =
+    activeHomeSwipeTarget && homeSwipeProgress > 0 ? (
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 px-4 sm:hidden">
+        <div className="mx-auto w-full max-w-[700px]">
+          <div
+            className="orthodle-swipe-preview-page"
+            style={{
+              opacity: Math.min(0.96, 0.2 + homeSwipeProgress * 0.76),
+              transform: `translateX(${homeSwipePreviewDirection * -22 * (1 - homeSwipeProgress)}px) scale(${0.982 + homeSwipeProgress * 0.018})`,
+            }}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-left">
+                <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Up next
+                </div>
+                <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
+                  {activeHomeSwipeTarget.label}
+                </div>
+              </div>
+              <div className="orthodle-swipe-peek-chip">
+                {homeSwipePreviewDirection === -1 ? 'Swipe left' : 'Swipe right'}
+              </div>
+            </div>
+
+            {activeHomeSwipeTarget.type === 'link' ? (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-[20px] border border-[#e2b670] bg-[radial-gradient(circle,rgba(255,240,214,0.14)_1.2px,transparent_1.2px),linear-gradient(145deg,#d47b2a,#b95f1f_52%,#8f4316)] [background-size:26px_26px,auto] px-4 py-4 text-white shadow-[0_16px_34px_rgba(143,67,22,0.16)]">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#fff1c9]">
+                    Winners banner
+                  </div>
+                  <div className="mt-2 h-5 w-40 rounded-full bg-white/22" />
+                  <div className="mt-2 h-3.5 w-28 rounded-full bg-white/16" />
+                </div>
+                <div className="rounded-[22px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_28%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-5 text-white shadow-[0_16px_34px_rgba(4,47,34,0.16)]">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f0c247]">
+                    Groups
+                  </div>
+                  <div className="mt-3 h-6 w-44 rounded-full bg-white/16" />
+                  <div className="mt-3 grid gap-2">
+                    <div className="h-12 rounded-[18px] bg-white/10" />
+                    <div className="h-12 rounded-[18px] bg-white/8" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-[22px] border border-[#e7e1d6] bg-white px-4 py-4 shadow-[0_16px_34px_rgba(16,32,24,0.08)]">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    <span className="inline-block h-2 w-2 rounded-full bg-[#c76b3a]" />
+                    {activeHomeSwipeTarget.label}
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="h-4 w-[86%] rounded-full bg-[#ece5d9]" />
+                    <div className="h-4 w-[92%] rounded-full bg-[#f2ede3]" />
+                    <div className="h-4 w-[64%] rounded-full bg-[#f2ede3]" />
+                  </div>
+                </div>
+                <div className="rounded-[20px] border border-[#e7e1d6] bg-white px-4 py-4 shadow-[0_12px_26px_rgba(16,32,24,0.05)]">
+                  <div className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Imaging
+                  </div>
+                  <div className="mt-3 h-36 rounded-[18px] bg-[linear-gradient(180deg,#f8f5ee,#f1ece0)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="h-14 rounded-[18px] border border-[#e3dbce] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.04)]" />
+                  <div className="h-14 rounded-[18px] border border-[#e3dbce] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.04)]" />
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    ) : null
 
   function shouldAllowTabSwipeStart(target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) return false
     return !target.closest(
       'input, textarea, select, button, a, summary, [role="button"], [contenteditable="true"], [data-no-swipe]'
+    )
+  }
+
+  function setSwipeTransitionTarget(target: 'home' | 'groups', direction: 'from-left' | 'from-right') {
+    if (typeof window === 'undefined') return
+    window.sessionStorage.setItem(
+      SWIPE_NAV_TRANSITION_KEY,
+      JSON.stringify({ target, direction, at: Date.now() })
     )
   }
 
@@ -3600,12 +3692,55 @@ function PlayPageContent() {
     const touch = event.touches[0]
     if (!touch) return
 
+    setHomeSwipeOffset(0)
+    setHomeSwipePreviewDirection(0)
+    setHomeSwipePreviewTarget(null)
     tabSwipeStartRef.current = {
       x: touch.clientX,
       y: touch.clientY,
       at: Date.now(),
       allow: shouldAllowTabSwipeStart(event.target),
     }
+  }
+
+  function handleHomeSwipeMove(event: React.TouchEvent<HTMLElement>) {
+    const swipeStart = tabSwipeStartRef.current
+    if (!swipeStart?.allow || swipeNavigationDisabled) return
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) return
+
+    const touch = event.touches[0]
+    if (!touch) return
+
+    const deltaX = touch.clientX - swipeStart.x
+    const deltaY = touch.clientY - swipeStart.y
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+
+    if (absY > 68 && absY > absX) {
+      swipeStart.allow = false
+      setHomeSwipeOffset(0)
+      setHomeSwipePreviewDirection(0)
+      setHomeSwipePreviewTarget(null)
+      return
+    }
+
+    if (absX < 18 || absX < absY * 1.2) return
+
+    const direction = deltaX < 0 ? -1 : 1
+    const nextIndex = currentHomeSwipeIndex + (direction < 0 ? 1 : -1)
+    const nextTarget = homeSwipeTargets[nextIndex]
+    if (!nextTarget) {
+      setHomeSwipePreviewTarget(null)
+      return
+    }
+
+    if (event.cancelable) {
+      event.preventDefault()
+    }
+
+    setHomeSwipePreviewDirection(direction)
+    setHomeSwipePreviewTarget(nextTarget)
+    setHomeSwipeOffset(Math.max(-128, Math.min(128, deltaX * 0.54)))
   }
 
   function handleHomeSwipeEnd(event: React.TouchEvent<HTMLElement>) {
@@ -3625,63 +3760,94 @@ function PlayPageContent() {
     const absY = Math.abs(deltaY)
     const elapsed = Date.now() - swipeStart.at
 
-    if (elapsed > 700 || absX < 120 || absY > 72 || absX < absY * 1.9) return
-    if (Date.now() - lastTabSwipeAtRef.current < 450) return
-
     if (currentHomeSwipeIndex < 0) return
 
-    const nextIndex = currentHomeSwipeIndex + (deltaX < 0 ? 1 : -1)
+    const direction = deltaX < 0 ? -1 : 1
+    const nextIndex = currentHomeSwipeIndex + (direction < 0 ? 1 : -1)
     const nextTarget = homeSwipeTargets[nextIndex]
-    if (!nextTarget) return
-
-    lastTabSwipeAtRef.current = Date.now()
-
-    if (nextTarget.type === 'level') {
-      setSelectedLevel(nextTarget.key)
+    if (!nextTarget) {
+      setHomeSwipeOffset(0)
+      window.setTimeout(() => {
+        setHomeSwipePreviewDirection(0)
+        setHomeSwipePreviewTarget(null)
+      }, 220)
       return
     }
 
-    router.push(nextTarget.href)
+    const shouldCommit =
+      elapsed <= 700 && absX >= 120 && absY <= 72 && absX >= absY * 1.9
+
+    if (!shouldCommit || Date.now() - lastTabSwipeAtRef.current < 450) {
+      setHomeSwipeOffset(0)
+      window.setTimeout(() => {
+        setHomeSwipePreviewDirection(0)
+        setHomeSwipePreviewTarget(null)
+      }, 220)
+      return
+    }
+
+    lastTabSwipeAtRef.current = Date.now()
+    setHomeSwipePreviewDirection(direction)
+    setHomeSwipePreviewTarget(nextTarget)
+    setHomeSwipeOffset(direction * 122)
+
+    if (nextTarget.type === 'level') {
+      setIsTransitioningLevel(true)
+      window.setTimeout(() => {
+        setSelectedLevel(nextTarget.key)
+        setGuess('')
+        setSelectedAnatomyLetters([])
+        setMessage('')
+        setImageHidden(false)
+        setHomeSwipeOffset(direction * -28)
+        window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => {
+            setHomeSwipeOffset(0)
+          })
+        })
+      }, 150)
+      window.setTimeout(() => {
+        setIsTransitioningLevel(false)
+        setHomeSwipePreviewDirection(0)
+        setHomeSwipePreviewTarget(null)
+      }, 560)
+      return
+    }
+
+    setSwipeTransitionTarget('groups', direction < 0 ? 'from-right' : 'from-left')
+    window.setTimeout(() => {
+      router.push(nextTarget.href)
+    }, 170)
   }
 
   useEffect(() => {
-    if (swipeNavigationDisabled || currentHomeSwipeIndex < 0 || typeof window === 'undefined') return
-    if (window.innerWidth >= 1024) return
-    if (window.localStorage.getItem(HOME_SWIPE_PEEK_HINT_KEY)) return
-    if (!previousHomeSwipeTarget && !nextHomeSwipeTarget) return
+    if (typeof window === 'undefined') return
 
-    window.localStorage.setItem(HOME_SWIPE_PEEK_HINT_KEY, 'seen')
+    try {
+      const raw = window.sessionStorage.getItem(SWIPE_NAV_TRANSITION_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as {
+        target?: string
+        direction?: 'from-left' | 'from-right'
+        at?: number
+      }
+      window.sessionStorage.removeItem(SWIPE_NAV_TRANSITION_KEY)
+      if (parsed.target !== 'home') return
+      if (typeof parsed.at === 'number' && Date.now() - parsed.at > 3000) return
 
-    const timers: number[] = []
-    const sequence: Array<-1 | 0 | 1> = []
-
-    if (nextHomeSwipeTarget) {
-      sequence.push(-1, 0)
+      const entryOffset = parsed.direction === 'from-right' ? 28 : -28
+      setHomePageEnterOffset(entryOffset)
+      setHomePageEnterOpacity(0.74)
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          setHomePageEnterOffset(0)
+          setHomePageEnterOpacity(1)
+        })
+      })
+    } catch {
+      window.sessionStorage.removeItem(SWIPE_NAV_TRANSITION_KEY)
     }
-    if (previousHomeSwipeTarget) {
-      sequence.push(1, 0)
-    }
-
-    let accumulatedDelay = 850
-    sequence.forEach(direction => {
-      timers.push(
-        window.setTimeout(() => {
-          setHomeSwipePeekDirection(direction)
-        }, accumulatedDelay)
-      )
-      accumulatedDelay += direction === 0 ? 240 : 780
-    })
-
-    return () => {
-      timers.forEach(timer => window.clearTimeout(timer))
-      setHomeSwipePeekDirection(0)
-    }
-  }, [
-    currentHomeSwipeIndex,
-    nextHomeSwipeTarget,
-    previousHomeSwipeTarget,
-    swipeNavigationDisabled,
-  ])
+  }, [])
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
@@ -3801,6 +3967,7 @@ function PlayPageContent() {
     <main
       className="app-surface home-surface relative min-h-screen overflow-x-hidden"
       onTouchStart={handleHomeSwipeStart}
+      onTouchMove={handleHomeSwipeMove}
       onTouchEnd={handleHomeSwipeEnd}
     >
       <Header />
@@ -4577,29 +4744,13 @@ function PlayPageContent() {
       )}
 
       <div className="relative">
-        {homeSwipePeekDirection !== 0 ? (
-          <div className="pointer-events-none absolute inset-x-0 top-3 z-20 px-2.5 sm:hidden">
-            <div className="relative mx-auto w-full max-w-[700px]">
-              {previousHomeSwipeTarget ? (
-                <div
-                  className={`orthodle-swipe-peek-chip absolute left-0 ${homeSwipePeekDirection === 1 ? 'opacity-100' : 'opacity-0'}`}
-                >
-                  {previousHomeSwipeTarget.label}
-                </div>
-              ) : null}
-              {nextHomeSwipeTarget ? (
-                <div
-                  className={`orthodle-swipe-peek-chip absolute right-0 ${homeSwipePeekDirection === -1 ? 'opacity-100' : 'opacity-0'}`}
-                >
-                  {nextHomeSwipeTarget.label}
-                </div>
-              ) : null}
-            </div>
-          </div>
-        ) : null}
+        {homeSwipePreview}
         <div
-          className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-          style={{ transform: `translateX(${homeSwipePeekDirection * 30}px)` }}
+          className="relative z-10 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity]"
+          style={{
+            transform: `translateX(${homePageEnterOffset + homeSwipeOffset}px)`,
+            opacity: homeSwipeBodyOpacity,
+          }}
         >
       <section className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {showDailyCompleteCard && (
