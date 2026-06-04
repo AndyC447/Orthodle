@@ -592,6 +592,7 @@ function PlayPageContent() {
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
   const [homeSwipeOffset, setHomeSwipeOffset] = useState(0)
   const [homeSwipePreviewDirection, setHomeSwipePreviewDirection] = useState<-1 | 0 | 1>(0)
+  const [homeSwipeDragging, setHomeSwipeDragging] = useState(false)
   const [homeSwipePreviewTarget, setHomeSwipePreviewTarget] = useState<
     { type: 'level'; key: Level; label: string } | { type: 'link'; href: string; label: string } | null
   >(null)
@@ -3597,6 +3598,7 @@ function PlayPageContent() {
             style={{
               opacity: Math.min(0.96, 0.2 + homeSwipeProgress * 0.76),
               transform: `translateX(${homeSwipePreviewDirection * -22 * (1 - homeSwipeProgress)}px) scale(${0.982 + homeSwipeProgress * 0.018})`,
+              transition: homeSwipeDragging ? 'none' : undefined,
             }}
           >
             <div className="flex items-center justify-between gap-3">
@@ -3694,6 +3696,7 @@ function PlayPageContent() {
 
     setHomeSwipeOffset(0)
     setHomeSwipePreviewDirection(0)
+    setHomeSwipeDragging(false)
     setHomeSwipePreviewTarget(null)
     tabSwipeStartRef.current = {
       x: touch.clientX,
@@ -3720,6 +3723,7 @@ function PlayPageContent() {
       swipeStart.allow = false
       setHomeSwipeOffset(0)
       setHomeSwipePreviewDirection(0)
+      setHomeSwipeDragging(false)
       setHomeSwipePreviewTarget(null)
       return
     }
@@ -3739,6 +3743,7 @@ function PlayPageContent() {
     }
 
     setHomeSwipePreviewDirection(direction)
+    setHomeSwipeDragging(true)
     setHomeSwipePreviewTarget(nextTarget)
     setHomeSwipeOffset(Math.max(-128, Math.min(128, deltaX * 0.54)))
   }
@@ -3766,6 +3771,7 @@ function PlayPageContent() {
     const nextIndex = currentHomeSwipeIndex + (direction < 0 ? 1 : -1)
     const nextTarget = homeSwipeTargets[nextIndex]
     if (!nextTarget) {
+      setHomeSwipeDragging(false)
       setHomeSwipeOffset(0)
       window.setTimeout(() => {
         setHomeSwipePreviewDirection(0)
@@ -3778,6 +3784,7 @@ function PlayPageContent() {
       elapsed <= 700 && absX >= 120 && absY <= 72 && absX >= absY * 1.9
 
     if (!shouldCommit || Date.now() - lastTabSwipeAtRef.current < 450) {
+      setHomeSwipeDragging(false)
       setHomeSwipeOffset(0)
       window.setTimeout(() => {
         setHomeSwipePreviewDirection(0)
@@ -3788,6 +3795,7 @@ function PlayPageContent() {
 
     lastTabSwipeAtRef.current = Date.now()
     setHomeSwipePreviewDirection(direction)
+    setHomeSwipeDragging(false)
     setHomeSwipePreviewTarget(nextTarget)
     setHomeSwipeOffset(direction * 122)
 
@@ -4746,9 +4754,13 @@ function PlayPageContent() {
       <div className="relative">
         {homeSwipePreview}
         <div
-          className="relative z-10 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity]"
+          className={`relative z-10 will-change-[transform,opacity] ${
+            homeSwipeDragging
+              ? ''
+              : 'transition-[transform,opacity] duration-[360ms] ease-[cubic-bezier(0.16,1,0.3,1)]'
+          }`}
           style={{
-            transform: `translateX(${homePageEnterOffset + homeSwipeOffset}px)`,
+            transform: `translate3d(${homePageEnterOffset + homeSwipeOffset}px, 0, 0)`,
             opacity: homeSwipeBodyOpacity,
           }}
         >
@@ -4913,7 +4925,7 @@ function PlayPageContent() {
           </div>
         )}
 
-        <div className={`orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-3`}>
+        <div className={`orthodle-home-rail w-full rounded-[24px] p-[1.25px] ${topBannerCount > 0 ? 'mt-2.5' : hasMobileInteraction ? 'mt-1.5' : 'mt-2'} mb-2`}>
           {homeBootReady ? (
             <div
               className="orthodle-home-rail-inner grid gap-1 rounded-[22px] p-1 sm:gap-1.5 sm:p-1.5"
@@ -5009,7 +5021,7 @@ function PlayPageContent() {
 
       </section>
 
-      <div className={`mx-auto w-full max-w-[700px] px-4 py-1 pb-3 sm:px-0 sm:pb-8 ${hasMobileInteraction ? 'pt-1.5' : 'pt-1'}`}>
+      <div className="mx-auto w-full max-w-[700px] px-4 pt-0 pb-3 sm:px-0 sm:pb-8">
         <section className="space-y-4">
           {!onTodayCard && (
             <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:px-4">

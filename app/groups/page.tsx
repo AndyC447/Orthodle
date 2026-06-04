@@ -1551,6 +1551,7 @@ export default function GroupsPage() {
   const [showLeaderboardRise, setShowLeaderboardRise] = useState(false)
   const [groupsSwipeOffset, setGroupsSwipeOffset] = useState(0)
   const [groupsSwipePreviewDirection, setGroupsSwipePreviewDirection] = useState<-1 | 0 | 1>(0)
+  const [groupsSwipeDragging, setGroupsSwipeDragging] = useState(false)
   const [groupsSwipePreviewTarget, setGroupsSwipePreviewTarget] = useState<
     { kind: 'cases'; label: string } | { kind: 'tab'; label: string; tab?: GroupsTab } | null
   >(null)
@@ -3474,6 +3475,7 @@ export default function GroupsPage() {
             style={{
               opacity: Math.min(0.96, 0.2 + groupsSwipeProgress * 0.76),
               transform: `translateX(${groupsSwipePreviewDirection * -22 * (1 - groupsSwipeProgress)}px) scale(${0.982 + groupsSwipeProgress * 0.018})`,
+              transition: groupsSwipeDragging ? 'none' : undefined,
             }}
           >
             <div className="flex items-center justify-between gap-3">
@@ -3573,6 +3575,7 @@ export default function GroupsPage() {
 
     setGroupsSwipeOffset(0)
     setGroupsSwipePreviewDirection(0)
+    setGroupsSwipeDragging(false)
     setGroupsSwipePreviewTarget(null)
     tabSwipeStartRef.current = {
       x: touch.clientX,
@@ -3599,6 +3602,7 @@ export default function GroupsPage() {
       swipeStart.allow = false
       setGroupsSwipeOffset(0)
       setGroupsSwipePreviewDirection(0)
+      setGroupsSwipeDragging(false)
       setGroupsSwipePreviewTarget(null)
       return
     }
@@ -3618,6 +3622,7 @@ export default function GroupsPage() {
     }
 
     setGroupsSwipePreviewDirection(direction)
+    setGroupsSwipeDragging(true)
     setGroupsSwipePreviewTarget(nextTarget)
     setGroupsSwipeOffset(Math.max(-128, Math.min(128, deltaX * 0.54)))
   }
@@ -3645,6 +3650,7 @@ export default function GroupsPage() {
     const nextIndex = currentGroupsSwipeIndex + (direction < 0 ? 1 : -1)
     const nextTarget = groupsSwipeTargets[nextIndex]
     if (!nextTarget) {
+      setGroupsSwipeDragging(false)
       setGroupsSwipeOffset(0)
       window.setTimeout(() => {
         setGroupsSwipePreviewDirection(0)
@@ -3657,6 +3663,7 @@ export default function GroupsPage() {
       elapsed <= 700 && absX >= 120 && absY <= 72 && absX >= absY * 1.9
 
     if (!shouldCommit || Date.now() - lastTabSwipeAtRef.current < 450) {
+      setGroupsSwipeDragging(false)
       setGroupsSwipeOffset(0)
       window.setTimeout(() => {
         setGroupsSwipePreviewDirection(0)
@@ -3667,6 +3674,7 @@ export default function GroupsPage() {
 
     lastTabSwipeAtRef.current = Date.now()
     setGroupsSwipePreviewDirection(direction)
+    setGroupsSwipeDragging(false)
     setGroupsSwipePreviewTarget(nextTarget)
     setGroupsSwipeOffset(direction * 122)
 
@@ -3741,9 +3749,13 @@ export default function GroupsPage() {
       <div className="relative">
         {groupsSwipePreview}
         <div
-          className="relative z-10 transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-[transform,opacity]"
+          className={`relative z-10 will-change-[transform,opacity] ${
+            groupsSwipeDragging
+              ? ''
+              : 'transition-[transform,opacity] duration-[360ms] ease-[cubic-bezier(0.16,1,0.3,1)]'
+          }`}
           style={{
-            transform: `translateX(${groupsPageEnterOffset + groupsSwipeOffset}px)`,
+            transform: `translate3d(${groupsPageEnterOffset + groupsSwipeOffset}px, 0, 0)`,
             opacity: groupsSwipeBodyOpacity,
           }}
         >
