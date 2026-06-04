@@ -49,8 +49,10 @@ type CaseRow = {
   teaching_point: string | null
   learning_image_url: string | null
   learning_image_credit: string | null
+  learning_image_caption: string | null
   learning_image_url_2: string | null
   learning_image_credit_2: string | null
+  learning_image_caption_2: string | null
 }
 
 type SubmissionRow = {
@@ -80,8 +82,10 @@ type SubmissionRow = {
   teaching_point: string | null
   learning_image_url: string | null
   learning_image_credit: string | null
+  learning_image_caption: string | null
   learning_image_url_2: string | null
   learning_image_credit_2: string | null
+  learning_image_caption_2: string | null
   created_at: string
 }
 
@@ -415,8 +419,10 @@ type AdminCaseDraft = {
   imageFindings: string
   learningImageUrl: string
   learningImageCredit: string
+  learningImageCaption: string
   learningImageUrl2: string
   learningImageCredit2: string
+  learningImageCaption2: string
   clue1: string
   clue2: string
   clue3: string
@@ -496,8 +502,10 @@ export default function AdminPage() {
   const [imageFindings, setImageFindings] = useState('')
   const [learningImageUrl, setLearningImageUrl] = useState('')
   const [learningImageCredit, setLearningImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+  const [learningImageCaption, setLearningImageCaption] = useState('')
   const [learningImageUrl2, setLearningImageUrl2] = useState('')
   const [learningImageCredit2, setLearningImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+  const [learningImageCaption2, setLearningImageCaption2] = useState('')
   const [imagesCollapsed, setImagesCollapsed] = useState(true)
   const [activeClueIndex, setActiveClueIndex] = useState<number | null>(null)
   const [clue1, setClue1] = useState('')
@@ -684,8 +692,10 @@ export default function AdminPage() {
           setImageFindings(draft.imageFindings || '')
           setLearningImageUrl(draft.learningImageUrl || '')
           setLearningImageCredit(draft.learningImageCredit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+          setLearningImageCaption(draft.learningImageCaption || '')
           setLearningImageUrl2(draft.learningImageUrl2 || '')
           setLearningImageCredit2(draft.learningImageCredit2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+          setLearningImageCaption2(draft.learningImageCaption2 || '')
           setClue1(draft.clue1 || '')
           setClue2(draft.clue2 || '')
           setClue3(draft.clue3 || '')
@@ -802,8 +812,10 @@ export default function AdminPage() {
         imageFindings.trim() ||
         learningImageUrl.trim() ||
         normalizeCreditValue(learningImageCredit) ||
+        learningImageCaption.trim() ||
         learningImageUrl2.trim() ||
         normalizeCreditValue(learningImageCredit2) ||
+        learningImageCaption2.trim() ||
         clue1.trim() ||
         clue2.trim() ||
         clue3.trim() ||
@@ -837,8 +849,10 @@ export default function AdminPage() {
       imageFindings,
       learningImageUrl,
       learningImageCredit,
+      learningImageCaption,
       learningImageUrl2,
       learningImageCredit2,
+      learningImageCaption2,
       clue1,
       clue2,
       clue3,
@@ -871,8 +885,10 @@ export default function AdminPage() {
     imageFindings,
     learningImageUrl,
     learningImageCredit,
+    learningImageCaption,
     learningImageUrl2,
     learningImageCredit2,
+    learningImageCaption2,
     clue1,
     clue2,
     clue3,
@@ -1414,8 +1430,10 @@ export default function AdminPage() {
       teaching_point: teachingPoint.trim() || null,
       learning_image_url: learningImageUrl.trim() || null,
       learning_image_credit: normalizeCreditValue(learningImageCredit),
+      learning_image_caption: learningImageCaption.trim() || null,
       learning_image_url_2: learningImageUrl2.trim() || null,
       learning_image_credit_2: normalizeCreditValue(learningImageCredit2),
+      learning_image_caption_2: learningImageCaption2.trim() || null,
     } satisfies CaseRow
   }
 
@@ -1863,8 +1881,10 @@ export default function AdminPage() {
     setImageFindings('')
     setLearningImageUrl('')
     setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption('')
     setLearningImageUrl2('')
     setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption2('')
     setClue1('')
     setClue2('')
     setClue3('')
@@ -1893,8 +1913,10 @@ export default function AdminPage() {
     setImageRevealClue2('none')
     setLearningImageUrl('')
     setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption('')
     setLearningImageUrl2('')
     setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption2('')
     setClue1('')
     setClue2('')
     setClue3('')
@@ -1932,8 +1954,10 @@ export default function AdminPage() {
     setImageFindings(c.image_findings || '')
     setLearningImageUrl(c.learning_image_url || '')
     setLearningImageCredit(c.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption(c.learning_image_caption || '')
     setLearningImageUrl2(c.learning_image_url_2 || '')
-    setLearningImageCredit(c.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCredit2(c.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption2(c.learning_image_caption_2 || '')
     setClue1(c.clue_1 || '')
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
@@ -1968,8 +1992,10 @@ export default function AdminPage() {
     setImageFindings(submission.image_findings || '')
     setLearningImageUrl(submission.learning_image_url || '')
     setLearningImageCredit(submission.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption(submission.learning_image_caption || '')
     setLearningImageUrl2(submission.learning_image_url_2 || '')
     setLearningImageCredit2(submission.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption2(submission.learning_image_caption_2 || '')
     setClue1(submission.clue_1 || '')
     setClue2(submission.clue_2 || '')
     setClue3(submission.clue_3 || '')
@@ -3041,8 +3067,10 @@ export default function AdminPage() {
         image_findings: imageFindings.trim() || null,
         learning_image_url: learningImageUrl || null,
         learning_image_credit: savedLearningImageCredit,
+        learning_image_caption: learningImageCaption.trim() || null,
         learning_image_url_2: learningImageUrl2 || null,
         learning_image_credit_2: savedLearningImageCredit2,
+        learning_image_caption_2: learningImageCaption2.trim() || null,
         clue_1: clue1 || null,
         clue_2: clue2 || null,
         clue_3: clue3 || null,
@@ -4377,6 +4405,16 @@ export default function AdminPage() {
                           className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                         />
                       </label>
+                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                        Teaching Image 1 Caption
+                        <textarea
+                          value={learningImageCaption}
+                          onChange={e => setLearningImageCaption(e.target.value)}
+                          placeholder="Optional caption shown under the teaching image."
+                          rows={3}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                      </label>
                     </div>
 
                     <div className="grid gap-2.5">
@@ -4388,6 +4426,7 @@ export default function AdminPage() {
                             onClick={() => {
                               setLearningImageUrl2('')
                               setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                              setLearningImageCaption2('')
                             }}
                             className="rounded-lg border border-[#ead9b7] px-2.5 py-1 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
                           >
@@ -4418,6 +4457,16 @@ export default function AdminPage() {
                           value={learningImageCredit2}
                           onChange={e => setLearningImageCredit2(e.target.value)}
                           placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
+                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                      </label>
+                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                        Teaching Image 2 Caption
+                        <textarea
+                          value={learningImageCaption2}
+                          onChange={e => setLearningImageCaption2(e.target.value)}
+                          placeholder="Optional caption shown under the second teaching image."
+                          rows={3}
                           className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                         />
                       </label>
@@ -4478,6 +4527,9 @@ export default function AdminPage() {
                     alt="Teaching image"
                     className="max-h-48 rounded-lg object-contain"
                   />
+                  {learningImageCaption.trim() ? (
+                    <p className="mt-2 text-sm leading-5 text-[#4d5d55]">{learningImageCaption.trim()}</p>
+                  ) : null}
                   {normalizeCreditValue(learningImageCredit) && (
                     <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit)}</p>
                   )}
@@ -4485,6 +4537,7 @@ export default function AdminPage() {
                     onClick={() => {
                       setLearningImageUrl('')
                       setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                      setLearningImageCaption('')
                     }}
                     className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >
@@ -4500,6 +4553,9 @@ export default function AdminPage() {
                     alt="Second teaching image"
                     className="max-h-48 rounded-lg object-contain"
                   />
+                  {learningImageCaption2.trim() ? (
+                    <p className="mt-2 text-sm leading-5 text-[#4d5d55]">{learningImageCaption2.trim()}</p>
+                  ) : null}
                   {normalizeCreditValue(learningImageCredit2) && (
                     <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit2)}</p>
                   )}
@@ -4507,6 +4563,7 @@ export default function AdminPage() {
                     onClick={() => {
                       setLearningImageUrl2('')
                       setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
+                      setLearningImageCaption2('')
                     }}
                     className="mt-2 rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                   >

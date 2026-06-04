@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Bell, BookOpen, Flame, Info, Menu, Moon, Pencil, Share2, Star, Sun, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
@@ -1550,6 +1550,8 @@ export default function GroupsPage() {
   const [showLeaderboardRise, setShowLeaderboardRise] = useState(false)
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
+  const tabSwipeStartRef = useRef<{ x: number; y: number; at: number; allow: boolean } | null>(null)
+  const lastTabSwipeAtRef = useRef(0)
 
   useEffect(() => {
     setShowLeaderboardRise(true)
@@ -3416,34 +3418,119 @@ export default function GroupsPage() {
     window.localStorage.setItem(GROUP_NOTIFICATIONS_SEEN_KEY, JSON.stringify(nextSeenIds))
   }
 
+  function handleGroupsTabChange(tab: GroupsTab) {
+    if (tab === 'my-group') {
+      if (viewerGroup?.id) {
+        setSelectedGroupId(viewerGroup.id)
+        setActiveGroupsTab('my-group')
+        setShowJoinPanel(false)
+        setMessage('')
+        return
+      }
+
+      setSelectedGroupId('')
+      setActiveGroupsTab('my-group')
+      setGroupActionMode('join')
+      setShowJoinPanel(true)
+      setMessage('Join or create a group to unlock your private leaderboard.')
+      return
+    }
+
+    setActiveGroupsTab(tab)
+    setShowJoinPanel(false)
+  }
+
+  const groupsSwipeDisabled =
+    showGroupsExplainer ||
+    showLeaderboardScoringGuide ||
+    showNotificationsPanel ||
+    showProfileStatGuide ||
+    showSelectedGroupIconPicker ||
+    showSelectedMemberIconPicker ||
+    showJoinMemberIconPicker ||
+    showRequestMemberIconPicker ||
+    showCreateGroupIconPicker ||
+    showCreateMemberIconPicker
+
+  function shouldAllowGroupsSwipeStart(target: EventTarget | null) {
+    if (!(target instanceof HTMLElement)) return false
+    return !target.closest(
+      'input, textarea, select, button, a, summary, [role="button"], [contenteditable="true"], [data-no-swipe]'
+    )
+  }
+
+  function handleGroupsSwipeStart(event: React.TouchEvent<HTMLElement>) {
+    if (groupsSwipeDisabled) {
+      tabSwipeStartRef.current = null
+      return
+    }
+
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      tabSwipeStartRef.current = null
+      return
+    }
+
+    const touch = event.touches[0]
+    if (!touch) return
+
+    tabSwipeStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      at: Date.now(),
+      allow: shouldAllowGroupsSwipeStart(event.target),
+    }
+  }
+
+  function handleGroupsSwipeEnd(event: React.TouchEvent<HTMLElement>) {
+    const swipeStart = tabSwipeStartRef.current
+    tabSwipeStartRef.current = null
+
+    if (!swipeStart?.allow || groupsSwipeDisabled) return
+
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) return
+
+    const touch = event.changedTouches[0]
+    if (!touch) return
+
+    const deltaX = touch.clientX - swipeStart.x
+    const deltaY = touch.clientY - swipeStart.y
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+    const elapsed = Date.now() - swipeStart.at
+
+    if (elapsed > 700 || absX < 120 || absY > 72 || absX < absY * 1.9) return
+    if (Date.now() - lastTabSwipeAtRef.current < 450) return
+
+    const swipeOrder: Array<'cases' | GroupsTab> = ['cases', 'home', 'my-group', 'profile']
+    const currentIndex = swipeOrder.indexOf(activeGroupsTab)
+    if (currentIndex < 0) return
+
+    const nextIndex = currentIndex + (deltaX < 0 ? 1 : -1)
+    const nextTarget = swipeOrder[nextIndex]
+    if (!nextTarget) return
+
+    lastTabSwipeAtRef.current = Date.now()
+
+    if (nextTarget === 'cases') {
+      router.push('/?level=attending')
+      return
+    }
+
+    handleGroupsTabChange(nextTarget)
+  }
+
   return (
-    <main className="app-surface min-h-screen">
+    <main
+      className="app-surface min-h-screen"
+      onTouchStart={handleGroupsSwipeStart}
+      onTouchEnd={handleGroupsSwipeEnd}
+    >
       <GroupsTopBanner
         activeTab={activeGroupsTab}
         onOpenHowItWorks={() => setShowGroupsExplainer(true)}
         onOpenUpdates={openNotificationsPanel}
         unreadNotificationCount={unreadNotificationCount}
-        onTabChange={tab => {
-          if (tab === 'my-group') {
-            if (viewerGroup?.id) {
-              setSelectedGroupId(viewerGroup.id)
-              setActiveGroupsTab('my-group')
-              setShowJoinPanel(false)
-              setMessage('')
-              return
-            }
-
-            setSelectedGroupId('')
-            setActiveGroupsTab('my-group')
-            setGroupActionMode('join')
-            setShowJoinPanel(true)
-            setMessage('Join or create a group to unlock your private leaderboard.')
-            return
-          }
-
-          setActiveGroupsTab(tab)
-          setShowJoinPanel(false)
-        }}
+        onTabChange={handleGroupsTabChange}
       />
 
       {groupAnnouncement && groupAnnouncementKey !== dismissedGroupAnnouncementKey ? (

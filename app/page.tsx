@@ -1,6 +1,6 @@
 'use client'
 import { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
@@ -72,8 +72,10 @@ type Case = {
   teaching_point?: string | null
   learning_image_url?: string | null
   learning_image_credit?: string | null
+  learning_image_caption?: string | null
   learning_image_url_2?: string | null
   learning_image_credit_2?: string | null
+  learning_image_caption_2?: string | null
 }
 
 type Guess = {
@@ -128,6 +130,7 @@ type TeachingBodyBlock =
 type ExpandableImage = {
   url: string
   credit: string | null | undefined
+  caption?: string | null | undefined
   alt: string
 }
 
@@ -520,6 +523,7 @@ function doesSurveyApplyToLevel(levelScope: SurveyLevelScope | null | undefined,
 }
 
 function PlayPageContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
   const isAdminPreview = searchParams.get('preview') === '1'
@@ -540,6 +544,8 @@ function PlayPageContent() {
   const imageScaleStart = useRef<number>(1)
   const teachingImageSectionRef = useRef<HTMLDivElement | null>(null)
   const hasShownTeachingImageSpotlightRef = useRef(false)
+  const tabSwipeStartRef = useRef<{ x: number; y: number; at: number; allow: boolean } | null>(null)
+  const lastTabSwipeAtRef = useRef(0)
   const today = todayISO()
   const initialLevel = getInitialLevelFromParams(searchParams.get('level'), null, today)
   const initialDate = getInitialDateFromParams(searchParams.get('date'), today)
@@ -2789,6 +2795,7 @@ function PlayPageContent() {
         ? {
             url: caseItem.learning_image_url,
             credit: caseItem.learning_image_credit,
+            caption: caseItem.learning_image_caption,
             alt: 'Teaching image 1',
           }
         : null,
@@ -2796,6 +2803,7 @@ function PlayPageContent() {
         ? {
             url: caseItem.learning_image_url_2,
             credit: caseItem.learning_image_credit_2,
+            caption: caseItem.learning_image_caption_2,
             alt: 'Teaching image 2',
           }
         : null,
@@ -2830,6 +2838,11 @@ function PlayPageContent() {
                   className="max-h-[320px] w-full rounded-lg object-contain"
                 />
               </button>
+              {image.caption?.trim() ? (
+                <p className="px-3 pt-2 text-center text-sm leading-6 text-[#4d5d55]">
+                  {image.caption}
+                </p>
+              ) : null}
               {image.credit?.trim() ? (
                 <p className="px-2.5 pb-2.5 pt-1.5 text-center text-[11px] text-[#8a948d]">
                   {image.credit}
@@ -3542,6 +3555,88 @@ function PlayPageContent() {
     Number(showHomepageSurvey) +
     Number(showSharedHomepageSurvey) +
     Number(showResumeRound)
+  const swipeNavigationDisabled =
+    !onTodayCard ||
+    Boolean(caseParam) ||
+    imageExpanded ||
+    showTutorial ||
+    showHomepageAnnouncement ||
+    showHomepageSurvey ||
+    showSharedHomepageSurvey ||
+    showResumeRound
+  const homeSwipeTargets = homeTabs.map(item =>
+    item.type === 'link'
+      ? ({ type: 'link' as const, href: item.href })
+      : ({ type: 'level' as const, key: item.key })
+  )
+
+  function shouldAllowTabSwipeStart(target: EventTarget | null) {
+    if (!(target instanceof HTMLElement)) return false
+    return !target.closest(
+      'input, textarea, select, button, a, summary, [role="button"], [contenteditable="true"], [data-no-swipe]'
+    )
+  }
+
+  function handleHomeSwipeStart(event: React.TouchEvent<HTMLElement>) {
+    if (swipeNavigationDisabled) {
+      tabSwipeStartRef.current = null
+      return
+    }
+
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      tabSwipeStartRef.current = null
+      return
+    }
+
+    const touch = event.touches[0]
+    if (!touch) return
+
+    tabSwipeStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      at: Date.now(),
+      allow: shouldAllowTabSwipeStart(event.target),
+    }
+  }
+
+  function handleHomeSwipeEnd(event: React.TouchEvent<HTMLElement>) {
+    const swipeStart = tabSwipeStartRef.current
+    tabSwipeStartRef.current = null
+
+    if (!swipeStart?.allow || swipeNavigationDisabled) return
+
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) return
+
+    const touch = event.changedTouches[0]
+    if (!touch) return
+
+    const deltaX = touch.clientX - swipeStart.x
+    const deltaY = touch.clientY - swipeStart.y
+    const absX = Math.abs(deltaX)
+    const absY = Math.abs(deltaY)
+    const elapsed = Date.now() - swipeStart.at
+
+    if (elapsed > 700 || absX < 120 || absY > 72 || absX < absY * 1.9) return
+    if (Date.now() - lastTabSwipeAtRef.current < 450) return
+
+    const currentIndex = homeSwipeTargets.findIndex(
+      item => item.type === 'level' && item.key === selectedLevel
+    )
+    if (currentIndex < 0) return
+
+    const nextIndex = currentIndex + (deltaX < 0 ? 1 : -1)
+    const nextTarget = homeSwipeTargets[nextIndex]
+    if (!nextTarget) return
+
+    lastTabSwipeAtRef.current = Date.now()
+
+    if (nextTarget.type === 'level') {
+      setSelectedLevel(nextTarget.key)
+      return
+    }
+
+    router.push(nextTarget.href)
+  }
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
@@ -3658,7 +3753,11 @@ function PlayPageContent() {
   }, [selectedLevel, selectedDate, dailyCase?.answer])
 
   return (
-    <main className="app-surface home-surface min-h-screen">
+    <main
+      className="app-surface home-surface min-h-screen"
+      onTouchStart={handleHomeSwipeStart}
+      onTouchEnd={handleHomeSwipeEnd}
+    >
       <Header />
 
       <style jsx global>{`
@@ -4759,7 +4858,9 @@ function PlayPageContent() {
               )}
 
               {visibleImages.length > 0 && imageRevealed && !imageHidden && (
-                  <div className="orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 mb-2 rounded-[20px] px-2.5 pb-7 pt-2 sm:px-4 sm:pb-9">
+                  <div className={`orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 mb-1.5 rounded-[20px] px-2.5 pt-2 sm:px-4 ${
+                    solvedImagingSection ? 'pb-3 sm:pb-4' : 'pb-7 sm:pb-9'
+                  }`}>
                   <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
                       <div />
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -4790,7 +4891,7 @@ function PlayPageContent() {
                       ))}
                     </div>
                     {solvedImagingSection ? (
-                      <div className="mt-2.5 border-t border-[#ebe5db] pt-2.5">
+                      <div className="mt-2 border-t border-[#ebe5db] pt-2">
                         <div className="text-center text-[13px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/65 underline-offset-2">
                           {renderFormattedLine(solvedImagingSection.label, 'solved-imaging-label')}
                         </div>
@@ -4820,7 +4921,7 @@ function PlayPageContent() {
                   </div>
               )}
 
-              <div className="mt-2 pt-0">
+              <div className={`${visibleImages.length > 0 && imageRevealed ? 'mt-1 sm:mt-1.5' : 'mt-2'} pt-0`}>
                 {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
                     {hasValidSurgicalAnatomyChoices ? (
