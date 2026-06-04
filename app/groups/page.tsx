@@ -200,6 +200,7 @@ const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
 const GROUP_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_group_announcement'
 const GROUP_NOTIFICATIONS_SEEN_KEY = 'orthodle_groups_notifications_seen_v1'
 const GROUP_DISMISSED_MESSAGES_KEY = 'orthodle_groups_dismissed_messages_v1'
+const GROUPS_SWIPE_PEEK_HINT_KEY = 'orthodle_groups_swipe_peek_hint_v1'
 
 function getGroupSurveyStorageKey(surveyId: string) {
   return `${SITE_SURVEY_STORAGE_PREFIX}:${surveyId}`
@@ -1548,6 +1549,7 @@ export default function GroupsPage() {
   const [selectedMemberStats, setSelectedMemberStats] = useState<MemberStats | null>(null)
   const [removingMemberId, setRemovingMemberId] = useState('')
   const [showLeaderboardRise, setShowLeaderboardRise] = useState(false)
+  const [groupsSwipePeekDirection, setGroupsSwipePeekDirection] = useState<-1 | 0 | 1>(0)
   const sessionId = useMemo(() => getSessionId(), [identityVersion])
   const router = useRouter()
   const tabSwipeStartRef = useRef<{ x: number; y: number; at: number; allow: boolean } | null>(null)
@@ -3440,6 +3442,20 @@ export default function GroupsPage() {
     setShowJoinPanel(false)
   }
 
+  const groupsSwipeTargets: Array<{ kind: 'cases' | 'tab'; label: string; tab?: GroupsTab }> = [
+    { kind: 'cases', label: 'Cases' },
+    { kind: 'tab', tab: 'home', label: 'Home' },
+    { kind: 'tab', tab: 'my-group', label: 'My Group' },
+    { kind: 'tab', tab: 'profile', label: 'Profile' },
+  ]
+  const currentGroupsSwipeIndex = groupsSwipeTargets.findIndex(
+    item => item.kind === 'tab' && item.tab === activeGroupsTab
+  )
+  const previousGroupsSwipeTarget =
+    currentGroupsSwipeIndex > 0 ? groupsSwipeTargets[currentGroupsSwipeIndex - 1] : null
+  const nextGroupsSwipeTarget =
+    currentGroupsSwipeIndex >= 0 ? groupsSwipeTargets[currentGroupsSwipeIndex + 1] || null : null
+
   const groupsSwipeDisabled =
     showGroupsExplainer ||
     showLeaderboardScoringGuide ||
@@ -3501,30 +3517,100 @@ export default function GroupsPage() {
     if (elapsed > 700 || absX < 120 || absY > 72 || absX < absY * 1.9) return
     if (Date.now() - lastTabSwipeAtRef.current < 450) return
 
-    const swipeOrder: Array<'cases' | GroupsTab> = ['cases', 'home', 'my-group', 'profile']
-    const currentIndex = swipeOrder.indexOf(activeGroupsTab)
-    if (currentIndex < 0) return
+    if (currentGroupsSwipeIndex < 0) return
 
-    const nextIndex = currentIndex + (deltaX < 0 ? 1 : -1)
-    const nextTarget = swipeOrder[nextIndex]
+    const nextIndex = currentGroupsSwipeIndex + (deltaX < 0 ? 1 : -1)
+    const nextTarget = groupsSwipeTargets[nextIndex]
     if (!nextTarget) return
 
     lastTabSwipeAtRef.current = Date.now()
 
-    if (nextTarget === 'cases') {
-      router.push('/?level=attending')
+    if (nextTarget.kind === 'cases') {
+      router.push('/')
       return
     }
 
-    handleGroupsTabChange(nextTarget)
+    if (nextTarget.tab) {
+      handleGroupsTabChange(nextTarget.tab)
+    }
   }
+
+  useEffect(() => {
+    if (groupsSwipeDisabled || loading || showJoinPanel || typeof window === 'undefined') return
+    if (window.innerWidth >= 1024) return
+    if (window.localStorage.getItem(GROUPS_SWIPE_PEEK_HINT_KEY)) return
+    if (activeGroupsTab !== 'home') return
+    if (message || groupAnnouncement || groupHeaderSurvey.survey) return
+    if (!previousGroupsSwipeTarget && !nextGroupsSwipeTarget) return
+
+    window.localStorage.setItem(GROUPS_SWIPE_PEEK_HINT_KEY, 'seen')
+
+    const timers: number[] = []
+    const sequence: Array<-1 | 0 | 1> = []
+
+    if (nextGroupsSwipeTarget) {
+      sequence.push(-1, 0)
+    }
+    if (previousGroupsSwipeTarget) {
+      sequence.push(1, 0)
+    }
+
+    let accumulatedDelay = 900
+    sequence.forEach(direction => {
+      timers.push(
+        window.setTimeout(() => {
+          setGroupsSwipePeekDirection(direction)
+        }, accumulatedDelay)
+      )
+      accumulatedDelay += direction === 0 ? 240 : 780
+    })
+
+    return () => {
+      timers.forEach(timer => window.clearTimeout(timer))
+      setGroupsSwipePeekDirection(0)
+    }
+  }, [
+    activeGroupsTab,
+    groupAnnouncement,
+    groupHeaderSurvey.survey,
+    groupsSwipeDisabled,
+    loading,
+    message,
+    nextGroupsSwipeTarget,
+    previousGroupsSwipeTarget,
+    showJoinPanel,
+  ])
 
   return (
     <main
-      className="app-surface min-h-screen"
+      className="app-surface relative min-h-screen overflow-x-hidden"
       onTouchStart={handleGroupsSwipeStart}
       onTouchEnd={handleGroupsSwipeEnd}
     >
+      {groupsSwipePeekDirection !== 0 ? (
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-20 px-2.5 sm:hidden">
+          <div className="relative mx-auto max-w-[760px]">
+            {previousGroupsSwipeTarget ? (
+              <div
+                className={`orthodle-swipe-peek-chip absolute left-0 ${groupsSwipePeekDirection === 1 ? 'opacity-100' : 'opacity-0'}`}
+              >
+                {previousGroupsSwipeTarget.label}
+              </div>
+            ) : null}
+            {nextGroupsSwipeTarget ? (
+              <div
+                className={`orthodle-swipe-peek-chip absolute right-0 ${groupsSwipePeekDirection === -1 ? 'opacity-100' : 'opacity-0'}`}
+              >
+                {nextGroupsSwipeTarget.label}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+      <div
+        className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+        style={{ transform: `translateX(${groupsSwipePeekDirection * 30}px)` }}
+      >
       <GroupsTopBanner
         activeTab={activeGroupsTab}
         onOpenHowItWorks={() => setShowGroupsExplainer(true)}
@@ -5941,6 +6027,7 @@ export default function GroupsPage() {
           </div>
         </div>
       </section>
+      </div>
 
       <PublicFooter />
     </main>

@@ -1667,9 +1667,33 @@ a {
   animation: orthodle-border-drift 9s ease-in-out infinite;
 }
 
+.orthodle-swipe-peek-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  max-width: 120px;
+  padding: 0 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(222, 215, 202, 0.9);
+  background: rgba(255, 250, 241, 0.94);
+  color: #637268;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 22px rgba(16, 32, 24, 0.08);
+  backdrop-filter: blur(8px);
+  transition: opacity 240ms ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orthodle-animated-border {
     animation: none;
+  }
+
+  .orthodle-swipe-peek-chip {
+    transition: none;
   }
 }
 

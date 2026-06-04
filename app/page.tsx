@@ -209,6 +209,7 @@ const RESUME_ROUND_DISMISS_KEY = 'orthodle_dismissed_resume_round'
 const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
 const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
 const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
+const HOME_SWIPE_PEEK_HINT_KEY = 'orthodle_home_swipe_peek_hint_v1'
 const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
 const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
@@ -589,6 +590,7 @@ function PlayPageContent() {
   const [showCaseCardSettle, setShowCaseCardSettle] = useState(false)
   const [showTeachingImageSpotlight, setShowTeachingImageSpotlight] = useState(false)
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
+  const [homeSwipePeekDirection, setHomeSwipePeekDirection] = useState<-1 | 0 | 1>(0)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [activeAnatomyChoiceSettleLetter, setActiveAnatomyChoiceSettleLetter] = useState<string | null>(null)
   const [imageScale, setImageScale] = useState(1)
@@ -3566,9 +3568,16 @@ function PlayPageContent() {
     showResumeRound
   const homeSwipeTargets = homeTabs.map(item =>
     item.type === 'link'
-      ? ({ type: 'link' as const, href: item.href })
-      : ({ type: 'level' as const, key: item.key })
+      ? ({ type: 'link' as const, href: item.href, label: item.label })
+      : ({ type: 'level' as const, key: item.key, label: item.label })
   )
+  const currentHomeSwipeIndex = homeSwipeTargets.findIndex(
+    item => item.type === 'level' && item.key === selectedLevel
+  )
+  const previousHomeSwipeTarget =
+    currentHomeSwipeIndex > 0 ? homeSwipeTargets[currentHomeSwipeIndex - 1] : null
+  const nextHomeSwipeTarget =
+    currentHomeSwipeIndex >= 0 ? homeSwipeTargets[currentHomeSwipeIndex + 1] || null : null
 
   function shouldAllowTabSwipeStart(target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) return false
@@ -3619,12 +3628,9 @@ function PlayPageContent() {
     if (elapsed > 700 || absX < 120 || absY > 72 || absX < absY * 1.9) return
     if (Date.now() - lastTabSwipeAtRef.current < 450) return
 
-    const currentIndex = homeSwipeTargets.findIndex(
-      item => item.type === 'level' && item.key === selectedLevel
-    )
-    if (currentIndex < 0) return
+    if (currentHomeSwipeIndex < 0) return
 
-    const nextIndex = currentIndex + (deltaX < 0 ? 1 : -1)
+    const nextIndex = currentHomeSwipeIndex + (deltaX < 0 ? 1 : -1)
     const nextTarget = homeSwipeTargets[nextIndex]
     if (!nextTarget) return
 
@@ -3637,6 +3643,45 @@ function PlayPageContent() {
 
     router.push(nextTarget.href)
   }
+
+  useEffect(() => {
+    if (swipeNavigationDisabled || currentHomeSwipeIndex < 0 || typeof window === 'undefined') return
+    if (window.innerWidth >= 1024) return
+    if (window.localStorage.getItem(HOME_SWIPE_PEEK_HINT_KEY)) return
+    if (!previousHomeSwipeTarget && !nextHomeSwipeTarget) return
+
+    window.localStorage.setItem(HOME_SWIPE_PEEK_HINT_KEY, 'seen')
+
+    const timers: number[] = []
+    const sequence: Array<-1 | 0 | 1> = []
+
+    if (nextHomeSwipeTarget) {
+      sequence.push(-1, 0)
+    }
+    if (previousHomeSwipeTarget) {
+      sequence.push(1, 0)
+    }
+
+    let accumulatedDelay = 850
+    sequence.forEach(direction => {
+      timers.push(
+        window.setTimeout(() => {
+          setHomeSwipePeekDirection(direction)
+        }, accumulatedDelay)
+      )
+      accumulatedDelay += direction === 0 ? 240 : 780
+    })
+
+    return () => {
+      timers.forEach(timer => window.clearTimeout(timer))
+      setHomeSwipePeekDirection(0)
+    }
+  }, [
+    currentHomeSwipeIndex,
+    nextHomeSwipeTarget,
+    previousHomeSwipeTarget,
+    swipeNavigationDisabled,
+  ])
 
   function dismissHomepageAnnouncement() {
     if (!homepageAnnouncementKey || typeof window === 'undefined') return
@@ -3754,7 +3799,7 @@ function PlayPageContent() {
 
   return (
     <main
-      className="app-surface home-surface min-h-screen"
+      className="app-surface home-surface relative min-h-screen overflow-x-hidden"
       onTouchStart={handleHomeSwipeStart}
       onTouchEnd={handleHomeSwipeEnd}
     >
@@ -4531,6 +4576,31 @@ function PlayPageContent() {
         </div>
       )}
 
+      <div className="relative">
+        {homeSwipePeekDirection !== 0 ? (
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-20 px-2.5 sm:hidden">
+            <div className="relative mx-auto w-full max-w-[700px]">
+              {previousHomeSwipeTarget ? (
+                <div
+                  className={`orthodle-swipe-peek-chip absolute left-0 ${homeSwipePeekDirection === 1 ? 'opacity-100' : 'opacity-0'}`}
+                >
+                  {previousHomeSwipeTarget.label}
+                </div>
+              ) : null}
+              {nextHomeSwipeTarget ? (
+                <div
+                  className={`orthodle-swipe-peek-chip absolute right-0 ${homeSwipePeekDirection === -1 ? 'opacity-100' : 'opacity-0'}`}
+                >
+                  {nextHomeSwipeTarget.label}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+        <div
+          className="transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+          style={{ transform: `translateX(${homeSwipePeekDirection * 30}px)` }}
+        >
       <section className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {showDailyCompleteCard && (
           <div
@@ -4547,9 +4617,6 @@ function PlayPageContent() {
                     <span>{dailyCompleteStreakText}</span>
                   </div>
                 </div>
-                <p className="mt-2 text-[12px] font-medium text-[#6c5642] sm:text-[12.5px]">
-                  Fresh cases drop tomorrow
-                </p>
               </div>
             </div>
             {requiredDailyLevels > 2 && (
@@ -5303,6 +5370,8 @@ function PlayPageContent() {
       </div>
 
       <PublicFooter />
+        </div>
+      </div>
 
       {currentExpandedImages.length > 0 && imageExpanded && (
         <div
