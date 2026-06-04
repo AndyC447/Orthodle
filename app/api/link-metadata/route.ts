@@ -67,6 +67,37 @@ function buildCreditLine(author: string | null, siteName: string | null) {
   return null
 }
 
+function extractAuthorName(value: unknown): string | null {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim()
+  }
+
+  if (Array.isArray(value)) {
+    const names = value
+      .map(item => extractAuthorName(item))
+      .filter((item): item is string => Boolean(item))
+
+    if (names.length === 0) return null
+    if (names.length === 1) return names[0]
+    return `${names[0]} et al.`
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    const directName =
+      extractAuthorName(record.name) ||
+      extractAuthorName(record.alternateName) ||
+      extractAuthorName(record.givenName)
+
+    if (directName) return directName
+
+    const nestedAuthor = extractAuthorName(record.author)
+    if (nestedAuthor) return nestedAuthor
+  }
+
+  return null
+}
+
 function extractJsonLdAuthor(html: string) {
   const scriptMatches = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
 
@@ -91,16 +122,8 @@ function extractJsonLdAuthor(html: string) {
           queue.push(...(((item as Record<string, unknown>)['@graph'] as unknown[]) || []))
         }
 
-        const author = (item as Record<string, unknown>).author
-        if (typeof author === 'string' && author.trim()) {
-          return author.trim()
-        }
-        if (author && typeof author === 'object' && !Array.isArray(author)) {
-          const name = (author as Record<string, unknown>).name
-          if (typeof name === 'string' && name.trim()) {
-            return name.trim()
-          }
-        }
+        const authorName = extractAuthorName((item as Record<string, unknown>).author)
+        if (authorName) return authorName
       }
     } catch {
       continue
@@ -128,7 +151,11 @@ function parseMetadata(html: string, url: string): LinkMetadata {
     extractMetaContent(html, [
       /<meta[^>]+name=["']author["'][^>]+content=["']([^"']+)["']/i,
       /<meta[^>]+property=["']article:author["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+property=["']og:article:author["'][^>]+content=["']([^"']+)["']/i,
       /<meta[^>]+name=["']citation_author["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+name=["']dc\.creator["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+name=["']dc\.creator\.personalname["'][^>]+content=["']([^"']+)["']/i,
+      /<meta[^>]+name=["']parsely-author["'][^>]+content=["']([^"']+)["']/i,
     ]) ||
     extractJsonLdAuthor(html)
 

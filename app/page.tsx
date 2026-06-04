@@ -2606,6 +2606,7 @@ function PlayPageContent() {
                             </div>
                           </div>
                         ) : null}
+                        {renderTeachingReferences(compactTeaching.footerLines)}
                       </div>
                     </div>
                   </div>
@@ -2737,20 +2738,6 @@ function PlayPageContent() {
               })()}
             </div>
           ))}
-          {compactTeaching.footerLines.length > 0 ? (
-            <div className="border-t border-dashed border-[#ded7ca] pt-2">
-              <div className="flex flex-wrap gap-2 text-[11px] leading-5 text-[#637268]">
-                {compactTeaching.footerLines.map((line, index) => (
-                  <div
-                    key={`footer-line-${index}`}
-                    className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 shadow-[0_4px_10px_rgba(16,32,24,0.025)]"
-                  >
-                    {renderFormattedLine(line, `teaching-footer-${index}`)}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
           {!hasQuickTakeawaySection && teachingImages}
           {!hasQuickTakeawaySection && imagingSection ? (
             <div className="space-y-1 border-t border-[#ebe5db] pt-2">
@@ -2778,6 +2765,7 @@ function PlayPageContent() {
               </div>
             </div>
           ) : null}
+          {!hasQuickTakeawaySection ? renderTeachingReferences(compactTeaching.footerLines) : null}
         </div>
       </div>
     )
@@ -2847,6 +2835,28 @@ function PlayPageContent() {
                   {image.credit}
                 </p>
               ) : null}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  function renderTeachingReferences(lines: string[]) {
+    if (lines.length === 0) return null
+
+    return (
+      <div className="border-t border-dashed border-[#ded7ca] pt-2.5">
+        <div className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#7a857c]">
+          References
+        </div>
+        <div className="mt-2 space-y-2">
+          {lines.map((line, index) => (
+            <div
+              key={`footer-line-${index}`}
+              className="rounded-[12px] border border-[#ded7ca] bg-white px-3 py-2 text-[13px] leading-5 text-[#637268] shadow-[0_4px_10px_rgba(16,32,24,0.025)]"
+            >
+              {renderFormattedLine(line, `teaching-footer-${index}`)}
             </div>
           ))}
         </div>
