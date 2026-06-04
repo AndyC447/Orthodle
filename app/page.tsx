@@ -4758,9 +4758,9 @@ function PlayPageContent() {
                       <div />
                     </div>
 
-                    <div className={`grid gap-2 ${visibleImages.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <div className="grid grid-cols-1 gap-4">
                       {visibleImages.map((image, index) => (
-                        <div key={`${image.url}-${index}`}>
+                        <div key={`${image.url}-${index}`} className="mx-auto w-full max-w-[760px]">
                           <button
                             onClick={() => openExpandedImage(index)}
                             className="orthodle-image-tile group flex min-h-[240px] w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-2 sm:min-h-[320px] sm:py-3"
@@ -5198,7 +5198,7 @@ function PlayPageContent() {
           className="fixed inset-0 z-50 flex items-end justify-center bg-[#102018]/75 px-4 py-8 sm:items-center"
           onClick={closeExpandedImage}
         >
-          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-t-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl sm:max-h-[calc(100vh-4rem)] sm:rounded-[28px]">
+          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex w-full max-w-5xl max-h-[92vh] flex-col overflow-hidden rounded-t-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl sm:max-h-[calc(100vh-4rem)] sm:rounded-[28px]">
             <div className="orthodle-bottom-sheet-handle mx-auto mt-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
             <div className="orthodle-image-modal-header flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
@@ -5218,7 +5218,7 @@ function PlayPageContent() {
             </div>
 
             <div
-              className="orthodle-image-modal-stage bg-[#f7f4ee] p-5"
+              className="orthodle-image-modal-stage min-h-0 flex-1 overflow-y-auto bg-[#f7f4ee] p-5"
               onClick={e => e.stopPropagation()}
               onDoubleClick={() => {
                 if (imageScale > 1.2) {
@@ -5294,7 +5294,14 @@ function PlayPageContent() {
                     )}
                   </div>
 
-                  {currentExpandedImages.length > 1 && (
+                    </div>
+                  )}
+                </div>
+                {currentExpandedImages.length > 1 && (
+                  <div
+                    className="border-t border-[#d7d9dc] bg-white/96 px-4 py-3 backdrop-blur-sm"
+                    onClick={e => e.stopPropagation()}
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"
@@ -5309,28 +5316,28 @@ function PlayPageContent() {
                       >
                         {'<'}
                       </button>
-                      <div className="flex flex-wrap justify-center gap-2">
-                      {currentExpandedImages.map((image, index) => (
-                        <button
-                          key={`expanded-thumb-${image.url}-${index}`}
-                          type="button"
-                          onClick={() => {
-                            resetExpandedImageView()
-                            setExpandedImageIndex(index)
-                          }}
-                          className={`orthodle-image-modal-thumb orthodle-micro-press overflow-hidden rounded-xl border p-1 transition ${
-                            index === expandedImageIndex
-                              ? 'border-[#1f6448] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.08)]'
-                              : 'border-[#ded7ca] bg-white/80'
-                          }`}
-                        >
-                          <img
-                            src={image.url}
-                            alt={image.alt}
-                            className="h-14 w-14 rounded-lg object-cover"
-                          />
-                        </button>
-                      ))}
+                      <div className="flex min-w-0 flex-1 flex-wrap justify-center gap-2">
+                        {currentExpandedImages.map((image, index) => (
+                          <button
+                            key={`expanded-thumb-${image.url}-${index}`}
+                            type="button"
+                            onClick={() => {
+                              resetExpandedImageView()
+                              setExpandedImageIndex(index)
+                            }}
+                            className={`orthodle-image-modal-thumb orthodle-micro-press overflow-hidden rounded-xl border p-1 transition ${
+                              index === expandedImageIndex
+                                ? 'border-[#1f6448] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.08)]'
+                                : 'border-[#ded7ca] bg-white/80'
+                            }`}
+                          >
+                            <img
+                              src={image.url}
+                              alt={image.alt}
+                              className="h-14 w-14 rounded-lg object-cover"
+                            />
+                          </button>
+                        ))}
                       </div>
                       <button
                         type="button"
@@ -5344,10 +5351,8 @@ function PlayPageContent() {
                         {'>'}
                       </button>
                     </div>
-                  )}
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {shouldShowSharedPostCaseSurvey && sharedPostCaseSurvey.survey && (
                   <div className="night-soft-surface rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-2.5 sm:p-3">
