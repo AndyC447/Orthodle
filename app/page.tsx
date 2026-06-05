@@ -3665,11 +3665,8 @@ function PlayPageContent() {
       </div>
     ) : null
 
-  function shouldAllowTabSwipeStart(target: EventTarget | null) {
-    if (!(target instanceof HTMLElement)) return false
-    return !target.closest(
-      'input, textarea, select, button, a, summary, [role="button"], [contenteditable="true"], [data-no-swipe]'
-    )
+  function shouldAllowTabSwipeStart(_target: EventTarget | null) {
+    return true
   }
 
   function setSwipeTransitionTarget(target: 'home' | 'groups', direction: 'from-left' | 'from-right') {

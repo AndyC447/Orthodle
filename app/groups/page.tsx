@@ -3544,11 +3544,8 @@ export default function GroupsPage() {
     showCreateGroupIconPicker ||
     showCreateMemberIconPicker
 
-  function shouldAllowGroupsSwipeStart(target: EventTarget | null) {
-    if (!(target instanceof HTMLElement)) return false
-    return !target.closest(
-      'input, textarea, select, button, a, summary, [role="button"], [contenteditable="true"], [data-no-swipe]'
-    )
+  function shouldAllowGroupsSwipeStart(_target: EventTarget | null) {
+    return true
   }
 
   function setSwipeTransitionTarget(target: 'home' | 'groups', direction: 'from-left' | 'from-right') {
