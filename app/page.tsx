@@ -2625,7 +2625,7 @@ function PlayPageContent() {
                   </button>
                   <div
                     aria-hidden={!showQuickTakeaway}
-                    className={`orthodle-collapsible-shell ${showQuickTakeaway ? 'orthodle-collapsible-shell-open mt-1.5' : 'mt-0.5'}`}
+                    className={`orthodle-collapsible-shell ${justCompletedRound && showQuickTakeaway ? 'orthodle-collapsible-shell-slow-open' : ''} ${showQuickTakeaway ? 'orthodle-collapsible-shell-open mt-1.5' : 'mt-0.5'}`}
                   >
                     <div className="orthodle-collapsible-body">
                       <div className="space-y-1">
@@ -3379,7 +3379,7 @@ function PlayPageContent() {
       setShowQuickTakeaway(true)
       suppressQuickTakeawayPersistRef.current = false
       quickTakeawayAutoRevealTimeoutRef.current = null
-    }, 1500)
+    }, 2500)
 
     return () => {
       if (quickTakeawayAutoRevealTimeoutRef.current) {
@@ -4710,6 +4710,13 @@ function PlayPageContent() {
         .orthodle-collapsible-shell-open {
           grid-template-rows: 1fr;
           opacity: 1;
+        }
+
+        .orthodle-collapsible-shell-slow-open {
+          transition:
+            grid-template-rows 1400ms cubic-bezier(0.16, 1, 0.3, 1),
+            opacity 900ms ease,
+            margin-top 420ms ease;
         }
 
         .orthodle-collapsible-body {
