@@ -4520,19 +4520,25 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {level === 'attending' && learningImageUrl && (
+              {learningImageUrl && (
                 <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
                   <img
                     src={learningImageUrl}
                     alt="Teaching image"
                     className="max-h-48 rounded-lg object-contain"
                   />
-                  {learningImageCaption.trim() ? (
-                    <p className="mt-2 text-sm leading-5 text-[#4d5d55]">{learningImageCaption.trim()}</p>
+                  {(learningImageCaption.trim() || normalizeCreditValue(learningImageCredit)) ? (
+                    <div className="mt-2 border-t border-[#efe7db] pt-2">
+                      {learningImageCaption.trim() ? (
+                        <p className="text-sm leading-5 text-[#4d5d55]">{learningImageCaption.trim()}</p>
+                      ) : null}
+                      {normalizeCreditValue(learningImageCredit) && (
+                        <p className={`${learningImageCaption.trim() ? 'mt-1' : ''} text-[11px] leading-5 text-[#8a948d]`}>
+                          {normalizeCreditValue(learningImageCredit)}
+                        </p>
+                      )}
+                    </div>
                   ) : null}
-                  {normalizeCreditValue(learningImageCredit) && (
-                    <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit)}</p>
-                  )}
                   <button
                     onClick={() => {
                       setLearningImageUrl('')
@@ -4546,19 +4552,25 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {level === 'attending' && learningImageUrl2 && (
+              {learningImageUrl2 && (
                 <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
                   <img
                     src={learningImageUrl2}
                     alt="Second teaching image"
                     className="max-h-48 rounded-lg object-contain"
                   />
-                  {learningImageCaption2.trim() ? (
-                    <p className="mt-2 text-sm leading-5 text-[#4d5d55]">{learningImageCaption2.trim()}</p>
+                  {(learningImageCaption2.trim() || normalizeCreditValue(learningImageCredit2)) ? (
+                    <div className="mt-2 border-t border-[#efe7db] pt-2">
+                      {learningImageCaption2.trim() ? (
+                        <p className="text-sm leading-5 text-[#4d5d55]">{learningImageCaption2.trim()}</p>
+                      ) : null}
+                      {normalizeCreditValue(learningImageCredit2) && (
+                        <p className={`${learningImageCaption2.trim() ? 'mt-1' : ''} text-[11px] leading-5 text-[#8a948d]`}>
+                          {normalizeCreditValue(learningImageCredit2)}
+                        </p>
+                      )}
+                    </div>
                   ) : null}
-                  {normalizeCreditValue(learningImageCredit2) && (
-                    <p className="mt-1 text-[11px] text-[#8a948d]">{normalizeCreditValue(learningImageCredit2)}</p>
-                  )}
                   <button
                     onClick={() => {
                       setLearningImageUrl2('')

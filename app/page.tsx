@@ -215,6 +215,24 @@ const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
 const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
 
+function getSwipeVisualOffset(deltaX: number, maxOffset = 156) {
+  const sign = Math.sign(deltaX)
+  if (!sign) return 0
+
+  const abs = Math.abs(deltaX)
+  const softRange = 96
+  const dragScale = 0.72
+  const softOffset = softRange * dragScale
+
+  if (abs <= softRange) {
+    return sign * abs * dragScale
+  }
+
+  const overshoot = abs - softRange
+  const eased = softOffset + (maxOffset - softOffset) * (1 - Math.exp(-overshoot / 88))
+  return sign * Math.min(maxOffset, eased)
+}
+
 const MAX_GUESSES = 6
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
@@ -2871,34 +2889,43 @@ function PlayPageContent() {
           Teaching Images
         </div>
         <div className={`grid gap-2 ${learningImages.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
-          {learningImages.map((image, index) => (
-            <div
-              key={`${image.url}-${index}`}
-              className="overflow-hidden rounded-xl bg-white shadow-[inset_0_0_0_1px_#e3dbce]"
-            >
-              <button
-                type="button"
-                onClick={() => openExpandedImage(index, learningImages)}
-                className="flex min-h-[170px] w-full items-center justify-center bg-[#f8f5ee] p-2 transition hover:bg-[#f4efe4]"
+          {learningImages.map((image, index) => {
+            const caption = image.caption?.trim() || null
+            const credit = getRenderableCreditText(image.credit)
+
+            return (
+              <div
+                key={`${image.url}-${index}`}
+                className="overflow-hidden rounded-xl bg-white shadow-[inset_0_0_0_1px_#e3dbce]"
               >
-                <img
-                  src={image.url}
-                  alt={image.alt}
-                  className="max-h-[320px] w-full rounded-lg object-contain"
-                />
-              </button>
-              {image.caption?.trim() ? (
-                <p className="px-3 pt-2 text-center text-sm leading-6 text-[#4d5d55]">
-                  {image.caption}
-                </p>
-              ) : null}
-              {image.credit?.trim() ? (
-                <p className="px-2.5 pb-2.5 pt-1.5 text-center text-[11px] text-[#8a948d]">
-                  {image.credit}
-                </p>
-              ) : null}
-            </div>
-          ))}
+                <button
+                  type="button"
+                  onClick={() => openExpandedImage(index, learningImages)}
+                  className="flex min-h-[170px] w-full items-center justify-center bg-[#f8f5ee] p-2 transition hover:bg-[#f4efe4]"
+                >
+                  <img
+                    src={image.url}
+                    alt={image.alt}
+                    className="max-h-[320px] w-full rounded-lg object-contain"
+                  />
+                </button>
+                {caption || credit ? (
+                  <div className="border-t border-[#efe7db] bg-[#fffdf9] px-3 py-2.5">
+                    {caption ? (
+                      <p className="text-center text-sm leading-6 text-[#4d5d55]">
+                        {caption}
+                      </p>
+                    ) : null}
+                    {credit ? (
+                      <p className={`${caption ? 'mt-1.5' : ''} text-center text-[11px] leading-5 text-[#8a948d]`}>
+                        {credit}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            )
+          })}
         </div>
       </div>
     )
@@ -2929,6 +2956,13 @@ function PlayPageContent() {
   function formatGuessDisplayText(value: string | undefined) {
     if (typeof value !== 'string') return '—'
     return value.trim().length > 0 ? value : 'blank'
+  }
+
+  function getRenderableCreditText(value: string | null | undefined) {
+    const trimmed = value?.trim()
+    if (!trimmed) return null
+    if (/^credit:\s*$/i.test(trimmed)) return null
+    return trimmed
   }
 
   const filteredAnswerOptions = useMemo(() => {
@@ -3332,13 +3366,13 @@ function PlayPageContent() {
     setShowSolvedMediaStep(false)
     const teachingTimeout = window.setTimeout(() => {
       setShowSolvedTeachingStep(true)
-    }, 240)
+    }, 760)
     const insightTimeout = window.setTimeout(() => {
       setShowSolvedInsightStep(true)
-    }, 420)
+    }, 980)
     const mediaTimeout = window.setTimeout(() => {
       setShowSolvedMediaStep(true)
-    }, 600)
+    }, 1200)
 
     return () => {
       window.clearTimeout(teachingTimeout)
@@ -3806,7 +3840,7 @@ function PlayPageContent() {
     setHomeSwipePreviewDirection(direction)
     setHomeSwipeDragging(true)
     setHomeSwipePreviewTarget(nextTarget)
-    setHomeSwipeOffset(Math.max(-128, Math.min(128, deltaX * 0.54)))
+    setHomeSwipeOffset(getSwipeVisualOffset(deltaX))
   }
 
   function handleHomeSwipeEnd(event: React.TouchEvent<HTMLElement>) {
@@ -3837,7 +3871,7 @@ function PlayPageContent() {
       window.setTimeout(() => {
         setHomeSwipePreviewDirection(0)
         setHomeSwipePreviewTarget(null)
-      }, 220)
+      }, 320)
       return
     }
 
@@ -3850,7 +3884,7 @@ function PlayPageContent() {
       window.setTimeout(() => {
         setHomeSwipePreviewDirection(0)
         setHomeSwipePreviewTarget(null)
-      }, 220)
+      }, 320)
       return
     }
 
@@ -3858,7 +3892,7 @@ function PlayPageContent() {
     setHomeSwipePreviewDirection(direction)
     setHomeSwipeDragging(false)
     setHomeSwipePreviewTarget(nextTarget)
-    setHomeSwipeOffset(direction * 122)
+    setHomeSwipeOffset(direction * 156)
 
     if (nextTarget.type === 'level') {
       setIsTransitioningLevel(true)
@@ -3868,25 +3902,28 @@ function PlayPageContent() {
         setSelectedAnatomyLetters([])
         setMessage('')
         setImageHidden(false)
-        setHomeSwipeOffset(direction * -28)
+        setHomePageEnterOffset(direction < 0 ? 34 : -34)
+        setHomePageEnterOpacity(0.84)
+        setHomeSwipeOffset(0)
         window.requestAnimationFrame(() => {
           window.requestAnimationFrame(() => {
-            setHomeSwipeOffset(0)
+            setHomePageEnterOffset(0)
+            setHomePageEnterOpacity(1)
           })
         })
-      }, 150)
+      }, 190)
       window.setTimeout(() => {
         setIsTransitioningLevel(false)
         setHomeSwipePreviewDirection(0)
         setHomeSwipePreviewTarget(null)
-      }, 560)
+      }, 680)
       return
     }
 
     setSwipeTransitionTarget('groups', direction < 0 ? 'from-right' : 'from-left')
     window.setTimeout(() => {
       router.push(nextTarget.href)
-    }, 170)
+    }, 200)
   }
 
   useEffect(() => {
@@ -3904,9 +3941,9 @@ function PlayPageContent() {
       if (parsed.target !== 'home') return
       if (typeof parsed.at === 'number' && Date.now() - parsed.at > 3000) return
 
-      const entryOffset = parsed.direction === 'from-right' ? 28 : -28
+      const entryOffset = parsed.direction === 'from-right' ? 34 : -34
       setHomePageEnterOffset(entryOffset)
-      setHomePageEnterOpacity(0.74)
+      setHomePageEnterOpacity(0.82)
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           setHomePageEnterOffset(0)
@@ -4825,7 +4862,7 @@ function PlayPageContent() {
           className={`relative z-10 will-change-[transform,opacity] ${
             homeSwipeDragging
               ? ''
-              : 'transition-[transform,opacity] duration-[360ms] ease-[cubic-bezier(0.16,1,0.3,1)]'
+              : 'transition-[transform,opacity] duration-[440ms] ease-[cubic-bezier(0.22,1,0.36,1)]'
           }`}
           style={{
             transform: `translate3d(${homePageEnterOffset + homeSwipeOffset}px, 0, 0)`,
@@ -5141,11 +5178,11 @@ function PlayPageContent() {
 
           <div className={`orthodle-panel-shell orthodle-home-card relative z-20 rounded-[24px] border bg-white px-3 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-5 sm:py-5 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'} ${showCaseCardSettle ? 'orthodle-case-card-settle' : ''}`}>
             <div
-              className={homeSwipeDragging ? '' : 'transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]'}
+              className={homeSwipeDragging ? '' : 'transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]'}
               style={{
                 transform:
                   homeSwipeProgress > 0
-                    ? `translate3d(${homeSwipeOffset * -0.12}px, 0, 0) scale(${1 - homeSwipeProgress * 0.012})`
+                    ? `translate3d(${homeSwipeOffset * -0.09}px, 0, 0) scale(${1 - homeSwipeProgress * 0.009})`
                     : undefined,
               }}
             >
@@ -5801,9 +5838,9 @@ function PlayPageContent() {
                                 {image.caption}
                               </p>
                             ) : null}
-                            {image.credit && (
+                            {getRenderableCreditText(image.credit) && (
                               <p className="text-center text-[10px] leading-4 text-[#8a948d]">
-                                {image.credit}
+                                {getRenderableCreditText(image.credit)}
                               </p>
                             )}
                           </div>

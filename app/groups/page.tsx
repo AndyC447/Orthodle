@@ -202,6 +202,24 @@ const GROUP_NOTIFICATIONS_SEEN_KEY = 'orthodle_groups_notifications_seen_v1'
 const GROUP_DISMISSED_MESSAGES_KEY = 'orthodle_groups_dismissed_messages_v1'
 const SWIPE_NAV_TRANSITION_KEY = 'orthodle_swipe_nav_transition_v1'
 
+function getSwipeVisualOffset(deltaX: number, maxOffset = 156) {
+  const sign = Math.sign(deltaX)
+  if (!sign) return 0
+
+  const abs = Math.abs(deltaX)
+  const softRange = 96
+  const dragScale = 0.72
+  const softOffset = softRange * dragScale
+
+  if (abs <= softRange) {
+    return sign * abs * dragScale
+  }
+
+  const overshoot = abs - softRange
+  const eased = softOffset + (maxOffset - softOffset) * (1 - Math.exp(-overshoot / 88))
+  return sign * Math.min(maxOffset, eased)
+}
+
 function getGroupSurveyStorageKey(surveyId: string) {
   return `${SITE_SURVEY_STORAGE_PREFIX}:${surveyId}`
 }
@@ -3671,7 +3689,7 @@ export default function GroupsPage() {
     setGroupsSwipePreviewDirection(direction)
     setGroupsSwipeDragging(true)
     setGroupsSwipePreviewTarget(nextTarget)
-    setGroupsSwipeOffset(Math.max(-128, Math.min(128, deltaX * 0.54)))
+    setGroupsSwipeOffset(getSwipeVisualOffset(deltaX))
   }
 
   function handleGroupsSwipeEnd(event: React.TouchEvent<HTMLElement>) {
@@ -3702,7 +3720,7 @@ export default function GroupsPage() {
       window.setTimeout(() => {
         setGroupsSwipePreviewDirection(0)
         setGroupsSwipePreviewTarget(null)
-      }, 220)
+      }, 320)
       return
     }
 
@@ -3715,7 +3733,7 @@ export default function GroupsPage() {
       window.setTimeout(() => {
         setGroupsSwipePreviewDirection(0)
         setGroupsSwipePreviewTarget(null)
-      }, 220)
+      }, 320)
       return
     }
 
@@ -3723,30 +3741,33 @@ export default function GroupsPage() {
     setGroupsSwipePreviewDirection(direction)
     setGroupsSwipeDragging(false)
     setGroupsSwipePreviewTarget(nextTarget)
-    setGroupsSwipeOffset(direction * 122)
+    setGroupsSwipeOffset(direction * 156)
 
     if (nextTarget.kind === 'cases') {
       setSwipeTransitionTarget('home', direction < 0 ? 'from-right' : 'from-left')
       window.setTimeout(() => {
         router.push('/')
-      }, 170)
+      }, 200)
       return
     }
 
     if (nextTarget.tab) {
       window.setTimeout(() => {
         handleGroupsTabChange(nextTarget.tab as GroupsTab)
-        setGroupsSwipeOffset(direction * -28)
+        setGroupsPageEnterOffset(direction < 0 ? 34 : -34)
+        setGroupsPageEnterOpacity(0.84)
+        setGroupsSwipeOffset(0)
         window.requestAnimationFrame(() => {
           window.requestAnimationFrame(() => {
-            setGroupsSwipeOffset(0)
+            setGroupsPageEnterOffset(0)
+            setGroupsPageEnterOpacity(1)
           })
         })
-      }, 150)
+      }, 190)
       window.setTimeout(() => {
         setGroupsSwipePreviewDirection(0)
         setGroupsSwipePreviewTarget(null)
-      }, 560)
+      }, 680)
     }
   }
 
@@ -3765,9 +3786,9 @@ export default function GroupsPage() {
       if (parsed.target !== 'groups') return
       if (typeof parsed.at === 'number' && Date.now() - parsed.at > 3000) return
 
-      const entryOffset = parsed.direction === 'from-right' ? 28 : -28
+      const entryOffset = parsed.direction === 'from-right' ? 34 : -34
       setGroupsPageEnterOffset(entryOffset)
-      setGroupsPageEnterOpacity(0.74)
+      setGroupsPageEnterOpacity(0.82)
       window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
           setGroupsPageEnterOffset(0)
@@ -3806,7 +3827,7 @@ export default function GroupsPage() {
           className={`relative z-10 will-change-[transform,opacity] ${
             groupsSwipeDragging
               ? ''
-              : 'transition-[transform,opacity] duration-[360ms] ease-[cubic-bezier(0.16,1,0.3,1)]'
+              : 'transition-[transform,opacity] duration-[440ms] ease-[cubic-bezier(0.22,1,0.36,1)]'
           }`}
           style={{
             transform: `translate3d(${groupsPageEnterOffset + groupsSwipeOffset}px, 0, 0)`,
