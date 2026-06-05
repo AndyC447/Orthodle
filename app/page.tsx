@@ -539,10 +539,13 @@ function PlayPageContent() {
   const anatomyChoiceSettleTimeoutRef = useRef<number | null>(null)
   const previousStreakRef = useRef<number>(0)
   const previousTodayCompleteRef = useRef(false)
+  const homeTabSnapMountRef = useRef(false)
   const imageTouchStartY = useRef<number | null>(null)
+  const imageTouchStartX = useRef<number | null>(null)
   const imagePanStart = useRef<{ x: number; y: number } | null>(null)
   const imagePinchStart = useRef<number | null>(null)
   const imageScaleStart = useRef<number>(1)
+  const imageCarouselStartRef = useRef<{ x: number; y: number } | null>(null)
   const teachingImageSectionRef = useRef<HTMLDivElement | null>(null)
   const hasShownTeachingImageSpotlightRef = useRef(false)
   const tabSwipeStartRef = useRef<{ x: number; y: number; at: number; allow: boolean } | null>(null)
@@ -590,6 +593,8 @@ function PlayPageContent() {
   const [showCaseCardSettle, setShowCaseCardSettle] = useState(false)
   const [showTeachingImageSpotlight, setShowTeachingImageSpotlight] = useState(false)
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
+  const [showSolvedInsightStep, setShowSolvedInsightStep] = useState(false)
+  const [showSolvedMediaStep, setShowSolvedMediaStep] = useState(false)
   const [homeSwipeOffset, setHomeSwipeOffset] = useState(0)
   const [homeSwipePreviewDirection, setHomeSwipePreviewDirection] = useState<-1 | 0 | 1>(0)
   const [homeSwipeDragging, setHomeSwipeDragging] = useState(false)
@@ -598,10 +603,13 @@ function PlayPageContent() {
   >(null)
   const [homePageEnterOffset, setHomePageEnterOffset] = useState(0)
   const [homePageEnterOpacity, setHomePageEnterOpacity] = useState(1)
+  const [homeTabSnapKey, setHomeTabSnapKey] = useState<Level | null>(null)
   const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [activeAnatomyChoiceSettleLetter, setActiveAnatomyChoiceSettleLetter] = useState<string | null>(null)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
+  const [expandedCarouselOffset, setExpandedCarouselOffset] = useState(0)
+  const [expandedCarouselDragging, setExpandedCarouselDragging] = useState(false)
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
   const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(DEFAULT_LEVEL_TITLES)
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
@@ -1490,12 +1498,16 @@ function PlayPageContent() {
       setMessage('')
       setShowTeachingImageSpotlight(false)
       setShowSolvedTeachingStep(false)
+      setShowSolvedInsightStep(false)
+      setShowSolvedMediaStep(false)
       hasShownTeachingImageSpotlightRef.current = false
       setShakeInput(false)
       setPulseSuccess(false)
       setShowConfetti(false)
       setImageExpanded(false)
       setImageHidden(false)
+      setExpandedCarouselOffset(0)
+      setExpandedCarouselDragging(false)
       setCommunityStats(null)
 
       try {
@@ -1879,9 +1891,14 @@ function PlayPageContent() {
   function resetExpandedImageView() {
     setImageScale(1)
     setImageOffset({ x: 0, y: 0 })
+    setExpandedCarouselOffset(0)
+    setExpandedCarouselDragging(false)
     imagePanStart.current = null
     imagePinchStart.current = null
     imageScaleStart.current = 1
+    imageCarouselStartRef.current = null
+    imageTouchStartX.current = null
+    imageTouchStartY.current = null
   }
 
   function openExpandedImage(index = 0, images: ExpandableImage[] = visibleImages) {
@@ -1897,6 +1914,23 @@ function PlayPageContent() {
     setExpandedImageIndex(0)
     setExpandedImages([])
     resetExpandedImageView()
+  }
+
+  function goToExpandedImage(index: number) {
+    resetExpandedImageView()
+    setExpandedImageIndex(index)
+  }
+
+  function showPreviousExpandedImage() {
+    if (currentExpandedImages.length <= 1) return
+    goToExpandedImage(
+      expandedImageIndex === 0 ? currentExpandedImages.length - 1 : expandedImageIndex - 1
+    )
+  }
+
+  function showNextExpandedImage() {
+    if (currentExpandedImages.length <= 1) return
+    goToExpandedImage((expandedImageIndex + 1) % currentExpandedImages.length)
   }
 
   function buildShareText() {
@@ -2511,7 +2545,8 @@ function PlayPageContent() {
               className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
             >
               {section.label.toLowerCase() === 'orthodle insight' ? (
-                <>
+                showSolvedInsightStep ? (
+                <div className="orthodle-solved-secondary-step">
                   <button
                     type="button"
                     onClick={() => setShowOrthodleInsight(current => !current)}
@@ -2552,7 +2587,8 @@ function PlayPageContent() {
                       </div>
                     </div>
                   </div>
-                </>
+                </div>
+                ) : null
               ) : section.label.toLowerCase() === 'quick takeaway' ? (
                 <>
                   <button
@@ -2592,8 +2628,8 @@ function PlayPageContent() {
                             ))}
                           </div>
                         ) : null}
-                        {teachingImages}
-                        {imagingSection ? (
+                        {showSolvedMediaStep ? teachingImages : null}
+                        {showSolvedMediaStep && imagingSection ? (
                           <div className="mt-2 border-t border-[#ebe5db] pt-2">
                             <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                               {renderFormattedLine(imagingSection.label, 'imaging-below-image-label')}
@@ -2621,7 +2657,9 @@ function PlayPageContent() {
                             </div>
                           </div>
                         ) : null}
-                        {renderTeachingReferences(compactTeaching.footerLines)}
+                        {showSolvedMediaStep
+                          ? renderTeachingReferences(compactTeaching.footerLines)
+                          : null}
                       </div>
                     </div>
                   </div>
@@ -2753,8 +2791,8 @@ function PlayPageContent() {
               })()}
             </div>
           ))}
-          {!hasQuickTakeawaySection && teachingImages}
-          {!hasQuickTakeawaySection && imagingSection ? (
+          {!hasQuickTakeawaySection && showSolvedMediaStep ? teachingImages : null}
+          {!hasQuickTakeawaySection && showSolvedMediaStep && imagingSection ? (
             <div className="space-y-1 border-t border-[#ebe5db] pt-2">
               <div className="text-center text-[10px] font-semibold tracking-[0.02em] text-[#7a857c]">
                 {renderFormattedLine(imagingSection.label, 'imaging-standalone-label')}
@@ -2780,7 +2818,9 @@ function PlayPageContent() {
               </div>
             </div>
           ) : null}
-          {!hasQuickTakeawaySection ? renderTeachingReferences(compactTeaching.footerLines) : null}
+          {!hasQuickTakeawaySection && showSolvedMediaStep
+            ? renderTeachingReferences(compactTeaching.footerLines)
+            : null}
         </div>
       </div>
     )
@@ -2823,7 +2863,7 @@ function PlayPageContent() {
     return (
       <div
         ref={teachingImageSectionRef}
-        className={`rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5 ${
+        className={`orthodle-solved-secondary-step rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5 ${
           showTeachingImageSpotlight ? 'orthodle-teaching-image-spotlight' : ''
         }`}
       >
@@ -3275,26 +3315,41 @@ function PlayPageContent() {
   useEffect(() => {
     if (!roundComplete) {
       setShowSolvedTeachingStep(false)
+      setShowSolvedInsightStep(false)
+      setShowSolvedMediaStep(false)
       return
     }
 
     if (!justCompletedRound || typeof window === 'undefined') {
       setShowSolvedTeachingStep(true)
+      setShowSolvedInsightStep(true)
+      setShowSolvedMediaStep(true)
       return
     }
 
     setShowSolvedTeachingStep(false)
+    setShowSolvedInsightStep(false)
+    setShowSolvedMediaStep(false)
     const teachingTimeout = window.setTimeout(() => {
       setShowSolvedTeachingStep(true)
-    }, 320)
+    }, 240)
+    const insightTimeout = window.setTimeout(() => {
+      setShowSolvedInsightStep(true)
+    }, 420)
+    const mediaTimeout = window.setTimeout(() => {
+      setShowSolvedMediaStep(true)
+    }, 600)
 
     return () => {
       window.clearTimeout(teachingTimeout)
+      window.clearTimeout(insightTimeout)
+      window.clearTimeout(mediaTimeout)
     }
   }, [justCompletedRound, roundComplete])
 
   useEffect(() => {
     if (
+      !showSolvedMediaStep ||
       !roundComplete ||
       !justCompletedRound ||
       !gameWon ||
@@ -3322,7 +3377,7 @@ function PlayPageContent() {
 
     observer.observe(target)
     return () => observer.disconnect()
-  }, [dailyCase?.learning_image_url, dailyCase?.learning_image_url_2, gameWon, justCompletedRound, roundComplete])
+  }, [dailyCase?.learning_image_url, dailyCase?.learning_image_url_2, gameWon, justCompletedRound, roundComplete, showSolvedMediaStep])
 
   const homeTabs = useMemo(
     () => {
@@ -3420,6 +3475,18 @@ function PlayPageContent() {
     roundComplete
   const canAdvanceToNextLevel =
     Boolean(nextLevel) && onTodayCard && roundComplete && !caseParam && !imageExpanded
+
+  useEffect(() => {
+    if (!homeTabSnapMountRef.current) {
+      homeTabSnapMountRef.current = true
+      return
+    }
+
+    setHomeTabSnapKey(selectedLevel)
+    if (typeof window === 'undefined') return
+    const timeoutId = window.setTimeout(() => setHomeTabSnapKey(null), 520)
+    return () => window.clearTimeout(timeoutId)
+  }, [selectedLevel])
 
   useEffect(() => {
     if (statsSummary.currentStreak > previousStreakRef.current && previousStreakRef.current > 0) {
@@ -4626,6 +4693,10 @@ function PlayPageContent() {
           animation: orthodle-step-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
+        .orthodle-solved-secondary-step {
+          animation: orthodle-step-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+
         .orthodle-image-swap {
           animation: orthodle-image-swap 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
@@ -4656,8 +4727,11 @@ function PlayPageContent() {
           .orthodle-anatomy-choice-breathe,
           .orthodle-mobile-sheet,
           .orthodle-solved-step-in,
+          .orthodle-solved-secondary-step,
+          .orthodle-teaching-unfold,
           .orthodle-teaching-image-spotlight,
           .orthodle-image-curtain,
+          .orthodle-image-swap,
           .orthodle-tap-ripple::after {
             animation: none !important;
             transition: none !important;
@@ -4930,11 +5004,13 @@ function PlayPageContent() {
             >
               {homeTabs.map((item, index) => {
               if (item.type === 'link') {
+                const previewingTab =
+                  activeHomeSwipeTarget?.type === 'link' && activeHomeSwipeTarget.href === item.href
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`orthodle-home-tab orthodle-tap-ripple flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                    className={`orthodle-home-tab orthodle-tap-ripple relative overflow-hidden flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                       item.subtitle
                         ? 'min-h-[54px] flex-col justify-center py-1.5 sm:min-h-[56px] sm:py-2'
                         : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
@@ -4948,12 +5024,22 @@ function PlayPageContent() {
                         {item.subtitle}
                       </div>
                     ) : null}
+                    {previewingTab ? (
+                      <span
+                        className={`pointer-events-none absolute bottom-1 left-3 right-3 h-[2px] rounded-full bg-[#1f6448]/75 ${
+                          homeSwipePreviewDirection > 0 ? 'origin-right' : 'origin-left'
+                        }`}
+                        style={{ transform: `scaleX(${homeSwipeProgress})` }}
+                      />
+                    ) : null}
                   </Link>
                 )
               }
 
               const active = selectedLevel === item.key
               const subtitle = selectedTaglines[item.key]
+              const previewingTab =
+                activeHomeSwipeTarget?.type === 'level' && activeHomeSwipeTarget.key === item.key
 
               return (
                 <button
@@ -4961,12 +5047,12 @@ function PlayPageContent() {
                   onClick={() => setSelectedLevel(item.key)}
                   className={
                     active
-                      ? `orthodle-home-tab-active orthodle-tap-ripple rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      ? `orthodle-home-tab-active orthodle-tap-ripple relative overflow-hidden ${homeTabSnapKey === item.key ? 'orthodle-tab-snap' : ''} rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         }`
-                      : `orthodle-home-tab orthodle-tap-ripple rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                      : `orthodle-home-tab orthodle-tap-ripple relative overflow-hidden rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
@@ -4987,6 +5073,14 @@ function PlayPageContent() {
                     >
                       {subtitle}
                     </div>
+                  ) : null}
+                  {previewingTab ? (
+                    <span
+                      className={`pointer-events-none absolute bottom-1 left-3 right-3 h-[2px] rounded-full ${
+                        active ? 'bg-white/78' : 'bg-[#1f6448]/75'
+                      } ${homeSwipePreviewDirection > 0 ? 'origin-right' : 'origin-left'}`}
+                      style={{ transform: `scaleX(${homeSwipeProgress})` }}
+                    />
                   ) : null}
                 </button>
               )
@@ -5049,6 +5143,15 @@ function PlayPageContent() {
           )}
 
           <div className={`orthodle-panel-shell orthodle-home-card relative z-20 rounded-[24px] border bg-white px-3 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-5 sm:py-5 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'} ${showCaseCardSettle ? 'orthodle-case-card-settle' : ''}`}>
+            <div
+              className={homeSwipeDragging ? '' : 'transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]'}
+              style={{
+                transform:
+                  homeSwipeProgress > 0
+                    ? `translate3d(${homeSwipeOffset * -0.12}px, 0, 0) scale(${1 - homeSwipeProgress * 0.012})`
+                    : undefined,
+              }}
+            >
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
@@ -5341,6 +5444,7 @@ function PlayPageContent() {
                   </button>
                 )}
               </div>
+            </div>
           </div>
 
           {roundComplete && dailyCase && (
@@ -5570,16 +5674,25 @@ function PlayPageContent() {
               }}
               onTouchStart={e => {
                 imageTouchStartY.current = e.touches[0]?.clientY ?? null
+                imageTouchStartX.current = e.touches[0]?.clientX ?? null
                 if (e.touches.length === 2) {
                   const [a, b] = [e.touches[0], e.touches[1]]
                   imagePinchStart.current = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
                   imageScaleStart.current = imageScale
                   imagePanStart.current = null
+                  imageCarouselStartRef.current = null
                 } else if (e.touches.length === 1 && imageScale > 1) {
                   imagePanStart.current = {
                     x: e.touches[0].clientX - imageOffset.x,
                     y: e.touches[0].clientY - imageOffset.y,
                   }
+                  imageCarouselStartRef.current = null
+                } else if (e.touches.length === 1 && currentExpandedImages.length > 1) {
+                  imageCarouselStartRef.current = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY,
+                  }
+                  setExpandedCarouselDragging(false)
                 }
               }}
               onTouchMove={e => {
@@ -5597,12 +5710,54 @@ function PlayPageContent() {
                   const nextY = e.touches[0].clientY - imagePanStart.current.y
                   setImageOffset({ x: nextX, y: nextY })
                   e.preventDefault()
+                } else if (
+                  e.touches.length === 1 &&
+                  imageCarouselStartRef.current &&
+                  imageScale <= 1.05 &&
+                  currentExpandedImages.length > 1
+                ) {
+                  const deltaX = e.touches[0].clientX - imageCarouselStartRef.current.x
+                  const deltaY = e.touches[0].clientY - imageCarouselStartRef.current.y
+                  if (Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
+                    setExpandedCarouselDragging(true)
+                    setExpandedCarouselOffset(Math.max(-140, Math.min(140, deltaX * 0.72)))
+                    e.preventDefault()
+                  }
                 }
               }}
               onTouchEnd={e => {
                 const startY = imageTouchStartY.current
+                const startX = imageTouchStartX.current
                 const endY = e.changedTouches[0]?.clientY ?? null
-                if (startY !== null && endY !== null && endY - startY > 70 && imageScale <= 1.05) {
+                const endX = e.changedTouches[0]?.clientX ?? null
+                const deltaX =
+                  startX !== null && endX !== null ? endX - startX : 0
+                const deltaY =
+                  startY !== null && endY !== null ? endY - startY : 0
+
+                const shouldSnapCarousel =
+                  imageScale <= 1.05 &&
+                  currentExpandedImages.length > 1 &&
+                  Math.abs(deltaX) >= 72 &&
+                  Math.abs(deltaX) >= Math.abs(deltaY) * 1.2
+
+                if (shouldSnapCarousel) {
+                  if (deltaX < 0) {
+                    showNextExpandedImage()
+                  } else {
+                    showPreviousExpandedImage()
+                  }
+                } else {
+                  setExpandedCarouselOffset(0)
+                }
+
+                if (
+                  !shouldSnapCarousel &&
+                  startY !== null &&
+                  endY !== null &&
+                  endY - startY > 70 &&
+                  imageScale <= 1.05
+                ) {
                   closeExpandedImage()
                 }
                 if (e.touches.length < 2) imagePinchStart.current = null
@@ -5611,32 +5766,69 @@ function PlayPageContent() {
                   setImageScale(1)
                   setImageOffset({ x: 0, y: 0 })
                 }
+                setExpandedCarouselDragging(false)
+                imageCarouselStartRef.current = null
+                imageTouchStartX.current = null
                 imageTouchStartY.current = null
               }}
             >
-              {activeExpandedImage && (
+              {activeExpandedImage ? (
                 <div className="space-y-3">
-                  <div className="orthodle-image-swap">
-                    <img
-                      src={activeExpandedImage.url}
-                      alt={activeExpandedImage.alt}
-                      className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain transition-transform"
+                  <div className="overflow-hidden rounded-[24px]">
+                    <div
+                      className={`flex ${expandedCarouselDragging ? '' : 'transition-transform duration-[380ms] ease-[cubic-bezier(0.16,1,0.3,1)]'}`}
                       style={{
-                        transform: `translate(${imageOffset.x}px, ${imageOffset.y}px) scale(${imageScale})`,
-                        transformOrigin: 'center center',
-                        touchAction: 'none',
+                        transform: `translate3d(calc(${-expandedImageIndex * 100}% + ${expandedCarouselOffset}px), 0, 0)`,
                       }}
-                    />
-                    {activeExpandedImage.credit && (
-                      <p className="mt-3 text-center text-[10px] leading-4 text-[#8a948d]">
-                        {activeExpandedImage.credit}
-                      </p>
-                    )}
-                  </div>
-
+                    >
+                      {currentExpandedImages.map((image, index) => (
+                        <div key={`${image.url}-${index}`} className="w-full shrink-0 px-[1px]">
+                          <div className={`space-y-3 ${index === expandedImageIndex && !expandedCarouselDragging ? 'orthodle-image-swap' : ''}`}>
+                            <img
+                              src={image.url}
+                              alt={image.alt}
+                              className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain transition-transform"
+                              style={{
+                                transform:
+                                  index === expandedImageIndex
+                                    ? `translate(${imageOffset.x}px, ${imageOffset.y}px) scale(${imageScale})`
+                                    : undefined,
+                                transformOrigin: 'center center',
+                                touchAction: imageScale > 1 ? 'none' : 'pan-y',
+                              }}
+                            />
+                            {image.caption?.trim() ? (
+                              <p className="text-center text-[12px] leading-5 text-[#4d5d55]">
+                                {image.caption}
+                              </p>
+                            ) : null}
+                            {image.credit && (
+                              <p className="text-center text-[10px] leading-4 text-[#8a948d]">
+                                {image.credit}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                  {currentExpandedImages.length > 1 ? (
+                    <div className="flex items-center justify-center gap-1.5">
+                      {currentExpandedImages.map((_, index) => (
+                        <span
+                          key={`expanded-dot-${index}`}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            index === expandedImageIndex
+                              ? 'w-5 bg-[#1f6448]'
+                              : 'w-1.5 bg-[#d2c6b4]'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
+              ) : null}
+            </div>
                 {currentExpandedImages.length > 1 && (
                   <div
                     className="border-t border-[#d7d9dc] bg-white/96 px-4 py-3 backdrop-blur-sm"
@@ -5645,12 +5837,7 @@ function PlayPageContent() {
                     <div className="flex items-center justify-between gap-3">
                       <button
                         type="button"
-                        onClick={() => {
-                          resetExpandedImageView()
-                          setExpandedImageIndex(current =>
-                            current === 0 ? currentExpandedImages.length - 1 : current - 1
-                          )
-                        }}
+                        onClick={showPreviousExpandedImage}
                         className="orthodle-image-modal-nav orthodle-micro-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         aria-label="Previous image"
                       >
@@ -5661,10 +5848,7 @@ function PlayPageContent() {
                           <button
                             key={`expanded-thumb-${image.url}-${index}`}
                             type="button"
-                            onClick={() => {
-                              resetExpandedImageView()
-                              setExpandedImageIndex(index)
-                            }}
+                            onClick={() => goToExpandedImage(index)}
                             className={`orthodle-image-modal-thumb orthodle-micro-press overflow-hidden rounded-xl border p-1 transition ${
                               index === expandedImageIndex
                                 ? 'border-[#1f6448] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.08)]'
@@ -5681,10 +5865,7 @@ function PlayPageContent() {
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
-                          resetExpandedImageView()
-                          setExpandedImageIndex(current => (current + 1) % currentExpandedImages.length)
-                        }}
+                        onClick={showNextExpandedImage}
                         className="orthodle-image-modal-nav orthodle-micro-press flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                         aria-label="Next image"
                       >

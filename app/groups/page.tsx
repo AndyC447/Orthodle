@@ -692,15 +692,23 @@ function GroupsTopBanner({
   onOpenHowItWorks,
   onOpenUpdates,
   unreadNotificationCount,
+  swipePreviewId,
+  swipeProgress,
+  swipeDirection,
 }: {
   activeTab: GroupsTab
   onTabChange: (tab: GroupsTab) => void
   onOpenHowItWorks: () => void
   onOpenUpdates: () => void
   unreadNotificationCount: number
+  swipePreviewId: 'cases' | GroupsTab | null
+  swipeProgress: number
+  swipeDirection: -1 | 0 | 1
 }) {
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [snapTabId, setSnapTabId] = useState<GroupsTab | null>(null)
+  const snapMountRef = useRef(false)
   const tabs: Array<{ id: GroupsTab; label: string }> = [
     { id: 'home', label: 'Home' },
     { id: 'my-group', label: 'My Group' },
@@ -721,8 +729,19 @@ function GroupsTopBanner({
     window.localStorage.setItem('orthodle_theme', nextTheme)
   }
 
+  useEffect(() => {
+    if (!snapMountRef.current) {
+      snapMountRef.current = true
+      return
+    }
+
+    setSnapTabId(activeTab)
+    const timeoutId = window.setTimeout(() => setSnapTabId(null), 520)
+    return () => window.clearTimeout(timeoutId)
+  }, [activeTab])
+
   const navItemClass =
-    'flex min-w-0 min-h-[42px] items-center justify-center rounded-[16px] border px-1.5 py-2 text-center text-[11px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition duration-200 hover:scale-[1.01] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651] sm:min-h-[44px] sm:px-2 sm:text-[11.5px]'
+    'relative overflow-hidden flex min-w-0 min-h-[42px] items-center justify-center rounded-[16px] border px-1.5 py-2 text-center text-[11px] font-extrabold tracking-[-0.01em] leading-none no-underline whitespace-nowrap transition duration-200 hover:scale-[1.01] focus:outline-none focus-visible:ring-1 focus-visible:ring-[#2d7651] sm:min-h-[44px] sm:px-2 sm:text-[11.5px]'
   const inactiveNavItemClass = `orthodle-home-tab ${navItemClass}`
 
   return (
@@ -743,9 +762,18 @@ function GroupsTopBanner({
                 className={inactiveNavItemClass}
               >
                 Cases
+                {swipePreviewId === 'cases' && swipeProgress > 0 ? (
+                  <span
+                    className={`pointer-events-none absolute bottom-1 left-3 right-3 h-[2px] rounded-full bg-[#1f6448]/75 ${
+                      swipeDirection > 0 ? 'origin-right' : 'origin-left'
+                    }`}
+                    style={{ transform: `scaleX(${swipeProgress})` }}
+                  />
+                ) : null}
               </Link>
               {tabs.map(tab => {
                 const active = activeTab === tab.id
+                const previewingTab = swipePreviewId === tab.id && swipeProgress > 0
 
                 return (
                   <button
@@ -754,11 +782,19 @@ function GroupsTopBanner({
                     onClick={() => onTabChange(tab.id)}
                     className={`${
                       active
-                        ? `orthodle-home-tab-active ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
+                        ? `orthodle-home-tab-active ${snapTabId === tab.id ? 'orthodle-tab-snap' : ''} ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
                         : inactiveNavItemClass
                     }`}
                   >
                     {tab.label}
+                    {previewingTab ? (
+                      <span
+                        className={`pointer-events-none absolute bottom-1 left-3 right-3 h-[2px] rounded-full ${
+                          active ? 'bg-white/78' : 'bg-[#1f6448]/75'
+                        } ${swipeDirection > 0 ? 'origin-right' : 'origin-left'}`}
+                        style={{ transform: `scaleX(${swipeProgress})` }}
+                      />
+                    ) : null}
                   </button>
                 )
               })}
@@ -949,9 +985,18 @@ function GroupsTopBanner({
                 className={inactiveNavItemClass}
               >
                 Cases
+                {swipePreviewId === 'cases' && swipeProgress > 0 ? (
+                  <span
+                    className={`pointer-events-none absolute bottom-1 left-3 right-3 h-[2px] rounded-full bg-[#1f6448]/75 ${
+                      swipeDirection > 0 ? 'origin-right' : 'origin-left'
+                    }`}
+                    style={{ transform: `scaleX(${swipeProgress})` }}
+                  />
+                ) : null}
               </Link>
               {tabs.map(tab => {
                 const active = activeTab === tab.id
+                const previewingTab = swipePreviewId === tab.id && swipeProgress > 0
 
                 return (
                   <button
@@ -960,11 +1005,19 @@ function GroupsTopBanner({
                     onClick={() => onTabChange(tab.id)}
                     className={`${
                       active
-                        ? `orthodle-home-tab-active ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
+                        ? `orthodle-home-tab-active ${snapTabId === tab.id ? 'orthodle-tab-snap' : ''} ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
                         : inactiveNavItemClass
                     }`}
                   >
                     {tab.label}
+                    {previewingTab ? (
+                      <span
+                        className={`pointer-events-none absolute bottom-1 left-3 right-3 h-[2px] rounded-full ${
+                          active ? 'bg-white/78' : 'bg-[#1f6448]/75'
+                        } ${swipeDirection > 0 ? 'origin-right' : 'origin-left'}`}
+                        style={{ transform: `scaleX(${swipeProgress})` }}
+                      />
+                    ) : null}
                   </button>
                 )
               })}
@@ -3742,6 +3795,13 @@ export default function GroupsPage() {
         onOpenUpdates={openNotificationsPanel}
         unreadNotificationCount={unreadNotificationCount}
         onTabChange={handleGroupsTabChange}
+        swipePreviewId={
+          activeGroupsSwipeTarget?.kind === 'cases'
+            ? 'cases'
+            : activeGroupsSwipeTarget?.tab || null
+        }
+        swipeProgress={groupsSwipeProgress}
+        swipeDirection={groupsSwipePreviewDirection}
       />
       <div className="relative">
         {groupsSwipePreview}
