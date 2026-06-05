@@ -3530,7 +3530,7 @@ export default function GroupsPage() {
               transform: `translateX(${groupsSwipePreviewDirection * -22 * (1 - groupsSwipeProgress)}px) scale(${0.982 + groupsSwipeProgress * 0.018})`,
               transition: groupsSwipeDragging ? 'none' : undefined,
             }}
-          >
+            >
             <div className="flex items-center justify-between gap-3">
               <div className="text-left">
                 <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -3539,9 +3539,6 @@ export default function GroupsPage() {
                 <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
                   {activeGroupsSwipeTarget.label}
                 </div>
-              </div>
-              <div className="orthodle-swipe-peek-chip">
-                {groupsSwipePreviewDirection === -1 ? 'Swipe left' : 'Swipe right'}
               </div>
             </div>
 

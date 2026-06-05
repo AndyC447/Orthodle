@@ -2538,7 +2538,7 @@ function PlayPageContent() {
 
     return (
       <div className="orthodle-teaching-card rounded-[18px] border border-[#dbe4db] bg-[linear-gradient(180deg,#fbfefb_0%,#f1f7f1_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_12px_24px_rgba(16,32,24,0.035)]">
-        <div className={`space-y-2.5 ${showSolvedTeachingStep ? 'orthodle-solved-step-in' : 'opacity-0 translate-y-2'}`}>
+        <div className={`space-y-2.5 ${justCompletedRound ? 'orthodle-solved-step-in' : ''}`}>
           {visibleSections.map((section, sectionIndex) => (
             <div
               key={`${section.label}-${sectionIndex}`}
@@ -3667,7 +3667,7 @@ function PlayPageContent() {
               transform: `translateX(${homeSwipePreviewDirection * -22 * (1 - homeSwipeProgress)}px) scale(${0.982 + homeSwipeProgress * 0.018})`,
               transition: homeSwipeDragging ? 'none' : undefined,
             }}
-          >
+            >
             <div className="flex items-center justify-between gap-3">
               <div className="text-left">
                 <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -3676,9 +3676,6 @@ function PlayPageContent() {
                 <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
                   {activeHomeSwipeTarget.label}
                 </div>
-              </div>
-              <div className="orthodle-swipe-peek-chip">
-                {homeSwipePreviewDirection === -1 ? 'Swipe left' : 'Swipe right'}
               </div>
             </div>
 
@@ -5483,150 +5480,152 @@ function PlayPageContent() {
                 </div>
               </div>
 
-              <div className="mt-3 space-y-2 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-2.5">
-                <div>
-                  <div className="space-y-1">
-                    {renderTeachingPoint(teachingPoint, dailyCase)}
+              {showSolvedTeachingStep ? (
+                <div className={`mt-3 space-y-2 border-t border-dashed border-[#ded7ca] pt-3 sm:mt-4 sm:space-y-2.5 ${justCompletedRound ? 'orthodle-solved-step-in' : ''}`}>
+                  <div>
+                    <div className="space-y-1">
+                      {renderTeachingPoint(teachingPoint, dailyCase)}
+                    </div>
+                    {dailyCase.contributor_name && (
+                      <div className="mt-3 text-center text-[11px] font-semibold text-[#315f4d]">
+                        Contributed by {dailyCase.contributor_name}
+                      </div>
+                    )}
                   </div>
-                  {dailyCase.contributor_name && (
-                    <div className="mt-3 text-center text-[11px] font-semibold text-[#315f4d]">
-                      Contributed by {dailyCase.contributor_name}
+
+                  {roundComplete && (
+                    <div className="mx-auto mt-2 w-full max-w-[460px]">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {canAdvanceToNextLevel && nextLevel ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={moveToNextLevel}
+                              className="orthodle-primary-button orthodle-solved-action orthodle-streak-ember orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 font-semibold sm:col-span-2"
+                            >
+                              {nextLevel === 'attending'
+                                ? 'Try the Anatomy Quiz'
+                                : `Try the ${formatLevel(nextLevel)} case`}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={shareResult}
+                              className="orthodle-winner-button orthodle-solved-action orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple rounded-lg border px-4 py-2 font-semibold"
+                            >
+                              Share the case
+                            </button>
+                            <Link
+                              href="/stats"
+                              className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                            >
+                              View your stats
+                            </Link>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={shareResult}
+                              className="orthodle-winner-button orthodle-solved-action orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 font-semibold sm:col-span-2"
+                            >
+                              Share the case
+                            </button>
+                            <Link
+                              href="/archive"
+                              className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                            >
+                              Browse archive
+                            </Link>
+                            <Link
+                              href="/stats"
+                              className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                            >
+                              View your stats
+                            </Link>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
-                </div>
 
-                {roundComplete && (
-                  <div className="mx-auto mt-2 w-full max-w-[460px]">
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {canAdvanceToNextLevel && nextLevel ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={moveToNextLevel}
-                            className="orthodle-primary-button orthodle-solved-action orthodle-streak-ember orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 font-semibold sm:col-span-2"
-                          >
-                            {nextLevel === 'attending'
-                              ? 'Try the Anatomy Quiz'
-                              : `Try the ${formatLevel(nextLevel)} case`}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={shareResult}
-                            className="orthodle-winner-button orthodle-solved-action orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple rounded-lg border px-4 py-2 font-semibold"
-                          >
-                            Share the case
-                          </button>
-                          <Link
-                            href="/stats"
-                            className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                          >
-                            View your stats
-                          </Link>
-                        </>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={shareResult}
-                            className="orthodle-winner-button orthodle-solved-action orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple w-full rounded-lg border px-4 py-2 font-semibold sm:col-span-2"
-                          >
-                            Share the case
-                          </button>
-                          <Link
-                            href="/archive"
-                            className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                          >
-                            Browse archive
-                          </Link>
-                          <Link
-                            href="/stats"
-                            className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                          >
-                            View your stats
-                          </Link>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="night-soft-surface orthodle-home-feedback-shell rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowCaseFeedback(current => !current)}
-                    className="relative flex w-full items-center justify-end text-left"
-                  >
-                    <div className="night-label pointer-events-none absolute inset-x-0 text-center text-[11px] font-semibold text-[#637268]">
-                      Feedback
-                    </div>
-                    <span className="orthodle-home-toggle-chip inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
-                      {showCaseFeedback ? '▴' : '▾'}
-                    </span>
-                  </button>
-                  <div
-                    aria-hidden={!showCaseFeedback}
-                    className={`orthodle-collapsible-shell ${showCaseFeedback ? 'orthodle-collapsible-shell-open mt-2' : 'mt-0.5'}`}
-                  >
-                    <div className="orthodle-collapsible-body">
-                    <>
-                      <div className="mx-auto mt-2 grid max-w-[260px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
-                        {FEEDBACK_TAG_OPTIONS.map(tag => {
-                          const alreadySent = submittedReactionTags.includes(tag)
-                          const isPositiveReaction = tag === 'Great case'
-                          return (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => void submitQuickReaction(tag)}
-                              disabled={
-                                submittingReaction !== null ||
-                                alreadySent ||
-                                (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
-                                (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
-                              }
-                              className={`w-full rounded-lg px-2 py-1.5 text-[9.5px] font-semibold transition sm:w-auto ${
-                                submittingReaction === tag
-                                  ? 'bg-[#eef7f2] text-[#1f6448]'
-                                  : alreadySent
-                                    ? isPositiveReaction
-                                      ? 'bg-[#eef7f2] text-[#1f6448]'
-                                      : 'bg-[#fff3e8] text-[#a24d24]'
-                                    : 'bg-white text-[#637268] shadow-[inset_0_0_0_1px_#e3dbce] hover:bg-[#fbfaf7]'
-                              } disabled:cursor-not-allowed disabled:opacity-70`}
-                            >
-                              {submittingReaction === tag ? 'Saving...' : alreadySent ? 'Sent' : tag}
-                            </button>
-                          )
-                        })}
+                  <div className="night-soft-surface orthodle-home-feedback-shell rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowCaseFeedback(current => !current)}
+                      className="relative flex w-full items-center justify-end text-left"
+                    >
+                      <div className="night-label pointer-events-none absolute inset-x-0 text-center text-[11px] font-semibold text-[#637268]">
+                        Feedback
                       </div>
-                      {reactionStatus && (
-                        <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
-                      )}
-                      <div className="mt-2 flex flex-col gap-1.5 sm:flex-row">
-                        <input
-                          type="text"
-                          value={feedbackText}
-                          onChange={e => setFeedbackText(e.target.value)}
-                          placeholder="Share any feedback on the site here"
-                          className="orthodle-home-feedback-input min-h-[38px] min-w-0 flex-1 rounded-lg bg-white px-3 py-2 text-center text-[12px] text-[#102018] outline-none shadow-[inset_0_0_0_1px_#e3dbce] transition placeholder:text-center placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:shadow-[inset_0_0_0_1px_#c9d8ce]"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => void submitTypedFeedback()}
-                          disabled={isSavingFeedback}
-                          className="orthodle-home-feedback-send min-h-[38px] shrink-0 rounded-lg bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] shadow-[inset_0_0_0_1px_#e3dbce] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
-                        >
-                          {isSavingFeedback ? 'Sending...' : 'Send'}
-                        </button>
+                      <span className="orthodle-home-toggle-chip inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
+                        {showCaseFeedback ? '▴' : '▾'}
+                      </span>
+                    </button>
+                    <div
+                      aria-hidden={!showCaseFeedback}
+                      className={`orthodle-collapsible-shell ${showCaseFeedback ? 'orthodle-collapsible-shell-open mt-2' : 'mt-0.5'}`}
+                    >
+                      <div className="orthodle-collapsible-body">
+                      <>
+                        <div className="mx-auto mt-2 grid max-w-[260px] grid-cols-2 gap-1.5 sm:flex sm:max-w-none sm:flex-wrap sm:justify-center">
+                          {FEEDBACK_TAG_OPTIONS.map(tag => {
+                            const alreadySent = submittedReactionTags.includes(tag)
+                            const isPositiveReaction = tag === 'Great case'
+                            return (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => void submitQuickReaction(tag)}
+                                disabled={
+                                  submittingReaction !== null ||
+                                  alreadySent ||
+                                  (tag === 'Too easy' && submittedReactionTags.includes('Too hard')) ||
+                                  (tag === 'Too hard' && submittedReactionTags.includes('Too easy'))
+                                }
+                                className={`w-full rounded-lg px-2 py-1.5 text-[9.5px] font-semibold transition sm:w-auto ${
+                                  submittingReaction === tag
+                                    ? 'bg-[#eef7f2] text-[#1f6448]'
+                                    : alreadySent
+                                      ? isPositiveReaction
+                                        ? 'bg-[#eef7f2] text-[#1f6448]'
+                                        : 'bg-[#fff3e8] text-[#a24d24]'
+                                      : 'bg-white text-[#637268] shadow-[inset_0_0_0_1px_#e3dbce] hover:bg-[#fbfaf7]'
+                                } disabled:cursor-not-allowed disabled:opacity-70`}
+                              >
+                                {submittingReaction === tag ? 'Saving...' : alreadySent ? 'Sent' : tag}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {reactionStatus && (
+                          <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{reactionStatus}</p>
+                        )}
+                        <div className="mt-2 flex flex-col gap-1.5 sm:flex-row">
+                          <input
+                            type="text"
+                            value={feedbackText}
+                            onChange={e => setFeedbackText(e.target.value)}
+                            placeholder="Share any feedback on the site here"
+                            className="orthodle-home-feedback-input min-h-[38px] min-w-0 flex-1 rounded-lg bg-white px-3 py-2 text-center text-[12px] text-[#102018] outline-none shadow-[inset_0_0_0_1px_#e3dbce] transition placeholder:text-center placeholder:text-[10.5px] placeholder:text-[#9aa59b] focus:shadow-[inset_0_0_0_1px_#c9d8ce]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => void submitTypedFeedback()}
+                            disabled={isSavingFeedback}
+                            className="orthodle-home-feedback-send min-h-[38px] shrink-0 rounded-lg bg-white px-4 py-2 text-[11px] font-semibold text-[#102018] shadow-[inset_0_0_0_1px_#e3dbce] transition hover:bg-[#f7f4ee] disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+                          >
+                            {isSavingFeedback ? 'Sending...' : 'Send'}
+                          </button>
+                        </div>
+                        {feedbackStatus && (
+                          <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
+                        )}
+                      </>
                       </div>
-                      {feedbackStatus && (
-                        <p className="mt-2 text-center text-[11.5px] leading-4 text-[#637268]">{feedbackStatus}</p>
-                      )}
-                    </>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : null}
             </div>
           )}
 
