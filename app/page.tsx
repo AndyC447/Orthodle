@@ -2264,6 +2264,7 @@ function PlayPageContent() {
     const trimmed = line.trim()
     if (!trimmed) return false
     if (/^credit:/i.test(trimmed)) return true
+    if (/^\[[^\]]+\]\((https?:\/\/[^\s)]+)\)\s*$/i.test(trimmed)) return true
     return false
   }
 

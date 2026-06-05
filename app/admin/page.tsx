@@ -430,6 +430,7 @@ type AdminCaseDraft = {
   clue5: string
   clue6: string
   teachingPoint: string
+  referenceLinks: string
   activeSubmissionId: string | null
   savedAt: string
 }
@@ -468,6 +469,50 @@ function extractFirstMarkdownLink(text: string | null | undefined) {
     url: match[2] || '',
     markdown: `[${match[1] || 'Link to reference'}](${match[2] || ''})`,
   }
+}
+
+function isReferenceLinkLine(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed) return false
+  return /^\[[^\]]+\]\((https?:\/\/[^\s)]+)\)\s*$/i.test(trimmed)
+}
+
+function splitTeachingPointAndReferences(value: string | null | undefined) {
+  if (!value) {
+    return { teachingPoint: '', referenceLinks: '' }
+  }
+
+  const lines = value.split('\n')
+  const teachingLines: string[] = []
+  const referenceLines: string[] = []
+
+  for (const line of lines) {
+    if (isReferenceLinkLine(line)) {
+      referenceLines.push(line.trim())
+    } else {
+      teachingLines.push(line)
+    }
+  }
+
+  return {
+    teachingPoint: teachingLines.join('\n').replace(/\n{3,}/g, '\n\n').trim(),
+    referenceLinks: referenceLines.join('\n'),
+  }
+}
+
+function mergeTeachingPointAndReferences(teachingPoint: string, referenceLinks: string) {
+  const trimmedTeachingPoint = teachingPoint.trim()
+  const cleanedReferenceLines = referenceLinks
+    .split('\n')
+    .map(line => line.trim())
+    .filter(isReferenceLinkLine)
+  const trimmedReferenceLinks = cleanedReferenceLines.join('\n')
+
+  if (trimmedTeachingPoint && trimmedReferenceLinks) {
+    return `${trimmedTeachingPoint}\n\n${trimmedReferenceLinks}`
+  }
+
+  return trimmedTeachingPoint || trimmedReferenceLinks
 }
 
 const ANALYTICS_PAGE_SIZE = 1000
@@ -515,6 +560,7 @@ export default function AdminPage() {
   const [clue5, setClue5] = useState('')
   const [clue6, setClue6] = useState('')
   const [teachingPoint, setTeachingPoint] = useState(DEFAULT_TEACHING_POINT_TEMPLATE)
+  const [referenceLinks, setReferenceLinks] = useState('')
   const [status, setStatus] = useState('')
   const [draftStatus, setDraftStatus] = useState('')
   const [cases, setCases] = useState<CaseRow[]>([])
@@ -702,9 +748,16 @@ export default function AdminPage() {
           setClue4(draft.clue4 || '')
           setClue5(draft.clue5 || '')
           setClue6(draft.clue6 || '')
-          setTeachingPoint(
-            draft.teachingPoint || getDefaultTeachingPointTemplate(draft.level || 'med_student')
-          )
+          {
+            const parsedTeaching = splitTeachingPointAndReferences(
+              draft.teachingPoint || getDefaultTeachingPointTemplate(draft.level || 'med_student')
+            )
+            setTeachingPoint(
+              parsedTeaching.teachingPoint ||
+                getDefaultTeachingPointTemplate(draft.level || 'med_student')
+            )
+            setReferenceLinks(draft.referenceLinks || parsedTeaching.referenceLinks)
+          }
           setActiveSubmissionId(draft.activeSubmissionId || null)
           setDraftStatus(
             draft.savedAt
@@ -736,7 +789,7 @@ export default function AdminPage() {
     }
 
     previousLevelRef.current = level
-  }, [level])
+  }, [level, teachingPoint])
 
   useEffect(() => {
     if (!isUnlocked || typeof window === 'undefined') return
@@ -823,6 +876,7 @@ export default function AdminPage() {
         clue5.trim() ||
         clue6.trim() ||
         teachingPoint.trim() !== DEFAULT_TEACHING_POINT_TEMPLATE.trim() ||
+        referenceLinks.trim() ||
         activeSubmissionId
     )
 
@@ -860,6 +914,7 @@ export default function AdminPage() {
       clue5,
       clue6,
       teachingPoint,
+      referenceLinks,
       activeSubmissionId,
       savedAt: new Date().toISOString(),
     }
@@ -896,6 +951,7 @@ export default function AdminPage() {
     clue5,
     clue6,
     teachingPoint,
+    referenceLinks,
     activeSubmissionId,
   ])
 
@@ -1395,6 +1451,8 @@ export default function AdminPage() {
         : null
     const storedSynonyms = multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray
 
+    const storedTeachingPoint = mergeTeachingPointAndReferences(teachingPoint, referenceLinks)
+
     return {
       id: `preview-${level}-${caseDate}`,
       case_date: caseDate,
@@ -1427,7 +1485,7 @@ export default function AdminPage() {
       clue_4: clue4.trim() || null,
       clue_5: clue5.trim() || null,
       clue_6: clue6.trim() || null,
-      teaching_point: teachingPoint.trim() || null,
+      teaching_point: storedTeachingPoint || null,
       learning_image_url: learningImageUrl.trim() || null,
       learning_image_credit: normalizeCreditValue(learningImageCredit),
       learning_image_caption: learningImageCaption.trim() || null,
@@ -1658,7 +1716,6 @@ export default function AdminPage() {
 
   function insertTeachingPointLink() {
     const textarea = teachingPointRef.current
-    if (!textarea) return
 
     const url = window.prompt('Paste the reference URL')
     if (!url) return
@@ -1669,23 +1726,12 @@ export default function AdminPage() {
       return
     }
 
-    const selectionStart = textarea.selectionStart
-    const selectionEnd = textarea.selectionEnd
+    const selectionStart = textarea?.selectionStart ?? 0
+    const selectionEnd = textarea?.selectionEnd ?? 0
     const selectedText = teachingPoint.slice(selectionStart, selectionEnd).trim() || 'Link to reference'
     const inserted = `[${selectedText}](${trimmedUrl})`
-    const nextValue =
-      teachingPoint.slice(0, selectionStart) +
-      inserted +
-      teachingPoint.slice(selectionEnd)
-
-    setTeachingPoint(nextValue)
+    setReferenceLinks(currentValue => upsertReferenceLinkLine(currentValue, inserted))
     setStatus('Reference link inserted.')
-
-    requestAnimationFrame(() => {
-      textarea.focus()
-      const nextCaret = selectionStart + inserted.length
-      textarea.setSelectionRange(nextCaret, nextCaret)
-    })
 
     void (async () => {
       const metadata = await fetchLinkMetadata(trimmedUrl)
@@ -1780,11 +1826,11 @@ export default function AdminPage() {
     return 'Anatomy Quiz'
   }
 
-  function upsertReferenceLinkInTeachingPoint(currentValue: string, markdownLink: string) {
+  function upsertReferenceLinkLine(currentValue: string, markdownLink: string) {
     const lines = currentValue.split('\n')
     let replaced = false
     const nextLines = lines.map(line => {
-      if (!replaced && /\[[^\]]+\]\((https?:\/\/[^\s)]+)\)/i.test(line)) {
+      if (!replaced && isReferenceLinkLine(line)) {
         replaced = true
         return markdownLink
       }
@@ -1807,8 +1853,8 @@ export default function AdminPage() {
     setImageFindings(sourceCase.image_findings || '')
 
     if (sourceLink?.markdown) {
-      setTeachingPoint(currentValue =>
-        upsertReferenceLinkInTeachingPoint(currentValue, sourceLink.markdown)
+      setReferenceLinks(currentValue =>
+        upsertReferenceLinkLine(currentValue, sourceLink.markdown)
       )
     }
 
@@ -1892,6 +1938,7 @@ export default function AdminPage() {
     setClue5('')
     setClue6('')
     setTeachingPoint(getDefaultTeachingPointTemplate(nextLevel))
+    setReferenceLinks('')
     setStatus(`Creating ${formatLevel(nextLevel)} case for ${date}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -1924,6 +1971,7 @@ export default function AdminPage() {
     setClue5('')
     setClue6('')
     setTeachingPoint(getDefaultTeachingPointTemplate('med_student'))
+    setReferenceLinks('')
     setActiveSubmissionId(null)
     setStatus('')
     setDraftStatus('Draft cleared.')
@@ -1964,7 +2012,13 @@ export default function AdminPage() {
     setClue4(c.clue_4 || '')
     setClue5(c.clue_5 || '')
     setClue6(c.clue_6 || '')
-    setTeachingPoint(c.teaching_point || getDefaultTeachingPointTemplate(c.level))
+    {
+      const parsedTeaching = splitTeachingPointAndReferences(
+        c.teaching_point || getDefaultTeachingPointTemplate(c.level)
+      )
+      setTeachingPoint(parsedTeaching.teachingPoint || getDefaultTeachingPointTemplate(c.level))
+      setReferenceLinks(parsedTeaching.referenceLinks)
+    }
     setActiveSubmissionId(null)
     setStatus(`Editing ${c.case_date} · ${c.level}`)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -2002,9 +2056,15 @@ export default function AdminPage() {
     setClue4(submission.clue_4 || '')
     setClue5(submission.clue_5 || '')
     setClue6(submission.clue_6 || '')
-    setTeachingPoint(
-      submission.teaching_point || getDefaultTeachingPointTemplate(submission.level)
-    )
+    {
+      const parsedTeaching = splitTeachingPointAndReferences(
+        submission.teaching_point || getDefaultTeachingPointTemplate(submission.level)
+      )
+      setTeachingPoint(
+        parsedTeaching.teachingPoint || getDefaultTeachingPointTemplate(submission.level)
+      )
+      setReferenceLinks(parsedTeaching.referenceLinks)
+    }
     setActiveSubmissionId(submission.id)
     setShowComposer(true)
     setStatus(
@@ -3035,6 +3095,7 @@ export default function AdminPage() {
     const savedImageCredit2 = normalizeCreditValue(imageCredit2)
     const savedLearningImageCredit = normalizeCreditValue(learningImageCredit)
     const savedLearningImageCredit2 = normalizeCreditValue(learningImageCredit2)
+    const storedTeachingPoint = mergeTeachingPointAndReferences(teachingPoint, referenceLinks)
 
     const parsedImageRevealClue =
       imageUrl && imageRevealClue !== 'none'
@@ -3077,7 +3138,7 @@ export default function AdminPage() {
         clue_4: clue4 || null,
         clue_5: clue5 || null,
         clue_6: clue6 || null,
-        teaching_point: teachingPoint || null,
+        teaching_point: storedTeachingPoint || null,
       },
       {
         onConflict: 'case_date,level',
@@ -4473,6 +4534,20 @@ export default function AdminPage() {
                     </div>
                   </div>
                 </div>
+
+                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                  References
+                  <textarea
+                    value={referenceLinks}
+                    onChange={e => setReferenceLinks(e.target.value)}
+                    placeholder={`[Link to reference](https://example.com)\n[Link to EM Cases](https://example.com)`}
+                    rows={3}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                  />
+                  <span className="text-[11px] font-medium text-[#8a948d]">
+                    These links render in a dedicated References section beneath the teaching images.
+                  </span>
+                </label>
 
               {imageUrl && (
                 <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
