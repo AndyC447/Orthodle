@@ -555,6 +555,8 @@ function PlayPageContent() {
   const railCompleteTimeoutRef = useRef<number | null>(null)
   const caseCardSettleTimeoutRef = useRef<number | null>(null)
   const anatomyChoiceSettleTimeoutRef = useRef<number | null>(null)
+  const quickTakeawayAutoRevealTimeoutRef = useRef<number | null>(null)
+  const suppressQuickTakeawayPersistRef = useRef(false)
   const previousStreakRef = useRef<number>(0)
   const previousTodayCompleteRef = useRef(false)
   const homeTabSnapMountRef = useRef(false)
@@ -3353,31 +3355,38 @@ function PlayPageContent() {
       setShowSolvedMediaStep(false)
       return
     }
+    setShowSolvedTeachingStep(true)
+    setShowSolvedInsightStep(true)
+    setShowSolvedMediaStep(true)
+  }, [justCompletedRound, roundComplete])
 
-    if (!justCompletedRound || typeof window === 'undefined') {
-      setShowSolvedTeachingStep(true)
-      setShowSolvedInsightStep(true)
-      setShowSolvedMediaStep(true)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    if (quickTakeawayAutoRevealTimeoutRef.current) {
+      window.clearTimeout(quickTakeawayAutoRevealTimeoutRef.current)
+      quickTakeawayAutoRevealTimeoutRef.current = null
+    }
+
+    if (!roundComplete || !justCompletedRound) {
+      suppressQuickTakeawayPersistRef.current = false
       return
     }
 
-    setShowSolvedTeachingStep(false)
-    setShowSolvedInsightStep(false)
-    setShowSolvedMediaStep(false)
-    const teachingTimeout = window.setTimeout(() => {
-      setShowSolvedTeachingStep(true)
-    }, 760)
-    const insightTimeout = window.setTimeout(() => {
-      setShowSolvedInsightStep(true)
-    }, 980)
-    const mediaTimeout = window.setTimeout(() => {
-      setShowSolvedMediaStep(true)
-    }, 1200)
+    suppressQuickTakeawayPersistRef.current = true
+    setShowQuickTakeaway(false)
+    quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
+      setShowQuickTakeaway(true)
+      suppressQuickTakeawayPersistRef.current = false
+      quickTakeawayAutoRevealTimeoutRef.current = null
+    }, 1500)
 
     return () => {
-      window.clearTimeout(teachingTimeout)
-      window.clearTimeout(insightTimeout)
-      window.clearTimeout(mediaTimeout)
+      if (quickTakeawayAutoRevealTimeoutRef.current) {
+        window.clearTimeout(quickTakeawayAutoRevealTimeoutRef.current)
+        quickTakeawayAutoRevealTimeoutRef.current = null
+      }
+      suppressQuickTakeawayPersistRef.current = false
     }
   }, [justCompletedRound, roundComplete])
 
@@ -4011,6 +4020,7 @@ function PlayPageContent() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (suppressQuickTakeawayPersistRef.current) return
     window.localStorage.setItem(QUICK_TAKEAWAY_OPEN_KEY, showQuickTakeaway ? 'true' : 'false')
   }, [showQuickTakeaway])
 
@@ -4051,6 +4061,9 @@ function PlayPageContent() {
       }
       if (anatomyChoiceSettleTimeoutRef.current) {
         window.clearTimeout(anatomyChoiceSettleTimeoutRef.current)
+      }
+      if (quickTakeawayAutoRevealTimeoutRef.current) {
+        window.clearTimeout(quickTakeawayAutoRevealTimeoutRef.current)
       }
     }
   }, [])
