@@ -549,6 +549,7 @@ function PlayPageContent() {
   const guessInputRef = useRef<HTMLInputElement | null>(null)
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
+  const solvedAnswerHeroRef = useRef<HTMLDivElement | null>(null)
   const confettiTimeoutRef = useRef<number | null>(null)
   const lastConfettiAtRef = useRef<number>(0)
   const streakIgnitionTimeoutRef = useRef<number | null>(null)
@@ -556,6 +557,7 @@ function PlayPageContent() {
   const caseCardSettleTimeoutRef = useRef<number | null>(null)
   const anatomyChoiceSettleTimeoutRef = useRef<number | null>(null)
   const quickTakeawayAutoRevealTimeoutRef = useRef<number | null>(null)
+  const quickTakeawayRevealAnimationTimeoutRef = useRef<number | null>(null)
   const suppressQuickTakeawayPersistRef = useRef(false)
   const previousStreakRef = useRef<number>(0)
   const previousTodayCompleteRef = useRef(false)
@@ -606,6 +608,7 @@ function PlayPageContent() {
   const [feedbackStatus, setFeedbackStatus] = useState('')
   const [showCaseFeedback, setShowCaseFeedback] = useState(false)
   const [showQuickTakeaway, setShowQuickTakeaway] = useState(true)
+  const [showQuickTakeawaySlowReveal, setShowQuickTakeawaySlowReveal] = useState(false)
   const [showOrthodleInsight, setShowOrthodleInsight] = useState(false)
   const [showLocalhostReset, setShowLocalhostReset] = useState(false)
   const [showStreakIgnition, setShowStreakIgnition] = useState(false)
@@ -2625,10 +2628,10 @@ function PlayPageContent() {
                   </button>
                   <div
                     aria-hidden={!showQuickTakeaway}
-                    className={`orthodle-collapsible-shell ${justCompletedRound && showQuickTakeaway ? 'orthodle-collapsible-shell-slow-open' : ''} ${showQuickTakeaway ? 'orthodle-collapsible-shell-open mt-1.5' : 'mt-0.5'}`}
+                    className={`orthodle-collapsible-shell ${showQuickTakeawaySlowReveal ? 'orthodle-collapsible-shell-slow-open' : ''} ${showQuickTakeaway ? 'orthodle-collapsible-shell-open mt-1.5' : 'mt-0.5'}`}
                   >
                     <div className="orthodle-collapsible-body">
-                      <div className="space-y-1">
+                      <div className={`space-y-1 ${showQuickTakeawaySlowReveal ? 'orthodle-quick-takeaway-reveal' : ''}`}>
                         {renderTeachingBody(section.body, `takeaway-${sectionIndex}`)}
                         {section.callouts.length > 0 ? (
                           <div className="mt-1.5 space-y-1">
@@ -3332,10 +3335,14 @@ function PlayPageContent() {
     if (typeof window === 'undefined') return
 
     const timeoutId = window.setTimeout(() => {
-      solvedCardRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
+      const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
+      if (target) {
+        const top = target.getBoundingClientRect().top + window.scrollY - 70
+        window.scrollTo({
+          top: Math.max(0, top),
+          behavior: 'smooth',
+        })
+      }
 
       if (gameWon) {
         window.setTimeout(() => {
@@ -3367,16 +3374,27 @@ function PlayPageContent() {
       window.clearTimeout(quickTakeawayAutoRevealTimeoutRef.current)
       quickTakeawayAutoRevealTimeoutRef.current = null
     }
+    if (quickTakeawayRevealAnimationTimeoutRef.current) {
+      window.clearTimeout(quickTakeawayRevealAnimationTimeoutRef.current)
+      quickTakeawayRevealAnimationTimeoutRef.current = null
+    }
 
     if (!roundComplete || !justCompletedRound) {
       suppressQuickTakeawayPersistRef.current = false
+      setShowQuickTakeawaySlowReveal(false)
       return
     }
 
     suppressQuickTakeawayPersistRef.current = true
+    setShowQuickTakeawaySlowReveal(false)
     setShowQuickTakeaway(false)
     quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
+      setShowQuickTakeawaySlowReveal(true)
       setShowQuickTakeaway(true)
+      quickTakeawayRevealAnimationTimeoutRef.current = window.setTimeout(() => {
+        setShowQuickTakeawaySlowReveal(false)
+        quickTakeawayRevealAnimationTimeoutRef.current = null
+      }, 2200)
       suppressQuickTakeawayPersistRef.current = false
       quickTakeawayAutoRevealTimeoutRef.current = null
     }, 2500)
@@ -3386,6 +3404,11 @@ function PlayPageContent() {
         window.clearTimeout(quickTakeawayAutoRevealTimeoutRef.current)
         quickTakeawayAutoRevealTimeoutRef.current = null
       }
+      if (quickTakeawayRevealAnimationTimeoutRef.current) {
+        window.clearTimeout(quickTakeawayRevealAnimationTimeoutRef.current)
+        quickTakeawayRevealAnimationTimeoutRef.current = null
+      }
+      setShowQuickTakeawaySlowReveal(false)
       suppressQuickTakeawayPersistRef.current = false
     }
   }, [justCompletedRound, roundComplete])
@@ -4065,6 +4088,9 @@ function PlayPageContent() {
       if (quickTakeawayAutoRevealTimeoutRef.current) {
         window.clearTimeout(quickTakeawayAutoRevealTimeoutRef.current)
       }
+      if (quickTakeawayRevealAnimationTimeoutRef.current) {
+        window.clearTimeout(quickTakeawayRevealAnimationTimeoutRef.current)
+      }
     }
   }, [])
 
@@ -4431,6 +4457,24 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-quick-takeaway-reveal {
+          0% {
+            opacity: 0;
+            transform: translateY(-10px);
+            filter: blur(5px);
+          }
+          45% {
+            opacity: 0.72;
+            transform: translateY(-3px);
+            filter: blur(1.5px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0);
+          }
+        }
+
         @keyframes orthodle-ember-shimmer {
           0% {
             background-position: 180% 0;
@@ -4714,14 +4758,18 @@ function PlayPageContent() {
 
         .orthodle-collapsible-shell-slow-open {
           transition:
-            grid-template-rows 1400ms cubic-bezier(0.16, 1, 0.3, 1),
-            opacity 900ms ease,
-            margin-top 420ms ease;
+            grid-template-rows 1900ms cubic-bezier(0.2, 0.9, 0.2, 1),
+            opacity 1200ms ease,
+            margin-top 560ms ease;
         }
 
         .orthodle-collapsible-body {
           min-height: 0;
           overflow: hidden;
+        }
+
+        .orthodle-quick-takeaway-reveal {
+          animation: orthodle-quick-takeaway-reveal 1400ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
         }
 
         .orthodle-teaching-image-spotlight {
@@ -4786,6 +4834,7 @@ function PlayPageContent() {
           .orthodle-teaching-image-spotlight,
           .orthodle-image-curtain,
           .orthodle-image-swap,
+          .orthodle-quick-takeaway-reveal,
           .orthodle-tap-ripple::after {
             animation: none !important;
             transition: none !important;
@@ -5510,7 +5559,7 @@ function PlayPageContent() {
                   : 'orthodle-panel-shell orthodle-answer-shell night-surface rounded-2xl border border-[#e7e1d6] bg-white p-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-4'
               }
             >
-              <div className="mt-1">
+              <div ref={solvedAnswerHeroRef} className="mt-1">
                 <div className={`relative overflow-hidden rounded-[20px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_26%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-4 text-center text-white shadow-[0_12px_28px_rgba(4,47,34,0.16)] sm:px-5 sm:py-5 ${justCompletedRound ? 'orthodle-answer-hero-reveal' : ''}`}>
                   <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle,#e9b93f_1.4px,transparent_1.4px)] [background-size:32px_32px]" />
                   <div className="relative">
