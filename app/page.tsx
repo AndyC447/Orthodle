@@ -285,7 +285,7 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
   'pain',
 ])
 
-const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v1'
+const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v2'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v1'
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
@@ -482,6 +482,10 @@ function isPostAnswerImageReveal(revealStep: number | null | undefined) {
 
 function isSurgicalAnatomyDate(dateText: string) {
   return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
+}
+
+function isDiagnosisAutocompleteCaseLevel(level: Level, dateText: string) {
+  return level !== 'attending' || !isSurgicalAnatomyDate(dateText)
 }
 
 function canUseSurgicalAnatomyQuiz(dateText: string) {
@@ -864,7 +868,7 @@ function PlayPageContent() {
       const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }, { data: titleRows }] = await Promise.all([
         supabase
           .from('cases')
-          .select('answer')
+          .select('answer, level, case_date')
           .range(0, 1999),
         supabase
           .from('diagnosis_choices')
@@ -882,13 +886,45 @@ function PlayPageContent() {
       if (cancelled) return
 
       const hiddenAnswers = readHiddenDiagnosisAnswers()
+      const allCaseAnswerRows =
+        ((caseAnswers || []) as Array<{ answer: string | null; level: Level; case_date: string | null }>).filter(
+          item => Boolean(item.answer?.trim() && item.level && item.case_date)
+        )
+
+      const diagnosisCaseAnswers = allCaseAnswerRows
+        .filter(item => isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
+        .map(item => item.answer?.trim())
+        .filter(Boolean) as string[]
+
+      const anatomyOnlyAnswerSet = new Set(
+        allCaseAnswerRows
+          .filter(item => !isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
+          .map(item => normalizeAnswer(item.answer || ''))
+          .filter(Boolean)
+      )
+
+      const diagnosisAnswerSet = new Set(
+        diagnosisCaseAnswers.map(answer => normalizeAnswer(answer)).filter(Boolean)
+      )
+
+      const builtInAnswerSet = new Set(
+        ORTHO_DIAGNOSIS_BANK.map(answer => normalizeAnswer(answer)).filter(Boolean)
+      )
+
+      const filteredCustomChoices = ((customChoices || []).map(item => item.label?.trim()).filter(Boolean) as string[])
+        .filter(choice => {
+          const normalizedChoice = normalizeAnswer(choice)
+          if (!normalizedChoice) return false
+          if (!anatomyOnlyAnswerSet.has(normalizedChoice)) return true
+          return diagnosisAnswerSet.has(normalizedChoice) || builtInAnswerSet.has(normalizedChoice)
+        })
 
       const uniqueAnswers = Array.from(
         new Map(
           [
             ...ORTHO_DIAGNOSIS_BANK,
-            ...((caseAnswers || []).map(item => item.answer?.trim()).filter(Boolean) as string[]),
-            ...((customChoices || []).map(item => item.label?.trim()).filter(Boolean) as string[]),
+            ...diagnosisCaseAnswers,
+            ...filteredCustomChoices,
           ]
             .filter(Boolean)
             .filter(answer => !hiddenAnswers.has(normalizeAnswer(answer as string)))
@@ -2941,15 +2977,15 @@ function PlayPageContent() {
     if (lines.length === 0) return null
 
     return (
-      <div className="border-t border-dashed border-[#ded7ca] pt-2.5">
+      <div className="pt-2">
         <div className="text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#7a857c]">
           References
         </div>
-        <div className="mt-2 space-y-2">
+        <div className="mx-auto mt-1.5 max-w-[62ch] space-y-1.5 text-center">
           {lines.map((line, index) => (
             <div
               key={`footer-line-${index}`}
-              className="rounded-[12px] border border-[#ded7ca] bg-white px-3 py-2 text-[13px] leading-5 text-[#637268] shadow-[0_4px_10px_rgba(16,32,24,0.025)]"
+              className="text-[13px] leading-5 text-[#637268]"
             >
               {renderFormattedLine(line, `teaching-footer-${index}`)}
             </div>
@@ -3338,7 +3374,8 @@ function PlayPageContent() {
     const timeoutId = window.setTimeout(() => {
       const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
       if (target) {
-        const top = target.getBoundingClientRect().top + window.scrollY - 70
+        const revealOffset = window.innerWidth >= 1024 ? 18 : 70
+        const top = target.getBoundingClientRect().top + window.scrollY - revealOffset
         window.scrollTo({
           top: Math.max(0, top),
           behavior: 'smooth',

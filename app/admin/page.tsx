@@ -515,6 +515,13 @@ function mergeTeachingPointAndReferences(teachingPoint: string, referenceLinks: 
   return trimmedTeachingPoint || trimmedReferenceLinks
 }
 
+function isMissingTeachingImageCaptionColumnError(message: string | undefined) {
+  if (!message) return false
+  return /Could not find the 'learning_image_caption(?:_2)?' column of 'cases' in the schema cache/i.test(
+    message
+  )
+}
+
 const ANALYTICS_PAGE_SIZE = 1000
 const ADMIN_ANALYTICS_CACHE_KEY = 'orthodle_admin_analytics_cache_v1'
 const ADMIN_ANALYTICS_CACHE_TTL_MS = 1000 * 60 * 5
@@ -3110,47 +3117,65 @@ export default function AdminPage() {
           : Number(imageRevealClue2)
         : null
 
-    const { error } = await supabase.from('cases').upsert(
-      {
-        case_date: caseDate,
-        level,
-        contributor_name: null,
-        category,
-        prompt,
-        answer,
-        synonyms: storedSynonyms,
-        image_url: imageUrl || null,
-        image_credit: savedImageCredit,
-        image_reveal_clue: parsedImageRevealClue,
-        image_url_2: imageUrl2 || null,
-        image_credit_2: savedImageCredit2,
-        image_reveal_clue_2: parsedImageRevealClue2,
-        image_findings: imageFindings.trim() || null,
-        learning_image_url: learningImageUrl || null,
-        learning_image_credit: savedLearningImageCredit,
-        learning_image_caption: learningImageCaption.trim() || null,
-        learning_image_url_2: learningImageUrl2 || null,
-        learning_image_credit_2: savedLearningImageCredit2,
-        learning_image_caption_2: learningImageCaption2.trim() || null,
-        clue_1: clue1 || null,
-        clue_2: clue2 || null,
-        clue_3: clue3 || null,
-        clue_4: clue4 || null,
-        clue_5: clue5 || null,
-        clue_6: clue6 || null,
-        teaching_point: storedTeachingPoint || null,
-      },
-      {
+    const casePayload = {
+      case_date: caseDate,
+      level,
+      contributor_name: null,
+      category,
+      prompt,
+      answer,
+      synonyms: storedSynonyms,
+      image_url: imageUrl || null,
+      image_credit: savedImageCredit,
+      image_reveal_clue: parsedImageRevealClue,
+      image_url_2: imageUrl2 || null,
+      image_credit_2: savedImageCredit2,
+      image_reveal_clue_2: parsedImageRevealClue2,
+      image_findings: imageFindings.trim() || null,
+      learning_image_url: learningImageUrl || null,
+      learning_image_credit: savedLearningImageCredit,
+      learning_image_caption: learningImageCaption.trim() || null,
+      learning_image_url_2: learningImageUrl2 || null,
+      learning_image_credit_2: savedLearningImageCredit2,
+      learning_image_caption_2: learningImageCaption2.trim() || null,
+      clue_1: clue1 || null,
+      clue_2: clue2 || null,
+      clue_3: clue3 || null,
+      clue_4: clue4 || null,
+      clue_5: clue5 || null,
+      clue_6: clue6 || null,
+      teaching_point: storedTeachingPoint || null,
+    }
+
+    let { error } = await supabase.from('cases').upsert(casePayload, {
+      onConflict: 'case_date,level',
+    })
+
+    let savedWithoutCaptionColumns = false
+
+    if (error && isMissingTeachingImageCaptionColumnError(error.message)) {
+      const casePayloadWithoutCaptions = { ...casePayload }
+      delete casePayloadWithoutCaptions.learning_image_caption
+      delete casePayloadWithoutCaptions.learning_image_caption_2
+
+      const retryResult = await supabase.from('cases').upsert(casePayloadWithoutCaptions, {
         onConflict: 'case_date,level',
-      }
-    )
+      })
+
+      error = retryResult.error
+      savedWithoutCaptionColumns = !retryResult.error
+    }
 
     if (error) {
       setStatus(`Error saving case: ${error.message}`)
       return
     }
 
-    setStatus(`Case saved for ${caseDate} · ${level}.`)
+    setStatus(
+      savedWithoutCaptionColumns
+        ? `Case saved for ${caseDate} · ${level}. Teaching image captions need the database update before they can be stored.`
+        : `Case saved for ${caseDate} · ${level}.`
+    )
     if (activeSubmissionId) {
       const { data: savedCase } = await supabase
         .from('cases')
