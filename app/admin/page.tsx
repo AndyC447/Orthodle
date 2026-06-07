@@ -471,6 +471,19 @@ function extractFirstMarkdownLink(text: string | null | undefined) {
   }
 }
 
+function extractMarkdownLinks(text: string | null | undefined) {
+  if (!text) return []
+
+  const matches = Array.from(text.matchAll(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/gi))
+  return matches
+    .map(match => ({
+      label: match[1] || 'Link to reference',
+      url: match[2] || '',
+      markdown: `[${match[1] || 'Link to reference'}](${match[2] || ''})`,
+    }))
+    .filter(item => item.url)
+}
+
 function isReferenceLinkLine(line: string) {
   const trimmed = line.trim()
   if (!trimmed) return false
@@ -1200,7 +1213,7 @@ export default function AdminPage() {
             item.image_url ||
               item.image_url_2 ||
               item.image_findings ||
-              extractFirstMarkdownLink(item.teaching_point)
+              extractMarkdownLinks(item.teaching_point).length > 0
           )
         })
         .sort((a, b) => levelOrder.indexOf(a.level) - levelOrder.indexOf(b.level)),
@@ -1834,24 +1847,25 @@ export default function AdminPage() {
   }
 
   function upsertReferenceLinkLine(currentValue: string, markdownLink: string) {
-    const lines = currentValue.split('\n')
-    let replaced = false
-    const nextLines = lines.map(line => {
-      if (!replaced && isReferenceLinkLine(line)) {
-        replaced = true
-        return markdownLink
-      }
-      return line
-    })
+    const trimmedLink = markdownLink.trim()
+    if (!isReferenceLinkLine(trimmedLink)) return currentValue
 
-    if (replaced) return nextLines.join('\n')
+    const existingLines = currentValue
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
 
-    const trimmed = currentValue.trimEnd()
-    return trimmed ? `${trimmed}\n\n${markdownLink}` : markdownLink
+    if (existingLines.some(line => normalizeAnswer(line) === normalizeAnswer(trimmedLink))) {
+      return currentValue
+    }
+
+    return existingLines.length > 0
+      ? `${existingLines.join('\n')}\n${trimmedLink}`
+      : trimmedLink
   }
 
   function copyImageBundleFromCase(sourceCase: CaseRow) {
-    const sourceLink = extractFirstMarkdownLink(sourceCase.teaching_point)
+    const sourceLinks = extractMarkdownLinks(sourceCase.teaching_point)
 
     setImageUrl(sourceCase.image_url || '')
     setImageCredit(sourceCase.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
@@ -1859,16 +1873,20 @@ export default function AdminPage() {
     setImageCredit2(sourceCase.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageFindings(sourceCase.image_findings || '')
 
-    if (sourceLink?.markdown) {
-      setReferenceLinks(currentValue =>
-        upsertReferenceLinkLine(currentValue, sourceLink.markdown)
-      )
+    if (sourceLinks.length > 0) {
+      setReferenceLinks(currentValue => {
+        let nextValue = currentValue
+        for (const sourceLink of sourceLinks) {
+          nextValue = upsertReferenceLinkLine(nextValue, sourceLink.markdown)
+        }
+        return nextValue
+      })
     }
 
     const copiedParts = [
       sourceCase.image_url || sourceCase.image_url_2 ? 'image' : null,
       sourceCase.image_findings ? 'image findings' : null,
-      sourceLink ? 'reference link' : null,
+      sourceLinks.length > 0 ? `reference link${sourceLinks.length === 1 ? '' : 's'}` : null,
     ].filter(Boolean)
 
     setStatus(
@@ -4560,20 +4578,6 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                  References
-                  <textarea
-                    value={referenceLinks}
-                    onChange={e => setReferenceLinks(e.target.value)}
-                    placeholder={`[Link to reference](https://example.com)\n[Link to EM Cases](https://example.com)`}
-                    rows={3}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                  />
-                  <span className="text-[11px] font-medium text-[#8a948d]">
-                    These links render in a dedicated References section beneath the teaching images.
-                  </span>
-                </label>
-
               {imageUrl && (
                 <div className="rounded-lg bg-white px-2.5 py-2.5 ring-1 ring-inset ring-[#ded7ca]/70">
                   <img
@@ -4895,6 +4899,20 @@ export default function AdminPage() {
                   rows={10}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                References
+                <textarea
+                  value={referenceLinks}
+                  onChange={e => setReferenceLinks(e.target.value)}
+                  placeholder={`[Link to reference](https://example.com)\n[Link to EM Cases](https://example.com)`}
+                  rows={3}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+                <span className="text-[11px] font-medium text-[#8a948d]">
+                  These links render in a dedicated References section beneath the teaching images.
+                </span>
               </label>
 
               {composerGuardrails.length > 0 && (

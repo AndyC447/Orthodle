@@ -562,6 +562,7 @@ function PlayPageContent() {
   const anatomyChoiceSettleTimeoutRef = useRef<number | null>(null)
   const quickTakeawayAutoRevealTimeoutRef = useRef<number | null>(null)
   const quickTakeawayRevealAnimationTimeoutRef = useRef<number | null>(null)
+  const quickTakeawayScrollAnimationFrameRef = useRef<number | null>(null)
   const suppressQuickTakeawayPersistRef = useRef(false)
   const previousStreakRef = useRef<number>(0)
   const previousTodayCompleteRef = useRef(false)
@@ -3058,6 +3059,49 @@ function PlayPageContent() {
     })
   }
 
+  function animateQuickTakeawayFollowScroll(durationMs: number) {
+    if (typeof window === 'undefined') return
+    const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
+    if (!target) return
+
+    if (quickTakeawayScrollAnimationFrameRef.current) {
+      window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
+      quickTakeawayScrollAnimationFrameRef.current = null
+    }
+
+    const startY = window.scrollY
+    const revealOffset = window.innerWidth >= 1024 ? 8 : 56
+    const targetY = Math.max(0, target.getBoundingClientRect().top + window.scrollY - revealOffset)
+    const delta = targetY - startY
+
+    if (Math.abs(delta) < 3) {
+      window.scrollTo({ top: targetY, behavior: 'auto' })
+      return
+    }
+
+    const startAt = performance.now()
+    const easeInOutCubic = (value: number) =>
+      value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2
+
+    const step = (now: number) => {
+      const elapsed = now - startAt
+      const progress = Math.min(1, elapsed / durationMs)
+      const eased = easeInOutCubic(progress)
+      window.scrollTo({
+        top: startY + delta * eased,
+        behavior: 'auto',
+      })
+
+      if (progress < 1) {
+        quickTakeawayScrollAnimationFrameRef.current = window.requestAnimationFrame(step)
+      } else {
+        quickTakeawayScrollAnimationFrameRef.current = null
+      }
+    }
+
+    quickTakeawayScrollAnimationFrameRef.current = window.requestAnimationFrame(step)
+  }
+
   function handleGuessInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Tab' && showSuggestions && filteredAnswerOptions.length > 0) {
       event.preventDefault()
@@ -3416,6 +3460,10 @@ function PlayPageContent() {
       window.clearTimeout(quickTakeawayRevealAnimationTimeoutRef.current)
       quickTakeawayRevealAnimationTimeoutRef.current = null
     }
+    if (quickTakeawayScrollAnimationFrameRef.current) {
+      window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
+      quickTakeawayScrollAnimationFrameRef.current = null
+    }
 
     if (!roundComplete || !justCompletedRound) {
       suppressQuickTakeawayPersistRef.current = false
@@ -3429,6 +3477,7 @@ function PlayPageContent() {
     quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
       setShowQuickTakeawaySlowReveal(true)
       setShowQuickTakeaway(true)
+      animateQuickTakeawayFollowScroll(2600)
       quickTakeawayRevealAnimationTimeoutRef.current = window.setTimeout(() => {
         setShowQuickTakeawaySlowReveal(false)
         quickTakeawayRevealAnimationTimeoutRef.current = null
@@ -3445,6 +3494,10 @@ function PlayPageContent() {
       if (quickTakeawayRevealAnimationTimeoutRef.current) {
         window.clearTimeout(quickTakeawayRevealAnimationTimeoutRef.current)
         quickTakeawayRevealAnimationTimeoutRef.current = null
+      }
+      if (quickTakeawayScrollAnimationFrameRef.current) {
+        window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
+        quickTakeawayScrollAnimationFrameRef.current = null
       }
       setShowQuickTakeawaySlowReveal(false)
       suppressQuickTakeawayPersistRef.current = false
