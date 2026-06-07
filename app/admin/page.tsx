@@ -541,8 +541,6 @@ const ADMIN_ANALYTICS_CACHE_TTL_MS = 1000 * 60 * 5
 const EMAIL_REMINDERS_SEEN_AT_KEY = 'orthodle_seen_email_reminders_at'
 
 export default function AdminPage() {
-  const promptTextareaRef = useRef<HTMLTextAreaElement | null>(null)
-  const teachingPointRef = useRef<HTMLTextAreaElement | null>(null)
   const clueTextareaRefs = useRef<Array<HTMLTextAreaElement | null>>([])
   const previousLevelRef = useRef<Level>('med_student')
   const [password, setPassword] = useState('')
@@ -572,7 +570,6 @@ export default function AdminPage() {
   const [learningImageCredit2, setLearningImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [learningImageCaption2, setLearningImageCaption2] = useState('')
   const [imagesCollapsed, setImagesCollapsed] = useState(true)
-  const [activeClueIndex, setActiveClueIndex] = useState<number | null>(null)
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
   const [clue3, setClue3] = useState('')
@@ -1659,15 +1656,20 @@ export default function AdminPage() {
     syncImageRevealFromClues(nextClues)
   }
 
-  function wrapBasicTextSelection(
+  function wrapRichTextSelection(
     textarea: HTMLTextAreaElement | null,
     value: string,
     onChange: (nextValue: string) => void,
-    format: 'bold' | 'italic'
+    format: 'bold' | 'italic' | 'underline'
   ) {
     if (!textarea) return
 
-    const markers = format === 'bold' ? { open: '**', close: '**' } : { open: '*', close: '*' }
+    const markers =
+      format === 'bold'
+        ? { open: '**', close: '**' }
+        : format === 'italic'
+          ? { open: '*', close: '*' }
+          : { open: '<u>', close: '</u>' }
     const selectionStart = textarea.selectionStart
     const selectionEnd = textarea.selectionEnd
     const selectedText = value.slice(selectionStart, selectionEnd)
@@ -1684,117 +1686,40 @@ export default function AdminPage() {
     })
   }
 
-  function wrapPromptSelection(format: 'bold' | 'italic') {
-    wrapBasicTextSelection(promptTextareaRef.current, prompt, setPrompt, format)
-  }
-
-  function wrapActiveClueSelection(format: 'bold' | 'italic') {
-    if (activeClueIndex === null) return
-    wrapBasicTextSelection(
-      clueTextareaRefs.current[activeClueIndex],
-      [clue1, clue2, clue3, clue4, clue5, clue6][activeClueIndex] || '',
-      nextValue => updateClueAt(activeClueIndex, nextValue),
-      format
-    )
-  }
-
   function normalizeImageRevealValueForEditor(value: number | null | undefined) {
     if (value === 0) return 'after'
     if (value && value >= 1 && value <= 6) return String(value)
     return 'none'
   }
 
-  function wrapTeachingPointSelection(format: 'bold' | 'italic' | 'underline') {
-    const textarea = teachingPointRef.current
-    if (!textarea) return
-
-    const markers =
-      format === 'bold'
-        ? { open: '**', close: '**' }
-        : format === 'italic'
-          ? { open: '*', close: '*' }
-          : { open: '<u>', close: '</u>' }
-
-    const selectionStart = textarea.selectionStart
-    const selectionEnd = textarea.selectionEnd
-    const selectedText = teachingPoint.slice(selectionStart, selectionEnd)
-    const wrapped = `${markers.open}${selectedText || 'text'}${markers.close}`
-    const nextValue =
-      teachingPoint.slice(0, selectionStart) +
-      wrapped +
-      teachingPoint.slice(selectionEnd)
-
-    setTeachingPoint(nextValue)
-
-    requestAnimationFrame(() => {
-      textarea.focus()
-      const start = selectionStart + markers.open.length
-      const end = start + (selectedText || 'text').length
-      textarea.setSelectionRange(start, end)
-    })
-  }
-
-  function insertTeachingPointLink() {
-    const textarea = teachingPointRef.current
-
-    const url = window.prompt('Paste the reference URL')
-    if (!url) return
-
-    const trimmedUrl = url.trim()
-    if (!/^https?:\/\//i.test(trimmedUrl)) {
-      setStatus('Links need to start with http:// or https://')
-      return
-    }
-
-    const selectionStart = textarea?.selectionStart ?? 0
-    const selectionEnd = textarea?.selectionEnd ?? 0
-    const selectedText = teachingPoint.slice(selectionStart, selectionEnd).trim() || 'Link to reference'
-    const inserted = `[${selectedText}](${trimmedUrl})`
-    setReferenceLinks(currentValue => upsertReferenceLinkLine(currentValue, inserted))
-    setStatus('Reference link inserted.')
-
-    void (async () => {
-      const metadata = await fetchLinkMetadata(trimmedUrl)
-      if (!metadata?.creditLine) return
-
-      const appliedCount = applyMetadataCreditToEmptyImageFields(metadata)
-
-      if (appliedCount > 0) {
-        setStatus(
-          metadata.author
-            ? `Reference link inserted. ${appliedCount} image credit${appliedCount === 1 ? '' : 's'} filled from ${metadata.author}${metadata.siteName ? ` · ${metadata.siteName}` : ''}.`
-            : `Reference link inserted. ${appliedCount} image credit${appliedCount === 1 ? '' : 's'} filled from ${metadata.siteName || 'the link'}.`
-        )
-      }
-    })()
-  }
-
-  function toggleTeachingPointBullets() {
-    const textarea = teachingPointRef.current
+  function toggleTextareaBullets(
+    textarea: HTMLTextAreaElement | null,
+    value: string,
+    onChange: (nextValue: string) => void
+  ) {
     if (!textarea) return
 
     const selectionStart = textarea.selectionStart
     const selectionEnd = textarea.selectionEnd
-    const startOfFirstLine = teachingPoint.lastIndexOf('\n', Math.max(0, selectionStart - 1)) + 1
-    const endOfLastLineIndex = teachingPoint.indexOf('\n', selectionEnd)
-    const endOfLastLine = endOfLastLineIndex === -1 ? teachingPoint.length : endOfLastLineIndex
-    const selectedBlock = teachingPoint.slice(startOfFirstLine, endOfLastLine)
+    const startOfFirstLine = value.lastIndexOf('\n', Math.max(0, selectionStart - 1)) + 1
+    const endOfLastLineIndex = value.indexOf('\n', selectionEnd)
+    const endOfLastLine = endOfLastLineIndex === -1 ? value.length : endOfLastLineIndex
+    const selectedBlock = value.slice(startOfFirstLine, endOfLastLine)
     const lines = selectedBlock.split('\n')
 
     const shouldRemoveBullets = lines.every(line => !line.trim() || /^[-*•]\s+/.test(line.trim()))
     const nextBlock = lines
       .map(line => {
         if (!line.trim()) return line
-        return shouldRemoveBullets ? line.replace(/^(\s*)[-*•]\s+/, '$1') : `${line.replace(/^(\s*)/, '$1')}`.replace(/^(\s*)/, '$1- ')
+        return shouldRemoveBullets
+          ? line.replace(/^(\s*)[-*•]\s+/, '$1')
+          : `${line.replace(/^(\s*)/, '$1')}`.replace(/^(\s*)/, '$1- ')
       })
       .join('\n')
 
-    const nextValue =
-      teachingPoint.slice(0, startOfFirstLine) +
-      nextBlock +
-      teachingPoint.slice(endOfLastLine)
+    const nextValue = value.slice(0, startOfFirstLine) + nextBlock + value.slice(endOfLastLine)
 
-    setTeachingPoint(nextValue)
+    onChange(nextValue)
 
     requestAnimationFrame(() => {
       textarea.focus()
@@ -1802,41 +1727,32 @@ export default function AdminPage() {
     })
   }
 
-  function handleTeachingPointKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!(event.metaKey || event.ctrlKey)) return
-
-    const key = event.key.toLowerCase()
-    if (key === 'b') {
-      event.preventDefault()
-      wrapTeachingPointSelection('bold')
-    }
-
-    if (key === 'i') {
-      event.preventDefault()
-      wrapTeachingPointSelection('italic')
-    }
-
-    if (key === 'u') {
-      event.preventDefault()
-      wrapTeachingPointSelection('underline')
-    }
-  }
-
-  function handlePromptOrClueKeyDown(
+  function handleRichTextareaKeyDown(
     event: React.KeyboardEvent<HTMLTextAreaElement>,
-    applyFormatting: (format: 'bold' | 'italic') => void
+    value: string,
+    onChange: (nextValue: string) => void
   ) {
     if (!(event.metaKey || event.ctrlKey)) return
 
     const key = event.key.toLowerCase()
     if (key === 'b') {
       event.preventDefault()
-      applyFormatting('bold')
+      wrapRichTextSelection(event.currentTarget, value, onChange, 'bold')
     }
 
     if (key === 'i') {
       event.preventDefault()
-      applyFormatting('italic')
+      wrapRichTextSelection(event.currentTarget, value, onChange, 'italic')
+    }
+
+    if (key === 'u') {
+      event.preventDefault()
+      wrapRichTextSelection(event.currentTarget, value, onChange, 'underline')
+    }
+
+    if (event.shiftKey && (event.code === 'Digit7' || event.code === 'Digit8')) {
+      event.preventDefault()
+      toggleTextareaBullets(event.currentTarget, value, onChange)
     }
   }
 
@@ -3380,6 +3296,7 @@ export default function AdminPage() {
           <textarea
             value={announcementMessage}
             onChange={e => setAnnouncementMessage(e.target.value)}
+            onKeyDown={event => handleRichTextareaKeyDown(event, announcementMessage, setAnnouncementMessage)}
             rows={3}
             placeholder="Add a short homepage note"
             className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5 text-sm text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/15"
@@ -4215,30 +4132,11 @@ export default function AdminPage() {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span>Case Prompt</span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => wrapPromptSelection('bold')}
-                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                    >
-                      Bold
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => wrapPromptSelection('italic')}
-                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                    >
-                      Italic
-                    </button>
-                  </div>
-                </div>
+                <span>Case Prompt</span>
                 <textarea
-                  ref={promptTextareaRef}
                   value={prompt}
                   onChange={e => setPrompt(e.target.value)}
-                  onKeyDown={event => handlePromptOrClueKeyDown(event, wrapPromptSelection)}
+                  onKeyDown={event => handleRichTextareaKeyDown(event, prompt, setPrompt)}
                   placeholder="Write the case stem..."
                   rows={4}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4474,6 +4372,7 @@ export default function AdminPage() {
                   <textarea
                     value={imageFindings}
                     onChange={e => setImageFindings(e.target.value)}
+                    onKeyDown={event => handleRichTextareaKeyDown(event, imageFindings, setImageFindings)}
                     placeholder="Optional solved-only imaging explanation shown beneath the case image credit."
                     rows={4}
                     className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4514,6 +4413,7 @@ export default function AdminPage() {
                         <textarea
                           value={learningImageCaption}
                           onChange={e => setLearningImageCaption(e.target.value)}
+                          onKeyDown={event => handleRichTextareaKeyDown(event, learningImageCaption, setLearningImageCaption)}
                           placeholder="Optional caption shown under the teaching image."
                           rows={3}
                           className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4569,6 +4469,7 @@ export default function AdminPage() {
                         <textarea
                           value={learningImageCaption2}
                           onChange={e => setLearningImageCaption2(e.target.value)}
+                          onKeyDown={event => handleRichTextareaKeyDown(event, learningImageCaption2, setLearningImageCaption2)}
                           placeholder="Optional caption shown under the second teaching image."
                           rows={3}
                           className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4692,28 +4593,8 @@ export default function AdminPage() {
               </div>
 
               <div className="rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/65">
-                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                    {level === 'attending' ? 'Answer choices' : 'Clinical clues'}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => wrapActiveClueSelection('bold')}
-                      disabled={activeClueIndex === null}
-                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Bold
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => wrapActiveClueSelection('italic')}
-                      disabled={activeClueIndex === null}
-                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Italic
-                    </button>
-                  </div>
+                <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  {level === 'attending' ? 'Answer choices' : 'Clinical clues'}
                 </div>
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -4724,12 +4605,7 @@ export default function AdminPage() {
                       }}
                       value={clue1}
                       onChange={e => updateClueAt(0, e.target.value)}
-                      onFocus={() => setActiveClueIndex(0)}
-                      onKeyDown={event =>
-                        handlePromptOrClueKeyDown(event, format =>
-                          wrapBasicTextSelection(clueTextareaRefs.current[0], clue1, nextValue => updateClueAt(0, nextValue), format)
-                        )
-                      }
+                      onKeyDown={event => handleRichTextareaKeyDown(event, clue1, nextValue => updateClueAt(0, nextValue))}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4744,12 +4620,7 @@ export default function AdminPage() {
                       }}
                       value={clue2}
                       onChange={e => updateClueAt(1, e.target.value)}
-                      onFocus={() => setActiveClueIndex(1)}
-                      onKeyDown={event =>
-                        handlePromptOrClueKeyDown(event, format =>
-                          wrapBasicTextSelection(clueTextareaRefs.current[1], clue2, nextValue => updateClueAt(1, nextValue), format)
-                        )
-                      }
+                      onKeyDown={event => handleRichTextareaKeyDown(event, clue2, nextValue => updateClueAt(1, nextValue))}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4764,12 +4635,7 @@ export default function AdminPage() {
                       }}
                       value={clue3}
                       onChange={e => updateClueAt(2, e.target.value)}
-                      onFocus={() => setActiveClueIndex(2)}
-                      onKeyDown={event =>
-                        handlePromptOrClueKeyDown(event, format =>
-                          wrapBasicTextSelection(clueTextareaRefs.current[2], clue3, nextValue => updateClueAt(2, nextValue), format)
-                        )
-                      }
+                      onKeyDown={event => handleRichTextareaKeyDown(event, clue3, nextValue => updateClueAt(2, nextValue))}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4784,12 +4650,7 @@ export default function AdminPage() {
                       }}
                       value={clue4}
                       onChange={e => updateClueAt(3, e.target.value)}
-                      onFocus={() => setActiveClueIndex(3)}
-                      onKeyDown={event =>
-                        handlePromptOrClueKeyDown(event, format =>
-                          wrapBasicTextSelection(clueTextareaRefs.current[3], clue4, nextValue => updateClueAt(3, nextValue), format)
-                        )
-                      }
+                      onKeyDown={event => handleRichTextareaKeyDown(event, clue4, nextValue => updateClueAt(3, nextValue))}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4805,12 +4666,7 @@ export default function AdminPage() {
                       value={clue5}
                       onChange={e => updateClueAt(4, e.target.value)}
                       placeholder="Optional"
-                      onFocus={() => setActiveClueIndex(4)}
-                      onKeyDown={event =>
-                        handlePromptOrClueKeyDown(event, format =>
-                          wrapBasicTextSelection(clueTextareaRefs.current[4], clue5, nextValue => updateClueAt(4, nextValue), format)
-                        )
-                      }
+                      onKeyDown={event => handleRichTextareaKeyDown(event, clue5, nextValue => updateClueAt(4, nextValue))}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4826,12 +4682,7 @@ export default function AdminPage() {
                       value={clue6}
                       onChange={e => updateClueAt(5, e.target.value)}
                       placeholder="Optional"
-                      onFocus={() => setActiveClueIndex(5)}
-                      onKeyDown={event =>
-                        handlePromptOrClueKeyDown(event, format =>
-                          wrapBasicTextSelection(clueTextareaRefs.current[5], clue6, nextValue => updateClueAt(5, nextValue), format)
-                        )
-                      }
+                      onKeyDown={event => handleRichTextareaKeyDown(event, clue6, nextValue => updateClueAt(5, nextValue))}
                       onInput={autoGrowTextarea}
                       rows={1}
                       className="min-h-[46px] resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
@@ -4842,48 +4693,10 @@ export default function AdminPage() {
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Teaching Point
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => wrapTeachingPointSelection('bold')}
-                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                  >
-                    Bold
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTeachingPointSelection('italic')}
-                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                  >
-                    Italic
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => wrapTeachingPointSelection('underline')}
-                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                  >
-                    Underline
-                  </button>
-                  <button
-                    type="button"
-                    onClick={insertTeachingPointLink}
-                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                  >
-                    Link
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleTeachingPointBullets}
-                    className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1.5 text-xs font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                  >
-                    Bullets
-                  </button>
-                </div>
                 <textarea
-                  ref={teachingPointRef}
                   value={teachingPoint}
                   onChange={e => setTeachingPoint(e.target.value)}
-                  onKeyDown={handleTeachingPointKeyDown}
+                  onKeyDown={event => handleRichTextareaKeyDown(event, teachingPoint, setTeachingPoint)}
                   placeholder={`**<u>Who</u>**
 
 **<u>Pathophys</u>**
@@ -4906,6 +4719,7 @@ export default function AdminPage() {
                 <textarea
                   value={referenceLinks}
                   onChange={e => setReferenceLinks(e.target.value)}
+                  onKeyDown={event => handleRichTextareaKeyDown(event, referenceLinks, setReferenceLinks)}
                   placeholder={`[Link to reference](https://example.com)\n[Link to EM Cases](https://example.com)`}
                   rows={3}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"

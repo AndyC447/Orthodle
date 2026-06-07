@@ -297,7 +297,7 @@ export function Header() {
           {showNotifications && notificationsOpen && (
             <div className="relative" ref={notificationPanelRef}>
               <div
-                className={`fixed left-4 right-4 top-[72px] z-50 overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.08)] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[320px] sm:max-w-[calc(100vw-32px)] ${
+                className={`orthodle-ui-panel fixed left-4 right-4 top-[72px] z-50 overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[320px] sm:max-w-[calc(100vw-32px)] ${
                   theme === 'dark'
                     ? 'border-[#33453c] bg-[#18241f]'
                     : 'border-[#e7e1d6] bg-white'
@@ -322,7 +322,7 @@ export function Header() {
 
                   <div className="max-h-[360px] overflow-y-auto p-2">
                     <div
-                      className={`mb-2 rounded-xl border p-3 ${
+                      className={`orthodle-ui-panel mb-2 p-3 ${
                         theme === 'dark'
                           ? 'border-[#2a3b34] bg-[#1d2a24]'
                           : 'border-[#e7e1d6] bg-[#fcfbf8]'
@@ -337,7 +337,7 @@ export function Header() {
                           value={reminderEmail}
                           onChange={event => setReminderEmail(event.target.value)}
                           placeholder="you@example.com"
-                          className={`min-h-[34px] flex-1 rounded-xl border px-3 py-2 text-[11px] leading-none outline-none transition ${
+                          className={`orthodle-ui-input min-h-[36px] flex-1 px-3 py-2 text-[11px] leading-none outline-none ${
                             theme === 'dark'
                               ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] placeholder:text-[#8ea194] focus:border-[#1f6448]'
                               : 'border-[#ded7ca] bg-white text-[#102018] focus:border-[#1f6448]'
@@ -389,7 +389,7 @@ export function Header() {
                           return (
                           <article
                             key={thread.feedbackId}
-                            className={`rounded-xl border p-3 ${
+                            className={`orthodle-ui-panel p-3 ${
                               theme === 'dark'
                                 ? 'border-[#2a3b34] bg-[#1d2a24]'
                                 : 'border-[#e7e1d6] bg-[#fcfbf8]'
@@ -427,7 +427,7 @@ export function Header() {
                                   type="button"
                                   onClick={() => dismissThread(thread.feedbackId)}
                                   aria-label="Dismiss thread"
-                                  className={`inline-flex h-6 w-6 items-center justify-center rounded-full border text-[13px] font-medium leading-none transition ${
+                                  className={`orthodle-ui-icon-button inline-flex h-7 w-7 items-center justify-center text-[13px] font-medium leading-none ${
                                     theme === 'dark'
                                       ? 'border-[#33453c] bg-[#18241f] text-[#dbe5dd] hover:bg-[#213129]'
                                       : 'border-[#ded7ca] bg-white text-[#637268] hover:bg-[#fbfaf7] hover:text-[#102018]'
@@ -468,7 +468,7 @@ export function Header() {
                                     current === thread.feedbackId ? null : thread.feedbackId
                                   )
                                 }
-                                className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                                className={`orthodle-ui-button min-h-[34px] px-3 py-1.5 text-[11px] font-semibold ${
                                   theme === 'dark'
                                     ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
                                     : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
@@ -488,7 +488,7 @@ export function Header() {
                                     }
                                     rows={3}
                                     placeholder="Reply to this feedback thread..."
-                                    className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+                                    className={`orthodle-ui-input w-full px-3 py-2 text-sm outline-none ${
                                       theme === 'dark'
                                         ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6]'
                                         : 'border-[#ded7ca] bg-white text-[#102018]'
@@ -527,7 +527,7 @@ export function Header() {
             aria-expanded={menuOpen}
             aria-label="Open navigation menu"
             onClick={() => setMenuOpen(prev => !prev)}
-            className={`flex h-10 w-10 items-center justify-center rounded-full border transition ${
+            className={`orthodle-ui-icon-button flex h-10 w-10 items-center justify-center ${
               theme === 'dark'
                 ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
                 : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
@@ -543,7 +543,7 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className={`fixed left-4 right-4 top-[72px] z-50 overflow-hidden rounded-2xl border shadow-[0_18px_40px_rgba(16,32,24,0.06)] sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:min-w-[170px] ${
+              className={`orthodle-ui-panel fixed left-4 right-4 top-[72px] z-50 overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:min-w-[170px] ${
                 theme === 'dark'
                   ? 'border-[#33453c] bg-[#18241f]'
                   : 'border-[#e7e1d6] bg-white'
@@ -554,7 +554,7 @@ export function Header() {
                   <Link
                     href="/"
                     onClick={() => setMenuOpen(false)}
-                    className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    className={`orthodle-ui-menu-item block ${
                       theme === 'dark'
                         ? 'text-[#f4efe6] hover:bg-[#213129]'
                         : 'text-[#102018] hover:bg-[#fbfaf7]'
@@ -566,7 +566,7 @@ export function Header() {
                 <Link
                   href="/stats"
                   onClick={() => setMenuOpen(false)}
-                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                  className={`orthodle-ui-menu-item block ${
                     theme === 'dark'
                       ? 'text-[#f4efe6] hover:bg-[#213129]'
                       : 'text-[#102018] hover:bg-[#fbfaf7]'
@@ -577,7 +577,7 @@ export function Header() {
                 <Link
                   href="/archive"
                   onClick={() => setMenuOpen(false)}
-                  className={`block rounded-xl px-3 py-2.5 text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                  className={`orthodle-ui-menu-item block ${
                     theme === 'dark'
                       ? 'text-[#f4efe6] hover:bg-[#213129]'
                       : 'text-[#102018] hover:bg-[#fbfaf7]'
@@ -592,7 +592,7 @@ export function Header() {
                       setMenuOpen(false)
                       setNotificationsOpen(true)
                     }}
-                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                    className={`orthodle-ui-menu-item flex w-full text-left ${
                       theme === 'dark'
                         ? 'text-[#f4efe6] hover:bg-[#213129]'
                         : 'text-[#102018] hover:bg-[#fbfaf7]'
@@ -612,7 +612,7 @@ export function Header() {
                     toggleTheme()
                     setMenuOpen(false)
                   }}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
+                  className={`orthodle-ui-menu-item flex w-full text-left ${
                     theme === 'dark'
                       ? 'text-[#f4efe6] hover:bg-[#213129]'
                       : 'text-[#102018] hover:bg-[#fbfaf7]'

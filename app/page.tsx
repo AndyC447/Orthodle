@@ -3070,12 +3070,12 @@ function PlayPageContent() {
     }
 
     const startY = window.scrollY
-    const revealOffset = window.innerWidth >= 1024 ? 8 : 56
-    const targetY = Math.max(0, target.getBoundingClientRect().top + window.scrollY - revealOffset)
-    const delta = targetY - startY
+    const revealOffset = window.innerWidth >= 1024 ? 3 : 48
+    const initialTargetY = Math.max(0, target.getBoundingClientRect().top + window.scrollY - revealOffset)
+    const initialDelta = initialTargetY - startY
 
-    if (Math.abs(delta) < 3) {
-      window.scrollTo({ top: targetY, behavior: 'auto' })
+    if (Math.abs(initialDelta) < 3) {
+      window.scrollTo({ top: initialTargetY, behavior: 'auto' })
       return
     }
 
@@ -3087,8 +3087,18 @@ function PlayPageContent() {
       const elapsed = now - startAt
       const progress = Math.min(1, elapsed / durationMs)
       const eased = easeInOutCubic(progress)
+      const liveTargetY = Math.max(
+        0,
+        target.getBoundingClientRect().top + window.scrollY - revealOffset
+      )
+      const desiredY = startY + (liveTargetY - startY) * eased
+      const blendedY =
+        progress >= 1
+          ? liveTargetY
+          : window.scrollY + (desiredY - window.scrollY) * (0.18 + eased * 0.22)
+
       window.scrollTo({
-        top: startY + delta * eased,
+        top: blendedY,
         behavior: 'auto',
       })
 
@@ -3418,7 +3428,7 @@ function PlayPageContent() {
     const timeoutId = window.setTimeout(() => {
       const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
       if (target) {
-        const revealOffset = window.innerWidth >= 1024 ? 18 : 70
+        const revealOffset = window.innerWidth >= 1024 ? 10 : 70
         const top = target.getBoundingClientRect().top + window.scrollY - revealOffset
         window.scrollTo({
           top: Math.max(0, top),
@@ -3477,7 +3487,7 @@ function PlayPageContent() {
     quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
       setShowQuickTakeawaySlowReveal(true)
       setShowQuickTakeaway(true)
-      animateQuickTakeawayFollowScroll(2600)
+      animateQuickTakeawayFollowScroll(3000)
       quickTakeawayRevealAnimationTimeoutRef.current = window.setTimeout(() => {
         setShowQuickTakeawaySlowReveal(false)
         quickTakeawayRevealAnimationTimeoutRef.current = null

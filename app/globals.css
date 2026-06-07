@@ -21,6 +21,10 @@
   --surface-bottom-shadow: rgba(192, 177, 152, 0.14);
   --button-top-highlight: rgba(255, 255, 255, 0.22);
   --button-bottom-shadow: rgba(11, 28, 20, 0.2);
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --control-radius: 12px;
+  --control-radius-lg: 16px;
 }
 
 :root[data-theme="dark"] {
@@ -49,15 +53,58 @@ body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-kerning: normal;
 }
 
 body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
+  line-height: 1.45;
   transition:
     background-color 300ms ease,
     color 300ms ease;
+}
+
+button,
+input,
+textarea,
+select,
+a {
+  transition:
+    background-color 180ms var(--ease-soft),
+    border-color 180ms var(--ease-soft),
+    color 180ms var(--ease-soft),
+    box-shadow 220ms var(--ease-soft),
+    transform 180ms var(--ease-soft),
+    opacity 180ms var(--ease-soft);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(31, 100, 72, 0.14),
+    0 0 0 1px rgba(31, 100, 72, 0.34);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 84%, white 16%);
 }
 
 ::selection {
@@ -86,8 +133,95 @@ body {
   transition:
     background-color 300ms ease,
     border-color 300ms ease,
-    box-shadow 300ms ease,
+    box-shadow 300ms var(--ease-soft),
     color 300ms ease;
+}
+
+.orthodle-ui-button,
+.orthodle-ui-menu-item,
+.orthodle-ui-icon-button,
+.orthodle-ui-input,
+.orthodle-ui-panel {
+  transition:
+    background-color 180ms var(--ease-soft),
+    border-color 180ms var(--ease-soft),
+    box-shadow 220ms var(--ease-soft),
+    color 180ms var(--ease-soft),
+    transform 180ms var(--ease-soft);
+}
+
+.orthodle-ui-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(220, 209, 192, 0.92);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.996), rgba(251, 247, 240, 0.985));
+  color: #102018;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 6px 14px rgba(16, 32, 24, 0.03);
+}
+
+.orthodle-ui-button:hover,
+.orthodle-ui-menu-item:hover,
+.orthodle-ui-icon-button:hover {
+  transform: translateY(-1px);
+}
+
+.orthodle-ui-icon-button {
+  display: inline-flex;
+  height: 40px;
+  width: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(220, 209, 192, 0.92);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.996), rgba(251, 247, 240, 0.985));
+  color: #102018;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 6px 14px rgba(16, 32, 24, 0.03);
+}
+
+.orthodle-ui-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: var(--control-radius);
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #102018;
+}
+
+.orthodle-ui-input {
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(220, 209, 192, 0.92);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.996), rgba(251, 247, 240, 0.985));
+  color: #102018;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.78),
+    0 4px 10px rgba(16, 32, 24, 0.02);
+}
+
+.orthodle-ui-panel {
+  border-radius: var(--control-radius-lg);
+  border: 1px solid rgba(224, 212, 192, 0.88);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.996), rgba(251, 247, 240, 0.988));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.82),
+    0 14px 28px rgba(16, 32, 24, 0.05);
 }
 
 .font-serif {
@@ -294,24 +428,24 @@ body {
 .orthodle-groups-icon-button,
 .orthodle-groups-segment-button {
   transition:
-    background-color 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    color 160ms ease,
-    transform 160ms ease;
+    background-color 180ms var(--ease-soft),
+    border-color 180ms var(--ease-soft),
+    box-shadow 220ms var(--ease-soft),
+    color 180ms var(--ease-soft),
+    transform 180ms var(--ease-soft);
 }
 
 .orthodle-groups-button {
   display: inline-flex;
-  min-height: 38px;
+  min-height: 40px;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--control-radius);
   border: 1px solid #ded7ca;
-  padding: 0 14px;
+  padding: 0 15px;
   background: #ffffff;
   color: #102018;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   line-height: 1;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
@@ -343,11 +477,11 @@ body {
 
 .orthodle-groups-icon-button {
   display: inline-flex;
-  height: 36px;
-  width: 36px;
+  height: 40px;
+  width: 40px;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--control-radius);
   border: 1px solid #e6dfd3;
   background: #ffffff;
   color: #637268;
@@ -357,7 +491,7 @@ body {
 .orthodle-groups-segment-shell {
   display: inline-grid;
   gap: 2px;
-  border-radius: 14px;
+  border-radius: 13px;
   border: 1px solid #e6dfd3;
   background: #fcfbf8;
   padding: 2px;
@@ -365,11 +499,11 @@ body {
 
 .orthodle-groups-segment-button {
   border: 0;
-  border-radius: 11px;
-  padding: 6px 12px;
+  border-radius: 10px;
+  padding: 7px 12px;
   background: transparent;
   color: #637268;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 700;
 }
 
@@ -746,6 +880,38 @@ body {
   color: #f4efe6 !important;
 }
 
+:root[data-theme="dark"] .orthodle-ui-button,
+:root[data-theme="dark"] .orthodle-ui-icon-button,
+:root[data-theme="dark"] .orthodle-ui-menu-item,
+:root[data-theme="dark"] .orthodle-ui-input,
+:root[data-theme="dark"] .orthodle-ui-panel {
+  color: var(--ink) !important;
+}
+
+:root[data-theme="dark"] .orthodle-ui-button,
+:root[data-theme="dark"] .orthodle-ui-icon-button,
+:root[data-theme="dark"] .orthodle-ui-input {
+  border-color: rgba(250, 245, 236, 0.16) !important;
+  background: rgba(24, 35, 31, 0.94) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 20px rgba(0, 0, 0, 0.18) !important;
+}
+
+:root[data-theme="dark"] .orthodle-ui-panel {
+  border-color: rgba(250, 245, 236, 0.12) !important;
+  background: linear-gradient(180deg, rgba(24, 35, 31, 0.98), rgba(17, 24, 21, 0.96)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 14px 26px rgba(0, 0, 0, 0.24) !important;
+}
+
+:root[data-theme="dark"] .orthodle-ui-menu-item:hover,
+:root[data-theme="dark"] .orthodle-ui-button:hover,
+:root[data-theme="dark"] .orthodle-ui-icon-button:hover {
+  background: rgba(30, 44, 38, 0.98) !important;
+}
+
 :root[data-theme="dark"] .orthodle-groups-button-primary {
   border-color: rgba(176, 221, 195, 0.22) !important;
   background: linear-gradient(180deg, #2c7f59, #235f43) !important;
@@ -862,12 +1028,12 @@ body {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(251, 247, 240, 0.985)) !important;
   box-shadow:
-    0 18px 34px rgba(31, 33, 24, 0.042),
+    0 16px 30px rgba(31, 33, 24, 0.04),
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
   transition:
     background-color 300ms ease,
     border-color 300ms ease,
-    box-shadow 300ms ease,
+    box-shadow 300ms var(--ease-soft),
     color 300ms ease;
 }
 
@@ -908,7 +1074,7 @@ body {
 .orthodle-home-rail {
   position: relative;
   background: linear-gradient(135deg, rgba(220, 207, 189, 0.92), rgba(234, 223, 207, 0.82));
-  box-shadow: 0 6px 16px rgba(31, 33, 24, 0.025);
+  box-shadow: 0 8px 18px rgba(31, 33, 24, 0.03);
 }
 
 .orthodle-home-rail::before {
@@ -934,6 +1100,12 @@ body {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.78),
     0 2px 8px rgba(31, 33, 24, 0.02);
+  transition:
+    background-color 180ms var(--ease-soft),
+    border-color 180ms var(--ease-soft),
+    box-shadow 220ms var(--ease-soft),
+    color 180ms var(--ease-soft),
+    transform 180ms var(--ease-soft);
 }
 
 .orthodle-home-tab-active {
@@ -949,6 +1121,8 @@ body {
 }
 
 .orthodle-primary-button {
+  min-height: 42px;
+  border-radius: 12px;
   border-color: rgba(24, 75, 54, 0.94) !important;
   background:
     radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.18), transparent 34%),
@@ -960,11 +1134,11 @@ body {
     inset 0 1px 0 var(--button-top-highlight),
     inset 0 -1px 0 var(--button-bottom-shadow);
   transition:
-    transform 200ms ease,
-    box-shadow 240ms ease,
-    background-color 240ms ease,
-    border-color 240ms ease,
-    color 240ms ease;
+    transform 180ms var(--ease-soft),
+    box-shadow 220ms var(--ease-soft),
+    background-color 220ms var(--ease-soft),
+    border-color 220ms var(--ease-soft),
+    color 220ms var(--ease-soft);
 }
 
 .orthodle-primary-button:hover {
@@ -989,12 +1163,14 @@ body {
   align-items: center;
   justify-content: center;
   min-height: 42px;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 1;
+  border-radius: 12px;
 }
 
 .orthodle-streak-chip {
-  border-radius: 9px;
+  border-radius: 8px;
+  min-height: 30px;
 }
 
 .orthodle-daily-complete-shell {
@@ -1248,6 +1424,7 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
     inset 0 -1px 0 rgba(212, 198, 175, 0.16),
     0 8px 16px rgba(31, 33, 24, 0.03);
+  border-radius: 12px;
 }
 
 .orthodle-home-feedback-shell {
