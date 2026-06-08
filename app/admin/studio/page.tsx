@@ -1051,7 +1051,6 @@ export default function CaseStudioPage() {
               event.currentTarget.value = ''
             }}
           />
-          <div className="text-[11px] text-[#7a857c]">Drag and drop works here too.</div>
         </div>
 
         <div className="mt-2 space-y-2">
@@ -1099,6 +1098,8 @@ export default function CaseStudioPage() {
       </div>
     )
   }
+
+  const previewHref = `/?preview=1&date=${caseDate}&level=${level}`
 
   if (!authReady) {
     return <main className="app-surface min-h-screen" />
@@ -1193,297 +1194,119 @@ export default function CaseStudioPage() {
           {status ? <span>{status}</span> : null}
         </div>
 
-        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.18fr)_330px]">
-          <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                  Case canvas
-                </div>
-                <div className="mt-0.5 text-[11px] text-[#7a857c]">
-                  Edit directly in the template below.
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={openPreviewInNewTab}
-                className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-              >
-                Open full preview
-              </button>
-            </div>
-
-            <div className="mt-2.5 space-y-2.5">
-              <div className="rounded-[22px] border border-[#d9d2c6] bg-white px-3 py-3 shadow-[0_14px_28px_rgba(16,32,24,0.05)] sm:px-4 sm:py-3.5">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                  <input
-                    value={category}
-                    onChange={event => setCategory(event.target.value)}
-                    placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Category'}
-                    className="w-full bg-transparent text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268] outline-none placeholder:text-[#9aa49d]"
-                  />
-                </div>
-                <textarea
-                  value={prompt}
-                  onChange={event => setPrompt(event.target.value)}
-                  onKeyDown={event => handleRichTextareaKeyDown(event, prompt, setPrompt)}
-                  onInput={autoGrowTextarea}
-                  placeholder="Write the case stem here..."
-                  rows={4}
-                  className="mt-2 min-h-[120px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[23px] leading-[1.42] tracking-[-0.025em] text-[#102018] outline-none placeholder:text-[#9aa49d] sm:text-[28px]"
-                />
-
-                {(imageUrl || imageUrl2) ? (
-                  <div className="mt-3 border-t border-dashed border-[#ded7ca] pt-3">
-                    <div className="mb-2 text-center text-[9px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                      Imaging
-                    </div>
-                    <div className="grid gap-2.5">
-                      {imageUrl ? (
-                        <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2.5">
-                          <img
-                            src={imageUrl}
-                            alt="Case image 1"
-                            className="mx-auto max-h-[280px] w-auto max-w-full rounded-lg object-contain"
-                          />
-                          {normalizeCreditValue(imageCredit) ? (
-                            <p className="mt-1.5 text-center text-[10px] leading-4 text-[#8a948d]">
-                              {normalizeCreditValue(imageCredit)}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {imageUrl2 ? (
-                        <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2.5">
-                          <img
-                            src={imageUrl2}
-                            alt="Case image 2"
-                            className="mx-auto max-h-[280px] w-auto max-w-full rounded-lg object-contain"
-                          />
-                          {normalizeCreditValue(imageCredit2) ? (
-                            <p className="mt-1.5 text-center text-[10px] leading-4 text-[#8a948d]">
-                              {normalizeCreditValue(imageCredit2)}
-                            </p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
+        <div className="mt-3 grid gap-3 xl:grid-cols-[430px_minmax(0,1fr)]">
+          <section className="xl:sticky xl:top-4 xl:self-start">
+            <div className="rounded-[22px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                    Live preview
                   </div>
-                ) : null}
-
-                {imageUrl || imageUrl2 ? (
-                  <div className="mt-2.5">
-                    <div className="mx-auto max-w-[74ch]">
-                      <div className="text-center text-[12px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/60 underline-offset-2">
-                        Imaging Results
-                      </div>
-                      <textarea
-                        value={imageFindings}
-                        onChange={event => setImageFindings(event.target.value)}
-                        onKeyDown={event => handleRichTextareaKeyDown(event, imageFindings, setImageFindings)}
-                        onInput={autoGrowTextarea}
-                        placeholder="Add image findings here..."
-                        rows={2}
-                        className="mt-1.5 min-h-[64px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 text-center font-serif text-[15px] leading-[1.6] tracking-[-0.01em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
-                      />
-                    </div>
+                  <div className="mt-0.5 text-[11px] text-[#7a857c]">
+                    Real case sizing
                   </div>
-                ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={openPreviewInNewTab}
+                  className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                >
+                  Open full preview
+                </button>
               </div>
 
-              <div className="rounded-[20px] border border-[#e7e1d6] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-                {level === 'attending' ? (
-                  <div className="space-y-2.5">
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {clues.map((clue, index) => {
-                        const letter = String.fromCharCode(65 + index)
-                        const isCorrect = normalizedAnatomyCorrectChoices.includes(letter)
-                        return (
-                          <div
-                            key={letter}
-                            className={`rounded-[16px] border px-2.5 py-2.5 ${
-                              isCorrect
-                                ? 'border-[#bfe0cb] bg-[#f2faf5]'
-                                : 'border-[#ded7ca] bg-white'
-                            }`}
-                          >
-                            <div className="mb-1.5 flex items-center gap-2">
-                              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e2cda2] text-[15px] font-semibold text-[#9a6030]">
-                                {letter}
-                              </div>
-                              <span className="text-[11px] font-semibold text-[#637268]">
-                                {isCorrect ? 'Correct answer' : 'Answer choice'}
-                              </span>
-                            </div>
-                            <textarea
-                              value={clue}
-                              onChange={event => setClueAt(index, event.target.value)}
-                              onKeyDown={event => handleRichTextareaKeyDown(event, clue, nextValue => setClueAt(index, nextValue))}
-                              onInput={autoGrowTextarea}
-                              rows={2}
-                              className="min-h-[58px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[16px] leading-[1.45] tracking-[-0.02em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
-                              placeholder={`Choice ${letter}`}
-                            />
-                          </div>
-                        )
-                      })}
-                    </div>
-                    <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2">
-                      <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                        Correct choices
-                      </div>
-                      <input
-                        value={anatomyCorrectChoices}
-                        onChange={event => setAnatomyCorrectChoices(event.target.value)}
-                        placeholder="A, C"
-                        className="mt-1.5 w-full border-0 bg-transparent p-0 text-[13px] text-[#102018] outline-none placeholder:text-[#9aa49d]"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {clues.map((clue, index) => (
-                      <div
-                        key={`clue-${index}`}
-                        className="rounded-[16px] border border-[#ded7ca] bg-white px-2.5 py-2.5"
-                      >
-                        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                          Clue {index + 1}
-                        </div>
-                        <textarea
-                          value={clue}
-                          onChange={event => setClueAt(index, event.target.value)}
-                          onKeyDown={event => handleRichTextareaKeyDown(event, clue, nextValue => setClueAt(index, nextValue))}
-                          onInput={autoGrowTextarea}
-                          rows={2}
-                          className="min-h-[58px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[16px] leading-[1.5] tracking-[-0.02em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
-                          placeholder={`Clue ${index + 1}`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-[20px] border border-[#dbe4db] bg-[linear-gradient(180deg,#fbfefb_0%,#f1f7f1_100%)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_12px_24px_rgba(16,32,24,0.035)]">
-                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#315f4d]">
-                  Quick takeaway
-                </div>
-                <textarea
-                  value={teachingPoint}
-                  onChange={event => setTeachingPoint(event.target.value)}
-                  onKeyDown={event => handleRichTextareaKeyDown(event, teachingPoint, setTeachingPoint)}
-                  rows={11}
-                  className="mt-2 min-h-[250px] w-full resize-y border-0 bg-transparent p-0 font-serif text-[14px] leading-[1.65] tracking-[-0.01em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
-                  placeholder={getDefaultTeachingPointTemplate(level)}
-                />
-
-                {(learningImageUrl || learningImageUrl2) ? (
-                  <div className="mt-3 border-t border-[#ebe5db] pt-3">
-                    <div className="mb-2 text-center text-[9px] font-bold uppercase tracking-[0.16em] text-[#315f4d]">
-                      Teaching images
-                    </div>
-                    <div className="grid gap-2.5">
-                      {learningImageUrl ? (
-                        <div className="overflow-hidden rounded-[16px] border border-[#e7e1d6] bg-white">
-                          <img
-                            src={learningImageUrl}
-                            alt="Teaching image 1"
-                            className="mx-auto max-h-[240px] w-auto max-w-full object-contain"
-                          />
-                          {(learningImageCaption.trim() || normalizeCreditValue(learningImageCredit)) ? (
-                            <div className="border-t border-[#efe7db] bg-white px-2.5 py-2">
-                              {learningImageCaption.trim() ? (
-                                <p className="text-center text-[13px] leading-5 text-[#4d5d55]">
-                                  {learningImageCaption.trim()}
-                                </p>
-                              ) : null}
-                              {normalizeCreditValue(learningImageCredit) ? (
-                                <p className={`${learningImageCaption.trim() ? 'mt-1' : ''} text-center text-[10px] leading-4 text-[#8a948d]`}>
-                                  {normalizeCreditValue(learningImageCredit)}
-                                </p>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {learningImageUrl2 ? (
-                        <div className="overflow-hidden rounded-[16px] border border-[#e7e1d6] bg-white">
-                          <img
-                            src={learningImageUrl2}
-                            alt="Teaching image 2"
-                            className="mx-auto max-h-[240px] w-auto max-w-full object-contain"
-                          />
-                          {(learningImageCaption2.trim() || normalizeCreditValue(learningImageCredit2)) ? (
-                            <div className="border-t border-[#efe7db] bg-white px-2.5 py-2">
-                              {learningImageCaption2.trim() ? (
-                                <p className="text-center text-[13px] leading-5 text-[#4d5d55]">
-                                  {learningImageCaption2.trim()}
-                                </p>
-                              ) : null}
-                              {normalizeCreditValue(learningImageCredit2) ? (
-                                <p className={`${learningImageCaption2.trim() ? 'mt-1' : ''} text-center text-[10px] leading-4 text-[#8a948d]`}>
-                                  {normalizeCreditValue(learningImageCredit2)}
-                                </p>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="mt-3 border-t border-[#ebe5db] pt-3">
-                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
-                    References
-                  </div>
-                  <textarea
-                    value={referenceLinks}
-                    onChange={event => setReferenceLinks(event.target.value)}
-                    onBlur={async () => {
-                      const normalized = await hydrateReferenceLinks(referenceLinks)
-                      if (normalized !== referenceLinks) {
-                        setReferenceLinks(normalized)
-                      }
-                    }}
-                    onKeyDown={event => handleRichTextareaKeyDown(event, referenceLinks, setReferenceLinks)}
-                    placeholder={`https://example.com\nhttps://example.com`}
-                    rows={3}
-                    className="mt-1.5 min-h-[62px] w-full resize-y border-0 bg-transparent p-0 text-[13px] leading-6 text-[#102018] outline-none placeholder:text-[#9aa49d]"
+              <div className="mt-2 rounded-[26px] border border-[#ddd5c8] bg-[#faf8f3] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.86),0_18px_34px_rgba(16,32,24,0.06)]">
+                <div className="overflow-hidden rounded-[22px] bg-white">
+                  <iframe
+                    key={`${caseDate}-${level}`}
+                    title="Case preview"
+                    src={previewHref}
+                    className="h-[820px] w-full border-0 bg-white"
                   />
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
-            <div className="grid gap-2.5">
-              <div className="rounded-[16px] bg-[#fcfbf8] px-2.5 py-2 ring-1 ring-inset ring-[#ebe5db]/65">
-                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                  Case settings
-                </div>
-                <div className="mt-1 text-[11px] leading-4.5 text-[#7a857c]">
-                  Keep the main writing on the left. Use this side for slot details, answer logic,
-                  image uploads, and saving.
-                </div>
+          <section className="min-w-0 rounded-[22px] border border-[#e7e1d6] bg-white p-3 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
+            <div className="space-y-3">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
+                  Publish date
+                  <input
+                    type="date"
+                    value={caseDate}
+                    onChange={event => setCaseDate(event.target.value)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
+                  />
+                </label>
+                <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
+                  Level
+                  <select
+                    value={level}
+                    onChange={event => setLevel(event.target.value as Level)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
+                  >
+                    <option value="med_student">Daily Case</option>
+                    <option value="resident">Resident</option>
+                    <option value="attending">Anatomy Quiz</option>
+                  </select>
+                </label>
+                <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
+                  Category
+                  <input
+                    value={category}
+                    onChange={event => setCategory(event.target.value)}
+                    placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Trauma'}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
+                  />
+                </label>
+                <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
+                  Answer
+                  <input
+                    value={answer}
+                    onChange={event => setAnswer(event.target.value)}
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
+                  />
+                </label>
+              </div>
+
+              <div className={`grid gap-2 ${level === 'attending' ? 'lg:grid-cols-2' : ''}`}>
+                <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
+                  Synonyms
+                  <input
+                    value={synonyms}
+                    onChange={event => setSynonyms(event.target.value)}
+                    placeholder="Comma-separated aliases"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
+                  />
+                </label>
+                {level === 'attending' ? (
+                  <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
+                    Correct choices
+                    <input
+                      value={anatomyCorrectChoices}
+                      onChange={event => setAnatomyCorrectChoices(event.target.value)}
+                      placeholder="A, C"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
+                    />
+                  </label>
+                ) : null}
               </div>
 
               {slotBackups.length > 0 ? (
-                <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2">
-                  <div className="flex items-center justify-between gap-2">
+                <div className="rounded-[18px] border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                       Recent backups
                     </div>
-                    <div className="rounded-md border border-[#ded7ca] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#637268]">
-                      {slotBackups.length}
-                    </div>
+                    <div className="text-[11px] text-[#7a857c]">{slotBackups.length} saved</div>
                   </div>
-                  <div className="mt-2 space-y-2">
+                  <div className="mt-2 grid gap-2 lg:grid-cols-2">
                     {slotBackups.map(backup => (
                       <div
                         key={backup.backupId}
-                        className="rounded-[14px] border border-[#ded7ca] bg-white px-2.5 py-2"
+                        className="rounded-[14px] border border-[#ded7ca] bg-white px-3 py-2"
                       >
                         <div className="truncate text-[12px] font-semibold text-[#102018]">
                           {backup.case.answer || 'Untitled case'}
@@ -1496,7 +1319,7 @@ export default function CaseStudioPage() {
                           onClick={() => restoreCaseBackup(backup)}
                           className="mt-2 rounded-md border border-[#ded7ca] bg-[#fffaf1] px-2.5 py-1 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fff4e8]"
                         >
-                          Restore here
+                          Restore into editor
                         </button>
                       </div>
                     ))}
@@ -1504,81 +1327,84 @@ export default function CaseStudioPage() {
                 </div>
               ) : null}
 
-              <div className="grid gap-2.5 sm:grid-cols-[1fr_1fr]">
-                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                  Publish date
-                  <input
-                    type="date"
-                    value={caseDate}
-                    onChange={event => setCaseDate(event.target.value)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                  Level
-                  <select
-                    value={level}
-                    onChange={event => setLevel(event.target.value as Level)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
-                  >
-                    <option value="med_student">Daily Case</option>
-                    <option value="resident">Resident</option>
-                    <option value="attending">Anatomy Quiz</option>
-                  </select>
-                </label>
+              <div className="rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Case prompt
+                </div>
+                <textarea
+                  value={prompt}
+                  onChange={event => setPrompt(event.target.value)}
+                  onKeyDown={event => handleRichTextareaKeyDown(event, prompt, setPrompt)}
+                  onInput={autoGrowTextarea}
+                  placeholder="Write the case stem here..."
+                  rows={4}
+                  className="mt-2 min-h-[120px] w-full resize-y overflow-hidden rounded-[14px] border border-[#ded7ca] bg-white px-3 py-3 font-serif text-[18px] leading-[1.5] tracking-[-0.02em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                />
               </div>
 
-              <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                  Category
-                  <input
-                    value={category}
-                    onChange={event => setCategory(event.target.value)}
-                    placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Trauma'}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
-                  />
-                </label>
-
-                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                  Answer
-                  <input
-                    value={answer}
-                    onChange={event => setAnswer(event.target.value)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                  Synonyms
-                  <input
-                    value={synonyms}
-                    onChange={event => setSynonyms(event.target.value)}
-                    placeholder="Comma-separated aliases"
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
-                  />
-                </label>
-
+              <div className="rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  {level === 'attending' ? 'Anatomy answers' : 'Clinical clues'}
+                </div>
                 {level === 'attending' ? (
-                  <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                    Correct choices
-                    <input
-                      value={anatomyCorrectChoices}
-                      onChange={event => setAnatomyCorrectChoices(event.target.value)}
-                      placeholder="A, C"
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
-                    />
-                  </label>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {clues.map((clue, index) => {
+                      const letter = String.fromCharCode(65 + index)
+                      const isCorrect = normalizedAnatomyCorrectChoices.includes(letter)
+                      return (
+                        <div
+                          key={letter}
+                          className={`rounded-[14px] border px-3 py-2 ${
+                            isCorrect ? 'border-[#cfe2d6] bg-[#f2faf5]' : 'border-[#ded7ca] bg-white'
+                          }`}
+                        >
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#e2cda2] text-[13px] font-semibold text-[#9a6030]">
+                              {letter}
+                            </span>
+                            <span className="text-[11px] font-semibold text-[#637268]">
+                              {isCorrect ? 'Correct' : 'Choice'}
+                            </span>
+                          </div>
+                          <textarea
+                            value={clue}
+                            onChange={event => setClueAt(index, event.target.value)}
+                            onKeyDown={event =>
+                              handleRichTextareaKeyDown(event, clue, nextValue => setClueAt(index, nextValue))
+                            }
+                            onInput={autoGrowTextarea}
+                            rows={2}
+                            className="min-h-[58px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[15px] leading-[1.45] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                            placeholder={`Choice ${letter}`}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
                 ) : (
-                  <div />
+                  <div className="mt-2 grid gap-2">
+                    {clues.map((clue, index) => (
+                      <textarea
+                        key={`clue-${index}`}
+                        value={clue}
+                        onChange={event => setClueAt(index, event.target.value)}
+                        onKeyDown={event =>
+                          handleRichTextareaKeyDown(event, clue, nextValue => setClueAt(index, nextValue))
+                        }
+                        onInput={autoGrowTextarea}
+                        rows={2}
+                        className="min-h-[56px] w-full resize-y overflow-hidden rounded-[14px] border border-[#ded7ca] bg-white px-3 py-2.5 font-serif text-[15px] leading-[1.45] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                        placeholder={`Clue ${index + 1}`}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
 
-              <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                Case images
-                <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+              <div className="rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                  Case images
+                </div>
                 <div className="mt-2 space-y-2.5">
                   {renderImageSlot({
                     slot: 'case1',
@@ -1611,13 +1437,39 @@ export default function CaseStudioPage() {
                     </button>
                   )}
                 </div>
-                </div>
-              </label>
 
-              <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
-                Teaching images
-                <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
-                <div className="mt-2 space-y-2.5">
+                {(imageUrl || imageUrl2) ? (
+                  <div className="mt-3 border-t border-[#ebe5db] pt-3">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                      Imaging results
+                    </div>
+                    <textarea
+                      value={imageFindings}
+                      onChange={event => setImageFindings(event.target.value)}
+                      onKeyDown={event => handleRichTextareaKeyDown(event, imageFindings, setImageFindings)}
+                      onInput={autoGrowTextarea}
+                      placeholder="Add image findings here..."
+                      rows={2}
+                      className="mt-2 min-h-[66px] w-full resize-y overflow-hidden rounded-[14px] border border-[#ded7ca] bg-white px-3 py-2.5 font-serif text-[15px] leading-[1.45] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="rounded-[18px] border border-[#dbe4db] bg-[linear-gradient(180deg,#fbfefb_0%,#f1f7f1_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.84)]">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                  Teaching
+                </div>
+                <textarea
+                  value={teachingPoint}
+                  onChange={event => setTeachingPoint(event.target.value)}
+                  onKeyDown={event => handleRichTextareaKeyDown(event, teachingPoint, setTeachingPoint)}
+                  rows={10}
+                  className="mt-2 min-h-[220px] w-full resize-y rounded-[14px] border border-[#d8e5dd] bg-white/88 px-3 py-3 font-serif text-[14px] leading-[1.6] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                  placeholder={getDefaultTeachingPointTemplate(level)}
+                />
+
+                <div className="mt-3 space-y-2.5">
                   {renderImageSlot({
                     slot: 'teach1',
                     title: 'Teaching image',
@@ -1649,12 +1501,30 @@ export default function CaseStudioPage() {
                     </button>
                   )}
                 </div>
-                </div>
-              </label>
 
-              <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2 text-[11px] leading-4.5 text-[#7a857c]">
-                Shortcuts: Cmd/Ctrl + B bold, Cmd/Ctrl + I italic, Cmd/Ctrl + U underline,
-                Cmd/Ctrl + Shift + 7 or 8 bullets. You can apply these everywhere in the case now.
+                <div className="mt-3 border-t border-[#dce6df] pt-3">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    References
+                  </div>
+                  <textarea
+                    value={referenceLinks}
+                    onChange={event => setReferenceLinks(event.target.value)}
+                    onBlur={async () => {
+                      const normalized = await hydrateReferenceLinks(referenceLinks)
+                      if (normalized !== referenceLinks) {
+                        setReferenceLinks(normalized)
+                      }
+                    }}
+                    onKeyDown={event => handleRichTextareaKeyDown(event, referenceLinks, setReferenceLinks)}
+                    placeholder={`https://example.com\nhttps://example.com`}
+                    rows={3}
+                    className="mt-2 min-h-[62px] w-full resize-y rounded-[14px] border border-[#d8e5dd] bg-white/88 px-3 py-2.5 text-[13px] leading-6 text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2 text-[11px] leading-4.5 text-[#7a857c]">
+                Shortcuts: Cmd/Ctrl + B bold, Cmd/Ctrl + I italic, Cmd/Ctrl + U underline, Cmd/Ctrl + Shift + 7 or 8 bullets. You can apply these everywhere in the case now.
               </div>
             </div>
           </section>

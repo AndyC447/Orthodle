@@ -568,6 +568,7 @@ function PlayPageContent() {
   const quickTakeawayAutoRevealTimeoutRef = useRef<number | null>(null)
   const quickTakeawayRevealAnimationTimeoutRef = useRef<number | null>(null)
   const quickTakeawayScrollAnimationFrameRef = useRef<number | null>(null)
+  const quickTakeawayScrollCleanupRef = useRef<(() => void) | null>(null)
   const previousGuessInputTopRef = useRef<number | null>(null)
   const previousVisibleImageCountRef = useRef(0)
   const justAnchoredImageRevealRef = useRef(false)
@@ -630,6 +631,7 @@ function PlayPageContent() {
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
   const [showSolvedInsightStep, setShowSolvedInsightStep] = useState(false)
   const [showSolvedMediaStep, setShowSolvedMediaStep] = useState(false)
+  const [adminPreviewRefreshTick, setAdminPreviewRefreshTick] = useState(0)
   const [showAnatomyLockedNotice, setShowAnatomyLockedNotice] = useState(false)
   const [showAnatomyUnlockMoment, setShowAnatomyUnlockMoment] = useState(false)
   const [homeSwipeOffset, setHomeSwipeOffset] = useState(0)
@@ -641,7 +643,6 @@ function PlayPageContent() {
   const [homePageEnterOffset, setHomePageEnterOffset] = useState(0)
   const [homePageEnterOpacity, setHomePageEnterOpacity] = useState(1)
   const [homeTabSnapKey, setHomeTabSnapKey] = useState<Level | null>(null)
-  const [anatomyRevealKey, setAnatomyRevealKey] = useState(0)
   const [activeAnatomyChoiceSettleLetter, setActiveAnatomyChoiceSettleLetter] = useState<string | null>(null)
   const [imageScale, setImageScale] = useState(1)
   const [imageOffset, setImageOffset] = useState({ x: 0, y: 0 })
@@ -1782,7 +1783,19 @@ function PlayPageContent() {
     return () => {
       cancelled = true
     }
-  }, [caseParam, isAdminPreview, selectedLevel, selectedDate, today])
+  }, [adminPreviewRefreshTick, caseParam, isAdminPreview, selectedLevel, selectedDate, today])
+
+  useEffect(() => {
+    if (!isAdminPreview || typeof window === 'undefined') return
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== ADMIN_CASE_PREVIEW_CACHE_KEY) return
+      setAdminPreviewRefreshTick(current => current + 1)
+    }
+
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [isAdminPreview])
 
   function formatLevel(level: Level, dateText = selectedDate, caseItem: Case | null = null) {
     if (level === 'med_student') return levelTitles.med_student
@@ -3075,6 +3088,14 @@ function PlayPageContent() {
       window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
       quickTakeawayScrollAnimationFrameRef.current = null
     }
+    if (quickTakeawayScrollCleanupRef.current) {
+      quickTakeawayScrollCleanupRef.current()
+      quickTakeawayScrollCleanupRef.current = null
+    }
+    if (quickTakeawayScrollCleanupRef.current) {
+      quickTakeawayScrollCleanupRef.current()
+      quickTakeawayScrollCleanupRef.current = null
+    }
 
     const startAt = performance.now()
     const initialTargetY = getTargetY()
@@ -3087,8 +3108,32 @@ function PlayPageContent() {
 
     let lastAt = startAt
     let velocity = 0
+    let interrupted = false
+
+    const cleanupUserInterruptionListeners = () => {
+      window.removeEventListener('wheel', interruptScrollAnimation)
+      window.removeEventListener('touchmove', interruptScrollAnimation)
+      window.removeEventListener('pointerdown', interruptScrollAnimation)
+      quickTakeawayScrollCleanupRef.current = null
+    }
+
+    const interruptScrollAnimation = () => {
+      interrupted = true
+      if (quickTakeawayScrollAnimationFrameRef.current) {
+        window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
+        quickTakeawayScrollAnimationFrameRef.current = null
+      }
+      cleanupUserInterruptionListeners()
+    }
+
+    window.addEventListener('wheel', interruptScrollAnimation, { passive: true })
+    window.addEventListener('touchmove', interruptScrollAnimation, { passive: true })
+    window.addEventListener('pointerdown', interruptScrollAnimation, { passive: true })
+    quickTakeawayScrollCleanupRef.current = cleanupUserInterruptionListeners
 
     const step = (now: number) => {
+      if (interrupted) return
+
       const deltaMs = Math.min(34, Math.max(12, now - lastAt))
       lastAt = now
       const elapsed = now - startAt
@@ -3126,6 +3171,7 @@ function PlayPageContent() {
       } else {
         window.scrollTo({ top: liveTargetY, behavior: 'auto' })
         quickTakeawayScrollAnimationFrameRef.current = null
+        cleanupUserInterruptionListeners()
       }
     }
 
@@ -3586,6 +3632,10 @@ function PlayPageContent() {
       if (quickTakeawayScrollAnimationFrameRef.current) {
         window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
         quickTakeawayScrollAnimationFrameRef.current = null
+      }
+      if (quickTakeawayScrollCleanupRef.current) {
+        quickTakeawayScrollCleanupRef.current()
+        quickTakeawayScrollCleanupRef.current = null
       }
       setShowQuickTakeawaySlowReveal(false)
       suppressQuickTakeawayPersistRef.current = false
@@ -4267,16 +4317,7 @@ function PlayPageContent() {
   }, [showCaseFeedback])
 
   useEffect(() => {
-    if (!roundComplete || !gameWon) return
-
-    if (useSurgicalAnatomyQuiz) {
-      setAnatomyRevealKey(current => current + 1)
-    }
-  }, [gameWon, roundComplete, useSurgicalAnatomyQuiz])
-
-  useEffect(() => {
     setShowStreakIgnition(false)
-    setAnatomyRevealKey(0)
     setActiveAnatomyChoiceSettleLetter(null)
   }, [dailyCase?.id, selectedDate, selectedLevel])
 
@@ -4536,21 +4577,6 @@ function PlayPageContent() {
               inset 0 1px 0 rgba(255,255,255,0.72);
             transform: translateY(0) scale(1);
             filter: saturate(1);
-          }
-        }
-
-        @keyframes orthodle-anatomy-flip {
-          0% {
-            opacity: 0.85;
-            transform: perspective(800px) rotateX(88deg) translateY(8px);
-          }
-          55% {
-            opacity: 1;
-            transform: perspective(800px) rotateX(-10deg) translateY(-1px);
-          }
-          100% {
-            opacity: 1;
-            transform: perspective(800px) rotateX(0deg) translateY(0);
           }
         }
 
@@ -4841,12 +4867,6 @@ function PlayPageContent() {
           background-repeat: no-repeat;
           animation: orthodle-rail-settle-sheen 4.8s linear infinite;
           opacity: 0.85;
-        }
-
-        .orthodle-anatomy-choice-flip {
-          backface-visibility: hidden;
-          transform-style: preserve-3d;
-          animation: orthodle-anatomy-flip 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .orthodle-anatomy-choice-magnetic:hover {
@@ -5632,7 +5652,7 @@ function PlayPageContent() {
                                 onKeyDown={event =>
                                   handleAnatomyChoiceKeyDown(event, letter, isChosenChoice)
                                 }
-                                className={`orthodle-anatomy-choice orthodle-anatomy-choice-magnetic orthodle-micro-press orthodle-tap-ripple ${roundComplete && anatomyRevealKey > 0 ? 'orthodle-anatomy-choice-flip' : ''} ${!roundComplete && activeAnatomyChoiceSettleLetter === letter ? 'orthodle-anatomy-choice-selected' : ''} ${roundComplete && !isCorrectChoice && !isChosenChoice ? 'orthodle-anatomy-choice-faded' : ''} rounded-2xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448]/25 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf8] ${
+                                className={`orthodle-anatomy-choice orthodle-anatomy-choice-magnetic orthodle-micro-press orthodle-tap-ripple ${!roundComplete && activeAnatomyChoiceSettleLetter === letter ? 'orthodle-anatomy-choice-selected' : ''} ${roundComplete && !isCorrectChoice && !isChosenChoice ? 'orthodle-anatomy-choice-faded' : ''} rounded-2xl border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448]/25 focus-visible:ring-offset-2 focus-visible:ring-offset-[#fffdf8] ${
                                   choiceState === 'correct'
                                     ? 'orthodle-anatomy-choice-correct cursor-default border-[#cfe2d6] bg-[#edf8f1] text-[#123620] shadow-[0_10px_20px_rgba(31,122,77,0.12)]'
                                     : choiceState === 'incorrect'
@@ -5643,11 +5663,6 @@ function PlayPageContent() {
                                         ? 'orthodle-anatomy-choice-idle cursor-default border-[#e5ddd0] bg-[#fbfaf7] text-[#102018]'
                                         : 'orthodle-anatomy-choice-idle border-[#e3dacb] bg-[#fffdfa] text-[#102018] shadow-[0_2px_8px_rgba(16,32,24,0.03)] hover:border-[#d4cab9] hover:bg-[#f7fbf8]'
                                 }`}
-                                style={
-                                  roundComplete && anatomyRevealKey > 0
-                                    ? { animationDelay: `${index * 0.08}s` }
-                                    : undefined
-                                }
                               >
                                 <div className="flex items-start gap-3">
                                   <div
