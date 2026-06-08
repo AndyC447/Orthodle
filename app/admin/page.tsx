@@ -501,6 +501,36 @@ function isReferenceLinkLine(line: string) {
   return /^\[[^\]]+\]\((https?:\/\/[^\s)]+)\)\s*$/i.test(trimmed)
 }
 
+function extractReferenceUrlFromLine(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed) return null
+
+  const markdownMatch = trimmed.match(/^\[[^\]]+\]\((https?:\/\/[^\s)]+)\)\s*$/i)
+  if (markdownMatch?.[1]) return markdownMatch[1]
+
+  if (/^https?:\/\/\S+$/i.test(trimmed)) return trimmed
+  return null
+}
+
+function getDefaultReferenceLabel(url: string) {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./i, '')
+    return hostname || 'Link to reference'
+  } catch {
+    return 'Link to reference'
+  }
+}
+
+function normalizeReferenceLinkLine(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed) return null
+  if (isReferenceLinkLine(trimmed)) return trimmed
+
+  const url = extractReferenceUrlFromLine(trimmed)
+  if (!url) return null
+  return `[${getDefaultReferenceLabel(url)}](${url})`
+}
+
 function splitTeachingPointAndReferences(value: string | null | undefined) {
   if (!value) {
     return { teachingPoint: '', referenceLinks: '' }
@@ -511,8 +541,9 @@ function splitTeachingPointAndReferences(value: string | null | undefined) {
   const referenceLines: string[] = []
 
   for (const line of lines) {
-    if (isReferenceLinkLine(line)) {
-      referenceLines.push(line.trim())
+    const normalizedReferenceLine = normalizeReferenceLinkLine(line)
+    if (normalizedReferenceLine) {
+      referenceLines.push(normalizedReferenceLine)
     } else {
       teachingLines.push(line)
     }
@@ -528,8 +559,8 @@ function mergeTeachingPointAndReferences(teachingPoint: string, referenceLinks: 
   const trimmedTeachingPoint = teachingPoint.trim()
   const cleanedReferenceLines = referenceLinks
     .split('\n')
-    .map(line => line.trim())
-    .filter(isReferenceLinkLine)
+    .map(normalizeReferenceLinkLine)
+    .filter((line): line is string => Boolean(line))
   const trimmedReferenceLinks = cleanedReferenceLines.join('\n')
 
   if (trimmedTeachingPoint && trimmedReferenceLinks) {
@@ -1721,6 +1752,34 @@ export default function AdminPage() {
       )
     }
     return metadata
+  }
+
+  async function hydrateReferenceLinks(value: string) {
+    const lines = value
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+
+    if (lines.length === 0) return ''
+
+    const nextLines = await Promise.all(
+      lines.map(async line => {
+        if (isReferenceLinkLine(line)) return line
+
+        const url = extractReferenceUrlFromLine(line)
+        if (!url) return line
+
+        const metadata = await fetchLinkMetadata(url)
+        const preferredLabel =
+          metadata?.title?.trim() ||
+          metadata?.siteName?.trim() ||
+          getDefaultReferenceLabel(url)
+
+        return `[${preferredLabel}](${url})`
+      })
+    )
+
+    return nextLines.join('\n')
   }
 
   function applyMetadataCreditToEmptyImageFields(metadata: LinkMetadataResult) {
@@ -4211,52 +4270,32 @@ export default function AdminPage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-6 sm:py-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-          <div>
-            <h1 className="font-serif text-[30px] font-bold leading-none text-[#102018] sm:text-3xl">
-              Admin Dashboard
-            </h1>
-
-            {incompleteDates.length > 0 && (
-              <div className="mt-2.5 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm leading-5 text-[#8a5a2b]">
-                Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${item.required})`).join(', ')}
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={lockAdmin}
-            className="self-start rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-          >
-            Lock
-          </button>
-        </div>
-
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
         {playModeSettingsReady && (
-          <>
-            <div className="mt-3">
-              {renderOverviewSection({
-                title: 'Today overview',
-                dateText: today,
-                cases: todaysCases,
-                levelOrderForSection: todaysLevelOrder,
-              })}
-            </div>
-            <div className="mt-3">
-              {renderOverviewSection({
-                title: `${formatShortDate(overviewDate)} overview`,
-                dateText: overviewDate,
-                cases: overviewCases,
-                levelOrderForSection: overviewLevelOrder,
-                showDatePicker: true,
-              })}
-            </div>
-          </>
+          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+            {renderOverviewSection({
+              title: 'Today overview',
+              dateText: today,
+              cases: todaysCases,
+              levelOrderForSection: todaysLevelOrder,
+            })}
+            {renderOverviewSection({
+              title: `${formatShortDate(overviewDate)} overview`,
+              dateText: overviewDate,
+              cases: overviewCases,
+              levelOrderForSection: overviewLevelOrder,
+              showDatePicker: true,
+            })}
+          </div>
         )}
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_320px]">
+        {incompleteDates.length > 0 && (
+          <div className="mt-2 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[12px] leading-5 text-[#8a5a2b]">
+            Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${item.required})`).join(', ')}
+          </div>
+        )}
+
+        <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_320px]">
           <div className="space-y-3">
           <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-4">
@@ -4396,34 +4435,34 @@ export default function AdminPage() {
                 />
               </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Answer
-                <input
-                  value={answer}
-                  onChange={e => setAnswer(e.target.value)}
-                  placeholder="Carpal tunnel syndrome"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-                {duplicateAnswerMatches.length > 0 && (
-                  <div className="rounded-lg bg-[#fffaf1] px-3 py-2.5 text-xs font-normal text-[#8a5a2b] ring-1 ring-inset ring-[#ead9b7]/75">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8a5a2b]">
-                      Existing diagnosis match
-                    </div>
-                    <div className="mt-1 space-y-1">
-                      {duplicateAnswerMatches.slice(0, 4).map(match => (
-                        <p key={match.id}>
-                          {match.case_date} · {formatLevel(match.level)}
-                        </p>
-                      ))}
-                      {duplicateAnswerMatches.length > 4 && (
-                        <p>Plus {duplicateAnswerMatches.length - 4} more saved cases.</p>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </label>
-
               <div className={`grid gap-2.5 ${level === 'attending' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                  Answer
+                  <input
+                    value={answer}
+                    onChange={e => setAnswer(e.target.value)}
+                    placeholder="Carpal tunnel syndrome"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                  />
+                  {duplicateAnswerMatches.length > 0 && (
+                    <div className="rounded-lg bg-[#fffaf1] px-3 py-2.5 text-xs font-normal text-[#8a5a2b] ring-1 ring-inset ring-[#ead9b7]/75">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8a5a2b]">
+                        Existing diagnosis match
+                      </div>
+                      <div className="mt-1 space-y-1">
+                        {duplicateAnswerMatches.slice(0, 4).map(match => (
+                          <p key={match.id}>
+                            {match.case_date} · {formatLevel(match.level)}
+                          </p>
+                        ))}
+                        {duplicateAnswerMatches.length > 4 && (
+                          <p>Plus {duplicateAnswerMatches.length - 4} more saved cases.</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </label>
+
                 <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                   Synonyms
                   <input
@@ -4998,14 +5037,17 @@ export default function AdminPage() {
                 <textarea
                   value={referenceLinks}
                   onChange={e => setReferenceLinks(e.target.value)}
+                  onBlur={async () => {
+                    const normalized = await hydrateReferenceLinks(referenceLinks)
+                    if (normalized !== referenceLinks) {
+                      setReferenceLinks(normalized)
+                    }
+                  }}
                   onKeyDown={event => handleRichTextareaKeyDown(event, referenceLinks, setReferenceLinks)}
                   placeholder={`[Link to reference](https://example.com)\n[Link to EM Cases](https://example.com)`}
                   rows={3}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
-                <span className="text-[11px] font-medium text-[#8a948d]">
-                  These links render in a dedicated References section beneath the teaching images.
-                </span>
               </label>
 
               <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
