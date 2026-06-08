@@ -10,6 +10,12 @@ import {
   getAnatomyChoiceItems,
   parseChoiceLetterList,
 } from '@/lib/anatomy-quiz'
+import {
+  getCaseBackupsForSlot,
+  saveCaseBackup,
+  shouldCreateCaseBackup,
+  type CaseBackupEntry,
+} from '@/lib/case-backups'
 import { supabase } from '@/lib/supabase'
 import { todayISO } from '@/lib/utils'
 
@@ -235,6 +241,7 @@ export default function CaseStudioPage() {
   const [teachingPoint, setTeachingPoint] = useState(DEFAULT_TEACHING_POINT_TEMPLATE)
   const [referenceLinks, setReferenceLinks] = useState('')
   const [dropTarget, setDropTarget] = useState<UploadSlot | null>(null)
+  const [slotBackups, setSlotBackups] = useState<CaseBackupEntry[]>([])
   const fileInputRefs = {
     case1: useRef<HTMLInputElement | null>(null),
     case2: useRef<HTMLInputElement | null>(null),
@@ -257,6 +264,15 @@ export default function CaseStudioPage() {
     setIsUnlocked(savedUnlock === 'true')
     setAuthReady(true)
   }, [])
+
+  function refreshSlotBackups(nextDate = caseDate, nextLevel = level) {
+    setSlotBackups(getCaseBackupsForSlot(nextDate, nextLevel).slice(0, 4))
+  }
+
+  useEffect(() => {
+    if (!authReady || !isUnlocked) return
+    refreshSlotBackups(caseDate, level)
+  }, [authReady, caseDate, isUnlocked, level])
 
   useEffect(() => {
     if (!isUnlocked) return
@@ -752,9 +768,86 @@ export default function CaseStudioPage() {
     setClues(current => current.map((item, itemIndex) => (itemIndex === index ? value : item)))
   }
 
+  function restoreCaseBackup(backup: CaseBackupEntry) {
+    const snapshot = backup.case
+    const parsedTeaching = splitTeachingPointAndReferences(snapshot.teaching_point)
+    setCaseDate(snapshot.case_date)
+    setLevel(snapshot.level)
+    setCategory(snapshot.category || (snapshot.level === 'attending' ? 'Surgical Anatomy' : ''))
+    setPrompt(snapshot.prompt || '')
+    setAnswer(snapshot.answer || '')
+    setSynonyms(extractPlainSynonyms(snapshot.synonyms).join(', '))
+    setAnatomyCorrectChoices(
+      getCorrectAnatomyChoiceLetters(
+        [
+          snapshot.clue_1,
+          snapshot.clue_2,
+          snapshot.clue_3,
+          snapshot.clue_4,
+          snapshot.clue_5,
+          snapshot.clue_6,
+        ],
+        snapshot.answer || '',
+        snapshot.synonyms
+      ).join(', ')
+    )
+    setImageUrl(snapshot.image_url || '')
+    setImageCredit(snapshot.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setImageRevealClue(
+      snapshot.image_reveal_clue === 0
+        ? 'after'
+        : snapshot.image_reveal_clue
+          ? String(snapshot.image_reveal_clue)
+          : 'none'
+    )
+    setImageUrl2(snapshot.image_url_2 || '')
+    setImageCredit2(snapshot.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setImageRevealClue2(
+      snapshot.image_reveal_clue_2 === 0
+        ? 'after'
+        : snapshot.image_reveal_clue_2
+          ? String(snapshot.image_reveal_clue_2)
+          : 'none'
+    )
+    setImageFindings(snapshot.image_findings || '')
+    setLearningImageUrl(snapshot.learning_image_url || '')
+    setLearningImageCredit(snapshot.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption(snapshot.learning_image_caption || '')
+    setLearningImageUrl2(snapshot.learning_image_url_2 || '')
+    setLearningImageCredit2(snapshot.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setLearningImageCaption2(snapshot.learning_image_caption_2 || '')
+    setShowCaseImage2Fields(Boolean(snapshot.image_url_2))
+    setShowTeachingImage2Fields(Boolean(snapshot.learning_image_url_2))
+    setClues([
+      snapshot.clue_1 || '',
+      snapshot.clue_2 || '',
+      snapshot.clue_3 || '',
+      snapshot.clue_4 || '',
+      snapshot.clue_5 || '',
+      snapshot.clue_6 || '',
+    ])
+    setTeachingPoint(parsedTeaching.teachingPoint || getDefaultTeachingPointTemplate(snapshot.level))
+    setReferenceLinks(parsedTeaching.referenceLinks)
+    setStatus(
+      `Backup restored from ${new Date(backup.capturedAt).toLocaleString()}. Save the case to publish this version.`
+    )
+  }
+
   async function saveCase() {
     if (!caseDate || !category.trim() || !prompt.trim() || !answer.trim()) {
       setStatus('Please fill out date, category, prompt, and answer.')
+      return
+    }
+
+    const { data: existingCase, error: existingCaseError } = await supabase
+      .from('cases')
+      .select('*')
+      .eq('case_date', caseDate)
+      .eq('level', level)
+      .maybeSingle()
+
+    if (existingCaseError) {
+      setStatus(`Could not check existing case: ${existingCaseError.message}`)
       return
     }
 
@@ -818,6 +911,11 @@ export default function CaseStudioPage() {
       teaching_point: storedTeachingPoint || null,
     }
 
+    const createdBackup =
+      existingCase && shouldCreateCaseBackup(existingCase as CaseRow, casePayload)
+        ? saveCaseBackup(existingCase as CaseRow, 'studio')
+        : null
+
     let { error } = await supabase.from('cases').upsert(casePayload, {
       onConflict: 'case_date,level',
     })
@@ -844,9 +942,10 @@ export default function CaseStudioPage() {
 
     setStatus(
       savedWithoutCaptionColumns
-        ? `Case saved for ${caseDate} · ${formatLevel(level)}. Teaching image captions need the database update before they can be stored.`
-        : `Case saved for ${caseDate} · ${formatLevel(level)}.`
+        ? `Case saved for ${caseDate} · ${formatLevel(level)}.${createdBackup ? ' Previous version backed up automatically.' : ''} Teaching image captions need the database update before they can be stored.`
+        : `Case saved for ${caseDate} · ${formatLevel(level)}.${createdBackup ? ' Previous version backed up automatically.' : ''}`
     )
+    refreshSlotBackups(caseDate, level)
   }
 
   function openPreviewInNewTab() {
@@ -1369,6 +1468,41 @@ export default function CaseStudioPage() {
                   image uploads, and saving.
                 </div>
               </div>
+
+              {slotBackups.length > 0 ? (
+                <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                      Recent backups
+                    </div>
+                    <div className="rounded-md border border-[#ded7ca] bg-white px-2 py-0.5 text-[10px] font-semibold text-[#637268]">
+                      {slotBackups.length}
+                    </div>
+                  </div>
+                  <div className="mt-2 space-y-2">
+                    {slotBackups.map(backup => (
+                      <div
+                        key={backup.backupId}
+                        className="rounded-[14px] border border-[#ded7ca] bg-white px-2.5 py-2"
+                      >
+                        <div className="truncate text-[12px] font-semibold text-[#102018]">
+                          {backup.case.answer || 'Untitled case'}
+                        </div>
+                        <div className="mt-1 text-[10px] text-[#7b847e]">
+                          {new Date(backup.capturedAt).toLocaleString()}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => restoreCaseBackup(backup)}
+                          className="mt-2 rounded-md border border-[#ded7ca] bg-[#fffaf1] px-2.5 py-1 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fff4e8]"
+                        >
+                          Restore here
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid gap-2.5 sm:grid-cols-[1fr_1fr]">
                 <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">

@@ -14,6 +14,12 @@ import {
 import { supabase } from '@/lib/supabase'
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
+  getCaseBackupsForSlot,
+  saveCaseBackup,
+  shouldCreateCaseBackup,
+  type CaseBackupEntry,
+} from '@/lib/case-backups'
+import {
   isAcceptedGuess,
   normalizeAnswer,
   ORTHO_DIAGNOSIS_BANK,
@@ -736,6 +742,7 @@ export default function AdminPage() {
   const [referenceLinks, setReferenceLinks] = useState('')
   const [status, setStatus] = useState('')
   const [draftStatus, setDraftStatus] = useState('')
+  const [slotBackups, setSlotBackups] = useState<CaseBackupEntry[]>([])
   const [cases, setCases] = useState<CaseRow[]>([])
   const [analytics, setAnalytics] = useState<AnalyticsRow[]>([])
   const [analyticsSummary, setAnalyticsSummary] = useState<AnalyticsSummary | null>(null)
@@ -822,6 +829,15 @@ export default function AdminPage() {
     setAuthReady(true)
     setSeenEmailRemindersAt(window.localStorage.getItem(EMAIL_REMINDERS_SEEN_AT_KEY))
   }, [])
+
+  function refreshSlotBackups(nextDate = caseDate, nextLevel = level) {
+    setSlotBackups(getCaseBackupsForSlot(nextDate, nextLevel).slice(0, 6))
+  }
+
+  useEffect(() => {
+    if (!authReady || !isUnlocked) return
+    refreshSlotBackups(caseDate, level)
+  }, [authReady, caseDate, isUnlocked, level])
 
   function isNoResidentModeActiveOn(dateText: string) {
     if (!noResidentMode) return false
@@ -2337,6 +2353,43 @@ export default function AdminPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  function restoreCaseBackup(backup: CaseBackupEntry) {
+    const snapshot = backup.case
+    editCase({
+      id: snapshot.id || `backup-${backup.backupId}`,
+      case_date: snapshot.case_date,
+      level: snapshot.level,
+      contributor_name: snapshot.contributor_name || null,
+      category: snapshot.category || '',
+      prompt: snapshot.prompt || '',
+      answer: snapshot.answer || '',
+      synonyms: snapshot.synonyms || null,
+      image_url: snapshot.image_url || null,
+      image_credit: snapshot.image_credit || null,
+      image_reveal_clue: snapshot.image_reveal_clue ?? null,
+      image_url_2: snapshot.image_url_2 || null,
+      image_credit_2: snapshot.image_credit_2 || null,
+      image_reveal_clue_2: snapshot.image_reveal_clue_2 ?? null,
+      image_findings: snapshot.image_findings || null,
+      clue_1: snapshot.clue_1 || null,
+      clue_2: snapshot.clue_2 || null,
+      clue_3: snapshot.clue_3 || null,
+      clue_4: snapshot.clue_4 || null,
+      clue_5: snapshot.clue_5 || null,
+      clue_6: snapshot.clue_6 || null,
+      teaching_point: snapshot.teaching_point || null,
+      learning_image_url: snapshot.learning_image_url || null,
+      learning_image_credit: snapshot.learning_image_credit || null,
+      learning_image_caption: snapshot.learning_image_caption || null,
+      learning_image_url_2: snapshot.learning_image_url_2 || null,
+      learning_image_credit_2: snapshot.learning_image_credit_2 || null,
+      learning_image_caption_2: snapshot.learning_image_caption_2 || null,
+    })
+    setStatus(
+      `Backup restored from ${new Date(backup.capturedAt).toLocaleString()}. Save the case to publish this version.`
+    )
+  }
+
   async function loadCases() {
     const { data, error } = await supabase
       .from('cases')
@@ -3328,7 +3381,7 @@ export default function AdminPage() {
 
     const { data: existingCase, error: existingCaseError } = await supabase
       .from('cases')
-      .select('id, answer, prompt, category')
+      .select('*')
       .eq('case_date', caseDate)
       .eq('level', level)
       .maybeSingle()
@@ -3425,6 +3478,11 @@ export default function AdminPage() {
       teaching_point: storedTeachingPoint || null,
     }
 
+    const createdBackup =
+      existingCase && shouldCreateCaseBackup(existingCase as CaseRow, casePayload)
+        ? saveCaseBackup(existingCase as CaseRow, 'admin')
+        : null
+
     let { error } = await supabase.from('cases').upsert(casePayload, {
       onConflict: 'case_date,level',
     })
@@ -3451,8 +3509,8 @@ export default function AdminPage() {
 
     setStatus(
       savedWithoutCaptionColumns
-        ? `Case saved for ${caseDate} · ${level}. Teaching image captions need the database update before they can be stored.`
-        : `Case saved for ${caseDate} · ${level}.`
+        ? `Case saved for ${caseDate} · ${level}.${createdBackup ? ' Previous version backed up automatically.' : ''} Teaching image captions need the database update before they can be stored.`
+        : `Case saved for ${caseDate} · ${level}.${createdBackup ? ' Previous version backed up automatically.' : ''}`
     )
     if (activeSubmissionId) {
       const { data: savedCase } = await supabase
@@ -3476,6 +3534,7 @@ export default function AdminPage() {
       window.localStorage.removeItem(ADMIN_DRAFT_STORAGE_KEY)
     }
     setDraftStatus('Draft cleared after save.')
+    refreshSlotBackups(caseDate, level)
     clearForm()
     await loadCases()
   }
@@ -5398,6 +5457,49 @@ export default function AdminPage() {
                   )
                 ) : null}
               </div>
+
+              {slotBackups.length > 0 ? (
+                <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                        Recent backups
+                      </div>
+                      <div className="mt-1 text-sm text-[#637268]">
+                        Saved automatically before a slot gets replaced.
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#637268]">
+                      {slotBackups.length} saved
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-2">
+                    {slotBackups.map(backup => (
+                      <div
+                        key={backup.backupId}
+                        className="flex flex-col gap-2 rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-[#102018]">
+                            {backup.case.answer || 'Untitled case'}
+                          </div>
+                          <div className="mt-1 text-[11px] text-[#7b847e]">
+                            {new Date(backup.capturedAt).toLocaleString()} · {backup.source === 'studio' ? 'Studio' : 'Builder'}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => restoreCaseBackup(backup)}
+                          className="rounded-lg border border-[#ded7ca] bg-[#fffaf1] px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fff4e8]"
+                        >
+                          Restore into builder
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="sticky bottom-3 z-10 rounded-2xl border border-[#e7e1d6] bg-[rgba(252,251,248,0.94)] px-3 py-3 shadow-[0_14px_32px_rgba(16,32,24,0.08)] backdrop-blur">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
