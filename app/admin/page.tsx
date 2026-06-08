@@ -725,16 +725,9 @@ export default function AdminPage() {
   }, [caseDate, level, noResidentMode, noResidentModeStartDate])
 
   useEffect(() => {
-    const currentStart = new Date(`${overviewCalendarMonth}T12:00:00`)
-    const currentEnd = new Date(currentStart)
-    currentEnd.setDate(currentStart.getDate() + 13)
-    const selected = new Date(`${overviewDate}T12:00:00`)
-
-    if (selected < currentStart || selected > currentEnd) {
-      const nextWindowStart = getWeekStartISO(overviewDate)
-      setOverviewCalendarMonth(current => (current === nextWindowStart ? current : nextWindowStart))
-    }
-  }, [overviewCalendarMonth, overviewDate])
+    const nextWeekStart = getWeekStartISO(overviewDate)
+    setOverviewCalendarMonth(current => (current === nextWeekStart ? current : nextWeekStart))
+  }, [overviewDate])
 
   useEffect(() => {
     const savedOrder = window.localStorage.getItem(ADMIN_SIDEBAR_ORDER_STORAGE_KEY)
@@ -1334,7 +1327,7 @@ export default function AdminPage() {
   const overviewCalendarDays = useMemo(() => {
     const windowStart = new Date(`${overviewCalendarMonth}T12:00:00`)
 
-    return Array.from({ length: 14 }, (_, index) => {
+    return Array.from({ length: 7 }, (_, index) => {
       const day = new Date(windowStart)
       day.setDate(windowStart.getDate() + index)
       const isoDate = day.toISOString().slice(0, 10)
@@ -4106,7 +4099,7 @@ export default function AdminPage() {
   }) {
     const calendarStart = new Date(`${overviewCalendarMonth}T12:00:00`)
     const calendarEnd = new Date(calendarStart)
-    calendarEnd.setDate(calendarStart.getDate() + 13)
+    calendarEnd.setDate(calendarStart.getDate() + 6)
     const overviewMonthLabel = `${calendarStart.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -4115,22 +4108,16 @@ export default function AdminPage() {
       day: 'numeric',
     })}`
     return (
-      <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+      <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
               {title}
             </div>
           </div>
-
-          {showDatePicker ? (
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8b8a84]">
-              Tap a day below
-            </div>
-          ) : null}
         </div>
 
-        <div className={showDatePicker ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_288px]' : 'mt-3'}>
+        <div className={showDatePicker ? 'mt-2.5 grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_250px]' : 'mt-2.5'}>
           <div className="grid gap-2 md:grid-cols-2">
             {levelOrderForSection.map(levelValue => {
               const item = cases.find(entry => entry.level === levelValue)
@@ -4141,8 +4128,8 @@ export default function AdminPage() {
                   key={`${dateText}-${levelValue}`}
                   className={
                     item
-                      ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
-                      : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
+                      ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-2.5'
+                      : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5'
                   }
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -4150,10 +4137,10 @@ export default function AdminPage() {
                       <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                         {levelValue === 'med_student' ? 'Cases' : formatLevel(levelValue)}
                       </div>
-                      <div className="mt-1.5 font-semibold text-[#102018]">
+                      <div className="mt-1 font-semibold text-[#102018]">
                         {item ? item.answer : 'Not scheduled'}
                       </div>
-                      <div className="mt-1 text-sm text-[#637268]">
+                      <div className="mt-0.5 text-sm text-[#637268]">
                         {item
                           ? quickStats
                             ? `${item.category} · ${
@@ -4190,13 +4177,13 @@ export default function AdminPage() {
           </div>
 
           {showDatePicker ? (
-            <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+            <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={() => setOverviewCalendarMonth(shiftISODate(overviewCalendarMonth, -14))}
+                  onClick={() => setOverviewDate(shiftISODate(overviewDate, -7))}
                   className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
-                  aria-label="Previous two weeks"
+                  aria-label="Previous week"
                 >
                   {'<'}
                 </button>
@@ -4205,19 +4192,19 @@ export default function AdminPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setOverviewCalendarMonth(shiftISODate(overviewCalendarMonth, 14))}
+                  onClick={() => setOverviewDate(shiftISODate(overviewDate, 7))}
                   className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
-                  aria-label="Next two weeks"
+                  aria-label="Next week"
                 >
                   {'>'}
                 </button>
               </div>
 
-              <div className="mt-3 grid grid-cols-7 gap-1.5">
+              <div className="mt-2.5 grid grid-cols-7 gap-1">
                 {CALENDAR_WEEKDAY_LABELS.map(label => (
                   <div
                     key={label}
-                    className="pb-1 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-[#8b8a84]"
+                    className="pb-0.5 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-[#8b8a84]"
                   >
                     {label}
                   </div>
@@ -4241,23 +4228,12 @@ export default function AdminPage() {
                       key={day.isoDate}
                       type="button"
                       onClick={() => setOverviewDate(day.isoDate)}
-                      className={`flex aspect-square min-h-[34px] items-center justify-center rounded-lg border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
+                      className={`flex aspect-square min-h-[30px] items-center justify-center rounded-lg border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
                     >
                       {day.dayNumber}
                     </button>
                   )
                 })}
-              </div>
-
-              <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-[#7a7a72]">
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#eef7f0] ring-1 ring-[#cfe4d4]" />
-                  Ready
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#fff3e7] ring-1 ring-[#edd5b7]" />
-                  Missing cases
-                </div>
               </div>
             </div>
           ) : null}
