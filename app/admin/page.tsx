@@ -3934,9 +3934,6 @@ export default function AdminPage() {
     levelOrderForSection: Level[]
     showDatePicker?: boolean
   }) {
-    const readyCount = levelOrderForSection.filter(levelValue =>
-      cases.some(item => item.level === levelValue)
-    ).length
     const calendarStart = new Date(`${overviewCalendarMonth}T12:00:00`)
     const calendarEnd = new Date(calendarStart)
     calendarEnd.setDate(calendarStart.getDate() + 13)
@@ -3956,37 +3953,11 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-1.5">
-            <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {readyCount}/{levelOrderForSection.length} ready
+          {showDatePicker ? (
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#8b8a84]">
+              Tap a day below
             </div>
-            {showDatePicker ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setOverviewDate(shiftISODate(overviewDate, -1))}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
-                  aria-label="Previous date"
-                >
-                  {'<'}
-                </button>
-                <input
-                  type="date"
-                  value={overviewDate}
-                  onChange={event => setOverviewDate(event.target.value || tomorrow)}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] text-[#637268] outline-none transition focus:border-[#1f6448]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setOverviewDate(shiftISODate(overviewDate, 1))}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-2 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
-                  aria-label="Next date"
-                >
-                  {'>'}
-                </button>
-              </div>
-            ) : null}
-          </div>
+          ) : null}
         </div>
 
         <div className={showDatePicker ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_288px]' : 'mt-3'}>
