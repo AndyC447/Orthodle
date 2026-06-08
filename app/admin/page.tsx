@@ -531,6 +531,47 @@ function normalizeReferenceLinkLine(line: string) {
   return `[${getDefaultReferenceLabel(url)}](${url})`
 }
 
+function getReferenceLineParts(line: string) {
+  const trimmed = line.trim()
+  if (!trimmed) return null
+
+  const markdownMatch = trimmed.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)\s*$/i)
+  if (markdownMatch?.[1] && markdownMatch?.[2]) {
+    return {
+      label: markdownMatch[1].trim(),
+      url: markdownMatch[2],
+      isMarkdown: true,
+    }
+  }
+
+  if (/^https?:\/\/\S+$/i.test(trimmed)) {
+    return {
+      label: null,
+      url: trimmed,
+      isMarkdown: false,
+    }
+  }
+
+  return null
+}
+
+function shouldReplaceReferenceLabel(label: string | null, url: string) {
+  if (!label) return true
+
+  const trimmed = label.trim()
+  if (!trimmed) return true
+
+  const genericLabels = new Set([
+    'Link to reference',
+    'Reference',
+    'Source',
+  ])
+
+  if (genericLabels.has(trimmed)) return true
+
+  return trimmed.toLowerCase() === getDefaultReferenceLabel(url).toLowerCase()
+}
+
 function splitTeachingPointAndReferences(value: string | null | undefined) {
   if (!value) {
     return { teachingPoint: '', referenceLinks: '' }
@@ -568,6 +609,64 @@ function mergeTeachingPointAndReferences(teachingPoint: string, referenceLinks: 
   }
 
   return trimmedTeachingPoint || trimmedReferenceLinks
+}
+
+function renderInlineRichText(line: string, keyPrefix = 'inline'): ReactNode[] {
+  const matches = [
+    { type: 'underline' as const, match: line.match(/<u>(.*?)<\/u>/) },
+    { type: 'bold' as const, match: line.match(/\*\*(.+?)\*\*/) },
+    { type: 'italic' as const, match: line.match(/\*(?!\*)(.+?)\*(?!\*)/) },
+  ]
+    .filter(
+      (entry): entry is { type: 'underline' | 'bold' | 'italic'; match: RegExpMatchArray } =>
+        Boolean(entry.match)
+    )
+    .sort((a, b) => (a.match.index ?? 0) - (b.match.index ?? 0))
+
+  const firstMatch = matches[0]
+  if (!firstMatch) {
+    return [<span key={`${keyPrefix}-text`}>{line}</span>]
+  }
+
+  const matchIndex = firstMatch.match.index ?? 0
+  const fullMatch = firstMatch.match[0]
+  const innerText = firstMatch.match[1] ?? ''
+  const before = line.slice(0, matchIndex)
+  const after = line.slice(matchIndex + fullMatch.length)
+  const nodes: ReactNode[] = []
+
+  if (before) {
+    nodes.push(...renderInlineRichText(before, `${keyPrefix}-before`))
+  }
+
+  const innerNodes = renderInlineRichText(innerText, `${keyPrefix}-${firstMatch.type}`)
+  if (firstMatch.type === 'underline') {
+    nodes.push(<u key={`${keyPrefix}-underline`}>{innerNodes}</u>)
+  } else if (firstMatch.type === 'bold') {
+    nodes.push(<strong key={`${keyPrefix}-bold`}>{innerNodes}</strong>)
+  } else {
+    nodes.push(<em key={`${keyPrefix}-italic`}>{innerNodes}</em>)
+  }
+
+  if (after) {
+    nodes.push(...renderInlineRichText(after, `${keyPrefix}-after`))
+  }
+
+  return nodes
+}
+
+function renderRichTextWithBreaks(text: string, keyPrefix = 'inline-breaks') {
+  const lines = text.split('\n')
+  const nodes: ReactNode[] = []
+
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      nodes.push(<br key={`${keyPrefix}-break-${index}`} />)
+    }
+    nodes.push(...renderInlineRichText(line, `${keyPrefix}-line-${index}`))
+  })
+
+  return nodes
 }
 
 function isMissingTeachingImageCaptionColumnError(message: string | undefined) {
@@ -1757,18 +1856,20 @@ export default function AdminPage() {
 
     const nextLines = await Promise.all(
       lines.map(async line => {
-        if (isReferenceLinkLine(line)) return line
+        const parts = getReferenceLineParts(line)
+        if (!parts) return line
 
-        const url = extractReferenceUrlFromLine(line)
-        if (!url) return line
-
-        const metadata = await fetchLinkMetadata(url)
+        const metadata = await fetchLinkMetadata(parts.url)
         const preferredLabel =
-          metadata?.title?.trim() ||
           metadata?.siteName?.trim() ||
-          getDefaultReferenceLabel(url)
+          metadata?.title?.trim() ||
+          getDefaultReferenceLabel(parts.url)
 
-        return `[${preferredLabel}](${url})`
+        if (parts.isMarkdown && !shouldReplaceReferenceLabel(parts.label, parts.url)) {
+          return line
+        }
+
+        return `[${preferredLabel}](${parts.url})`
       })
     )
 
@@ -4281,6 +4382,12 @@ export default function AdminPage() {
               </h2>
 
               <div className="flex items-center gap-2">
+                <Link
+                  href="/admin/studio"
+                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                >
+                  Case Studio
+                </Link>
                 <button
                   type="button"
                   onClick={() => setShowComposer(prev => !prev)}
@@ -4830,7 +4937,9 @@ export default function AdminPage() {
                   {(learningImageCaption.trim() || normalizeCreditValue(learningImageCredit)) ? (
                     <div className="mt-2 border-t border-[#efe7db] pt-2">
                       {learningImageCaption.trim() ? (
-                        <p className="text-sm leading-5 text-[#4d5d55]">{learningImageCaption.trim()}</p>
+                        <p className="text-sm leading-5 text-[#4d5d55]">
+                          {renderRichTextWithBreaks(learningImageCaption.trim(), 'admin-teaching-caption-1')}
+                        </p>
                       ) : null}
                       {normalizeCreditValue(learningImageCredit) && (
                         <p className={`${learningImageCaption.trim() ? 'mt-1' : ''} text-[11px] leading-5 text-[#8a948d]`}>
@@ -4862,7 +4971,9 @@ export default function AdminPage() {
                   {(learningImageCaption2.trim() || normalizeCreditValue(learningImageCredit2)) ? (
                     <div className="mt-2 border-t border-[#efe7db] pt-2">
                       {learningImageCaption2.trim() ? (
-                        <p className="text-sm leading-5 text-[#4d5d55]">{learningImageCaption2.trim()}</p>
+                        <p className="text-sm leading-5 text-[#4d5d55]">
+                          {renderRichTextWithBreaks(learningImageCaption2.trim(), 'admin-teaching-caption-2')}
+                        </p>
                       ) : null}
                       {normalizeCreditValue(learningImageCredit2) && (
                         <p className={`${learningImageCaption2.trim() ? 'mt-1' : ''} text-[11px] leading-5 text-[#8a948d]`}>
@@ -5007,6 +5118,11 @@ export default function AdminPage() {
                   rows={10}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
+                <div className="text-[12px] font-medium leading-5 text-[#7a857c]">
+                  Shortcuts: Cmd/Ctrl + B bold, Cmd/Ctrl + I italic, Cmd/Ctrl + U underline,
+                  Cmd/Ctrl + Shift + 7 or 8 bullets. You can apply these everywhere in the
+                  case now.
+                </div>
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">

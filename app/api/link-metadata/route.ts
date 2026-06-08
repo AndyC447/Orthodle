@@ -49,6 +49,8 @@ function formatSiteName(hostname: string) {
     'radiopaedia.org': 'Radiopaedia',
     'pubmed.ncbi.nlm.nih.gov': 'PubMed',
     'ncbi.nlm.nih.gov': 'NCBI',
+    'vbjs.com.au': 'VBJS',
+    'sportsmd.com': 'SportsMD',
   }
 
   if (mapped[host]) return mapped[host]

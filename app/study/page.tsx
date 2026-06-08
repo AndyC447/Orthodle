@@ -40,6 +40,11 @@ type TeachingBodyBlock =
   | { type: 'bullets'; key: string; items: string[] }
   | { type: 'spacer'; key: string }
 
+type TeachingBodyRenderOptions = {
+  autoBullets?: boolean
+  boldBeforeColon?: boolean
+}
+
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
 const TEACHING_POINT_LABELS = new Map<string, string>([
@@ -299,6 +304,14 @@ export default function StudyModePage() {
                           {compactTeaching.sections.length > 0 ? (
                             <div className="space-y-2.5">
                               {compactTeaching.sections.map((section, sectionIndex) => (
+                                (() => {
+                                  const normalizedLabel = section.label.trim().toLowerCase()
+                                  const shouldAutoBullet =
+                                    normalizedLabel === 'key clues' ||
+                                    normalizedLabel === 'why not the others?'
+                                  const shouldBoldBeforeColon =
+                                    normalizedLabel === 'why not the others?'
+                                  return (
                                 <div
                                   key={`${section.label}-${sectionIndex}`}
                                   className={sectionIndex > 0 ? 'border-t border-[#ebe5db] pt-2.5' : ''}
@@ -315,7 +328,11 @@ export default function StudyModePage() {
                                   <div className="mt-1.5 space-y-1">
                                     {renderTeachingBody(
                                       section.body,
-                                      `study-body-${currentCase.id}-${sectionIndex}`
+                                      `study-body-${currentCase.id}-${sectionIndex}`,
+                                      {
+                                        autoBullets: shouldAutoBullet,
+                                        boldBeforeColon: shouldBoldBeforeColon,
+                                      }
                                     )}
                                     {section.callouts.length > 0 ? (
                                       <div className="mt-1.5 space-y-1">
@@ -337,6 +354,8 @@ export default function StudyModePage() {
                                     ) : null}
                                   </div>
                                 </div>
+                                  )
+                                })()
                               ))}
                               {compactTeaching.footerLines.length > 0 ? (
                                 <div className="border-t border-dashed border-[#ded7ca] pt-2">
@@ -594,9 +613,21 @@ function compactStudySections(sections: TeachingPointSection[]) {
   return { sections: compactSections, footerLines }
 }
 
-function buildTeachingBodyBlocks(lines: string[], keyPrefix: string): TeachingBodyBlock[] {
+function buildTeachingBodyBlocks(
+  lines: string[],
+  keyPrefix: string,
+  options: TeachingBodyRenderOptions = {}
+): TeachingBodyBlock[] {
   const blocks: TeachingBodyBlock[] = []
   let bulletItems: string[] = []
+  const nonEmptyLines = lines.filter(line => line.trim())
+  const shouldAutoBullet =
+    options.autoBullets &&
+    nonEmptyLines.length > 1 &&
+    !nonEmptyLines.some(line => /^[-*•]\s+/.test(line.trim()))
+  const normalizedLines = shouldAutoBullet
+    ? lines.map(line => (line.trim() ? `• ${line.trim()}` : line))
+    : lines
 
   const flushBullets = () => {
     if (!bulletItems.length) return
@@ -608,7 +639,7 @@ function buildTeachingBodyBlocks(lines: string[], keyPrefix: string): TeachingBo
     bulletItems = []
   }
 
-  lines.forEach((line, index) => {
+  normalizedLines.forEach((line, index) => {
     if (!line) {
       flushBullets()
       blocks.push({ type: 'spacer', key: `${keyPrefix}-spacer-${index}` })
@@ -633,8 +664,12 @@ function buildTeachingBodyBlocks(lines: string[], keyPrefix: string): TeachingBo
   return blocks
 }
 
-function renderTeachingBody(lines: string[], keyPrefix: string) {
-  return buildTeachingBodyBlocks(lines, keyPrefix).map(block => {
+function renderTeachingBody(
+  lines: string[],
+  keyPrefix: string,
+  options: TeachingBodyRenderOptions = {}
+) {
+  return buildTeachingBodyBlocks(lines, keyPrefix, options).map(block => {
     if (block.type === 'spacer') {
       return <div key={block.key} className="h-1" />
     }
@@ -647,7 +682,25 @@ function renderTeachingBody(lines: string[], keyPrefix: string) {
               key={`${block.key}-${index}`}
               className="font-serif text-[14px] leading-[1.5] tracking-[-0.01em] text-[#102018]"
             >
-              {renderFormattedLine(item, `${block.key}-item-${index}`)}
+              {options.boldBeforeColon ? (
+                (() => {
+                  const match = item.match(/^([^:]+):\s*(.+)$/)
+                  if (!match) {
+                    return renderFormattedLine(item, `${block.key}-item-${index}`)
+                  }
+                  return (
+                    <>
+                      <span className="font-bold">
+                        {renderFormattedLine(match[1].trim(), `${block.key}-item-${index}-label`)}
+                      </span>
+                      {': '}
+                      {renderFormattedLine(match[2].trim(), `${block.key}-item-${index}-text`)}
+                    </>
+                  )
+                })()
+              ) : (
+                renderFormattedLine(item, `${block.key}-item-${index}`)
+              )}
             </li>
           ))}
         </ul>

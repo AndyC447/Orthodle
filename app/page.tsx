@@ -1,7 +1,7 @@
 'use client'
 import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import {
   getAnatomyChoiceItems,
@@ -126,6 +126,11 @@ type TeachingBodyBlock =
   | { type: 'spacer'; key: string }
   | { type: 'paragraph'; key: string; text: string }
   | { type: 'bullets'; key: string; items: string[] }
+
+type TeachingBodyRenderOptions = {
+  autoBullets?: boolean
+  boldBeforeColon?: boolean
+}
 
 type ExpandableImage = {
   url: string
@@ -563,6 +568,9 @@ function PlayPageContent() {
   const quickTakeawayAutoRevealTimeoutRef = useRef<number | null>(null)
   const quickTakeawayRevealAnimationTimeoutRef = useRef<number | null>(null)
   const quickTakeawayScrollAnimationFrameRef = useRef<number | null>(null)
+  const previousGuessInputTopRef = useRef<number | null>(null)
+  const previousVisibleImageCountRef = useRef(0)
+  const justAnchoredImageRevealRef = useRef(false)
   const suppressQuickTakeawayPersistRef = useRef(false)
   const previousStreakRef = useRef<number>(0)
   const previousTodayCompleteRef = useRef(false)
@@ -2352,9 +2360,21 @@ function PlayPageContent() {
     return { sections: compactSections, footerLines }
   }
 
-  function buildTeachingBodyBlocks(lines: string[], keyPrefix: string): TeachingBodyBlock[] {
+  function buildTeachingBodyBlocks(
+    lines: string[],
+    keyPrefix: string,
+    options: TeachingBodyRenderOptions = {}
+  ): TeachingBodyBlock[] {
     const blocks: TeachingBodyBlock[] = []
     let bulletItems: string[] = []
+    const nonEmptyLines = lines.filter(line => line.trim())
+    const shouldAutoBullet =
+      options.autoBullets &&
+      nonEmptyLines.length > 1 &&
+      !nonEmptyLines.some(line => /^[-*•]\s+/.test(line.trim()))
+    const normalizedLines = shouldAutoBullet
+      ? lines.map(line => (line.trim() ? `• ${line.trim()}` : line))
+      : lines
 
     const flushBullets = () => {
       if (!bulletItems.length) return
@@ -2366,7 +2386,7 @@ function PlayPageContent() {
       bulletItems = []
     }
 
-    lines.forEach((line, index) => {
+    normalizedLines.forEach((line, index) => {
       if (!line) {
         flushBullets()
         blocks.push({ type: 'spacer', key: `${keyPrefix}-spacer-${index}` })
@@ -2391,8 +2411,12 @@ function PlayPageContent() {
     return blocks
   }
 
-  function renderTeachingBody(lines: string[], keyPrefix: string) {
-    return buildTeachingBodyBlocks(lines, keyPrefix).map(block => {
+  function renderTeachingBody(
+    lines: string[],
+    keyPrefix: string,
+    options: TeachingBodyRenderOptions = {}
+  ) {
+    return buildTeachingBodyBlocks(lines, keyPrefix, options).map(block => {
       if (block.type === 'spacer') {
         return <div key={block.key} className="h-1" />
       }
@@ -2405,7 +2429,25 @@ function PlayPageContent() {
                 key={`${block.key}-${index}`}
                 className="font-serif text-[14px] leading-[1.6] tracking-[-0.01em] text-[#102018]"
               >
-                {renderFormattedLine(item, `${block.key}-item-${index}`)}
+                {options.boldBeforeColon ? (
+                  (() => {
+                    const match = item.match(/^([^:]+):\s*(.+)$/)
+                    if (!match) {
+                      return renderFormattedLine(item, `${block.key}-item-${index}`)
+                    }
+                    return (
+                      <>
+                        <span className="font-bold">
+                          {renderFormattedLine(match[1].trim(), `${block.key}-item-${index}-label`)}
+                        </span>
+                        {': '}
+                        {renderFormattedLine(match[2].trim(), `${block.key}-item-${index}-text`)}
+                      </>
+                    )
+                  })()
+                ) : (
+                  renderFormattedLine(item, `${block.key}-item-${index}`)
+                )}
               </li>
             ))}
           </ul>
@@ -2453,51 +2495,6 @@ function PlayPageContent() {
           <div key={`${keyPrefix}-callout-${calloutIndex}`} className={className}>
             <span className="font-semibold text-[#315f4d]">{callout.label}:</span>{' '}
             {renderFormattedLine(callout.text, `${keyPrefix}-callout-text-${calloutIndex}`)}
-          </div>
-        ))}
-      </div>
-    )
-  }
-
-  function renderDifferentialRows(lines: string[], keyPrefix: string) {
-    const entries = lines
-      .map((line, index) => {
-        const trimmed = line.trim().replace(/^[-*•]\s+/, '')
-        if (!trimmed) return null
-        const match = trimmed.match(/^([^:]+):\s*(.+)$/)
-        if (!match) {
-          return {
-            key: `${keyPrefix}-row-${index}`,
-            label: null,
-            text: trimmed,
-          }
-        }
-        return {
-          key: `${keyPrefix}-row-${index}`,
-          label: match[1].trim(),
-          text: match[2].trim(),
-        }
-      })
-      .filter(Boolean) as Array<{ key: string; label: string | null; text: string }>
-
-    if (entries.length === 0) return null
-
-    return (
-      <div className="mt-2 space-y-2">
-        {entries.map(entry => (
-          <div
-            key={entry.key}
-            className="rounded-[14px] border border-[#e7dfd2] bg-white/86 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.72),0_6px_14px_rgba(16,32,24,0.03)]"
-          >
-            <div className="font-serif text-[14px] leading-[1.58] tracking-[-0.01em] text-[#102018]">
-              {entry.label ? (
-                <>
-                  <span className="font-bold">{renderFormattedLine(entry.label, `${entry.key}-label`)}</span>
-                  <span className="text-[#637268]"> — </span>
-                </>
-              ) : null}
-              {renderFormattedLine(entry.text, `${entry.key}-text`)}
-            </div>
           </div>
         ))}
       </div>
@@ -2784,7 +2781,10 @@ function PlayPageContent() {
                         {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                       </div>
                       <div className="orthodle-teaching-unfold mt-2">
-                        {renderDifferentialRows(section.body, `differential-${sectionIndex}`) || sectionBody}
+                        {renderTeachingBody(section.body, `differential-${sectionIndex}`, {
+                          autoBullets: true,
+                          boldBeforeColon: true,
+                        })}
                         {sectionCallouts}
                       </div>
                     </div>
@@ -2798,7 +2798,9 @@ function PlayPageContent() {
                         {renderFormattedLine(section.label, `label-${sectionIndex}`)}
                       </div>
                       <div className="orthodle-teaching-unfold mt-2 space-y-1.5">
-                        {sectionBody}
+                        {renderTeachingBody(section.body, `section-${sectionIndex}`, {
+                          autoBullets: true,
+                        })}
                         {sectionCallouts}
                       </div>
                     </div>
@@ -2918,7 +2920,7 @@ function PlayPageContent() {
 
     return (
       <div
-        className="orthodle-solved-secondary-step rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5"
+        className="orthodle-solved-secondary-step rounded-xl px-2.5 py-2 sm:px-3 sm:py-2.5"
       >
         <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
           Teaching Images
@@ -2931,12 +2933,12 @@ function PlayPageContent() {
             return (
               <div
                 key={`${image.url}-${index}`}
-                className="overflow-hidden rounded-xl bg-white shadow-[inset_0_0_0_1px_#e3dbce]"
+                className="overflow-hidden rounded-xl border border-[#e7e1d6] bg-white"
               >
                 <button
                   type="button"
                   onClick={() => openExpandedImage(index, learningImages)}
-                  className="flex min-h-[170px] w-full items-center justify-center bg-[#f8f5ee] p-2 transition hover:bg-[#f4efe4]"
+                  className="flex min-h-[170px] w-full items-center justify-center bg-white p-2 transition hover:bg-[#fbfaf7]"
                 >
                   <img
                     src={image.url}
@@ -2945,10 +2947,10 @@ function PlayPageContent() {
                   />
                 </button>
                 {caption || credit ? (
-                  <div className="border-t border-[#efe7db] bg-[#fffdf9] px-3 py-2.5">
+                  <div className="border-t border-[#efe7db] bg-white px-3 py-2.5">
                     {caption ? (
                       <p className="text-center text-sm leading-6 text-[#4d5d55]">
-                        {caption}
+                        {renderFormattedTextWithBreaks(caption, `teaching-image-caption-${index}`)}
                       </p>
                     ) : null}
                     {credit ? (
@@ -3403,6 +3405,10 @@ function PlayPageContent() {
 
   useEffect(() => {
     if (unlockedFindings === 0 || roundComplete) return
+    if (justAnchoredImageRevealRef.current) {
+      justAnchoredImageRevealRef.current = false
+      return
+    }
 
     const timeoutId = window.setTimeout(() => {
       findingsRef.current?.scrollIntoView({
@@ -3413,6 +3419,35 @@ function PlayPageContent() {
 
     return () => window.clearTimeout(timeoutId)
   }, [unlockedFindings, roundComplete])
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const input = guessInputRef.current
+    if (!input) return
+
+    const currentTop = input.getBoundingClientRect().top
+    const previousTop = previousGuessInputTopRef.current
+    const previousImageCount = previousVisibleImageCountRef.current
+    const imageCountIncreased = visibleImages.length > previousImageCount
+
+    if (!roundComplete && imageCountIncreased && previousTop !== null) {
+      const delta = currentTop - previousTop
+      if (Math.abs(delta) > 2) {
+        window.scrollBy({
+          top: delta,
+          left: 0,
+          behavior: 'auto',
+        })
+        justAnchoredImageRevealRef.current = true
+      }
+    } else {
+      justAnchoredImageRevealRef.current = false
+    }
+
+    previousVisibleImageCountRef.current = visibleImages.length
+    previousGuessInputTopRef.current = guessInputRef.current?.getBoundingClientRect().top ?? null
+  }, [roundComplete, selectedDate, selectedLevel, visibleImages.length, unlockedFindings])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -3472,7 +3507,7 @@ function PlayPageContent() {
     const timeoutId = window.setTimeout(() => {
       const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
       if (target) {
-        animateSolvedAnswerRevealScroll(window.innerWidth >= 1024 ? 980 : 900)
+        animateSolvedAnswerRevealScroll(window.innerWidth >= 1024 ? 780 : 720)
       }
 
       if (gameWon) {
@@ -3526,11 +3561,11 @@ function PlayPageContent() {
     quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
       setShowQuickTakeawaySlowReveal(true)
       setShowQuickTakeaway(true)
-      animateQuickTakeawayFollowScroll(4300)
+      animateQuickTakeawayFollowScroll(3000)
       quickTakeawayRevealAnimationTimeoutRef.current = window.setTimeout(() => {
         setShowQuickTakeawaySlowReveal(false)
         quickTakeawayRevealAnimationTimeoutRef.current = null
-      }, 3200)
+      }, 2350)
       suppressQuickTakeawayPersistRef.current = false
       quickTakeawayAutoRevealTimeoutRef.current = null
     }, 2500)
@@ -4569,17 +4604,14 @@ function PlayPageContent() {
           0% {
             opacity: 0;
             transform: translateY(-5px);
-            filter: blur(2.25px);
           }
-          58% {
-            opacity: 0.78;
+          55% {
+            opacity: 0.82;
             transform: translateY(-1px);
-            filter: blur(0.7px);
           }
           100% {
             opacity: 1;
             transform: translateY(0);
-            filter: blur(0);
           }
         }
 
@@ -4866,9 +4898,9 @@ function PlayPageContent() {
 
         .orthodle-collapsible-shell-slow-open {
           transition:
-            grid-template-rows 3200ms cubic-bezier(0.19, 1, 0.22, 1),
-            opacity 2100ms cubic-bezier(0.19, 1, 0.22, 1),
-            margin-top 920ms cubic-bezier(0.19, 1, 0.22, 1);
+            grid-template-rows 2350ms cubic-bezier(0.19, 1, 0.22, 1),
+            opacity 1500ms cubic-bezier(0.19, 1, 0.22, 1),
+            margin-top 680ms cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         .orthodle-collapsible-body {
@@ -4877,7 +4909,7 @@ function PlayPageContent() {
         }
 
         .orthodle-quick-takeaway-reveal {
-          animation: orthodle-quick-takeaway-reveal 2600ms cubic-bezier(0.19, 1, 0.22, 1) both;
+          animation: orthodle-quick-takeaway-reveal 1900ms cubic-bezier(0.19, 1, 0.22, 1) both;
         }
 
         .orthodle-solved-step-in {
@@ -5992,7 +6024,10 @@ function PlayPageContent() {
                             />
                             {image.caption?.trim() ? (
                               <p className="text-center text-[12px] leading-5 text-[#4d5d55]">
-                                {image.caption}
+                                {renderFormattedTextWithBreaks(
+                                  image.caption,
+                                  `expanded-teaching-image-caption-${index}`
+                                )}
                               </p>
                             ) : null}
                             {getRenderableCreditText(image.credit) && (
