@@ -190,6 +190,11 @@ type CaseCommunityStats = {
   }>
 }
 
+type OverviewCaseQuickStat = {
+  players: number
+  solveRate: number | null
+}
+
 type HomepageAnnouncementRow = {
   id: string
   message: string
@@ -576,6 +581,8 @@ export default function AdminPage() {
   const [learningImageUrl2, setLearningImageUrl2] = useState('')
   const [learningImageCredit2, setLearningImageCredit2] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [learningImageCaption2, setLearningImageCaption2] = useState('')
+  const [showCaseImage2Fields, setShowCaseImage2Fields] = useState(false)
+  const [showTeachingImage2Fields, setShowTeachingImage2Fields] = useState(false)
   const [imagesCollapsed, setImagesCollapsed] = useState(true)
   const [clue1, setClue1] = useState('')
   const [clue2, setClue2] = useState('')
@@ -598,6 +605,7 @@ export default function AdminPage() {
   })
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
   const [caseCommunityStats, setCaseCommunityStats] = useState<CaseCommunityStats | null>(null)
+  const [overviewCaseQuickStats, setOverviewCaseQuickStats] = useState<Record<string, OverviewCaseQuickStat>>({})
   const [submissionSummary, setSubmissionSummary] = useState({
     total: 0,
     hasNew: false,
@@ -641,6 +649,8 @@ export default function AdminPage() {
   const [editingAnatomySurveyId, setEditingAnatomySurveyId] = useState<string | null>(null)
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
+  const [showComposerChecklist, setShowComposerChecklist] = useState(false)
+  const [showComposerCaseStats, setShowComposerCaseStats] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(true)
   const [showCasesByDate, setShowCasesByDate] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
@@ -774,6 +784,7 @@ export default function AdminPage() {
           setImageUrl2(draft.imageUrl2 || '')
           setImageCredit2(draft.imageCredit2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
           setImageRevealClue2(draft.imageRevealClue2 || 'none')
+          setShowCaseImage2Fields(Boolean(draft.imageUrl2))
           setImageFindings(draft.imageFindings || '')
           setLearningImageUrl(draft.learningImageUrl || '')
           setLearningImageCredit(draft.learningImageCredit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
@@ -781,6 +792,7 @@ export default function AdminPage() {
           setLearningImageUrl2(draft.learningImageUrl2 || '')
           setLearningImageCredit2(draft.learningImageCredit2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
           setLearningImageCaption2(draft.learningImageCaption2 || '')
+          setShowTeachingImage2Fields(Boolean(draft.learningImageUrl2))
           setClue1(draft.clue1 || '')
           setClue2(draft.clue2 || '')
           setClue3(draft.clue3 || '')
@@ -1193,6 +1205,74 @@ export default function AdminPage() {
     [groupedCases, overviewDate]
   )
 
+  useEffect(() => {
+    if (!isUnlocked) return
+
+    const visibleCaseIds = Array.from(
+      new Set(
+        [...todaysCases, ...overviewCases]
+          .map(item => item.id)
+          .filter(Boolean)
+      )
+    )
+
+    if (visibleCaseIds.length === 0) {
+      setOverviewCaseQuickStats({})
+      return
+    }
+
+    let cancelled = false
+
+    async function loadOverviewCaseQuickStats() {
+      const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
+      const { data, error } = await supabase
+        .from('guesses')
+        .select('case_id, session_id, is_correct')
+        .in('case_id', visibleCaseIds)
+
+      if (cancelled) return
+      if (error) return
+
+      const publicGuessRows = filterExcludedSessionRows(data || [], excludedSessionIdSet)
+      const perCase = new Map<string, { players: Set<string>; solvedPlayers: Set<string> }>()
+
+      for (const row of publicGuessRows) {
+        if (!row.case_id) continue
+
+        const existing = perCase.get(row.case_id) || {
+          players: new Set<string>(),
+          solvedPlayers: new Set<string>(),
+        }
+
+        existing.players.add(row.session_id)
+        if (row.is_correct) {
+          existing.solvedPlayers.add(row.session_id)
+        }
+        perCase.set(row.case_id, existing)
+      }
+
+      const nextStats = visibleCaseIds.reduce<Record<string, OverviewCaseQuickStat>>((acc, caseId) => {
+        const stats = perCase.get(caseId)
+        const players = stats?.players.size || 0
+        const solvedPlayers = stats?.solvedPlayers.size || 0
+
+        acc[caseId] = {
+          players,
+          solveRate: players > 0 ? (solvedPlayers / players) * 100 : null,
+        }
+        return acc
+      }, {})
+
+      setOverviewCaseQuickStats(nextStats)
+    }
+
+    void loadOverviewCaseQuickStats()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isUnlocked, overviewCases, todaysCases])
+
   const overviewLevelOrder = useMemo<Level[]>(
     () => (isNoResidentModeActiveOn(overviewDate) ? noResidentLevelOrder : levelOrder),
     [overviewDate, noResidentMode, noResidentModeStartDate]
@@ -1513,6 +1593,7 @@ export default function AdminPage() {
   ])
 
   const readyChecklistCount = caseChecklistItems.filter(item => item.ready).length
+  const composerGuardrailCount = composerGuardrails.length
 
   function formatLevel(levelValue: Level) {
     if (levelValue === 'med_student') return 'Med Student'
@@ -1854,6 +1935,7 @@ export default function AdminPage() {
     setImageCredit(sourceCase.image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageUrl2(sourceCase.image_url_2 || '')
     setImageCredit2(sourceCase.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
+    setShowCaseImage2Fields(Boolean(sourceCase.image_url_2))
     setImageFindings(sourceCase.image_findings || '')
 
     if (sourceLinks.length > 0) {
@@ -1932,6 +2014,7 @@ export default function AdminPage() {
     setImageUrl2('')
     setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
+    setShowCaseImage2Fields(false)
     setImageFindings('')
     setLearningImageUrl('')
     setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
@@ -1939,6 +2022,7 @@ export default function AdminPage() {
     setLearningImageUrl2('')
     setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageCaption2('')
+    setShowTeachingImage2Fields(false)
     setClue1('')
     setClue2('')
     setClue3('')
@@ -1966,12 +2050,14 @@ export default function AdminPage() {
     setImageUrl2('')
     setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
+    setShowCaseImage2Fields(false)
     setLearningImageUrl('')
     setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageCaption('')
     setLearningImageUrl2('')
     setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageCaption2('')
+    setShowTeachingImage2Fields(false)
     setClue1('')
     setClue2('')
     setClue3('')
@@ -2007,6 +2093,7 @@ export default function AdminPage() {
     setImageUrl2(c.image_url_2 || '')
     setImageCredit2(c.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(normalizeImageRevealValueForEditor(c.image_reveal_clue_2))
+    setShowCaseImage2Fields(Boolean(c.image_url_2))
     setImageFindings(c.image_findings || '')
     setLearningImageUrl(c.learning_image_url || '')
     setLearningImageCredit(c.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
@@ -2014,6 +2101,7 @@ export default function AdminPage() {
     setLearningImageUrl2(c.learning_image_url_2 || '')
     setLearningImageCredit2(c.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageCaption2(c.learning_image_caption_2 || '')
+    setShowTeachingImage2Fields(Boolean(c.learning_image_url_2))
     setClue1(c.clue_1 || '')
     setClue2(c.clue_2 || '')
     setClue3(c.clue_3 || '')
@@ -2051,6 +2139,7 @@ export default function AdminPage() {
     setImageUrl2(submission.image_url_2 || '')
     setImageCredit2(submission.image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2(normalizeImageRevealValueForEditor(submission.image_reveal_clue_2))
+    setShowCaseImage2Fields(Boolean(submission.image_url_2))
     setImageFindings(submission.image_findings || '')
     setLearningImageUrl(submission.learning_image_url || '')
     setLearningImageCredit(submission.learning_image_credit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
@@ -2058,6 +2147,7 @@ export default function AdminPage() {
     setLearningImageUrl2(submission.learning_image_url_2 || '')
     setLearningImageCredit2(submission.learning_image_credit_2 || DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageCaption2(submission.learning_image_caption_2 || '')
+    setShowTeachingImage2Fields(Boolean(submission.learning_image_url_2))
     setClue1(submission.clue_1 || '')
     setClue2(submission.clue_2 || '')
     setClue3(submission.clue_3 || '')
@@ -3043,6 +3133,27 @@ export default function AdminPage() {
     setStatus('Image uploaded.')
   }
 
+  async function deleteCurrentSlot() {
+    const { data: existingCase, error } = await supabase
+      .from('cases')
+      .select('id, case_date, level, answer')
+      .eq('case_date', caseDate)
+      .eq('level', level)
+      .maybeSingle()
+
+    if (error) {
+      setStatus(`Could not check case before deleting: ${error.message}`)
+      return
+    }
+
+    if (!existingCase) {
+      setStatus('No saved case exists for this date and level yet.')
+      return
+    }
+
+    await deleteCase(existingCase as Pick<CaseRow, 'id' | 'case_date' | 'level' | 'answer'>)
+  }
+
   async function saveCase() {
     if (!caseDate || !level || !category || !prompt || !answer) {
       setStatus('Please fill out date, level, category, prompt, and answer.')
@@ -3964,6 +4075,7 @@ export default function AdminPage() {
           <div className="grid gap-2 md:grid-cols-2">
             {levelOrderForSection.map(levelValue => {
               const item = cases.find(entry => entry.level === levelValue)
+              const quickStats = item ? overviewCaseQuickStats[item.id] : null
 
               return (
                 <div
@@ -3983,7 +4095,15 @@ export default function AdminPage() {
                         {item ? item.answer : 'Not scheduled'}
                       </div>
                       <div className="mt-1 text-sm text-[#637268]">
-                        {item ? item.category : 'Open slot'}
+                        {item
+                          ? quickStats
+                            ? `${item.category} · ${
+                                quickStats.solveRate !== null
+                                  ? `${Math.round(quickStats.solveRate)}% correct`
+                                  : 'No solves'
+                              } · ${quickStats.players} played`
+                            : item.category
+                          : 'Open slot'}
                       </div>
                     </div>
 
@@ -4164,6 +4284,33 @@ export default function AdminPage() {
 
             {showComposer && (
             <div className="mt-3 grid gap-2.5">
+              <div className="rounded-xl bg-[#fcfbf8] px-3 py-2.5 ring-1 ring-inset ring-[#ebe5db]/65">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                    {caseDate} · {formatLevel(level)}
+                  </div>
+                  <div className="rounded-lg border border-[#d8e5dd] bg-[#f7fbf8] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#355542]">
+                    {readyChecklistCount}/{caseChecklistItems.length} ready
+                  </div>
+                  {composerGuardrailCount > 0 ? (
+                    <div className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a5a2b]">
+                      {composerGuardrailCount} guardrail{composerGuardrailCount === 1 ? '' : 's'}
+                    </div>
+                  ) : null}
+                  {activeSubmissionId ? (
+                    <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                      Submission draft
+                    </div>
+                  ) : null}
+                </div>
+                {(status || draftStatus) ? (
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[#7b847e]">
+                    {status ? <p>{status}</p> : null}
+                    {draftStatus ? <p>{draftStatus}</p> : null}
+                  </div>
+                ) : null}
+              </div>
+
               <div className="grid gap-2.5 sm:grid-cols-2">
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Publish Date
@@ -4276,27 +4423,29 @@ export default function AdminPage() {
                 )}
               </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Synonyms
-                <input
-                  value={synonyms}
-                  onChange={e => setSynonyms(e.target.value)}
-                  placeholder="CTS, carpal tunnel, median nerve compression"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
-
-              {level === 'attending' ? (
+              <div className={`grid gap-2.5 ${level === 'attending' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                 <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                  Correct Choices
+                  Synonyms
                   <input
-                    value={anatomyCorrectChoices}
-                    onChange={e => setAnatomyCorrectChoices(e.target.value)}
-                    placeholder="A, B, C"
+                    value={synonyms}
+                    onChange={e => setSynonyms(e.target.value)}
+                    placeholder="CTS, carpal tunnel, median nerve compression"
                     className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                   />
                 </label>
-              ) : null}
+
+                {level === 'attending' ? (
+                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                    Correct Choices
+                    <input
+                      value={anatomyCorrectChoices}
+                      onChange={e => setAnatomyCorrectChoices(e.target.value)}
+                      placeholder="A, B, C"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                  </label>
+                ) : null}
+              </div>
 
               <div className="rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/65">
                 <button
@@ -4329,7 +4478,7 @@ export default function AdminPage() {
 
                 {!imagesCollapsed && (
                   <div className="mt-3 space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3">
                   <div className="grid gap-2.5">
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                       Image 1 URL
@@ -4393,84 +4542,97 @@ export default function AdminPage() {
                     </label>
                   </div>
 
-                  <div className="grid gap-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div />
-                      {imageUrl2 && (
+                  {showCaseImage2Fields ? (
+                    <div className="grid gap-2.5 rounded-xl bg-white/55 px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/55">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                          Second case image
+                        </div>
                         <button
                           type="button"
                           onClick={() => {
                             setImageUrl2('')
                             setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
                             setImageRevealClue2('none')
+                            setShowCaseImage2Fields(false)
                           }}
                           className="rounded-lg border border-[#ead9b7] px-2.5 py-1 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
                         >
                           Remove
                         </button>
-                      )}
-                    </div>
-                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      Image 2 URL
-                      <input
-                        value={imageUrl2}
-                        onChange={e => {
-                          const nextValue = e.target.value
-                          setImageUrl2(nextValue)
-                          if (nextValue && imageRevealClue2 === 'none') {
-                            syncImageRevealFromClues(
-                              [clue1, clue2, clue3, clue4, clue5, clue6],
-                              { hasImage2: true }
+                      </div>
+                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                        Image 2 URL
+                        <input
+                          value={imageUrl2}
+                          onChange={e => {
+                            const nextValue = e.target.value
+                            setImageUrl2(nextValue)
+                            if (nextValue && imageRevealClue2 === 'none') {
+                              syncImageRevealFromClues(
+                                [clue1, clue2, clue3, clue4, clue5, clue6],
+                                { hasImage2: true }
+                              )
+                            }
+                          }}
+                          onBlur={() =>
+                            void maybeFillCreditFromUrl(
+                              imageUrl2,
+                              imageCredit2,
+                              setImageCredit2,
+                              'Image 2'
                             )
                           }
-                        }}
-                        onBlur={() =>
-                          void maybeFillCreditFromUrl(
-                            imageUrl2,
-                            imageCredit2,
-                            setImageCredit2,
-                            'Image 2'
-                          )
-                        }
-                        placeholder="Optional second hosted image URL"
-                        className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                      />
-                    </label>
-                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      {level === 'attending' ? 'Image 2 Timing' : 'Image 2 Reveal'}
-                      <select
-                        value={imageRevealClue2}
-                        onChange={e => setImageRevealClue2(e.target.value)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                      >
-                        {level === 'attending' ? (
-                          <>
-                            <option value="none">Show before answer</option>
-                            <option value="after">Reveal after answer</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="none">Show immediately</option>
-                            <option value="1">Reveal with Clue 1</option>
-                            <option value="2">Reveal with Clue 2</option>
-                            <option value="3">Reveal with Clue 3</option>
-                            <option value="4">Reveal with Clue 4</option>
-                            <option value="5">Reveal with Clue 5</option>
-                            <option value="6">Reveal with Clue 6</option>
-                          </>
-                        )}
-                      </select>
-                    </label>
-                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      Image 2 Credit
-                      <input
-                        value={imageCredit2}
-                        onChange={e => setImageCredit2(e.target.value)}
-                        placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                      />
-                    </label>
-                  </div>
+                          placeholder="Optional second hosted image URL"
+                          className="min-w-0 flex-1 rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                        />
+                      </label>
+                      <div className="grid gap-2.5 sm:grid-cols-2">
+                        <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                          {level === 'attending' ? 'Image 2 Timing' : 'Image 2 Reveal'}
+                          <select
+                            value={imageRevealClue2}
+                            onChange={e => setImageRevealClue2(e.target.value)}
+                            className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                          >
+                            {level === 'attending' ? (
+                              <>
+                                <option value="none">Show before answer</option>
+                                <option value="after">Reveal after answer</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="none">Show immediately</option>
+                                <option value="1">Reveal with Clue 1</option>
+                                <option value="2">Reveal with Clue 2</option>
+                                <option value="3">Reveal with Clue 3</option>
+                                <option value="4">Reveal with Clue 4</option>
+                                <option value="5">Reveal with Clue 5</option>
+                                <option value="6">Reveal with Clue 6</option>
+                              </>
+                            )}
+                          </select>
+                        </label>
+                        <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                          Image 2 Credit
+                          <input
+                            value={imageCredit2}
+                            onChange={e => setImageCredit2(e.target.value)}
+                            placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
+                            className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowCaseImage2Fields(true)}
+                      className="self-start rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                    >
+                      Add second case image
+                    </button>
+                  )}
                 </div>
 
                 <label className="grid gap-2 text-sm font-semibold text-[#637268]">
@@ -4486,7 +4648,7 @@ export default function AdminPage() {
                 </label>
 
               <div className="rounded-xl bg-white/55 px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/55">
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid gap-3">
                     <div className="grid gap-2.5">
                       <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                         Teaching Image 1 URL
@@ -4527,61 +4689,72 @@ export default function AdminPage() {
                       </label>
                     </div>
 
-                    <div className="grid gap-2.5">
-                      <div className="flex items-center justify-between gap-2">
-                        <div />
-                        {learningImageUrl2 && (
+                    {showTeachingImage2Fields ? (
+                      <div className="grid gap-2.5 rounded-xl bg-white/55 px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/55">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                            Second teaching image
+                          </div>
                           <button
                             type="button"
                             onClick={() => {
                               setLearningImageUrl2('')
                               setLearningImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
                               setLearningImageCaption2('')
+                              setShowTeachingImage2Fields(false)
                             }}
                             className="rounded-lg border border-[#ead9b7] px-2.5 py-1 text-[11px] font-semibold text-[#a24d24] transition hover:bg-[#fff8ef]"
                           >
                             Remove
                           </button>
-                        )}
+                        </div>
+                        <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                          Teaching Image 2 URL
+                          <input
+                            value={learningImageUrl2}
+                            onChange={e => setLearningImageUrl2(e.target.value)}
+                            onBlur={() =>
+                              void maybeFillCreditFromUrl(
+                                learningImageUrl2,
+                                learningImageCredit2,
+                                setLearningImageCredit2,
+                                'Teaching image 2'
+                              )
+                            }
+                            placeholder="Optional second teaching image"
+                            className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                          />
+                        </label>
+                        <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                          Teaching Image 2 Credit
+                          <input
+                            value={learningImageCredit2}
+                            onChange={e => setLearningImageCredit2(e.target.value)}
+                            placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
+                            className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                          />
+                        </label>
+                        <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                          Teaching Image 2 Caption
+                          <textarea
+                            value={learningImageCaption2}
+                            onChange={e => setLearningImageCaption2(e.target.value)}
+                            onKeyDown={event => handleRichTextareaKeyDown(event, learningImageCaption2, setLearningImageCaption2)}
+                            placeholder="Optional caption shown under the second teaching image."
+                            rows={3}
+                            className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                          />
+                        </label>
                       </div>
-                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                        Teaching Image 2 URL
-                        <input
-                          value={learningImageUrl2}
-                          onChange={e => setLearningImageUrl2(e.target.value)}
-                          onBlur={() =>
-                            void maybeFillCreditFromUrl(
-                              learningImageUrl2,
-                              learningImageCredit2,
-                              setLearningImageCredit2,
-                              'Teaching image 2'
-                            )
-                          }
-                          placeholder="Optional second teaching image"
-                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                        />
-                      </label>
-                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                        Teaching Image 2 Credit
-                        <input
-                          value={learningImageCredit2}
-                          onChange={e => setLearningImageCredit2(e.target.value)}
-                          placeholder={DEFAULT_IMAGE_CREDIT_TEMPLATE}
-                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                        />
-                      </label>
-                      <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                        Teaching Image 2 Caption
-                        <textarea
-                          value={learningImageCaption2}
-                          onChange={e => setLearningImageCaption2(e.target.value)}
-                          onKeyDown={event => handleRichTextareaKeyDown(event, learningImageCaption2, setLearningImageCaption2)}
-                          placeholder="Optional caption shown under the second teaching image."
-                          rows={3}
-                          className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                        />
-                      </label>
-                    </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowTeachingImage2Fields(true)}
+                        className="self-start rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                      >
+                        Add second teaching image
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -4835,105 +5008,94 @@ export default function AdminPage() {
                 </span>
               </label>
 
-              {composerGuardrails.length > 0 && (
-                <div className="rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3 text-sm text-[#8a5a2b]">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#8a5a2b]">
-                    Guardrails
-                  </div>
-                  <div className="mt-2 space-y-1.5">
-                    {composerGuardrails.map(issue => (
-                      <p key={issue}>{issue}</p>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={saveCase}
-                className="rounded-lg bg-[#1f6448] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#174c37]"
-              >
-                Save / Update Case
-              </button>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  const { data: existingCase, error } = await supabase
-                    .from('cases')
-                    .select('id, case_date, level, answer')
-                    .eq('case_date', caseDate)
-                    .eq('level', level)
-                    .maybeSingle()
-
-                  if (error) {
-                    setStatus(`Could not check case before deleting: ${error.message}`)
-                    return
-                  }
-
-                  if (!existingCase) {
-                    setStatus('No saved case exists for this date and level yet.')
-                    return
-                  }
-
-                  await deleteCase(existingCase as Pick<CaseRow, 'id' | 'case_date' | 'level' | 'answer'>)
-                }}
-                className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-5 py-3 text-sm font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
-              >
-                Delete current slot
-              </button>
-
               <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                    Case checklist
+                <button
+                  type="button"
+                  onClick={() => setShowComposerChecklist(current => !current)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                      Checklist
+                    </div>
+                    <div className="mt-1 text-sm text-[#637268]">
+                      {readyChecklistCount}/{caseChecklistItems.length} ready
+                      {composerGuardrailCount > 0 ? ` · ${composerGuardrailCount} guardrail${composerGuardrailCount === 1 ? '' : 's'}` : ''}
+                    </div>
                   </div>
                   <div className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#637268]">
-                    {readyChecklistCount}/{caseChecklistItems.length} ready
+                    {showComposerChecklist ? 'Hide' : 'Show'}
                   </div>
-                </div>
+                </button>
 
-                <div className="mt-3 grid gap-1.5 sm:grid-cols-2">
-                  {caseChecklistItems.map(item => (
-                    <div
-                      key={item.label}
-                      className={`rounded-lg px-3 py-2 text-sm ${
-                        item.ready
-                          ? 'bg-white text-[#355542] shadow-[inset_0_0_0_1px_#d8e5dd]'
-                          : 'bg-white text-[#7a6452] shadow-[inset_0_0_0_1px_#ead9b7]'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="font-semibold">{item.label}</span>
-                        <span className={`text-[11px] font-semibold ${item.ready ? 'text-[#1f6448]' : 'text-[#a24d24]'}`}>
-                          {item.ready ? 'Ready' : 'Needs work'}
-                        </span>
+                {showComposerChecklist ? (
+                  <div className="mt-3 space-y-3">
+                    {composerGuardrails.length > 0 ? (
+                      <div className="rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3 text-sm text-[#8a5a2b]">
+                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#8a5a2b]">
+                          Guardrails
+                        </div>
+                        <div className="mt-2 space-y-1.5">
+                          {composerGuardrails.map(issue => (
+                            <p key={issue}>{issue}</p>
+                          ))}
+                        </div>
                       </div>
-                      {!item.ready && item.note ? (
-                        <p className="mt-1 text-[11px] leading-4 text-[#8a948d]">{item.note}</p>
-                      ) : null}
+                    ) : null}
+
+                    <div className="grid gap-1.5 sm:grid-cols-2">
+                      {caseChecklistItems.map(item => (
+                        <div
+                          key={item.label}
+                          className={`rounded-lg px-3 py-2 text-sm ${
+                            item.ready
+                              ? 'bg-white text-[#355542] shadow-[inset_0_0_0_1px_#d8e5dd]'
+                              : 'bg-white text-[#7a6452] shadow-[inset_0_0_0_1px_#ead9b7]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold">{item.label}</span>
+                            <span className={`text-[11px] font-semibold ${item.ready ? 'text-[#1f6448]' : 'text-[#a24d24]'}`}>
+                              {item.ready ? 'Ready' : 'Needs work'}
+                            </span>
+                          </div>
+                          {!item.ready && item.note ? (
+                            <p className="mt-1 text-[11px] leading-4 text-[#8a948d]">{item.note}</p>
+                          ) : null}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : null}
               </div>
 
-              {(status || draftStatus) && (
-                <div className="space-y-1">
-                  {status ? <p className="text-sm text-[#637268]">{status}</p> : null}
-                  {draftStatus ? <p className="text-xs text-[#8a948d]">{draftStatus}</p> : null}
-                </div>
-              )}
-
               <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                    Case stats
+                <button
+                  type="button"
+                  onClick={() => setShowComposerCaseStats(current => !current)}
+                  className="flex w-full items-center justify-between gap-3 text-left"
+                >
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                      Case stats
+                    </div>
+                    <div className="mt-1 text-sm text-[#637268]">
+                      {caseCommunityStats
+                        ? `${caseCommunityStats.players} players · ${
+                            caseCommunityStats.solveRate !== null
+                              ? formatPercent(caseCommunityStats.solveRate)
+                              : '—'
+                          } solve rate`
+                        : 'No saved case stats yet'}
+                    </div>
                   </div>
-                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    Read only
+                  <div className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#637268]">
+                    {showComposerCaseStats ? 'Hide' : 'Show'}
                   </div>
-                </div>
+                </button>
 
-                {caseCommunityStats ? (
+                {showComposerCaseStats ? (
+                  caseCommunityStats ? (
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
                       <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
@@ -5081,35 +5243,41 @@ export default function AdminPage() {
                       </>
                     )}
                   </div>
-                ) : (
+                  ) : (
                   <p className="mt-3 text-sm text-[#637268]">
                     No saved case stats for this date and level yet.
                   </p>
-                )}
+                  )
+                ) : null}
               </div>
 
-              <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3.5">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                      Preview
-                    </div>
+              <div className="sticky bottom-3 z-10 rounded-2xl border border-[#e7e1d6] bg-[rgba(252,251,248,0.94)] px-3 py-3 shadow-[0_14px_32px_rgba(16,32,24,0.08)] backdrop-blur">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-[12px] text-[#7b847e]">
+                    {status || draftStatus || 'Ready to save, preview, or replace this slot.'}
                   </div>
-                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                    {caseDate} · {formatLevel(level)}
-                  </div>
-                </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={openCasePreview}
-                    className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37]"
-                  >
-                    Open full-page preview
-                  </button>
-                  <div className="rounded-full border border-[#ded7ca] bg-white px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                    Uses your current draft
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={openCasePreview}
+                      className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                    >
+                      Preview
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteCurrentSlot()}
+                      className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-sm font-semibold text-[#a24d24] transition hover:bg-[#fff4e8]"
+                    >
+                      Delete slot
+                    </button>
+                    <button
+                      onClick={saveCase}
+                      className="rounded-lg bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37]"
+                    >
+                      Save / Update Case
+                    </button>
                   </div>
                 </div>
               </div>
