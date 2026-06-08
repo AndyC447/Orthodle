@@ -454,6 +454,19 @@ function shiftISODate(dateText: string, days: number) {
   return baseDate.toISOString().slice(0, 10)
 }
 
+function getMonthStartISO(dateText: string) {
+  const baseDate = new Date(`${dateText}T12:00:00`)
+  baseDate.setDate(1)
+  return baseDate.toISOString().slice(0, 10)
+}
+
+function shiftISOMonth(dateText: string, months: number) {
+  const baseDate = new Date(`${dateText}T12:00:00`)
+  baseDate.setDate(1)
+  baseDate.setMonth(baseDate.getMonth() + months)
+  return baseDate.toISOString().slice(0, 10)
+}
+
 function timestampToLocalISO(timestamp: string) {
   const date = new Date(timestamp)
   const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
@@ -539,6 +552,7 @@ const ANALYTICS_PAGE_SIZE = 1000
 const ADMIN_ANALYTICS_CACHE_KEY = 'orthodle_admin_analytics_cache_v1'
 const ADMIN_ANALYTICS_CACHE_TTL_MS = 1000 * 60 * 5
 const EMAIL_REMINDERS_SEEN_AT_KEY = 'orthodle_seen_email_reminders_at'
+const CALENDAR_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function AdminPage() {
   const clueTextareaRefs = useRef<Array<HTMLTextAreaElement | null>>([])
@@ -638,6 +652,9 @@ export default function AdminPage() {
   const [showCasesByDate, setShowCasesByDate] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
   const [overviewDate, setOverviewDate] = useState(shiftISODate(today, 1))
+  const [overviewCalendarMonth, setOverviewCalendarMonth] = useState(
+    getMonthStartISO(shiftISODate(today, 1))
+  )
   const [sidebarSectionOrder, setSidebarSectionOrder] = useState<AdminSidebarSectionId[]>(
     DEFAULT_ADMIN_SIDEBAR_ORDER
   )
@@ -672,6 +689,11 @@ export default function AdminPage() {
       setLevel('med_student')
     }
   }, [caseDate, level, noResidentMode, noResidentModeStartDate])
+
+  useEffect(() => {
+    const nextMonth = getMonthStartISO(overviewDate)
+    setOverviewCalendarMonth(current => (current === nextMonth ? current : nextMonth))
+  }, [overviewDate])
 
   useEffect(() => {
     const savedOrder = window.localStorage.getItem(ADMIN_SIDEBAR_ORDER_STORAGE_KEY)
@@ -1175,6 +1197,48 @@ export default function AdminPage() {
     () => (isNoResidentModeActiveOn(overviewDate) ? noResidentLevelOrder : levelOrder),
     [overviewDate, noResidentMode, noResidentModeStartDate]
   )
+  const readinessByDate = useMemo(() => {
+    const map = new Map<
+      string,
+      { ready: number; required: number; isComplete: boolean; isPartial: boolean }
+    >()
+
+    for (const group of groupedCases) {
+      const requiredLevels = isNoResidentModeActiveOn(group.date) ? noResidentLevelOrder : levelOrder
+      const ready = requiredLevels.filter(levelValue =>
+        group.items.some(item => item.level === levelValue)
+      ).length
+      const required = requiredLevels.length
+
+      map.set(group.date, {
+        ready,
+        required,
+        isComplete: ready >= required,
+        isPartial: ready > 0 && ready < required,
+      })
+    }
+
+    return map
+  }, [groupedCases, noResidentMode, noResidentModeStartDate])
+  const overviewCalendarDays = useMemo(() => {
+    const monthStart = new Date(`${overviewCalendarMonth}T12:00:00`)
+    const gridStart = new Date(monthStart)
+    gridStart.setDate(1 - monthStart.getDay())
+
+    return Array.from({ length: 42 }, (_, index) => {
+      const day = new Date(gridStart)
+      day.setDate(gridStart.getDate() + index)
+      const isoDate = day.toISOString().slice(0, 10)
+
+      return {
+        isoDate,
+        dayNumber: day.getDate(),
+        isCurrentMonth: day.getMonth() === monthStart.getMonth(),
+        isSelected: isoDate === overviewDate,
+        readiness: readinessByDate.get(isoDate) || null,
+      }
+    })
+  }, [overviewCalendarMonth, overviewDate, readinessByDate])
   const useCompactOverviewLayout = playModeSettingsReady && noResidentMode
 
   const previewClues = useMemo(
@@ -3870,6 +3934,13 @@ export default function AdminPage() {
     const readyCount = levelOrderForSection.filter(levelValue =>
       cases.some(item => item.level === levelValue)
     ).length
+    const overviewMonthLabel = new Date(`${overviewCalendarMonth}T12:00:00`).toLocaleDateString(
+      'en-US',
+      {
+        month: 'long',
+        year: 'numeric',
+      }
+    )
     return (
       <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <div className="flex items-center justify-between gap-3">
@@ -3912,53 +3983,132 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          {levelOrderForSection.map(levelValue => {
-            const item = cases.find(entry => entry.level === levelValue)
+        <div className={showDatePicker ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.7fr)_320px]' : 'mt-3'}>
+          <div className="grid gap-2 md:grid-cols-2">
+            {levelOrderForSection.map(levelValue => {
+              const item = cases.find(entry => entry.level === levelValue)
 
-            return (
-              <div
-                key={`${dateText}-${levelValue}`}
-                className={
-                  item
-                    ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
-                    : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
-                }
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                      {levelValue === 'med_student' ? 'Cases' : formatLevel(levelValue)}
+              return (
+                <div
+                  key={`${dateText}-${levelValue}`}
+                  className={
+                    item
+                      ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
+                      : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
+                  }
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                        {levelValue === 'med_student' ? 'Cases' : formatLevel(levelValue)}
+                      </div>
+                      <div className="mt-1.5 font-semibold text-[#102018]">
+                        {item ? item.answer : 'Not scheduled'}
+                      </div>
+                      <div className="mt-1 text-sm text-[#637268]">
+                        {item ? item.category : 'Open slot'}
+                      </div>
                     </div>
-                    <div className="mt-1.5 font-semibold text-[#102018]">
-                      {item ? item.answer : 'Not scheduled'}
-                    </div>
-                    <div className="mt-1 text-sm text-[#637268]">
-                      {item ? item.category : 'Open slot'}
-                    </div>
+
+                    {item ? (
+                      <button
+                        type="button"
+                        onClick={() => editCase(item)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                      >
+                        Edit
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startCaseFor(dateText, levelValue)}
+                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                      >
+                        Add
+                      </button>
+                    )}
                   </div>
+                </div>
+              )
+            })}
+          </div>
 
-                  {item ? (
+          {showDatePicker ? (
+            <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOverviewCalendarMonth(shiftISOMonth(overviewCalendarMonth, -1))}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
+                  aria-label="Previous month"
+                >
+                  {'<'}
+                </button>
+                <div className="text-center text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+                  {overviewMonthLabel}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOverviewCalendarMonth(shiftISOMonth(overviewCalendarMonth, 1))}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
+                  aria-label="Next month"
+                >
+                  {'>'}
+                </button>
+              </div>
+
+              <div className="mt-3 grid grid-cols-7 gap-1.5">
+                {CALENDAR_WEEKDAY_LABELS.map(label => (
+                  <div
+                    key={label}
+                    className="pb-1 text-center text-[10px] font-bold uppercase tracking-[0.16em] text-[#8b8a84]"
+                  >
+                    {label}
+                  </div>
+                ))}
+
+                {overviewCalendarDays.map(day => {
+                  const isComplete = Boolean(day.readiness?.isComplete)
+                  const isPartial = Boolean(day.readiness?.isPartial)
+                  const cellTone = day.isSelected
+                    ? isComplete
+                      ? 'border-[#9fc6aa] bg-[#eaf6ed] text-[#1f6448] shadow-[0_8px_18px_rgba(31,100,72,0.12)]'
+                      : isPartial
+                        ? 'border-[#e2bc8e] bg-[#fff0df] text-[#9b5b24] shadow-[0_8px_18px_rgba(162,77,36,0.12)]'
+                        : 'border-[#cfded4] bg-white text-[#102018] shadow-[0_8px_18px_rgba(16,32,24,0.08)]'
+                    : isComplete
+                      ? 'border-[#dcebdd] bg-[#f3faf4] text-[#2c6b4d]'
+                      : isPartial
+                        ? 'border-[#f0ddc4] bg-[#fff7ee] text-[#a06a36]'
+                        : day.isCurrentMonth
+                          ? 'border-[#ece6dc] bg-white text-[#637268]'
+                          : 'border-[#f2ede5] bg-[#fbfaf7] text-[#b4ab9d]'
+
+                  return (
                     <button
+                      key={day.isoDate}
                       type="button"
-                      onClick={() => editCase(item)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
+                      onClick={() => setOverviewDate(day.isoDate)}
+                      className={`flex aspect-square min-h-[42px] items-center justify-center rounded-xl border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
                     >
-                      Edit
+                      {day.dayNumber}
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => startCaseFor(dateText, levelValue)}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                    >
-                      Add
-                    </button>
-                  )}
+                  )
+                })}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-[#7a7a72]">
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#eef7f0] ring-1 ring-[#cfe4d4]" />
+                  Ready
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-full bg-[#fff3e7] ring-1 ring-[#edd5b7]" />
+                  Missing cases
                 </div>
               </div>
-            )
-          })}
+            </div>
+          ) : null}
         </div>
       </section>
     )

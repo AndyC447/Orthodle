@@ -573,8 +573,6 @@ function PlayPageContent() {
   const imagePinchStart = useRef<number | null>(null)
   const imageScaleStart = useRef<number>(1)
   const imageCarouselStartRef = useRef<{ x: number; y: number } | null>(null)
-  const teachingImageSectionRef = useRef<HTMLDivElement | null>(null)
-  const hasShownTeachingImageSpotlightRef = useRef(false)
   const tabSwipeStartRef = useRef<{ x: number; y: number; at: number; allow: boolean } | null>(null)
   const lastTabSwipeAtRef = useRef(0)
   const today = todayISO()
@@ -619,7 +617,6 @@ function PlayPageContent() {
   const [showStreakIgnition, setShowStreakIgnition] = useState(false)
   const [showRailCompleteMoment, setShowRailCompleteMoment] = useState(false)
   const [showCaseCardSettle, setShowCaseCardSettle] = useState(false)
-  const [showTeachingImageSpotlight, setShowTeachingImageSpotlight] = useState(false)
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
   const [showSolvedInsightStep, setShowSolvedInsightStep] = useState(false)
   const [showSolvedMediaStep, setShowSolvedMediaStep] = useState(false)
@@ -1556,11 +1553,9 @@ function PlayPageContent() {
       setGameWon(false)
       setGameOver(false)
       setMessage('')
-      setShowTeachingImageSpotlight(false)
       setShowSolvedTeachingStep(false)
       setShowSolvedInsightStep(false)
       setShowSolvedMediaStep(false)
-      hasShownTeachingImageSpotlightRef.current = false
       setShakeInput(false)
       setPulseSuccess(false)
       setShowConfetti(false)
@@ -2923,10 +2918,7 @@ function PlayPageContent() {
 
     return (
       <div
-        ref={teachingImageSectionRef}
-        className={`orthodle-solved-secondary-step rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5 ${
-          showTeachingImageSpotlight ? 'orthodle-teaching-image-spotlight' : ''
-        }`}
+        className="orthodle-solved-secondary-step rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5"
       >
         <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
           Teaching Images
@@ -3059,57 +3051,109 @@ function PlayPageContent() {
     })
   }
 
-  function animateQuickTakeawayFollowScroll(durationMs: number) {
+  function animateWindowScrollToTrackedTarget(
+    getTargetY: () => number,
+    {
+      durationMs,
+      settleThreshold = 0.8,
+      minVelocity = 0.28,
+    }: {
+      durationMs: number
+      settleThreshold?: number
+      minVelocity?: number
+    }
+  ) {
     if (typeof window === 'undefined') return
-    const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
-    if (!target) return
 
     if (quickTakeawayScrollAnimationFrameRef.current) {
       window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
       quickTakeawayScrollAnimationFrameRef.current = null
     }
 
-    const startY = window.scrollY
-    const revealOffset = window.innerWidth >= 1024 ? 3 : 48
-    const initialTargetY = Math.max(0, target.getBoundingClientRect().top + window.scrollY - revealOffset)
-    const initialDelta = initialTargetY - startY
+    const startAt = performance.now()
+    const initialTargetY = getTargetY()
+    const initialDelta = initialTargetY - window.scrollY
 
     if (Math.abs(initialDelta) < 3) {
       window.scrollTo({ top: initialTargetY, behavior: 'auto' })
       return
     }
 
-    const startAt = performance.now()
-    const easeInOutCubic = (value: number) =>
-      value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2
+    let lastAt = startAt
+    let velocity = 0
 
     const step = (now: number) => {
+      const deltaMs = Math.min(34, Math.max(12, now - lastAt))
+      lastAt = now
       const elapsed = now - startAt
       const progress = Math.min(1, elapsed / durationMs)
-      const eased = easeInOutCubic(progress)
-      const liveTargetY = Math.max(
-        0,
-        target.getBoundingClientRect().top + window.scrollY - revealOffset
-      )
-      const desiredY = startY + (liveTargetY - startY) * eased
-      const blendedY =
-        progress >= 1
-          ? liveTargetY
-          : window.scrollY + (desiredY - window.scrollY) * (0.18 + eased * 0.22)
+      const liveTargetY = getTargetY()
+      const currentY = window.scrollY
+      const distance = liveTargetY - currentY
+      const normalizedFrame = deltaMs / 16.7
+      const attractionBase = progress < 0.55 ? 0.095 : 0.112
+      const attractionBoost = Math.min(0.05, Math.abs(distance) / 9000)
+      const attraction = (attractionBase + attractionBoost) * normalizedFrame
+      const damping = Math.pow(progress < 0.72 ? 0.74 : 0.7, normalizedFrame)
+
+      velocity = velocity * damping + distance * attraction
+
+      const maxStep =
+        (window.innerWidth >= 1024 ? 26 : 22) * normalizedFrame
+      const clampedStep = Math.max(-maxStep, Math.min(maxStep, velocity))
+      const nextY = progress >= 1 && Math.abs(distance) <= settleThreshold
+        ? liveTargetY
+        : currentY + clampedStep
 
       window.scrollTo({
-        top: blendedY,
+        top: nextY,
         behavior: 'auto',
       })
 
-      if (progress < 1) {
+      const remaining = Math.abs(liveTargetY - nextY)
+      if (
+        progress < 1 ||
+        remaining > settleThreshold ||
+        Math.abs(velocity) > minVelocity
+      ) {
         quickTakeawayScrollAnimationFrameRef.current = window.requestAnimationFrame(step)
       } else {
+        window.scrollTo({ top: liveTargetY, behavior: 'auto' })
         quickTakeawayScrollAnimationFrameRef.current = null
       }
     }
 
     quickTakeawayScrollAnimationFrameRef.current = window.requestAnimationFrame(step)
+  }
+
+  function animateSolvedAnswerRevealScroll(durationMs: number) {
+    const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
+    if (!target || typeof window === 'undefined') return
+
+    const revealOffset = window.innerWidth >= 1024 ? 2 : 56
+    animateWindowScrollToTrackedTarget(
+      () => Math.max(0, target.getBoundingClientRect().top + window.scrollY - revealOffset),
+      {
+        durationMs,
+        settleThreshold: 0.65,
+        minVelocity: 0.22,
+      }
+    )
+  }
+
+  function animateQuickTakeawayFollowScroll(durationMs: number) {
+    const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
+    if (!target || typeof window === 'undefined') return
+
+    const revealOffset = window.innerWidth >= 1024 ? 2 : 40
+    animateWindowScrollToTrackedTarget(
+      () => Math.max(0, target.getBoundingClientRect().top + window.scrollY - revealOffset),
+      {
+        durationMs,
+        settleThreshold: 0.55,
+        minVelocity: 0.18,
+      }
+    )
   }
 
   function handleGuessInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -3428,12 +3472,7 @@ function PlayPageContent() {
     const timeoutId = window.setTimeout(() => {
       const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
       if (target) {
-        const revealOffset = window.innerWidth >= 1024 ? 10 : 70
-        const top = target.getBoundingClientRect().top + window.scrollY - revealOffset
-        window.scrollTo({
-          top: Math.max(0, top),
-          behavior: 'smooth',
-        })
+        animateSolvedAnswerRevealScroll(window.innerWidth >= 1024 ? 980 : 900)
       }
 
       if (gameWon) {
@@ -3487,11 +3526,11 @@ function PlayPageContent() {
     quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
       setShowQuickTakeawaySlowReveal(true)
       setShowQuickTakeaway(true)
-      animateQuickTakeawayFollowScroll(3000)
+      animateQuickTakeawayFollowScroll(4300)
       quickTakeawayRevealAnimationTimeoutRef.current = window.setTimeout(() => {
         setShowQuickTakeawaySlowReveal(false)
         quickTakeawayRevealAnimationTimeoutRef.current = null
-      }, 2200)
+      }, 3200)
       suppressQuickTakeawayPersistRef.current = false
       quickTakeawayAutoRevealTimeoutRef.current = null
     }, 2500)
@@ -3513,38 +3552,6 @@ function PlayPageContent() {
       suppressQuickTakeawayPersistRef.current = false
     }
   }, [justCompletedRound, roundComplete])
-
-  useEffect(() => {
-    if (
-      !showSolvedMediaStep ||
-      !roundComplete ||
-      !justCompletedRound ||
-      !gameWon ||
-      hasShownTeachingImageSpotlightRef.current ||
-      !(dailyCase?.learning_image_url || dailyCase?.learning_image_url_2) ||
-      typeof window === 'undefined'
-    ) {
-      return
-    }
-
-    const target = teachingImageSectionRef.current
-    if (!target) return
-
-    const observer = new window.IntersectionObserver(
-      entries => {
-        const entry = entries[0]
-        if (!entry?.isIntersecting || hasShownTeachingImageSpotlightRef.current) return
-        hasShownTeachingImageSpotlightRef.current = true
-        setShowTeachingImageSpotlight(true)
-        window.setTimeout(() => setShowTeachingImageSpotlight(false), 1700)
-        observer.disconnect()
-      },
-      { threshold: 0.22 }
-    )
-
-    observer.observe(target)
-    return () => observer.disconnect()
-  }, [dailyCase?.learning_image_url, dailyCase?.learning_image_url_2, gameWon, justCompletedRound, roundComplete, showSolvedMediaStep])
 
   const homeTabs = useMemo(
     () => {
@@ -4561,13 +4568,13 @@ function PlayPageContent() {
         @keyframes orthodle-quick-takeaway-reveal {
           0% {
             opacity: 0;
-            transform: translateY(-10px);
-            filter: blur(5px);
+            transform: translateY(-5px);
+            filter: blur(2.25px);
           }
-          45% {
-            opacity: 0.72;
-            transform: translateY(-3px);
-            filter: blur(1.5px);
+          58% {
+            opacity: 0.78;
+            transform: translateY(-1px);
+            filter: blur(0.7px);
           }
           100% {
             opacity: 1;
@@ -4859,9 +4866,9 @@ function PlayPageContent() {
 
         .orthodle-collapsible-shell-slow-open {
           transition:
-            grid-template-rows 1900ms cubic-bezier(0.2, 0.9, 0.2, 1),
-            opacity 1200ms ease,
-            margin-top 560ms ease;
+            grid-template-rows 3200ms cubic-bezier(0.19, 1, 0.22, 1),
+            opacity 2100ms cubic-bezier(0.19, 1, 0.22, 1),
+            margin-top 920ms cubic-bezier(0.19, 1, 0.22, 1);
         }
 
         .orthodle-collapsible-body {
@@ -4870,26 +4877,7 @@ function PlayPageContent() {
         }
 
         .orthodle-quick-takeaway-reveal {
-          animation: orthodle-quick-takeaway-reveal 1400ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
-        }
-
-        .orthodle-teaching-image-spotlight {
-          position: relative;
-          animation: orthodle-teaching-spotlight 1.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-          box-shadow:
-            0 0 0 1px rgba(240, 194, 71, 0.22),
-            0 18px 34px rgba(16, 32, 24, 0.1),
-            0 0 0 10px rgba(240, 194, 71, 0.08);
-        }
-
-        .orthodle-teaching-image-spotlight::after {
-          content: '';
-          position: absolute;
-          inset: -12% -4% auto;
-          height: 62%;
-          pointer-events: none;
-          background: radial-gradient(circle at 50% 20%, rgba(240, 194, 71, 0.18) 0%, rgba(240, 194, 71, 0.08) 24%, rgba(255,255,255,0) 66%);
-          opacity: 0.9;
+          animation: orthodle-quick-takeaway-reveal 2600ms cubic-bezier(0.19, 1, 0.22, 1) both;
         }
 
         .orthodle-solved-step-in {
@@ -4932,7 +4920,6 @@ function PlayPageContent() {
           .orthodle-solved-step-in,
           .orthodle-solved-secondary-step,
           .orthodle-teaching-unfold,
-          .orthodle-teaching-image-spotlight,
           .orthodle-image-curtain,
           .orthodle-image-swap,
           .orthodle-quick-takeaway-reveal,
