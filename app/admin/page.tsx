@@ -4117,7 +4117,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className={showDatePicker ? 'mt-2.5 grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_250px]' : 'mt-2.5'}>
+        <div className={showDatePicker ? 'mt-2.5 grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_228px]' : 'mt-2.5'}>
           <div className="grid gap-2 md:grid-cols-2">
             {levelOrderForSection.map(levelValue => {
               const item = cases.find(entry => entry.level === levelValue)
@@ -4132,11 +4132,30 @@ export default function AdminPage() {
                       : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-2.5'
                   }
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
                       <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                         {levelValue === 'med_student' ? 'Cases' : formatLevel(levelValue)}
                       </div>
+                      {item ? (
+                        <button
+                          type="button"
+                          onClick={() => editCase(item)}
+                          className="shrink-0 rounded-md border border-[#ded7ca] px-2.5 py-1 text-[12px] font-semibold leading-none text-[#102018] transition hover:bg-white"
+                        >
+                          Edit
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => startCaseFor(dateText, levelValue)}
+                          className="shrink-0 rounded-md border border-[#ded7ca] px-2.5 py-1 text-[12px] font-semibold leading-none text-[#102018] transition hover:bg-white"
+                        >
+                          Add
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-1">
                       <div className="mt-1 font-semibold text-[#102018]">
                         {item ? item.answer : 'Not scheduled'}
                       </div>
@@ -4152,24 +4171,6 @@ export default function AdminPage() {
                           : 'Open slot'}
                       </div>
                     </div>
-
-                    {item ? (
-                      <button
-                        type="button"
-                        onClick={() => editCase(item)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                      >
-                        Edit
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => startCaseFor(dateText, levelValue)}
-                        className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                      >
-                        Add
-                      </button>
-                    )}
                   </div>
                 </div>
               )
@@ -4248,7 +4249,7 @@ export default function AdminPage() {
 
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
         {playModeSettingsReady && (
-          <div className="grid gap-3 xl:grid-cols-2 xl:items-start">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] xl:items-start">
             {renderOverviewSection({
               title: 'Today overview',
               dateText: today,
