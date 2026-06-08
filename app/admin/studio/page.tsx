@@ -194,6 +194,12 @@ function stripPreviewText(value: string) {
     .trim()
 }
 
+function isImageLikeFile(file: File | null | undefined) {
+  if (!file) return false
+  if (file.type.startsWith('image/')) return true
+  return /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif|avif)$/i.test(file.name)
+}
+
 export default function CaseStudioPage() {
   const [authReady, setAuthReady] = useState(false)
   const [isUnlocked, setIsUnlocked] = useState(false)
@@ -692,12 +698,53 @@ export default function CaseStudioPage() {
     setStatus('Second teaching image uploaded.')
   }
 
+  function getDroppedFile(event: DragEvent<HTMLElement>) {
+    const itemFiles = Array.from(event.dataTransfer.items || [])
+      .filter(item => item.kind === 'file')
+      .map(item => item.getAsFile())
+      .filter((file): file is File => Boolean(file))
+
+    if (itemFiles.length > 0) {
+      return itemFiles.find(isImageLikeFile) || itemFiles[0]
+    }
+
+    const directFiles = Array.from(event.dataTransfer.files || [])
+    if (directFiles.length > 0) {
+      return directFiles.find(isImageLikeFile) || directFiles[0]
+    }
+
+    return null
+  }
+
+  function handleImageDragEnter(event: DragEvent<HTMLElement>, slot: UploadSlot) {
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'copy'
+    setDropTarget(slot)
+  }
+
+  function handleImageDragOver(event: DragEvent<HTMLElement>, slot: UploadSlot) {
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'copy'
+    setDropTarget(slot)
+  }
+
+  function handleImageDragLeave(event: DragEvent<HTMLElement>, slot: UploadSlot) {
+    event.preventDefault()
+    event.stopPropagation()
+    const related = event.relatedTarget
+    if (related instanceof Node && event.currentTarget.contains(related)) return
+    setDropTarget(current => (current === slot ? null : current))
+  }
+
   function handleImageDrop(event: DragEvent<HTMLDivElement>, slot: UploadSlot) {
     event.preventDefault()
+    event.stopPropagation()
     setDropTarget(null)
-    const file = event.dataTransfer.files?.[0]
+    const file = getDroppedFile(event)
     if (!file) return
-    if (!file.type.startsWith('image/')) {
+    if (!isImageLikeFile(file)) {
       setStatus('Please drop an image file.')
       return
     }
@@ -862,13 +909,12 @@ export default function CaseStudioPage() {
         </div>
 
         <div
-          onDragOver={event => {
-            event.preventDefault()
-            setDropTarget(slot)
-          }}
-          onDragLeave={() => setDropTarget(current => (current === slot ? null : current))}
+          onDragEnter={event => handleImageDragEnter(event, slot)}
+          onDragOver={event => handleImageDragOver(event, slot)}
+          onDragLeave={event => handleImageDragLeave(event, slot)}
           onDrop={event => handleImageDrop(event, slot)}
-          className={`mt-2 rounded-xl border border-dashed px-3 py-4 text-center transition ${
+          onClick={() => fileInputRefs[slot].current?.click()}
+          className={`mt-2 cursor-pointer rounded-xl border border-dashed px-3 py-4 text-center transition ${
             dropTarget === slot
               ? 'border-[#2b6f4c] bg-[#eef7f1]'
               : 'border-[#d9d2c6] bg-white'
