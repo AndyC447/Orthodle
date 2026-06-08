@@ -62,7 +62,9 @@ type LinkMetadataResult = {
 
 const today = todayISO()
 const DEFAULT_IMAGE_CREDIT_TEMPLATE = 'Credit:'
-const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Who</u>**
+const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Clinical Pearl</u>**
+
+**<u>Who</u>**
 
 **<u>Pathophys</u>**
 

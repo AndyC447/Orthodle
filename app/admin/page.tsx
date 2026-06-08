@@ -384,7 +384,19 @@ const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'cases_by_date',
 ]
 const DEFAULT_IMAGE_CREDIT_TEMPLATE = 'Credit:'
-const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Who</u>**
+const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Clinical Pearl</u>**
+
+**<u>Who</u>**
+
+**<u>Pathophys</u>**
+
+**<u>Key Clues</u>**
+
+**<u>Tx</u>**
+
+**<u>Classic Pitfall</u>**`
+
+const LEGACY_DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Who</u>**
 
 **<u>Pathophys</u>**
 
@@ -955,6 +967,7 @@ export default function AdminPage() {
     if (
       !currentTeachingPoint ||
       currentTeachingPoint === previousDefault ||
+      currentTeachingPoint === LEGACY_DEFAULT_TEACHING_POINT_TEMPLATE.trim() ||
       currentTeachingPoint === DEFAULT_TEACHING_POINT_TEMPLATE.trim() ||
       currentTeachingPoint === DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE.trim() ||
       currentTeachingPoint === LEGACY_ANATOMY_TEACHING_POINT_TEMPLATE.trim()
