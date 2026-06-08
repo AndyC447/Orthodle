@@ -454,16 +454,9 @@ function shiftISODate(dateText: string, days: number) {
   return baseDate.toISOString().slice(0, 10)
 }
 
-function getMonthStartISO(dateText: string) {
+function getWeekStartISO(dateText: string) {
   const baseDate = new Date(`${dateText}T12:00:00`)
-  baseDate.setDate(1)
-  return baseDate.toISOString().slice(0, 10)
-}
-
-function shiftISOMonth(dateText: string, months: number) {
-  const baseDate = new Date(`${dateText}T12:00:00`)
-  baseDate.setDate(1)
-  baseDate.setMonth(baseDate.getMonth() + months)
+  baseDate.setDate(baseDate.getDate() - baseDate.getDay())
   return baseDate.toISOString().slice(0, 10)
 }
 
@@ -653,7 +646,7 @@ export default function AdminPage() {
   const [browseDate, setBrowseDate] = useState('')
   const [overviewDate, setOverviewDate] = useState(shiftISODate(today, 1))
   const [overviewCalendarMonth, setOverviewCalendarMonth] = useState(
-    getMonthStartISO(shiftISODate(today, 1))
+    getWeekStartISO(shiftISODate(today, 1))
   )
   const [sidebarSectionOrder, setSidebarSectionOrder] = useState<AdminSidebarSectionId[]>(
     DEFAULT_ADMIN_SIDEBAR_ORDER
@@ -691,9 +684,16 @@ export default function AdminPage() {
   }, [caseDate, level, noResidentMode, noResidentModeStartDate])
 
   useEffect(() => {
-    const nextMonth = getMonthStartISO(overviewDate)
-    setOverviewCalendarMonth(current => (current === nextMonth ? current : nextMonth))
-  }, [overviewDate])
+    const currentStart = new Date(`${overviewCalendarMonth}T12:00:00`)
+    const currentEnd = new Date(currentStart)
+    currentEnd.setDate(currentStart.getDate() + 13)
+    const selected = new Date(`${overviewDate}T12:00:00`)
+
+    if (selected < currentStart || selected > currentEnd) {
+      const nextWindowStart = getWeekStartISO(overviewDate)
+      setOverviewCalendarMonth(current => (current === nextWindowStart ? current : nextWindowStart))
+    }
+  }, [overviewCalendarMonth, overviewDate])
 
   useEffect(() => {
     const savedOrder = window.localStorage.getItem(ADMIN_SIDEBAR_ORDER_STORAGE_KEY)
@@ -1221,26 +1221,29 @@ export default function AdminPage() {
     return map
   }, [groupedCases, noResidentMode, noResidentModeStartDate])
   const overviewCalendarDays = useMemo(() => {
-    const monthStart = new Date(`${overviewCalendarMonth}T12:00:00`)
-    const gridStart = new Date(monthStart)
-    gridStart.setDate(1 - monthStart.getDay())
+    const windowStart = new Date(`${overviewCalendarMonth}T12:00:00`)
 
-    return Array.from({ length: 42 }, (_, index) => {
-      const day = new Date(gridStart)
-      day.setDate(gridStart.getDate() + index)
+    return Array.from({ length: 14 }, (_, index) => {
+      const day = new Date(windowStart)
+      day.setDate(windowStart.getDate() + index)
       const isoDate = day.toISOString().slice(0, 10)
+      const requiredLevels = isNoResidentModeActiveOn(isoDate) ? noResidentLevelOrder : levelOrder
+      const readiness = readinessByDate.get(isoDate) || {
+        ready: 0,
+        required: requiredLevels.length,
+        isComplete: false,
+        isPartial: false,
+      }
 
       return {
         isoDate,
         dayNumber: day.getDate(),
-        isCurrentMonth: day.getMonth() === monthStart.getMonth(),
+        isCurrentMonth: true,
         isSelected: isoDate === overviewDate,
-        readiness: readinessByDate.get(isoDate) || null,
+        readiness,
       }
     })
   }, [overviewCalendarMonth, overviewDate, readinessByDate])
-  const useCompactOverviewLayout = playModeSettingsReady && noResidentMode
-
   const previewClues = useMemo(
     () => [clue1, clue2, clue3, clue4, clue5, clue6].map(item => item.trim()).filter(Boolean),
     [clue1, clue2, clue3, clue4, clue5, clue6]
@@ -3934,13 +3937,16 @@ export default function AdminPage() {
     const readyCount = levelOrderForSection.filter(levelValue =>
       cases.some(item => item.level === levelValue)
     ).length
-    const overviewMonthLabel = new Date(`${overviewCalendarMonth}T12:00:00`).toLocaleDateString(
-      'en-US',
-      {
-        month: 'long',
-        year: 'numeric',
-      }
-    )
+    const calendarStart = new Date(`${overviewCalendarMonth}T12:00:00`)
+    const calendarEnd = new Date(calendarStart)
+    calendarEnd.setDate(calendarStart.getDate() + 13)
+    const overviewMonthLabel = `${calendarStart.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })} - ${calendarEnd.toLocaleDateString('en-US', {
+      month: calendarStart.getMonth() === calendarEnd.getMonth() ? undefined : 'short',
+      day: 'numeric',
+    })}`
     return (
       <section className="night-surface rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <div className="flex items-center justify-between gap-3">
@@ -3983,7 +3989,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className={showDatePicker ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.7fr)_320px]' : 'mt-3'}>
+        <div className={showDatePicker ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_288px]' : 'mt-3'}>
           <div className="grid gap-2 md:grid-cols-2">
             {levelOrderForSection.map(levelValue => {
               const item = cases.find(entry => entry.level === levelValue)
@@ -4038,9 +4044,9 @@ export default function AdminPage() {
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={() => setOverviewCalendarMonth(shiftISOMonth(overviewCalendarMonth, -1))}
+                  onClick={() => setOverviewCalendarMonth(shiftISODate(overviewCalendarMonth, -14))}
                   className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
-                  aria-label="Previous month"
+                  aria-label="Previous two weeks"
                 >
                   {'<'}
                 </button>
@@ -4049,9 +4055,9 @@ export default function AdminPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setOverviewCalendarMonth(shiftISOMonth(overviewCalendarMonth, 1))}
+                  onClick={() => setOverviewCalendarMonth(shiftISODate(overviewCalendarMonth, 14))}
                   className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
-                  aria-label="Next month"
+                  aria-label="Next two weeks"
                 >
                   {'>'}
                 </button>
@@ -4069,27 +4075,23 @@ export default function AdminPage() {
 
                 {overviewCalendarDays.map(day => {
                   const isComplete = Boolean(day.readiness?.isComplete)
-                  const isPartial = Boolean(day.readiness?.isPartial)
+                  const isIncomplete = !isComplete
                   const cellTone = day.isSelected
                     ? isComplete
-                      ? 'border-[#9fc6aa] bg-[#eaf6ed] text-[#1f6448] shadow-[0_8px_18px_rgba(31,100,72,0.12)]'
-                      : isPartial
-                        ? 'border-[#e2bc8e] bg-[#fff0df] text-[#9b5b24] shadow-[0_8px_18px_rgba(162,77,36,0.12)]'
-                        : 'border-[#cfded4] bg-white text-[#102018] shadow-[0_8px_18px_rgba(16,32,24,0.08)]'
+                      ? 'border-[#8dbaa0] bg-[#e0f0e4] text-[#1f6448] shadow-[0_8px_18px_rgba(31,100,72,0.14)]'
+                      : 'border-[#d59a5f] bg-[#ffe4c8] text-[#8e4d1d] shadow-[0_8px_18px_rgba(162,77,36,0.16)]'
                     : isComplete
-                      ? 'border-[#dcebdd] bg-[#f3faf4] text-[#2c6b4d]'
-                      : isPartial
-                        ? 'border-[#f0ddc4] bg-[#fff7ee] text-[#a06a36]'
-                        : day.isCurrentMonth
-                          ? 'border-[#ece6dc] bg-white text-[#637268]'
-                          : 'border-[#f2ede5] bg-[#fbfaf7] text-[#b4ab9d]'
+                      ? 'border-[#d0e4d5] bg-[#eef7f0] text-[#2c6b4d]'
+                      : isIncomplete
+                        ? 'border-[#eed0af] bg-[#fff3e5] text-[#a0602f]'
+                        : 'border-[#ece6dc] bg-white text-[#637268]'
 
                   return (
                     <button
                       key={day.isoDate}
                       type="button"
                       onClick={() => setOverviewDate(day.isoDate)}
-                      className={`flex aspect-square min-h-[42px] items-center justify-center rounded-xl border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
+                      className={`flex aspect-square min-h-[34px] items-center justify-center rounded-lg border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
                     >
                       {day.dayNumber}
                     </button>
@@ -4141,7 +4143,7 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {playModeSettingsReady && !useCompactOverviewLayout && (
+        {playModeSettingsReady && (
           <>
             <div className="mt-3">
               {renderOverviewSection({
@@ -4165,23 +4167,6 @@ export default function AdminPage() {
 
         <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_320px]">
           <div className="space-y-3">
-          {playModeSettingsReady && useCompactOverviewLayout && (
-            <>
-              {renderOverviewSection({
-                title: 'Today overview',
-                dateText: today,
-                cases: todaysCases,
-                levelOrderForSection: todaysLevelOrder,
-              })}
-              {renderOverviewSection({
-                title: `${formatShortDate(overviewDate)} overview`,
-                dateText: overviewDate,
-                cases: overviewCases,
-                levelOrderForSection: overviewLevelOrder,
-                showDatePicker: true,
-              })}
-            </>
-          )}
           <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
             <div className="flex items-center justify-between gap-4">
               <h2 className="font-serif text-xl font-bold">
