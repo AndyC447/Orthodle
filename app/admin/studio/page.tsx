@@ -884,9 +884,9 @@ export default function CaseStudioPage() {
     setRevealClue?: (value: string) => void
   }) {
     return (
-      <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
+      <div className="rounded-[16px] border border-[#e7e1d6] bg-[#fcfbf8] p-2.5">
         <div className="flex items-center justify-between gap-3">
-          <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
             {title}
           </div>
           {url ? (
@@ -898,7 +898,7 @@ export default function CaseStudioPage() {
                 setCaption?.('')
                 setRevealClue?.('none')
               }}
-              className="rounded-md border border-[#ded7ca] px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-white"
+              className="rounded-md border border-[#ded7ca] px-2 py-1 text-[11px] font-semibold text-[#637268] transition hover:bg-white"
             >
               Remove
             </button>
@@ -911,7 +911,7 @@ export default function CaseStudioPage() {
           onDragLeave={event => handleImageDragLeave(event, slot)}
           onDrop={event => handleImageDrop(event, slot)}
           onClick={() => fileInputRefs[slot].current?.click()}
-          className={`mt-2 cursor-pointer rounded-xl border border-dashed px-3 py-4 text-center transition ${
+          className={`mt-2 cursor-pointer rounded-[14px] border border-dashed px-3 py-3 text-center transition ${
             dropTarget === slot
               ? 'border-[#2b6f4c] bg-[#eef7f1]'
               : 'border-[#d9d2c6] bg-white'
@@ -921,12 +921,12 @@ export default function CaseStudioPage() {
             <img
               src={url}
               alt={title}
-              className="mx-auto max-h-56 rounded-lg object-contain"
+              className="mx-auto max-h-40 rounded-lg object-contain"
             />
           ) : (
             <div className="space-y-1">
-              <div className="text-sm font-semibold text-[#102018]">Drop an image here</div>
-              <div className="text-[12px] text-[#7a857c]">or use the picker below</div>
+              <div className="text-[13px] font-semibold text-[#102018]">Drop an image here</div>
+              <div className="text-[11px] text-[#7a857c]">or use the picker below</div>
             </div>
           )}
         </div>
@@ -935,7 +935,7 @@ export default function CaseStudioPage() {
           <button
             type="button"
             onClick={() => fileInputRefs[slot].current?.click()}
-            className="rounded-md border border-[#ded7ca] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+            className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
           >
             Choose file
           </button>
@@ -952,7 +952,7 @@ export default function CaseStudioPage() {
               event.currentTarget.value = ''
             }}
           />
-          <div className="text-[12px] text-[#7a857c]">Drag and drop works here too.</div>
+          <div className="text-[11px] text-[#7a857c]">Drag and drop works here too.</div>
         </div>
 
         <div className="mt-2 space-y-2">
@@ -961,13 +961,13 @@ export default function CaseStudioPage() {
             onChange={event => setUrl(event.target.value)}
             onBlur={() => void maybeFillCreditFromUrl(url, credit, setCredit, title)}
             placeholder="Hosted image URL"
-            className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-sm text-[#102018]"
+            className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
           />
           <input
             value={credit}
             onChange={event => setCredit(event.target.value)}
             placeholder="Credit:"
-            className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-sm text-[#102018]"
+            className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
           />
           {setCaption ? (
             <textarea
@@ -977,14 +977,14 @@ export default function CaseStudioPage() {
               onInput={autoGrowTextarea}
               rows={2}
               placeholder="Optional caption"
-              className="min-h-[46px] w-full resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2 text-sm text-[#102018]"
+              className="min-h-[42px] w-full resize-y overflow-hidden rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
             />
           ) : null}
           {setRevealClue ? (
             <select
               value={revealClue}
               onChange={event => setRevealClue(event.target.value)}
-              className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-sm text-[#102018]"
+              className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
             >
               <option value="none">No reveal timing</option>
               <option value="1">Show before Clue 1</option>
@@ -1055,73 +1055,73 @@ export default function CaseStudioPage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <div className="mx-auto max-w-[1500px] px-3 py-3 sm:px-6 sm:py-4">
+      <div className="mx-auto max-w-[1420px] px-3 py-2.5 sm:px-5 sm:py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
               Case Studio
             </div>
-            <h1 className="mt-1 font-serif text-3xl font-bold text-[#102018]">
+            <h1 className="mt-0.5 font-serif text-[28px] font-bold leading-none text-[#102018]">
               Build with live preview
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/admin"
-              className="rounded-md border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+              className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[13px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
             >
               Back to admin
             </Link>
             <button
               type="button"
               onClick={openPreviewInNewTab}
-              className="rounded-md border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+              className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[13px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
             >
               Open full preview
             </button>
             <button
               type="button"
               onClick={() => void saveCase()}
-              className="rounded-md border border-[#cbd9cf] bg-[#1f6b48] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#245e44]"
+              className="rounded-md border border-[#cbd9cf] bg-[#1f6b48] px-2.5 py-1.5 text-[13px] font-semibold text-white transition hover:bg-[#245e44]"
             >
               Save case
             </button>
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-[#7a857c]">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#7a857c]">
           <span>{loadingCase ? 'Loading slot…' : `${formatLevel(level)} · ${caseDate}`}</span>
           {status ? <span>{status}</span> : null}
         </div>
 
-        <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.14fr)_380px]">
-          <section className="rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
+        <div className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.18fr)_330px]">
+          <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                   Case canvas
                 </div>
-                <div className="mt-1 text-[12px] text-[#7a857c]">
+                <div className="mt-0.5 text-[11px] text-[#7a857c]">
                   Edit directly in the template below.
                 </div>
               </div>
               <button
                 type="button"
                 onClick={openPreviewInNewTab}
-                className="rounded-md border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
               >
                 Open full preview
               </button>
             </div>
 
-            <div className="mt-3 space-y-3">
-              <div className="rounded-[28px] border border-[#d9d2c6] bg-white px-4 py-4 shadow-[0_18px_40px_rgba(16,32,24,0.06)] sm:px-6 sm:py-5">
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
+            <div className="mt-2.5 space-y-2.5">
+              <div className="rounded-[22px] border border-[#d9d2c6] bg-white px-3 py-3 shadow-[0_14px_28px_rgba(16,32,24,0.05)] sm:px-4 sm:py-3.5">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
                   <input
                     value={category}
                     onChange={event => setCategory(event.target.value)}
                     placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Category'}
-                    className="w-full bg-transparent text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268] outline-none placeholder:text-[#9aa49d]"
+                    className="w-full bg-transparent text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268] outline-none placeholder:text-[#9aa49d]"
                   />
                 </div>
                 <textarea
@@ -1130,39 +1130,39 @@ export default function CaseStudioPage() {
                   onKeyDown={event => handleRichTextareaKeyDown(event, prompt, setPrompt)}
                   onInput={autoGrowTextarea}
                   placeholder="Write the case stem here..."
-                  rows={5}
-                  className="mt-3 min-h-[170px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[30px] leading-[1.45] tracking-[-0.03em] text-[#102018] outline-none placeholder:text-[#9aa49d] sm:text-[36px]"
+                  rows={4}
+                  className="mt-2 min-h-[120px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[23px] leading-[1.42] tracking-[-0.025em] text-[#102018] outline-none placeholder:text-[#9aa49d] sm:text-[28px]"
                 />
 
                 {(imageUrl || imageUrl2) ? (
-                  <div className="mt-4 border-t border-dashed border-[#ded7ca] pt-4">
-                    <div className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
+                  <div className="mt-3 border-t border-dashed border-[#ded7ca] pt-3">
+                    <div className="mb-2 text-center text-[9px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                       Imaging
                     </div>
-                    <div className="grid gap-3">
+                    <div className="grid gap-2.5">
                       {imageUrl ? (
-                        <div className="rounded-[18px] border border-[#ebe5db] bg-[#fcfbf8] px-3 py-3">
+                        <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2.5">
                           <img
                             src={imageUrl}
                             alt="Case image 1"
-                            className="mx-auto max-h-[360px] w-auto max-w-full rounded-lg object-contain"
+                            className="mx-auto max-h-[280px] w-auto max-w-full rounded-lg object-contain"
                           />
                           {normalizeCreditValue(imageCredit) ? (
-                            <p className="mt-2 text-center text-[11px] leading-5 text-[#8a948d]">
+                            <p className="mt-1.5 text-center text-[10px] leading-4 text-[#8a948d]">
                               {normalizeCreditValue(imageCredit)}
                             </p>
                           ) : null}
                         </div>
                       ) : null}
                       {imageUrl2 ? (
-                        <div className="rounded-[18px] border border-[#ebe5db] bg-[#fcfbf8] px-3 py-3">
+                        <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2.5">
                           <img
                             src={imageUrl2}
                             alt="Case image 2"
-                            className="mx-auto max-h-[360px] w-auto max-w-full rounded-lg object-contain"
+                            className="mx-auto max-h-[280px] w-auto max-w-full rounded-lg object-contain"
                           />
                           {normalizeCreditValue(imageCredit2) ? (
-                            <p className="mt-2 text-center text-[11px] leading-5 text-[#8a948d]">
+                            <p className="mt-1.5 text-center text-[10px] leading-4 text-[#8a948d]">
                               {normalizeCreditValue(imageCredit2)}
                             </p>
                           ) : null}
@@ -1173,9 +1173,9 @@ export default function CaseStudioPage() {
                 ) : null}
 
                 {imageUrl || imageUrl2 ? (
-                  <div className="mt-3">
-                    <div className="mx-auto max-w-[68ch]">
-                      <div className="text-center text-[13px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/60 underline-offset-2">
+                  <div className="mt-2.5">
+                    <div className="mx-auto max-w-[74ch]">
+                      <div className="text-center text-[12px] font-bold tracking-[-0.01em] text-[#102018] underline decoration-[#102018]/60 underline-offset-2">
                         Imaging Results
                       </div>
                       <textarea
@@ -1184,35 +1184,35 @@ export default function CaseStudioPage() {
                         onKeyDown={event => handleRichTextareaKeyDown(event, imageFindings, setImageFindings)}
                         onInput={autoGrowTextarea}
                         placeholder="Add image findings here..."
-                        rows={3}
-                        className="mt-2 min-h-[92px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 text-center font-serif text-[17px] leading-[1.75] tracking-[-0.01em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                        rows={2}
+                        className="mt-1.5 min-h-[64px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 text-center font-serif text-[15px] leading-[1.6] tracking-[-0.01em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
                       />
                     </div>
                   </div>
                 ) : null}
               </div>
 
-              <div className="rounded-[24px] border border-[#e7e1d6] bg-white px-3 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4">
+              <div className="rounded-[20px] border border-[#e7e1d6] bg-white px-3 py-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
                 {level === 'attending' ? (
-                  <div className="space-y-3">
-                    <div className="grid gap-2.5 sm:grid-cols-2">
+                  <div className="space-y-2.5">
+                    <div className="grid gap-2 sm:grid-cols-2">
                       {clues.map((clue, index) => {
                         const letter = String.fromCharCode(65 + index)
                         const isCorrect = normalizedAnatomyCorrectChoices.includes(letter)
                         return (
                           <div
                             key={letter}
-                            className={`rounded-[18px] border px-3 py-3 ${
+                            className={`rounded-[16px] border px-2.5 py-2.5 ${
                               isCorrect
                                 ? 'border-[#bfe0cb] bg-[#f2faf5]'
                                 : 'border-[#ded7ca] bg-white'
                             }`}
                           >
-                            <div className="mb-2 flex items-center gap-2">
-                              <div className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#e2cda2] text-[18px] font-semibold text-[#9a6030]">
+                            <div className="mb-1.5 flex items-center gap-2">
+                              <div className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e2cda2] text-[15px] font-semibold text-[#9a6030]">
                                 {letter}
                               </div>
-                              <span className="text-[12px] font-semibold text-[#637268]">
+                              <span className="text-[11px] font-semibold text-[#637268]">
                                 {isCorrect ? 'Correct answer' : 'Answer choice'}
                               </span>
                             </div>
@@ -1222,33 +1222,33 @@ export default function CaseStudioPage() {
                               onKeyDown={event => handleRichTextareaKeyDown(event, clue, nextValue => setClueAt(index, nextValue))}
                               onInput={autoGrowTextarea}
                               rows={2}
-                              className="min-h-[74px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[18px] leading-[1.55] tracking-[-0.02em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                              className="min-h-[58px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[16px] leading-[1.45] tracking-[-0.02em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
                               placeholder={`Choice ${letter}`}
                             />
                           </div>
                         )
                       })}
                     </div>
-                    <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2.5">
-                      <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2">
+                      <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                         Correct choices
                       </div>
                       <input
                         value={anatomyCorrectChoices}
                         onChange={event => setAnatomyCorrectChoices(event.target.value)}
                         placeholder="A, C"
-                        className="mt-2 w-full border-0 bg-transparent p-0 text-sm text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                        className="mt-1.5 w-full border-0 bg-transparent p-0 text-[13px] text-[#102018] outline-none placeholder:text-[#9aa49d]"
                       />
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {clues.map((clue, index) => (
                       <div
                         key={`clue-${index}`}
-                        className="rounded-[18px] border border-[#ded7ca] bg-white px-3 py-3"
+                        className="rounded-[16px] border border-[#ded7ca] bg-white px-2.5 py-2.5"
                       >
-                        <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                        <div className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                           Clue {index + 1}
                         </div>
                         <textarea
@@ -1257,7 +1257,7 @@ export default function CaseStudioPage() {
                           onKeyDown={event => handleRichTextareaKeyDown(event, clue, nextValue => setClueAt(index, nextValue))}
                           onInput={autoGrowTextarea}
                           rows={2}
-                          className="min-h-[74px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[18px] leading-[1.6] tracking-[-0.02em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                          className="min-h-[58px] w-full resize-y overflow-hidden border-0 bg-transparent p-0 font-serif text-[16px] leading-[1.5] tracking-[-0.02em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
                           placeholder={`Clue ${index + 1}`}
                         />
                       </div>
@@ -1266,41 +1266,41 @@ export default function CaseStudioPage() {
                 )}
               </div>
 
-              <div className="rounded-[24px] border border-[#dbe4db] bg-[linear-gradient(180deg,#fbfefb_0%,#f1f7f1_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_12px_24px_rgba(16,32,24,0.035)] sm:px-4">
-                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+              <div className="rounded-[20px] border border-[#dbe4db] bg-[linear-gradient(180deg,#fbfefb_0%,#f1f7f1_100%)] px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.84),0_12px_24px_rgba(16,32,24,0.035)]">
+                <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#315f4d]">
                   Quick takeaway
                 </div>
                 <textarea
                   value={teachingPoint}
                   onChange={event => setTeachingPoint(event.target.value)}
                   onKeyDown={event => handleRichTextareaKeyDown(event, teachingPoint, setTeachingPoint)}
-                  rows={14}
-                  className="mt-3 min-h-[360px] w-full resize-y border-0 bg-transparent p-0 font-serif text-[16px] leading-[1.8] tracking-[-0.01em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                  rows={11}
+                  className="mt-2 min-h-[250px] w-full resize-y border-0 bg-transparent p-0 font-serif text-[14px] leading-[1.65] tracking-[-0.01em] text-[#102018] outline-none placeholder:text-[#9aa49d]"
                   placeholder={getDefaultTeachingPointTemplate(level)}
                 />
 
                 {(learningImageUrl || learningImageUrl2) ? (
-                  <div className="mt-4 border-t border-[#ebe5db] pt-4">
-                    <div className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
+                  <div className="mt-3 border-t border-[#ebe5db] pt-3">
+                    <div className="mb-2 text-center text-[9px] font-bold uppercase tracking-[0.16em] text-[#315f4d]">
                       Teaching images
                     </div>
-                    <div className="grid gap-3">
+                    <div className="grid gap-2.5">
                       {learningImageUrl ? (
-                        <div className="overflow-hidden rounded-xl border border-[#e7e1d6] bg-white">
+                        <div className="overflow-hidden rounded-[16px] border border-[#e7e1d6] bg-white">
                           <img
                             src={learningImageUrl}
                             alt="Teaching image 1"
-                            className="mx-auto max-h-[320px] w-auto max-w-full object-contain"
+                            className="mx-auto max-h-[240px] w-auto max-w-full object-contain"
                           />
                           {(learningImageCaption.trim() || normalizeCreditValue(learningImageCredit)) ? (
-                            <div className="border-t border-[#efe7db] bg-white px-3 py-2.5">
+                            <div className="border-t border-[#efe7db] bg-white px-2.5 py-2">
                               {learningImageCaption.trim() ? (
-                                <p className="text-center text-sm leading-6 text-[#4d5d55]">
+                                <p className="text-center text-[13px] leading-5 text-[#4d5d55]">
                                   {learningImageCaption.trim()}
                                 </p>
                               ) : null}
                               {normalizeCreditValue(learningImageCredit) ? (
-                                <p className={`${learningImageCaption.trim() ? 'mt-1.5' : ''} text-center text-[11px] leading-5 text-[#8a948d]`}>
+                                <p className={`${learningImageCaption.trim() ? 'mt-1' : ''} text-center text-[10px] leading-4 text-[#8a948d]`}>
                                   {normalizeCreditValue(learningImageCredit)}
                                 </p>
                               ) : null}
@@ -1309,21 +1309,21 @@ export default function CaseStudioPage() {
                         </div>
                       ) : null}
                       {learningImageUrl2 ? (
-                        <div className="overflow-hidden rounded-xl border border-[#e7e1d6] bg-white">
+                        <div className="overflow-hidden rounded-[16px] border border-[#e7e1d6] bg-white">
                           <img
                             src={learningImageUrl2}
                             alt="Teaching image 2"
-                            className="mx-auto max-h-[320px] w-auto max-w-full object-contain"
+                            className="mx-auto max-h-[240px] w-auto max-w-full object-contain"
                           />
                           {(learningImageCaption2.trim() || normalizeCreditValue(learningImageCredit2)) ? (
-                            <div className="border-t border-[#efe7db] bg-white px-3 py-2.5">
+                            <div className="border-t border-[#efe7db] bg-white px-2.5 py-2">
                               {learningImageCaption2.trim() ? (
-                                <p className="text-center text-sm leading-6 text-[#4d5d55]">
+                                <p className="text-center text-[13px] leading-5 text-[#4d5d55]">
                                   {learningImageCaption2.trim()}
                                 </p>
                               ) : null}
                               {normalizeCreditValue(learningImageCredit2) ? (
-                                <p className={`${learningImageCaption2.trim() ? 'mt-1.5' : ''} text-center text-[11px] leading-5 text-[#8a948d]`}>
+                                <p className={`${learningImageCaption2.trim() ? 'mt-1' : ''} text-center text-[10px] leading-4 text-[#8a948d]`}>
                                   {normalizeCreditValue(learningImageCredit2)}
                                 </p>
                               ) : null}
@@ -1335,8 +1335,8 @@ export default function CaseStudioPage() {
                   </div>
                 ) : null}
 
-                <div className="mt-4 border-t border-[#ebe5db] pt-4">
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                <div className="mt-3 border-t border-[#ebe5db] pt-3">
+                  <div className="text-[9px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                     References
                   </div>
                   <textarea
@@ -1351,42 +1351,42 @@ export default function CaseStudioPage() {
                     onKeyDown={event => handleRichTextareaKeyDown(event, referenceLinks, setReferenceLinks)}
                     placeholder={`https://example.com\nhttps://example.com`}
                     rows={3}
-                    className="mt-2 min-h-[84px] w-full resize-y border-0 bg-transparent p-0 text-sm leading-7 text-[#102018] outline-none placeholder:text-[#9aa49d]"
+                    className="mt-1.5 min-h-[62px] w-full resize-y border-0 bg-transparent p-0 text-[13px] leading-6 text-[#102018] outline-none placeholder:text-[#9aa49d]"
                   />
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="rounded-2xl border border-[#e7e1d6] bg-white p-3 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
-            <div className="grid gap-3">
-              <div className="rounded-xl bg-[#fcfbf8] px-3 py-2.5 ring-1 ring-inset ring-[#ebe5db]/65">
-                <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+          <section className="rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_12px_28px_rgba(16,32,24,0.05)]">
+            <div className="grid gap-2.5">
+              <div className="rounded-[16px] bg-[#fcfbf8] px-2.5 py-2 ring-1 ring-inset ring-[#ebe5db]/65">
+                <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                   Case settings
                 </div>
-                <div className="mt-2 text-[12px] leading-5 text-[#7a857c]">
+                <div className="mt-1 text-[11px] leading-4.5 text-[#7a857c]">
                   Keep the main writing on the left. Use this side for slot details, answer logic,
                   image uploads, and saving.
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
-                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              <div className="grid gap-2.5 sm:grid-cols-[1fr_1fr]">
+                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                   Publish date
                   <input
                     type="date"
                     value={caseDate}
                     onChange={event => setCaseDate(event.target.value)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                   />
                 </label>
 
-                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                   Level
                   <select
                     value={level}
                     onChange={event => setLevel(event.target.value as Level)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                   >
                     <option value="med_student">Daily Case</option>
                     <option value="resident">Resident</option>
@@ -1395,46 +1395,46 @@ export default function CaseStudioPage() {
                 </label>
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                   Category
                   <input
                     value={category}
                     onChange={event => setCategory(event.target.value)}
                     placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Trauma'}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                   />
                 </label>
 
-                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                   Answer
                   <input
                     value={answer}
                     onChange={event => setAnswer(event.target.value)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                   />
                 </label>
               </div>
 
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              <div className="grid gap-2.5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                   Synonyms
                   <input
                     value={synonyms}
                     onChange={event => setSynonyms(event.target.value)}
                     placeholder="Comma-separated aliases"
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                   />
                 </label>
 
                 {level === 'attending' ? (
-                  <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+                  <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                     Correct choices
                     <input
                       value={anatomyCorrectChoices}
                       onChange={event => setAnatomyCorrectChoices(event.target.value)}
                       placeholder="A, C"
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                      className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                     />
                   </label>
                 ) : (
@@ -1442,10 +1442,10 @@ export default function CaseStudioPage() {
                 )}
               </div>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                 Case images
-                <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <div className="mt-3 space-y-3">
+                <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                <div className="mt-2 space-y-2.5">
                   {renderImageSlot({
                     slot: 'case1',
                     title: 'Case image',
@@ -1471,7 +1471,7 @@ export default function CaseStudioPage() {
                     <button
                       type="button"
                       onClick={() => setShowCaseImage2Fields(true)}
-                      className="rounded-md border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                      className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                     >
                       Add second case image
                     </button>
@@ -1480,10 +1480,10 @@ export default function CaseStudioPage() {
                 </div>
               </label>
 
-              <label className="grid gap-2 text-sm font-semibold text-[#637268]">
+              <label className="grid gap-1.5 text-[13px] font-semibold text-[#637268]">
                 Teaching images
-                <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <div className="mt-3 space-y-3">
+                <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] p-2.5">
+                <div className="mt-2 space-y-2.5">
                   {renderImageSlot({
                     slot: 'teach1',
                     title: 'Teaching image',
@@ -1509,7 +1509,7 @@ export default function CaseStudioPage() {
                     <button
                       type="button"
                       onClick={() => setShowTeachingImage2Fields(true)}
-                      className="rounded-md border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                      className="rounded-md border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[12px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
                     >
                       Add second teaching image
                     </button>
@@ -1518,7 +1518,7 @@ export default function CaseStudioPage() {
                 </div>
               </label>
 
-              <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2.5 text-[12px] leading-5 text-[#7a857c]">
+              <div className="rounded-[16px] border border-[#ebe5db] bg-[#fcfbf8] px-2.5 py-2 text-[11px] leading-4.5 text-[#7a857c]">
                 Shortcuts: Cmd/Ctrl + B bold, Cmd/Ctrl + I italic, Cmd/Ctrl + U underline,
                 Cmd/Ctrl + Shift + 7 or 8 bullets. You can apply these everywhere in the case now.
               </div>

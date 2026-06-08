@@ -572,6 +572,8 @@ function PlayPageContent() {
   const previousVisibleImageCountRef = useRef(0)
   const justAnchoredImageRevealRef = useRef(false)
   const suppressQuickTakeawayPersistRef = useRef(false)
+  const anatomyLockedNoticeTimeoutRef = useRef<number | null>(null)
+  const previousAnatomyLockedRef = useRef<boolean | null>(null)
   const previousStreakRef = useRef<number>(0)
   const previousTodayCompleteRef = useRef(false)
   const homeTabSnapMountRef = useRef(false)
@@ -628,6 +630,8 @@ function PlayPageContent() {
   const [showSolvedTeachingStep, setShowSolvedTeachingStep] = useState(false)
   const [showSolvedInsightStep, setShowSolvedInsightStep] = useState(false)
   const [showSolvedMediaStep, setShowSolvedMediaStep] = useState(false)
+  const [showAnatomyLockedNotice, setShowAnatomyLockedNotice] = useState(false)
+  const [showAnatomyUnlockMoment, setShowAnatomyUnlockMoment] = useState(false)
   const [homeSwipeOffset, setHomeSwipeOffset] = useState(0)
   const [homeSwipePreviewDirection, setHomeSwipePreviewDirection] = useState<-1 | 0 | 1>(0)
   const [homeSwipeDragging, setHomeSwipeDragging] = useState(false)
@@ -3635,7 +3639,12 @@ function PlayPageContent() {
   ).size
   const todayComplete = todayCompletedLevels >= requiredDailyLevels
   const dailyCompleteHeading = 'Daily cases complete'
-  const onTodayCard = selectedDate === todayISO()
+  const onTodayCard = selectedDate === today
+  const dailyCaseSolvedToday =
+    dailySummary.levels.some(
+      item => item.level === 'med_student' && (item.won || item.guessesUsed === 6)
+    ) || (onTodayCard && selectedLevel === 'med_student' && roundComplete)
+  const anatomyQuizLocked = onTodayCard && !isAdminPreview && !dailyCaseSolvedToday
   const showDailyCompleteCard = onTodayCard && todayComplete
   const resumeRoundIsCurrent = Boolean(
     resumeRound &&
@@ -3685,6 +3694,26 @@ function PlayPageContent() {
   const canAdvanceToNextLevel =
     Boolean(nextLevel) && onTodayCard && roundComplete && !caseParam && !imageExpanded
 
+  function showAnatomyLockedMessage() {
+    setShowAnatomyLockedNotice(true)
+    if (typeof window === 'undefined') return
+    if (anatomyLockedNoticeTimeoutRef.current) {
+      window.clearTimeout(anatomyLockedNoticeTimeoutRef.current)
+    }
+    anatomyLockedNoticeTimeoutRef.current = window.setTimeout(() => {
+      setShowAnatomyLockedNotice(false)
+    }, 2600)
+  }
+
+  function selectHomeLevel(nextLevelToSelect: Level) {
+    if (nextLevelToSelect === 'attending' && anatomyQuizLocked) {
+      showAnatomyLockedMessage()
+      return
+    }
+    setShowAnatomyLockedNotice(false)
+    setSelectedLevel(nextLevelToSelect)
+  }
+
   useEffect(() => {
     if (!homeTabSnapMountRef.current) {
       homeTabSnapMountRef.current = true
@@ -3696,6 +3725,33 @@ function PlayPageContent() {
     const timeoutId = window.setTimeout(() => setHomeTabSnapKey(null), 520)
     return () => window.clearTimeout(timeoutId)
   }, [selectedLevel])
+
+  useEffect(() => {
+    if (selectedLevel === 'attending' && anatomyQuizLocked) {
+      setSelectedLevel('med_student')
+    }
+  }, [anatomyQuizLocked, selectedLevel])
+
+  useEffect(() => {
+    if (previousAnatomyLockedRef.current === true && !anatomyQuizLocked) {
+      setShowAnatomyLockedNotice(false)
+      setShowAnatomyUnlockMoment(true)
+      if (typeof window !== 'undefined') {
+        const timeoutId = window.setTimeout(() => setShowAnatomyUnlockMoment(false), 1180)
+        return () => window.clearTimeout(timeoutId)
+      }
+    }
+    previousAnatomyLockedRef.current = anatomyQuizLocked
+  }, [anatomyQuizLocked])
+
+  useEffect(() => {
+    return () => {
+      if (typeof window === 'undefined') return
+      if (anatomyLockedNoticeTimeoutRef.current) {
+        window.clearTimeout(anatomyLockedNoticeTimeoutRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (statsSummary.currentStreak > previousStreakRef.current && previousStreakRef.current > 0) {
@@ -4070,9 +4126,19 @@ function PlayPageContent() {
     setHomeSwipeOffset(direction * 156)
 
     if (nextTarget.type === 'level') {
+      if (nextTarget.key === 'attending' && anatomyQuizLocked) {
+        showAnatomyLockedMessage()
+        setHomeSwipeDragging(false)
+        setHomeSwipeOffset(0)
+        window.setTimeout(() => {
+          setHomeSwipePreviewDirection(0)
+          setHomeSwipePreviewTarget(null)
+        }, 320)
+        return
+      }
       setIsTransitioningLevel(true)
       window.setTimeout(() => {
-        setSelectedLevel(nextTarget.key)
+        selectHomeLevel(nextTarget.key)
         setGuess('')
         setSelectedAnatomyLetters([])
         setMessage('')
@@ -4642,6 +4708,27 @@ function PlayPageContent() {
           }
         }
 
+        @keyframes orthodle-tab-unlock {
+          0% {
+            transform: scale(0.96);
+            box-shadow:
+              0 0 0 rgba(240, 194, 71, 0),
+              0 8px 18px rgba(16, 32, 24, 0.04);
+          }
+          45% {
+            transform: scale(1.02);
+            box-shadow:
+              0 0 0 8px rgba(240, 194, 71, 0.12),
+              0 16px 28px rgba(16, 32, 24, 0.08);
+          }
+          100% {
+            transform: scale(1);
+            box-shadow:
+              0 0 0 0 rgba(240, 194, 71, 0),
+              0 10px 22px rgba(16, 32, 24, 0.06);
+          }
+        }
+
         @keyframes orthodle-image-swap {
           0% {
             opacity: 0;
@@ -4879,6 +4966,20 @@ function PlayPageContent() {
 
         .orthodle-teaching-unfold {
           animation: orthodle-teaching-unfold 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
+
+        .orthodle-home-tab-locked {
+          opacity: 0.84;
+          border-color: rgba(216, 199, 168, 0.92) !important;
+          background:
+            linear-gradient(180deg, rgba(255, 252, 245, 0.98), rgba(251, 245, 234, 0.96)) !important;
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.92),
+            0 8px 18px rgba(138, 107, 63, 0.04);
+        }
+
+        .orthodle-home-tab-unlock {
+          animation: orthodle-tab-unlock 1s cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .orthodle-collapsible-shell {
@@ -5260,14 +5361,17 @@ function PlayPageContent() {
               }
 
               const active = selectedLevel === item.key
-              const subtitle = selectedTaglines[item.key]
+              const itemLocked = item.key === 'attending' && anatomyQuizLocked
+              const subtitle = itemLocked ? 'UNLOCK DAILY CASE' : selectedTaglines[item.key]
               const previewingTab =
                 activeHomeSwipeTarget?.type === 'level' && activeHomeSwipeTarget.key === item.key
 
               return (
                 <button
                   key={item.key}
-                  onClick={() => setSelectedLevel(item.key)}
+                  type="button"
+                  aria-disabled={itemLocked}
+                  onClick={() => selectHomeLevel(item.key)}
                   className={
                     active
                       ? `orthodle-home-tab-active orthodle-tap-ripple relative overflow-hidden ${homeTabSnapKey === item.key ? 'orthodle-tab-snap' : ''} rounded-[16px] border px-1.5 text-center shadow-[0_4px_10px_rgba(16,32,24,0.08)] transition duration-200 hover:scale-[1.01] sm:px-2 ${
@@ -5279,11 +5383,25 @@ function PlayPageContent() {
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
                             : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
+                        } ${itemLocked ? 'orthodle-home-tab-locked' : ''} ${
+                          item.key === 'attending' && showAnatomyUnlockMoment
+                            ? 'orthodle-home-tab-unlock'
+                            : ''
                         }`
                   }
                 >
-                  <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
-                    {item.label}
+                  <div className="flex items-center justify-center gap-1.5">
+                    {itemLocked ? (
+                      <span
+                        aria-hidden="true"
+                        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#d8c7a8] bg-white/88 text-[9px] leading-none text-[#8a6b3f] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
+                      >
+                        🔒
+                      </span>
+                    ) : null}
+                    <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
+                      {item.label}
+                    </div>
                   </div>
 
                   {subtitle ? (
@@ -5291,7 +5409,9 @@ function PlayPageContent() {
                       className={
                         active
                           ? 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#dbe7e0] sm:text-[8px] sm:tracking-[0.22em]'
-                          : 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
+                          : itemLocked
+                            ? 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#9b7d55] sm:text-[8px] sm:tracking-[0.22em]'
+                            : 'mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]'
                       }
                     >
                       {subtitle}
@@ -5320,6 +5440,16 @@ function PlayPageContent() {
             </div>
           )}
         </div>
+
+        {showAnatomyLockedNotice ? (
+          <div className="orthodle-fade-up -mt-0.5 mb-2 w-full">
+            <div className="mx-auto max-w-[620px] rounded-[18px] border border-[#ead8b8] bg-[#fff9ef] px-3 py-2 text-center shadow-[0_10px_20px_rgba(138,107,63,0.08)]">
+              <p className="text-[11px] font-medium leading-5 text-[#8a5a2b] sm:text-[12px]">
+                Anatomy quizzes build on the daily case diagnosis, come back after completing it!
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         {showLocalhostReset && (
           <div className="mt-2 flex justify-center">
