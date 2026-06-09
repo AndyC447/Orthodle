@@ -3075,14 +3075,20 @@ function PlayPageContent() {
     {
       durationMs,
       settleThreshold = 0.8,
-      minVelocity = 0.28,
     }: {
       durationMs: number
       settleThreshold?: number
-      minVelocity?: number
     }
   ) {
     if (typeof window === 'undefined') return
+
+    const clampWindowScrollTop = (value: number) => {
+      const maxScrollTop = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight
+      )
+      return Math.max(0, Math.min(value, maxScrollTop))
+    }
 
     if (quickTakeawayScrollAnimationFrameRef.current) {
       window.cancelAnimationFrame(quickTakeawayScrollAnimationFrameRef.current)
@@ -3092,22 +3098,17 @@ function PlayPageContent() {
       quickTakeawayScrollCleanupRef.current()
       quickTakeawayScrollCleanupRef.current = null
     }
-    if (quickTakeawayScrollCleanupRef.current) {
-      quickTakeawayScrollCleanupRef.current()
-      quickTakeawayScrollCleanupRef.current = null
-    }
 
     const startAt = performance.now()
-    const initialTargetY = getTargetY()
-    const initialDelta = initialTargetY - window.scrollY
+    const startY = clampWindowScrollTop(window.scrollY)
+    const initialTargetY = clampWindowScrollTop(getTargetY())
+    const initialDelta = initialTargetY - startY
 
     if (Math.abs(initialDelta) < 3) {
       window.scrollTo({ top: initialTargetY, behavior: 'auto' })
       return
     }
 
-    let lastAt = startAt
-    let velocity = 0
     let interrupted = false
 
     const cleanupUserInterruptionListeners = () => {
@@ -3134,27 +3135,11 @@ function PlayPageContent() {
     const step = (now: number) => {
       if (interrupted) return
 
-      const deltaMs = Math.min(34, Math.max(12, now - lastAt))
-      lastAt = now
       const elapsed = now - startAt
       const progress = Math.min(1, elapsed / durationMs)
-      const liveTargetY = getTargetY()
-      const currentY = window.scrollY
-      const distance = liveTargetY - currentY
-      const normalizedFrame = deltaMs / 16.7
-      const attractionBase = progress < 0.55 ? 0.095 : 0.112
-      const attractionBoost = Math.min(0.05, Math.abs(distance) / 9000)
-      const attraction = (attractionBase + attractionBoost) * normalizedFrame
-      const damping = Math.pow(progress < 0.72 ? 0.74 : 0.7, normalizedFrame)
-
-      velocity = velocity * damping + distance * attraction
-
-      const maxStep =
-        (window.innerWidth >= 1024 ? 26 : 22) * normalizedFrame
-      const clampedStep = Math.max(-maxStep, Math.min(maxStep, velocity))
-      const nextY = progress >= 1 && Math.abs(distance) <= settleThreshold
-        ? liveTargetY
-        : currentY + clampedStep
+      const easedProgress = 1 - Math.pow(1 - progress, 3)
+      const liveTargetY = clampWindowScrollTop(getTargetY())
+      const nextY = clampWindowScrollTop(startY + (liveTargetY - startY) * easedProgress)
 
       window.scrollTo({
         top: nextY,
@@ -3162,11 +3147,7 @@ function PlayPageContent() {
       })
 
       const remaining = Math.abs(liveTargetY - nextY)
-      if (
-        progress < 1 ||
-        remaining > settleThreshold ||
-        Math.abs(velocity) > minVelocity
-      ) {
+      if (progress < 1 || remaining > settleThreshold) {
         quickTakeawayScrollAnimationFrameRef.current = window.requestAnimationFrame(step)
       } else {
         window.scrollTo({ top: liveTargetY, behavior: 'auto' })
@@ -3188,7 +3169,6 @@ function PlayPageContent() {
       {
         durationMs,
         settleThreshold: 0.65,
-        minVelocity: 0.22,
       }
     )
   }
@@ -3203,7 +3183,6 @@ function PlayPageContent() {
       {
         durationMs,
         settleThreshold: 0.55,
-        minVelocity: 0.18,
       }
     )
   }
@@ -3557,7 +3536,7 @@ function PlayPageContent() {
     const timeoutId = window.setTimeout(() => {
       const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
       if (target) {
-        animateSolvedAnswerRevealScroll(window.innerWidth >= 1024 ? 780 : 720)
+        animateSolvedAnswerRevealScroll(window.innerWidth >= 1024 ? 720 : 560)
       }
 
       if (gameWon) {
@@ -3611,11 +3590,11 @@ function PlayPageContent() {
     quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
       setShowQuickTakeawaySlowReveal(true)
       setShowQuickTakeaway(true)
-      animateQuickTakeawayFollowScroll(3000)
+      animateQuickTakeawayFollowScroll(window.innerWidth >= 1024 ? 2600 : 1850)
       quickTakeawayRevealAnimationTimeoutRef.current = window.setTimeout(() => {
         setShowQuickTakeawaySlowReveal(false)
         quickTakeawayRevealAnimationTimeoutRef.current = null
-      }, 2350)
+      }, window.innerWidth >= 1024 ? 1900 : 1500)
       suppressQuickTakeawayPersistRef.current = false
       quickTakeawayAutoRevealTimeoutRef.current = null
     }, 2500)
@@ -5019,9 +4998,9 @@ function PlayPageContent() {
 
         .orthodle-collapsible-shell-slow-open {
           transition:
-            grid-template-rows 2350ms cubic-bezier(0.19, 1, 0.22, 1),
-            opacity 1500ms cubic-bezier(0.19, 1, 0.22, 1),
-            margin-top 680ms cubic-bezier(0.19, 1, 0.22, 1);
+            grid-template-rows 1650ms cubic-bezier(0.22, 1, 0.36, 1),
+            opacity 1100ms cubic-bezier(0.22, 1, 0.36, 1),
+            margin-top 520ms cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         .orthodle-collapsible-body {
@@ -5030,7 +5009,7 @@ function PlayPageContent() {
         }
 
         .orthodle-quick-takeaway-reveal {
-          animation: orthodle-quick-takeaway-reveal 1900ms cubic-bezier(0.19, 1, 0.22, 1) both;
+          animation: orthodle-quick-takeaway-reveal 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
         }
 
         .orthodle-solved-step-in {
