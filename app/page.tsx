@@ -3075,9 +3075,15 @@ function PlayPageContent() {
     {
       durationMs,
       settleThreshold = 0.8,
+      followMovingTarget = false,
+      maxStepPx = window.innerWidth >= 1024 ? 24 : 18,
+      smoothing = window.innerWidth >= 1024 ? 0.18 : 0.22,
     }: {
       durationMs: number
       settleThreshold?: number
+      followMovingTarget?: boolean
+      maxStepPx?: number
+      smoothing?: number
     }
   ) {
     if (typeof window === 'undefined') return
@@ -3137,9 +3143,24 @@ function PlayPageContent() {
 
       const elapsed = now - startAt
       const progress = Math.min(1, elapsed / durationMs)
-      const easedProgress = 1 - Math.pow(1 - progress, 3)
       const liveTargetY = clampWindowScrollTop(getTargetY())
-      const nextY = clampWindowScrollTop(startY + (liveTargetY - startY) * easedProgress)
+      const currentY = clampWindowScrollTop(window.scrollY)
+      const easedProgress = 1 - Math.pow(1 - progress, 3)
+      const nextY = followMovingTarget
+        ? (() => {
+            const remainingDistance = liveTargetY - currentY
+            const followStrength = Math.min(0.32, smoothing + progress * 0.08)
+            const rawStep = remainingDistance * followStrength
+            const boundedStep = Math.max(-maxStepPx, Math.min(maxStepPx, rawStep))
+            if (Math.abs(remainingDistance) <= settleThreshold) return liveTargetY
+            if (Math.abs(boundedStep) < 0.6) {
+              return clampWindowScrollTop(
+                currentY + Math.sign(remainingDistance) * Math.min(0.6, Math.abs(remainingDistance))
+              )
+            }
+            return clampWindowScrollTop(currentY + boundedStep)
+          })()
+        : clampWindowScrollTop(startY + (liveTargetY - startY) * easedProgress)
 
       window.scrollTo({
         top: nextY,
@@ -3183,6 +3204,9 @@ function PlayPageContent() {
       {
         durationMs,
         settleThreshold: 0.55,
+        followMovingTarget: true,
+        maxStepPx: window.innerWidth >= 1024 ? 22 : 14,
+        smoothing: window.innerWidth >= 1024 ? 0.16 : 0.24,
       }
     )
   }
@@ -3536,7 +3560,7 @@ function PlayPageContent() {
     const timeoutId = window.setTimeout(() => {
       const target = solvedAnswerHeroRef.current ?? solvedCardRef.current
       if (target) {
-        animateSolvedAnswerRevealScroll(window.innerWidth >= 1024 ? 720 : 560)
+        animateSolvedAnswerRevealScroll(window.innerWidth >= 1024 ? 680 : 500)
       }
 
       if (gameWon) {
@@ -3590,11 +3614,11 @@ function PlayPageContent() {
     quickTakeawayAutoRevealTimeoutRef.current = window.setTimeout(() => {
       setShowQuickTakeawaySlowReveal(true)
       setShowQuickTakeaway(true)
-      animateQuickTakeawayFollowScroll(window.innerWidth >= 1024 ? 2600 : 1850)
+      animateQuickTakeawayFollowScroll(window.innerWidth >= 1024 ? 2300 : 1450)
       quickTakeawayRevealAnimationTimeoutRef.current = window.setTimeout(() => {
         setShowQuickTakeawaySlowReveal(false)
         quickTakeawayRevealAnimationTimeoutRef.current = null
-      }, window.innerWidth >= 1024 ? 1900 : 1500)
+      }, window.innerWidth >= 1024 ? 1700 : 1180)
       suppressQuickTakeawayPersistRef.current = false
       quickTakeawayAutoRevealTimeoutRef.current = null
     }, 2500)
@@ -4985,6 +5009,7 @@ function PlayPageContent() {
           display: grid;
           grid-template-rows: 0fr;
           opacity: 0;
+          will-change: grid-template-rows, opacity, margin-top;
           transition:
             grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1),
             opacity 220ms ease,
@@ -5010,6 +5035,8 @@ function PlayPageContent() {
 
         .orthodle-quick-takeaway-reveal {
           animation: orthodle-quick-takeaway-reveal 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          will-change: opacity, transform;
+          transform: translateZ(0);
         }
 
         .orthodle-solved-step-in {
@@ -5038,6 +5065,19 @@ function PlayPageContent() {
 
         .orthodle-bottom-sheet-handle {
           box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+        }
+
+        @media (max-width: 639px) {
+          .orthodle-collapsible-shell-slow-open {
+            transition:
+              grid-template-rows 980ms cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 760ms cubic-bezier(0.22, 1, 0.36, 1),
+              margin-top 360ms cubic-bezier(0.22, 1, 0.36, 1);
+          }
+
+          .orthodle-quick-takeaway-reveal {
+            animation-duration: 900ms;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
