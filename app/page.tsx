@@ -5437,7 +5437,18 @@ function PlayPageContent() {
                         aria-hidden="true"
                         className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-[#d8c7a8] bg-white/88 text-[9px] leading-none text-[#8a6b3f] shadow-[inset_0_1px_0_rgba(255,255,255,0.72)]"
                       >
-                        🔒
+                        <svg
+                          viewBox="0 0 16 16"
+                          className="h-2.5 w-2.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.35"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M5.25 7V5.7a2.75 2.75 0 0 1 5.5 0V7" />
+                          <rect x="4.1" y="7" width="7.8" height="5.6" rx="1.6" />
+                        </svg>
                       </span>
                     ) : null}
                     <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
