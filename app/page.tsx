@@ -5382,7 +5382,7 @@ function PlayPageContent() {
 
               const active = selectedLevel === item.key
               const itemLocked = item.key === 'attending' && anatomyQuizLocked
-              const subtitle = itemLocked ? 'UNLOCK DAILY CASE' : selectedTaglines[item.key]
+              const subtitle = itemLocked ? '' : selectedTaglines[item.key]
               const previewingTab =
                 activeHomeSwipeTarget?.type === 'level' && activeHomeSwipeTarget.key === item.key
 
@@ -5402,7 +5402,9 @@ function PlayPageContent() {
                       : `orthodle-home-tab orthodle-tap-ripple relative overflow-hidden rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                           subtitle
                             ? 'min-h-[54px] py-1.5 sm:min-h-[56px] sm:py-2'
-                            : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
+                            : itemLocked
+                              ? 'min-h-[44px] py-2 sm:min-h-[46px] sm:py-2'
+                              : 'min-h-[42px] py-2 sm:min-h-[44px] sm:py-2'
                         } ${itemLocked ? 'orthodle-home-tab-locked' : ''} ${
                           item.key === 'attending' && showAnatomyUnlockMoment
                             ? 'orthodle-home-tab-unlock'
@@ -5410,7 +5412,7 @@ function PlayPageContent() {
                         }`
                   }
                 >
-                  <div className="flex items-center justify-center gap-1.5">
+                  <div className={`flex items-center justify-center ${itemLocked ? 'gap-2' : 'gap-1.5'}`}>
                     {itemLocked ? (
                       <span
                         aria-hidden="true"
