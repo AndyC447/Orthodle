@@ -2222,6 +2222,11 @@ export default function AdminPage() {
     setAuthError('')
   }
 
+  function selectOverviewDate(nextDate: string) {
+    setOverviewDate(nextDate)
+    setCaseDate(nextDate)
+  }
+
   function startCaseFor(date: string, nextLevel: Level) {
     setCaseDate(date)
     setLevel(nextLevel)
@@ -4396,7 +4401,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
-                  onClick={() => setOverviewDate(shiftISODate(overviewDate, -7))}
+                  onClick={() => selectOverviewDate(shiftISODate(overviewDate, -7))}
                   className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
                   aria-label="Previous week"
                 >
@@ -4407,7 +4412,7 @@ export default function AdminPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setOverviewDate(shiftISODate(overviewDate, 7))}
+                  onClick={() => selectOverviewDate(shiftISODate(overviewDate, 7))}
                   className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[12px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]"
                   aria-label="Next week"
                 >
@@ -4442,7 +4447,7 @@ export default function AdminPage() {
                     <button
                       key={day.isoDate}
                       type="button"
-                      onClick={() => setOverviewDate(day.isoDate)}
+                      onClick={() => selectOverviewDate(day.isoDate)}
                       className={`flex aspect-square min-h-[30px] items-center justify-center rounded-lg border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
                     >
                       {day.dayNumber}

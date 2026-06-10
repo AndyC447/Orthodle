@@ -6084,17 +6084,17 @@ function PlayPageContent() {
 
       {currentExpandedImages.length > 0 && imageExpanded && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-[#102018]/75 px-0 py-0 sm:px-4 sm:py-8 sm:items-center"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,32,24,0.18)] px-3 py-6 backdrop-blur-[6px] sm:bg-[#102018]/75 sm:px-4 sm:py-8"
           onClick={closeExpandedImage}
         >
-          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-none border-0 bg-[#fbfaf7] shadow-2xl sm:h-auto sm:max-h-[calc(100vh-4rem)] sm:rounded-[28px] sm:border sm:border-white/15">
+          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex w-full max-w-[min(92vw,560px)] flex-col overflow-visible rounded-none border-0 bg-transparent shadow-none sm:max-w-5xl sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-white/15 sm:bg-[#fbfaf7] sm:shadow-2xl">
             <div
-              className={`orthodle-bottom-sheet-handle mx-auto mt-2 h-1 w-10 rounded-full bg-[#ded7ca] transition-all duration-300 sm:hidden ${
+              className={`hidden sm:block orthodle-bottom-sheet-handle mx-auto mt-2 h-1 w-10 rounded-full bg-[#ded7ca] transition-all duration-300 ${
                 showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'
               }`}
             />
             <div
-              className={`orthodle-image-modal-header flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-3 py-3 transition-all duration-300 sm:px-5 sm:py-4 ${
+              className={`hidden sm:flex orthodle-image-modal-header items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-3 py-3 transition-all duration-300 sm:px-5 sm:py-4 ${
                 showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-3 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:opacity-100'
               }`}
             >
@@ -6115,7 +6115,7 @@ function PlayPageContent() {
             </div>
 
             <div
-              className="orthodle-image-modal-stage min-h-0 flex-1 overflow-y-auto bg-[#f7f4ee] p-2.5 sm:p-5"
+              className="orthodle-image-modal-stage min-h-0 flex-1 overflow-y-auto bg-transparent p-0 sm:bg-[#f7f4ee] sm:p-5"
               onClick={e => {
                 e.stopPropagation()
                 toggleImageViewerChrome()
@@ -6243,7 +6243,7 @@ function PlayPageContent() {
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="mx-auto block max-h-[calc(100dvh-160px)] w-full max-w-full rounded-xl border border-[#d7d9dc] bg-white object-contain transition-transform sm:max-h-[78vh] sm:w-auto sm:rounded-2xl"
+                              className="mx-auto block max-h-[78vh] w-full max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain shadow-[0_18px_44px_rgba(16,32,24,0.18)] transition-transform sm:max-h-[78vh] sm:w-auto"
                               style={{
                                 transform:
                                   index === expandedImageIndex
@@ -6290,7 +6290,7 @@ function PlayPageContent() {
             </div>
                 {currentExpandedImages.length > 1 && (
                   <div
-                    className={`border-t border-[#d7d9dc] bg-white/96 px-3 py-2.5 backdrop-blur-sm transition-all duration-300 sm:px-4 sm:py-3 ${
+                    className={`px-1 py-2 transition-all duration-300 sm:border-t sm:border-[#d7d9dc] sm:bg-white/96 sm:px-4 sm:py-3 sm:backdrop-blur-sm ${
                       showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none translate-y-3 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:opacity-100'
                     }`}
                     onClick={e => e.stopPropagation()}
@@ -6299,7 +6299,7 @@ function PlayPageContent() {
                       <button
                         type="button"
                         onClick={showPreviousExpandedImage}
-                        className="orthodle-image-modal-nav orthodle-micro-press flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="orthodle-image-modal-nav orthodle-micro-press flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white/94 text-[16px] font-semibold text-[#102018] shadow-[0_8px_22px_rgba(16,32,24,0.12)] transition hover:bg-[#fbfaf7]"
                         aria-label="Previous image"
                       >
                         {'<'}
@@ -6319,7 +6319,7 @@ function PlayPageContent() {
                       <button
                         type="button"
                         onClick={showNextExpandedImage}
-                        className="orthodle-image-modal-nav orthodle-micro-press flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        className="orthodle-image-modal-nav orthodle-micro-press flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white/94 text-[16px] font-semibold text-[#102018] shadow-[0_8px_22px_rgba(16,32,24,0.12)] transition hover:bg-[#fbfaf7]"
                         aria-label="Next image"
                       >
                         {'>'}
