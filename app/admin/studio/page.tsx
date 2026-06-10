@@ -222,6 +222,7 @@ export default function CaseStudioPage() {
   const [answer, setAnswer] = useState('')
   const [synonyms, setSynonyms] = useState('')
   const [anatomyCorrectChoices, setAnatomyCorrectChoices] = useState('')
+  const anatomyAutoCorrectChoicesRef = useRef('')
   const [imageUrl, setImageUrl] = useState('')
   const [imageCredit, setImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imageRevealClue, setImageRevealClue] = useState('none')
@@ -253,11 +254,51 @@ export default function CaseStudioPage() {
     () => getAnatomyChoiceItems(clues.map(value => value.trim())),
     [clues]
   )
+  const derivedAnatomyCorrectChoices = useMemo(
+    () =>
+      getCorrectAnatomyChoiceLetters(
+        clues.map(value => value.trim()),
+        answer,
+        extractPlainSynonyms(
+          synonyms
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean)
+        )
+      ).join(', '),
+    [answer, clues, synonyms]
+  )
 
   const normalizedAnatomyCorrectChoices = useMemo(
     () => parseChoiceLetterList(anatomyCorrectChoices),
     [anatomyCorrectChoices]
   )
+
+  useEffect(() => {
+    if (level !== 'attending') {
+      anatomyAutoCorrectChoicesRef.current = ''
+      return
+    }
+
+    setAnatomyCorrectChoices(current => {
+      const trimmedCurrent = current.trim()
+      const previousAutoValue = anatomyAutoCorrectChoicesRef.current
+
+      if (derivedAnatomyCorrectChoices) {
+        anatomyAutoCorrectChoicesRef.current = derivedAnatomyCorrectChoices
+        if (trimmedCurrent === derivedAnatomyCorrectChoices) return current
+        return derivedAnatomyCorrectChoices
+      }
+
+      if (trimmedCurrent === previousAutoValue) {
+        anatomyAutoCorrectChoicesRef.current = ''
+        return ''
+      }
+
+      anatomyAutoCorrectChoicesRef.current = ''
+      return current
+    })
+  }, [derivedAnatomyCorrectChoices, level])
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem(CASE_STUDIO_UNLOCKED_KEY)

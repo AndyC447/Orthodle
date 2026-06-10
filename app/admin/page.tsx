@@ -716,6 +716,7 @@ export default function AdminPage() {
   const [answer, setAnswer] = useState('')
   const [synonyms, setSynonyms] = useState('')
   const [anatomyCorrectChoices, setAnatomyCorrectChoices] = useState('')
+  const anatomyAutoCorrectChoicesRef = useRef('')
   const [imageUrl, setImageUrl] = useState('')
   const [imageCredit, setImageCredit] = useState(DEFAULT_IMAGE_CREDIT_TEMPLATE)
   const [imageRevealClue, setImageRevealClue] = useState('none')
@@ -1484,10 +1485,50 @@ export default function AdminPage() {
     () => getAnatomyChoiceItems([clue1, clue2, clue3, clue4, clue5, clue6]),
     [clue1, clue2, clue3, clue4, clue5, clue6]
   )
+  const derivedAnatomyCorrectChoicesForComposer = useMemo(
+    () =>
+      getCorrectAnatomyChoiceLetters(
+        [clue1, clue2, clue3, clue4, clue5, clue6],
+        answer,
+        extractPlainSynonyms(
+          synonyms
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean)
+        )
+      ).join(', '),
+    [answer, clue1, clue2, clue3, clue4, clue5, clue6, synonyms]
+  )
   const normalizedAnatomyCorrectChoices = useMemo(
     () => parseChoiceLetterList(anatomyCorrectChoices),
     [anatomyCorrectChoices]
   )
+
+  useEffect(() => {
+    if (level !== 'attending') {
+      anatomyAutoCorrectChoicesRef.current = ''
+      return
+    }
+
+    setAnatomyCorrectChoices(current => {
+      const trimmedCurrent = current.trim()
+      const previousAutoValue = anatomyAutoCorrectChoicesRef.current
+
+      if (derivedAnatomyCorrectChoicesForComposer) {
+        anatomyAutoCorrectChoicesRef.current = derivedAnatomyCorrectChoicesForComposer
+        if (trimmedCurrent === derivedAnatomyCorrectChoicesForComposer) return current
+        return derivedAnatomyCorrectChoicesForComposer
+      }
+
+      if (trimmedCurrent === previousAutoValue) {
+        anatomyAutoCorrectChoicesRef.current = ''
+        return ''
+      }
+
+      anatomyAutoCorrectChoicesRef.current = ''
+      return current
+    })
+  }, [derivedAnatomyCorrectChoicesForComposer, level])
 
   const duplicateAnswerMatches = useMemo(() => {
     const normalizedAnswer = normalizeAnswer(answer)

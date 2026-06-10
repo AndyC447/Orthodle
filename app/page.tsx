@@ -560,6 +560,7 @@ function PlayPageContent() {
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const solvedAnswerHeroRef = useRef<HTMLDivElement | null>(null)
   const confettiTimeoutRef = useRef<number | null>(null)
+  const imageViewerChromeTimeoutRef = useRef<number | null>(null)
   const lastConfettiAtRef = useRef<number>(0)
   const streakIgnitionTimeoutRef = useRef<number | null>(null)
   const railCompleteTimeoutRef = useRef<number | null>(null)
@@ -610,6 +611,7 @@ function PlayPageContent() {
   const [pulseSuccess, setPulseSuccess] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
+  const [showImageViewerChrome, setShowImageViewerChrome] = useState(true)
   const [expandedImageIndex, setExpandedImageIndex] = useState(0)
   const [expandedImages, setExpandedImages] = useState<ExpandableImage[]>([])
   const [imageHidden, setImageHidden] = useState(false)
@@ -1981,24 +1983,67 @@ function PlayPageContent() {
     imageTouchStartY.current = null
   }
 
+  function clearImageViewerChromeHideTimeout() {
+    if (typeof window === 'undefined') return
+    if (imageViewerChromeTimeoutRef.current) {
+      window.clearTimeout(imageViewerChromeTimeoutRef.current)
+      imageViewerChromeTimeoutRef.current = null
+    }
+  }
+
+  function scheduleImageViewerChromeHide() {
+    if (typeof window === 'undefined' || window.innerWidth >= 640) return
+    clearImageViewerChromeHideTimeout()
+    imageViewerChromeTimeoutRef.current = window.setTimeout(() => {
+      setShowImageViewerChrome(false)
+      imageViewerChromeTimeoutRef.current = null
+    }, 1200)
+  }
+
+  function revealImageViewerChrome(autoHide = true) {
+    setShowImageViewerChrome(true)
+    if (autoHide) {
+      scheduleImageViewerChromeHide()
+    } else {
+      clearImageViewerChromeHideTimeout()
+    }
+  }
+
+  function toggleImageViewerChrome() {
+    if (typeof window === 'undefined' || window.innerWidth >= 640) return
+    setShowImageViewerChrome(current => {
+      const next = !current
+      if (next) {
+        scheduleImageViewerChromeHide()
+      } else {
+        clearImageViewerChromeHideTimeout()
+      }
+      return next
+    })
+  }
+
   function openExpandedImage(index = 0, images: ExpandableImage[] = visibleImages) {
     if (images.length === 0) return
     resetExpandedImageView()
     setExpandedImages(images)
     setExpandedImageIndex(index)
     setImageExpanded(true)
+    revealImageViewerChrome()
   }
 
   function closeExpandedImage() {
+    clearImageViewerChromeHideTimeout()
     setImageExpanded(false)
     setExpandedImageIndex(0)
     setExpandedImages([])
+    setShowImageViewerChrome(true)
     resetExpandedImageView()
   }
 
   function goToExpandedImage(index: number) {
     resetExpandedImageView()
     setExpandedImageIndex(index)
+    revealImageViewerChrome()
   }
 
   function showPreviousExpandedImage() {
@@ -2955,12 +3000,12 @@ function PlayPageContent() {
                 <button
                   type="button"
                   onClick={() => openExpandedImage(index, learningImages)}
-                  className="flex min-h-[170px] w-full items-center justify-center bg-white p-2 transition hover:bg-[#fbfaf7]"
+                  className="flex min-h-[220px] w-full items-center justify-center bg-white p-1.5 transition hover:bg-[#fbfaf7] sm:min-h-[170px] sm:p-2"
                 >
                   <img
                     src={image.url}
                     alt={image.alt}
-                    className="max-h-[320px] w-full rounded-lg object-contain"
+                    className="max-h-[46vh] w-full rounded-lg object-contain sm:max-h-[320px]"
                   />
                 </button>
                 {caption || credit ? (
@@ -4320,6 +4365,20 @@ function PlayPageContent() {
   }, [showCaseFeedback])
 
   useEffect(() => {
+    if (!imageExpanded) {
+      clearImageViewerChromeHideTimeout()
+      setShowImageViewerChrome(true)
+      return
+    }
+
+    revealImageViewerChrome()
+
+    return () => {
+      clearImageViewerChromeHideTimeout()
+    }
+  }, [expandedImageIndex, imageExpanded])
+
+  useEffect(() => {
     setShowStreakIgnition(false)
     setActiveAnatomyChoiceSettleLetter(null)
   }, [dailyCase?.id, selectedDate, selectedLevel])
@@ -4343,6 +4402,9 @@ function PlayPageContent() {
       }
       if (quickTakeawayRevealAnimationTimeoutRef.current) {
         window.clearTimeout(quickTakeawayRevealAnimationTimeoutRef.current)
+      }
+      if (imageViewerChromeTimeoutRef.current) {
+        window.clearTimeout(imageViewerChromeTimeoutRef.current)
       }
     }
   }, [])
@@ -5590,12 +5652,12 @@ function PlayPageContent() {
                         <div key={`${image.url}-${index}`} className="mx-auto w-full max-w-[760px]">
                           <button
                             onClick={() => openExpandedImage(index)}
-                            className="orthodle-image-tile group flex min-h-[240px] w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-2 sm:min-h-[320px] sm:py-3"
+                            className="orthodle-image-tile group flex min-h-[280px] w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-1.5 sm:min-h-[320px] sm:py-3"
                           >
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="block max-h-[300px] w-auto max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[420px]"
+                              className="block max-h-[52vh] w-auto max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[420px]"
                             />
                           </button>
                           {image.credit && (
@@ -6022,12 +6084,20 @@ function PlayPageContent() {
 
       {currentExpandedImages.length > 0 && imageExpanded && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-[#102018]/75 px-4 py-8 sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[#102018]/75 px-0 py-0 sm:px-4 sm:py-8 sm:items-center"
           onClick={closeExpandedImage}
         >
-          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex w-full max-w-5xl max-h-[92vh] flex-col overflow-hidden rounded-t-[28px] border border-white/15 bg-[#fbfaf7] shadow-2xl sm:max-h-[calc(100vh-4rem)] sm:rounded-[28px]">
-            <div className="orthodle-bottom-sheet-handle mx-auto mt-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
-            <div className="orthodle-image-modal-header flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-5 py-4">
+          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-none border-0 bg-[#fbfaf7] shadow-2xl sm:h-auto sm:max-h-[calc(100vh-4rem)] sm:rounded-[28px] sm:border sm:border-white/15">
+            <div
+              className={`orthodle-bottom-sheet-handle mx-auto mt-2 h-1 w-10 rounded-full bg-[#ded7ca] transition-all duration-300 sm:hidden ${
+                showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'
+              }`}
+            />
+            <div
+              className={`orthodle-image-modal-header flex items-center justify-between gap-3 border-b border-[#d7d9dc] bg-white px-3 py-3 transition-all duration-300 sm:px-5 sm:py-4 ${
+                showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-3 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:opacity-100'
+              }`}
+            >
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                 Imaging
               </div>
@@ -6045,8 +6115,11 @@ function PlayPageContent() {
             </div>
 
             <div
-              className="orthodle-image-modal-stage min-h-0 flex-1 overflow-y-auto bg-[#f7f4ee] p-5"
-              onClick={e => e.stopPropagation()}
+              className="orthodle-image-modal-stage min-h-0 flex-1 overflow-y-auto bg-[#f7f4ee] p-2.5 sm:p-5"
+              onClick={e => {
+                e.stopPropagation()
+                toggleImageViewerChrome()
+              }}
               onDoubleClick={() => {
                 if (imageScale > 1.2) {
                   resetExpandedImageView()
@@ -6170,7 +6243,7 @@ function PlayPageContent() {
                             <img
                               src={image.url}
                               alt={image.alt}
-                              className="mx-auto block max-h-[78vh] max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain transition-transform"
+                              className="mx-auto block max-h-[calc(100dvh-160px)] w-full max-w-full rounded-xl border border-[#d7d9dc] bg-white object-contain transition-transform sm:max-h-[78vh] sm:w-auto sm:rounded-2xl"
                               style={{
                                 transform:
                                   index === expandedImageIndex
@@ -6199,7 +6272,7 @@ function PlayPageContent() {
                     </div>
                   </div>
                   {currentExpandedImages.length > 1 ? (
-                    <div className="flex items-center justify-center gap-1.5">
+                    <div className="hidden items-center justify-center gap-1.5 sm:flex">
                       {currentExpandedImages.map((_, index) => (
                         <span
                           key={`expanded-dot-${index}`}
@@ -6217,10 +6290,42 @@ function PlayPageContent() {
             </div>
                 {currentExpandedImages.length > 1 && (
                   <div
-                    className="border-t border-[#d7d9dc] bg-white/96 px-4 py-3 backdrop-blur-sm"
+                    className={`border-t border-[#d7d9dc] bg-white/96 px-3 py-2.5 backdrop-blur-sm transition-all duration-300 sm:px-4 sm:py-3 ${
+                      showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none translate-y-3 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:opacity-100'
+                    }`}
                     onClick={e => e.stopPropagation()}
                   >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-2 sm:hidden">
+                      <button
+                        type="button"
+                        onClick={showPreviousExpandedImage}
+                        className="orthodle-image-modal-nav orthodle-micro-press flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        aria-label="Previous image"
+                      >
+                        {'<'}
+                      </button>
+                      <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
+                        {currentExpandedImages.map((_, index) => (
+                          <span
+                            key={`expanded-mobile-dot-${index}`}
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              index === expandedImageIndex
+                                ? 'w-5 bg-[#1f6448]'
+                                : 'w-1.5 bg-[#d2c6b4]'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={showNextExpandedImage}
+                        className="orthodle-image-modal-nav orthodle-micro-press flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[16px] font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                        aria-label="Next image"
+                      >
+                        {'>'}
+                      </button>
+                    </div>
+                    <div className="hidden items-center justify-between gap-3 sm:flex">
                       <button
                         type="button"
                         onClick={showPreviousExpandedImage}
