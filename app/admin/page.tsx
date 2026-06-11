@@ -378,14 +378,12 @@ const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
 const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
-  'button_subtitles',
   'case_stats',
   'email_reminders',
   'study_mode',
   'analytics',
   'homepage_notes',
   'surveys',
-  'submissions',
   'answer_choices',
   'feedback',
   'groups',
@@ -828,6 +826,10 @@ export default function AdminPage() {
     surveys: false,
     cases_by_date: false,
   })
+  const hiddenSidebarSectionIds = useMemo<AdminSidebarSectionId[]>(
+    () => ['button_subtitles', 'submissions'],
+    []
+  )
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
@@ -3781,7 +3783,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+            <div className="mt-3 grid gap-2">
               <label className="grid gap-1.5 text-sm font-semibold text-[#637268]">
                 Hide starting
                 <input
@@ -3792,39 +3794,41 @@ export default function AdminPage() {
                 />
               </label>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void saveHomeDisplaySettings(
-                    {
-                      no_resident_mode: true,
-                      no_resident_mode_start_date: noResidentModeStartDate,
-                    },
-                    `Resident case will be hidden on the home page starting ${noResidentModeStartDate || shiftISODate(today, 1)}.`
-                  )
-                }
-                disabled={savingHomeDisplaySettings || !noResidentModeStartDate}
-                className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
-              >
-                {savingHomeDisplaySettings && !noResidentMode ? 'Saving...' : noResidentMode ? 'Update hide date' : 'Hide on home'}
-              </button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void saveHomeDisplaySettings(
+                      {
+                        no_resident_mode: true,
+                        no_resident_mode_start_date: noResidentModeStartDate,
+                      },
+                      `Resident case will be hidden on the home page starting ${noResidentModeStartDate || shiftISODate(today, 1)}.`
+                    )
+                  }
+                  disabled={savingHomeDisplaySettings || !noResidentModeStartDate}
+                  className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60 sm:flex-1"
+                >
+                  {savingHomeDisplaySettings && !noResidentMode ? 'Saving...' : noResidentMode ? 'Update hide date' : 'Hide on home'}
+                </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void saveHomeDisplaySettings(
-                    {
-                      no_resident_mode: false,
-                      no_resident_mode_start_date: null,
-                    },
-                    'Resident case restored on the home page.'
-                  )
-                }
-                disabled={savingHomeDisplaySettings || !noResidentMode}
-                className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60"
-              >
-                Show
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void saveHomeDisplaySettings(
+                      {
+                        no_resident_mode: false,
+                        no_resident_mode_start_date: null,
+                      },
+                      'Resident case restored on the home page.'
+                    )
+                  }
+                  disabled={savingHomeDisplaySettings || !noResidentMode}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60 sm:flex-1"
+                >
+                  Show
+                </button>
+              </div>
             </div>
           </div>
 
@@ -3841,7 +3845,7 @@ export default function AdminPage() {
               </div>
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+            <div className="mt-3 grid gap-2">
               <label className="grid gap-1.5 text-sm font-semibold text-[#637268]">
                 Hide starting
                 <input
@@ -3852,39 +3856,41 @@ export default function AdminPage() {
                 />
               </label>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void saveHomeDisplaySettings(
-                    {
-                      no_anatomy_mode: true,
-                      no_anatomy_mode_start_date: noAnatomyModeStartDate,
-                    },
-                    `Anatomy quiz will be hidden on the home page starting ${noAnatomyModeStartDate || shiftISODate(today, 1)}.`
-                  )
-                }
-                disabled={savingHomeDisplaySettings || !noAnatomyModeStartDate}
-                className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
-              >
-                {savingHomeDisplaySettings && !noAnatomyMode ? 'Saving...' : noAnatomyMode ? 'Update hide date' : 'Hide on home'}
-              </button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void saveHomeDisplaySettings(
+                      {
+                        no_anatomy_mode: true,
+                        no_anatomy_mode_start_date: noAnatomyModeStartDate,
+                      },
+                      `Anatomy quiz will be hidden on the home page starting ${noAnatomyModeStartDate || shiftISODate(today, 1)}.`
+                    )
+                  }
+                  disabled={savingHomeDisplaySettings || !noAnatomyModeStartDate}
+                  className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60 sm:flex-1"
+                >
+                  {savingHomeDisplaySettings && !noAnatomyMode ? 'Saving...' : noAnatomyMode ? 'Update hide date' : 'Hide on home'}
+                </button>
 
-              <button
-                type="button"
-                onClick={() =>
-                  void saveHomeDisplaySettings(
-                    {
-                      no_anatomy_mode: false,
-                      no_anatomy_mode_start_date: null,
-                    },
-                    'Anatomy quiz restored on the home page.'
-                  )
-                }
-                disabled={savingHomeDisplaySettings || !noAnatomyMode}
-                className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60"
-              >
-                Show
-              </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void saveHomeDisplaySettings(
+                      {
+                        no_anatomy_mode: false,
+                        no_anatomy_mode_start_date: null,
+                      },
+                      'Anatomy quiz restored on the home page.'
+                    )
+                  }
+                  disabled={savingHomeDisplaySettings || !noAnatomyMode}
+                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60 sm:flex-1"
+                >
+                  Show
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -3953,15 +3959,6 @@ export default function AdminPage() {
                 Cancel
               </button>
             )}
-          </div>
-
-          <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-4 py-3 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-              Home page preview
-            </div>
-            <p className="mt-2 text-[13px] leading-5 text-[#102018]">
-              {announcementMessage.trim() || 'Your scheduled homepage note will preview here.'}
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -5746,7 +5743,9 @@ export default function AdminPage() {
           </div>
 
           <aside className="flex flex-col gap-3">
-            {sidebarSectionOrder.map(sectionId => (
+            {sidebarSectionOrder
+              .filter(sectionId => !hiddenSidebarSectionIds.includes(sectionId))
+              .map(sectionId => (
               <div
                 key={sectionId}
                 draggable
