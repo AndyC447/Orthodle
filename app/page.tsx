@@ -193,6 +193,8 @@ type AnatomySurveyRow = {
 type PlayModeSettingsRow = {
   no_resident_mode: boolean
   no_resident_mode_start_date: string | null
+  no_anatomy_mode: boolean
+  no_anatomy_mode_start_date: string | null
 }
 
 type LevelDisplaySettingsRow = {
@@ -292,7 +294,7 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
 
 const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v2'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
-const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v1'
+const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v2'
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
 const ADMIN_CASE_PREVIEW_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 
@@ -507,6 +509,16 @@ function isNoResidentModeActive(
   )
 }
 
+function isNoAnatomyModeActive(
+  settings: Pick<PlayModeSettingsRow, 'no_anatomy_mode' | 'no_anatomy_mode_start_date'> | null,
+  dateText: string
+) {
+  return Boolean(
+    settings?.no_anatomy_mode &&
+      (!settings.no_anatomy_mode_start_date || settings.no_anatomy_mode_start_date <= dateText)
+  )
+}
+
 function readCachedPlayModeSettings() {
   if (typeof window === 'undefined') return null as PlayModeSettingsRow | null
 
@@ -523,13 +535,23 @@ function readCachedPlayModeSettings() {
 
 function getInitialLevelFromParams(
   value: string | null,
-  playModeSettings: Pick<PlayModeSettingsRow, 'no_resident_mode' | 'no_resident_mode_start_date'> | null,
+  playModeSettings: Pick<
+    PlayModeSettingsRow,
+    'no_resident_mode' | 'no_resident_mode_start_date' | 'no_anatomy_mode' | 'no_anatomy_mode_start_date'
+  > | null,
   today: string
 ): Level {
+  const residentHidden = isNoResidentModeActive(playModeSettings, today)
+  const anatomyHidden = isNoAnatomyModeActive(playModeSettings, today)
   if (value === 'resident') {
-    return isNoResidentModeActive(playModeSettings, today) ? 'med_student' : 'resident'
+    return residentHidden ? 'med_student' : 'resident'
   }
-  if (value === 'attending') return value
+  if (value === 'attending') {
+    if (anatomyHidden) {
+      return residentHidden ? 'med_student' : 'resident'
+    }
+    return value
+  }
   return 'med_student'
 }
 
@@ -593,6 +615,8 @@ function PlayPageContent() {
   const [selectedLevel, setSelectedLevel] = useState<Level>(initialLevel)
   const [noResidentMode, setNoResidentMode] = useState(false)
   const [noResidentModeStartDate, setNoResidentModeStartDate] = useState<string | null>(null)
+  const [noAnatomyMode, setNoAnatomyMode] = useState(false)
+  const [noAnatomyModeStartDate, setNoAnatomyModeStartDate] = useState<string | null>(null)
   const [playModeReady, setPlayModeReady] = useState(false)
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
@@ -715,6 +739,8 @@ function PlayPageContent() {
         getInitialLevelFromParams(levelParam, {
           no_resident_mode: noResidentMode,
           no_resident_mode_start_date: noResidentModeStartDate,
+          no_anatomy_mode: noAnatomyMode,
+          no_anatomy_mode_start_date: noAnatomyModeStartDate,
         }, today)
       )
     }
@@ -722,7 +748,7 @@ function PlayPageContent() {
     if (dateParam && dateParam >= LAUNCH_DATE && dateParam <= today) {
       setSelectedDate(dateParam)
     }
-  }, [searchParams, noResidentMode, noResidentModeStartDate, today])
+  }, [searchParams, noAnatomyMode, noAnatomyModeStartDate, noResidentMode, noResidentModeStartDate, today])
 
   useEffect(() => {
     setDailySummary(getStatsSummary().today)
@@ -816,19 +842,55 @@ function PlayPageContent() {
       if (!cancelled && cachedSettings) {
         setNoResidentMode(Boolean(cachedSettings.no_resident_mode))
         setNoResidentModeStartDate(cachedSettings.no_resident_mode_start_date || null)
+        setNoAnatomyMode(Boolean(cachedSettings.no_anatomy_mode))
+        setNoAnatomyModeStartDate(cachedSettings.no_anatomy_mode_start_date || null)
         setPlayModeReady(true)
       }
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('play_mode_settings')
-        .select('no_resident_mode, no_resident_mode_start_date')
+        .select('no_resident_mode, no_resident_mode_start_date, no_anatomy_mode, no_anatomy_mode_start_date')
         .eq('id', 'default')
         .maybeSingle()
+
+      if (
+        error &&
+        (error.message.includes('no_anatomy_mode') ||
+          error.message.includes('no_anatomy_mode_start_date'))
+      ) {
+        const fallback = await supabase
+          .from('play_mode_settings')
+          .select('no_resident_mode, no_resident_mode_start_date')
+          .eq('id', 'default')
+          .maybeSingle()
+
+        if (cancelled) return
+        const fallbackRow = (fallback.data as Partial<PlayModeSettingsRow> | null) || null
+        setNoResidentMode(Boolean(fallbackRow?.no_resident_mode))
+        setNoResidentModeStartDate(fallbackRow?.no_resident_mode_start_date || null)
+        setNoAnatomyMode(false)
+        setNoAnatomyModeStartDate(null)
+        setPlayModeReady(true)
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(
+            PLAY_MODE_SETTINGS_CACHE_KEY,
+            JSON.stringify({
+              no_resident_mode: Boolean(fallbackRow?.no_resident_mode),
+              no_resident_mode_start_date: fallbackRow?.no_resident_mode_start_date || null,
+              no_anatomy_mode: false,
+              no_anatomy_mode_start_date: null,
+            } satisfies PlayModeSettingsRow)
+          )
+        }
+        return
+      }
 
       if (cancelled) return
       const row = (data as PlayModeSettingsRow | null) || null
       setNoResidentMode(Boolean(row?.no_resident_mode))
       setNoResidentModeStartDate(row?.no_resident_mode_start_date || null)
+      setNoAnatomyMode(Boolean(row?.no_anatomy_mode))
+      setNoAnatomyModeStartDate(row?.no_anatomy_mode_start_date || null)
       setPlayModeReady(true)
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(
@@ -836,6 +898,8 @@ function PlayPageContent() {
           JSON.stringify({
             no_resident_mode: Boolean(row?.no_resident_mode),
             no_resident_mode_start_date: row?.no_resident_mode_start_date || null,
+            no_anatomy_mode: Boolean(row?.no_anatomy_mode),
+            no_anatomy_mode_start_date: row?.no_anatomy_mode_start_date || null,
           } satisfies PlayModeSettingsRow)
         )
       }
@@ -848,10 +912,17 @@ function PlayPageContent() {
     }
   }, [])
 
-  const noResidentModeActiveToday = isNoResidentModeActive(
+  const noResidentModeActiveToday = !isAdminPreview && isNoResidentModeActive(
     {
       no_resident_mode: noResidentMode,
       no_resident_mode_start_date: noResidentModeStartDate,
+    },
+    today
+  )
+  const noAnatomyModeActiveToday = !isAdminPreview && isNoAnatomyModeActive(
+    {
+      no_anatomy_mode: noAnatomyMode,
+      no_anatomy_mode_start_date: noAnatomyModeStartDate,
     },
     today
   )
@@ -3696,37 +3767,50 @@ function PlayPageContent() {
         dailyCase?.level === 'attending' && !isAnatomyQuizCaseRecord(dailyCase)
           ? 'Attending'
           : levelTitles.attending
-
       const tabs = [
         { type: 'level' as const, key: 'med_student' as const, label: levelTitles.med_student },
-        { type: 'level' as const, key: 'resident' as const, label: levelTitles.resident },
-        { type: 'level' as const, key: 'attending' as const, label: attendingTabLabel },
+        ...(noResidentModeActiveToday
+          ? []
+          : [{ type: 'level' as const, key: 'resident' as const, label: levelTitles.resident }]),
+        ...(noAnatomyModeActiveToday
+          ? [{ type: 'link' as const, href: '/archive', label: 'Archives' }]
+          : [{ type: 'level' as const, key: 'attending' as const, label: attendingTabLabel }]),
         { type: 'link' as const, href: '/groups', label: groupsTitle, subtitle: groupsSubtitle },
       ]
-
-      return noResidentModeActiveToday
-        ? tabs.filter(item => !(item.type === 'level' && item.key === 'resident'))
-        : tabs
+      return tabs
     },
-    [dailyCase, groupsSubtitle, groupsTitle, levelTitles, noResidentModeActiveToday]
+    [dailyCase, groupsSubtitle, groupsTitle, levelTitles, noAnatomyModeActiveToday, noResidentModeActiveToday]
   )
   const homeBootReady = playModeReady && playBootstrapReady
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
-    () =>
-      noResidentModeActiveToday
+    () => {
+      if (noResidentModeActiveToday) {
+        return noAnatomyModeActiveToday
+          ? {}
+          : {
+              med_student: 'attending',
+            }
+      }
+
+      return noAnatomyModeActiveToday
         ? {
-            med_student: 'attending',
+            med_student: 'resident',
           }
         : {
             med_student: 'resident',
             resident: 'attending',
-          },
-    [noResidentModeActiveToday]
+          }
+    },
+    [noAnatomyModeActiveToday, noResidentModeActiveToday]
   )
-  const requiredDailyLevels = noResidentModeActiveToday ? 2 : 3
   const visibleTodayLevels: Level[] = noResidentModeActiveToday
-    ? ['med_student', 'attending']
-    : ['med_student', 'resident', 'attending']
+    ? noAnatomyModeActiveToday
+      ? ['med_student']
+      : ['med_student', 'attending']
+    : noAnatomyModeActiveToday
+      ? ['med_student', 'resident']
+      : ['med_student', 'resident', 'attending']
+  const requiredDailyLevels = visibleTodayLevels.length
   const todayCompletedLevels = new Set(
     dailySummary.levels
       .filter(
@@ -3742,7 +3826,7 @@ function PlayPageContent() {
     dailySummary.levels.some(
       item => item.level === 'med_student' && (item.won || item.guessesUsed === 6)
     ) || (onTodayCard && selectedLevel === 'med_student' && roundComplete)
-  const anatomyQuizLocked = onTodayCard && !isAdminPreview && !dailyCaseSolvedToday
+  const anatomyQuizLocked = !noAnatomyModeActiveToday && onTodayCard && !isAdminPreview && !dailyCaseSolvedToday
   const showDailyCompleteCard = onTodayCard && todayComplete
   const resumeRoundIsCurrent = Boolean(
     resumeRound &&
@@ -3825,12 +3909,21 @@ function PlayPageContent() {
   }, [selectedLevel])
 
   useEffect(() => {
-    if (selectedLevel === 'attending' && anatomyQuizLocked) {
+    if (selectedLevel === 'resident' && noResidentModeActiveToday) {
       setSelectedLevel('med_student')
+      return
     }
-  }, [anatomyQuizLocked, selectedLevel])
+    if (selectedLevel === 'attending' && (anatomyQuizLocked || noAnatomyModeActiveToday)) {
+      setSelectedLevel(noResidentModeActiveToday ? 'med_student' : 'resident')
+    }
+  }, [anatomyQuizLocked, noAnatomyModeActiveToday, noResidentModeActiveToday, selectedLevel])
 
   useEffect(() => {
+    if (noAnatomyModeActiveToday) {
+      setShowAnatomyLockedNotice(false)
+      previousAnatomyLockedRef.current = false
+      return
+    }
     if (previousAnatomyLockedRef.current === true && !anatomyQuizLocked) {
       setShowAnatomyLockedNotice(false)
       setShowAnatomyUnlockMoment(true)
@@ -3840,7 +3933,7 @@ function PlayPageContent() {
       }
     }
     previousAnatomyLockedRef.current = anatomyQuizLocked
-  }, [anatomyQuizLocked])
+  }, [anatomyQuizLocked, noAnatomyModeActiveToday])
 
   useEffect(() => {
     return () => {

@@ -261,6 +261,8 @@ type AdminCollapsedSectionId =
 type PlayModeSettingsRow = {
   no_resident_mode: boolean
   no_resident_mode_start_date: string | null
+  no_anatomy_mode: boolean
+  no_anatomy_mode_start_date: string | null
 }
 
 type ReminderSubscriberAdminRow = {
@@ -371,6 +373,7 @@ function buildAnatomyChoiceBreakdown(
 const today = todayISO()
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
 const noResidentLevelOrder: Level[] = ['med_student', 'attending']
+const planningLevelOrder: Level[] = ['med_student']
 const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
 const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
@@ -773,7 +776,9 @@ export default function AdminPage() {
   const [analyticsLoaded, setAnalyticsLoaded] = useState(false)
   const [noResidentMode, setNoResidentMode] = useState(false)
   const [noResidentModeStartDate, setNoResidentModeStartDate] = useState(shiftISODate(today, 1))
-  const [savingNoResidentMode, setSavingNoResidentMode] = useState(false)
+  const [noAnatomyMode, setNoAnatomyMode] = useState(false)
+  const [noAnatomyModeStartDate, setNoAnatomyModeStartDate] = useState(shiftISODate(today, 1))
+  const [savingHomeDisplaySettings, setSavingHomeDisplaySettings] = useState(false)
   const [homepageAnnouncements, setHomepageAnnouncements] = useState<HomepageAnnouncementRow[]>([])
   const [announcementMessage, setAnnouncementMessage] = useState('')
   const [announcementStartDate, setAnnouncementStartDate] = useState(shiftISODate(today, 1))
@@ -843,6 +848,12 @@ export default function AdminPage() {
   function isNoResidentModeActiveOn(dateText: string) {
     if (!noResidentMode) return false
     const effectiveStartDate = noResidentModeStartDate || today
+    return dateText >= effectiveStartDate
+  }
+
+  function isNoAnatomyModeActiveOn(dateText: string) {
+    if (!noAnatomyMode) return false
+    const effectiveStartDate = noAnatomyModeStartDate || today
     return dateText >= effectiveStartDate
   }
 
@@ -1343,15 +1354,7 @@ export default function AdminPage() {
     [browseDate, noResidentMode, noResidentModeStartDate]
   )
 
-  const todaysLevelOrder = useMemo<Level[]>(
-    () => (isNoResidentModeActiveOn(today) ? noResidentLevelOrder : levelOrder),
-    [noResidentMode, noResidentModeStartDate]
-  )
-
-  const tomorrowsLevelOrder = useMemo<Level[]>(
-    () => (isNoResidentModeActiveOn(tomorrow) ? noResidentLevelOrder : levelOrder),
-    [noResidentMode, noResidentModeStartDate, tomorrow]
-  )
+  const todaysLevelOrder = useMemo<Level[]>(() => planningLevelOrder, [])
 
   const overviewCases = useMemo(
     () => groupedCases.find(group => group.date === overviewDate)?.items || [],
@@ -1426,10 +1429,7 @@ export default function AdminPage() {
     }
   }, [isUnlocked, overviewCases, todaysCases])
 
-  const overviewLevelOrder = useMemo<Level[]>(
-    () => (isNoResidentModeActiveOn(overviewDate) ? noResidentLevelOrder : levelOrder),
-    [overviewDate, noResidentMode, noResidentModeStartDate]
-  )
+  const overviewLevelOrder = useMemo<Level[]>(() => planningLevelOrder, [])
   const readinessByDate = useMemo(() => {
     const map = new Map<
       string,
@@ -1437,7 +1437,7 @@ export default function AdminPage() {
     >()
 
     for (const group of groupedCases) {
-      const requiredLevels = isNoResidentModeActiveOn(group.date) ? noResidentLevelOrder : levelOrder
+      const requiredLevels = planningLevelOrder
       const ready = requiredLevels.filter(levelValue =>
         group.items.some(item => item.level === levelValue)
       ).length
@@ -1460,7 +1460,7 @@ export default function AdminPage() {
       const day = new Date(windowStart)
       day.setDate(windowStart.getDate() + index)
       const isoDate = day.toISOString().slice(0, 10)
-      const requiredLevels = isNoResidentModeActiveOn(isoDate) ? noResidentLevelOrder : levelOrder
+      const requiredLevels = planningLevelOrder
       const readiness = readinessByDate.get(isoDate) || {
         ready: 0,
         required: requiredLevels.length,
@@ -1689,14 +1689,14 @@ export default function AdminPage() {
       groupedCases
         .map(group => ({
           date: group.date,
-          required: isNoResidentModeActiveOn(group.date) ? 2 : 3,
-          ready: (isNoResidentModeActiveOn(group.date) ? noResidentLevelOrder : levelOrder).filter(levelValue =>
+          required: planningLevelOrder.length,
+          ready: planningLevelOrder.filter(levelValue =>
             group.items.some(item => item.level === levelValue)
           ).length,
         }))
         .filter(group => group.ready < group.required)
         ,
-    [groupedCases, noResidentMode, noResidentModeStartDate]
+    [groupedCases]
   )
 
   const caseChecklistItems = useMemo(() => {
@@ -2184,7 +2184,7 @@ export default function AdminPage() {
 
   function nextMissingLevelForDate(dateText: string): Level | null {
     const items = groupedCases.find(group => group.date === dateText)?.items || []
-    const requiredLevels = isNoResidentModeActiveOn(dateText) ? noResidentLevelOrder : levelOrder
+    const requiredLevels = planningLevelOrder
     return requiredLevels.find(levelValue => !items.some(item => item.level === levelValue)) || null
   }
 
@@ -2882,53 +2882,124 @@ export default function AdminPage() {
 
   async function loadPlayModeSettings() {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('play_mode_settings')
-        .select('no_resident_mode, no_resident_mode_start_date')
+        .select('no_resident_mode, no_resident_mode_start_date, no_anatomy_mode, no_anatomy_mode_start_date')
         .eq('id', 'default')
         .maybeSingle()
+
+      if (
+        error &&
+        (error.message.includes('no_anatomy_mode') ||
+          error.message.includes('no_anatomy_mode_start_date'))
+      ) {
+        const fallback = await supabase
+          .from('play_mode_settings')
+          .select('no_resident_mode, no_resident_mode_start_date')
+          .eq('id', 'default')
+          .maybeSingle()
+
+        const fallbackRow = (fallback.data as Partial<PlayModeSettingsRow> | null) || null
+        setNoResidentMode(Boolean(fallbackRow?.no_resident_mode))
+        setNoResidentModeStartDate(fallbackRow?.no_resident_mode_start_date || shiftISODate(today, 1))
+        setNoAnatomyMode(false)
+        setNoAnatomyModeStartDate(shiftISODate(today, 1))
+        return
+      }
 
       const row = (data as PlayModeSettingsRow | null) || null
       setNoResidentMode(Boolean(row?.no_resident_mode))
       setNoResidentModeStartDate(row?.no_resident_mode_start_date || shiftISODate(today, 1))
+      setNoAnatomyMode(Boolean(row?.no_anatomy_mode))
+      setNoAnatomyModeStartDate(row?.no_anatomy_mode_start_date || shiftISODate(today, 1))
     } finally {
       setPlayModeSettingsReady(true)
     }
   }
 
-  async function saveNoResidentModeSchedule(enabled: boolean) {
-    setSavingNoResidentMode(true)
+  async function saveHomeDisplaySettings(
+    nextSettings: Partial<PlayModeSettingsRow>,
+    successMessage: string
+  ) {
+    setSavingHomeDisplaySettings(true)
 
-    const { error } = await supabase.from('play_mode_settings').upsert(
-      {
-        id: 'default',
-        no_resident_mode: enabled,
-        no_resident_mode_start_date: enabled ? noResidentModeStartDate : null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' }
-    )
+    const nextResidentMode = nextSettings.no_resident_mode ?? noResidentMode
+    const nextResidentStartDate =
+      nextResidentMode
+        ? nextSettings.no_resident_mode_start_date ?? noResidentModeStartDate
+        : null
+    const nextAnatomyMode = nextSettings.no_anatomy_mode ?? noAnatomyMode
+    const nextAnatomyStartDate =
+      nextAnatomyMode
+        ? nextSettings.no_anatomy_mode_start_date ?? noAnatomyModeStartDate
+        : null
+
+    const fullPayload = {
+      id: 'default',
+      no_resident_mode: nextResidentMode,
+      no_resident_mode_start_date: nextResidentStartDate,
+      no_anatomy_mode: nextAnatomyMode,
+      no_anatomy_mode_start_date: nextAnatomyStartDate,
+      updated_at: new Date().toISOString(),
+    }
+
+    let { error } = await supabase.from('play_mode_settings').upsert(fullPayload, {
+      onConflict: 'id',
+    })
+
+    if (
+      error &&
+      (error.message.includes('no_anatomy_mode') ||
+        error.message.includes('no_anatomy_mode_start_date')) &&
+      nextSettings.no_anatomy_mode === undefined &&
+      nextSettings.no_anatomy_mode_start_date === undefined
+    ) {
+      const fallbackResult = await supabase.from('play_mode_settings').upsert(
+        {
+          id: 'default',
+          no_resident_mode: nextResidentMode,
+          no_resident_mode_start_date: nextResidentStartDate,
+          updated_at: fullPayload.updated_at,
+        },
+        { onConflict: 'id' }
+      )
+      error = fallbackResult.error
+    }
 
     if (error) {
       setStatus(
         error.message.includes('relation') || error.message.includes('does not exist')
-          ? 'Play mode settings are not set up yet. Run the SQL once, then try again.'
-          : `Could not save play mode: ${error.message}`
+          ? 'Home display settings are not set up yet. Run the SQL once, then try again.'
+          : error.message.includes('no_anatomy_mode') || error.message.includes('no_anatomy_mode_start_date')
+            ? 'Run the new home display SQL once to schedule the anatomy quiz on or off.'
+            : `Could not save home display settings: ${error.message}`
       )
-      setSavingNoResidentMode(false)
+      setSavingHomeDisplaySettings(false)
       return
     }
 
-    setNoResidentMode(enabled)
-    if (enabled && isNoResidentModeActiveOn(caseDate) && level === 'resident') {
+    setNoResidentMode(Boolean(nextResidentMode))
+    setNoResidentModeStartDate(nextResidentStartDate || shiftISODate(today, 1))
+    setNoAnatomyMode(Boolean(nextAnatomyMode))
+    setNoAnatomyModeStartDate(nextAnatomyStartDate || shiftISODate(today, 1))
+
+    if (
+      nextResidentMode &&
+      level === 'resident' &&
+      caseDate >= (nextResidentStartDate || today)
+    ) {
       setLevel('med_student')
     }
-    setStatus(
-      enabled
-        ? `No resident mode will start on ${noResidentModeStartDate || shiftISODate(today, 1)}.`
-        : 'Resident case mode restored.'
-    )
-    setSavingNoResidentMode(false)
+    if (
+      nextAnatomyMode &&
+      level === 'attending' &&
+      caseDate >= (nextAnatomyStartDate || today)
+    ) {
+      setLevel('med_student')
+    }
+
+    setStatus(successMessage)
+    setSavingHomeDisplaySettings(false)
   }
 
   async function loadHomepageSurveys() {
@@ -3690,40 +3761,132 @@ export default function AdminPage() {
     ),
     no_resident_mode: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <h2 className="font-serif text-xl font-bold">No resident mode</h2>
+        <h2 className="font-serif text-xl font-bold">Home case display</h2>
 
-        <div className="mt-3 grid gap-2.5">
-          <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-            Start date
-            <input
-              type="date"
-              value={noResidentModeStartDate}
-              onChange={event => setNoResidentModeStartDate(event.target.value)}
-              className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-            />
-          </label>
+        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#7a857c]">
+          Control what shows in the home rail
+        </div>
 
-          <button
-            type="button"
-            onClick={() => void saveNoResidentModeSchedule(true)}
-            disabled={savingNoResidentMode || !noResidentModeStartDate}
-            className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
-          >
-            {savingNoResidentMode
-              ? 'Saving...'
-              : noResidentMode
-                ? 'Update no resident schedule'
-                : 'Schedule no resident mode'}
-          </button>
+        <div className="mt-3 grid gap-3">
+          <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[#102018]">Resident case</div>
+                <div className="mt-0.5 text-[12px] leading-5 text-[#637268]">
+                  Hide the resident slot from the home page starting on a specific day.
+                </div>
+              </div>
+              <div className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                {noResidentMode ? 'Hidden' : 'Visible'}
+              </div>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => void saveNoResidentModeSchedule(false)}
-            disabled={savingNoResidentMode || !noResidentMode}
-            className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-4 py-2 text-sm font-semibold text-[#102018] transition hover:bg-white disabled:opacity-60"
-          >
-            Turn off
-          </button>
+            <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+              <label className="grid gap-1.5 text-sm font-semibold text-[#637268]">
+                Hide starting
+                <input
+                  type="date"
+                  value={noResidentModeStartDate}
+                  onChange={event => setNoResidentModeStartDate(event.target.value)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void saveHomeDisplaySettings(
+                    {
+                      no_resident_mode: true,
+                      no_resident_mode_start_date: noResidentModeStartDate,
+                    },
+                    `Resident case will be hidden on the home page starting ${noResidentModeStartDate || shiftISODate(today, 1)}.`
+                  )
+                }
+                disabled={savingHomeDisplaySettings || !noResidentModeStartDate}
+                className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
+              >
+                {savingHomeDisplaySettings && !noResidentMode ? 'Saving...' : noResidentMode ? 'Update hide date' : 'Hide on home'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void saveHomeDisplaySettings(
+                    {
+                      no_resident_mode: false,
+                      no_resident_mode_start_date: null,
+                    },
+                    'Resident case restored on the home page.'
+                  )
+                }
+                disabled={savingHomeDisplaySettings || !noResidentMode}
+                className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60"
+              >
+                Show
+              </button>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[#102018]">Anatomy quiz</div>
+                <div className="mt-0.5 text-[12px] leading-5 text-[#637268]">
+                  When hidden, the home rail swaps Anatomy Quiz for Archives.
+                </div>
+              </div>
+              <div className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                {noAnatomyMode ? 'Hidden' : 'Visible'}
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
+              <label className="grid gap-1.5 text-sm font-semibold text-[#637268]">
+                Hide starting
+                <input
+                  type="date"
+                  value={noAnatomyModeStartDate}
+                  onChange={event => setNoAnatomyModeStartDate(event.target.value)}
+                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void saveHomeDisplaySettings(
+                    {
+                      no_anatomy_mode: true,
+                      no_anatomy_mode_start_date: noAnatomyModeStartDate,
+                    },
+                    `Anatomy quiz will be hidden on the home page starting ${noAnatomyModeStartDate || shiftISODate(today, 1)}.`
+                  )
+                }
+                disabled={savingHomeDisplaySettings || !noAnatomyModeStartDate}
+                className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
+              >
+                {savingHomeDisplaySettings && !noAnatomyMode ? 'Saving...' : noAnatomyMode ? 'Update hide date' : 'Hide on home'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  void saveHomeDisplaySettings(
+                    {
+                      no_anatomy_mode: false,
+                      no_anatomy_mode_start_date: null,
+                    },
+                    'Anatomy quiz restored on the home page.'
+                  )
+                }
+                disabled={savingHomeDisplaySettings || !noAnatomyMode}
+                className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60"
+              >
+                Show
+              </button>
+            </div>
+          </div>
         </div>
       </section>
     ),
@@ -4336,8 +4499,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className={showDatePicker ? 'mt-2.5 grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_228px]' : 'mt-2.5'}>
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className={showDatePicker ? 'mt-2.5 grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_228px]' : 'mt-2.5'}>
+          <div className={`grid gap-2 ${levelOrderForSection.length > 1 ? 'md:grid-cols-2' : ''}`}>
             {levelOrderForSection.map(levelValue => {
               const item = cases.find(entry => entry.level === levelValue)
               const quickStats = item ? overviewCaseQuickStats[item.id] : null
@@ -4487,7 +4650,7 @@ export default function AdminPage() {
 
         {incompleteDates.length > 0 && (
           <div className="mt-2 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[12px] leading-5 text-[#8a5a2b]">
-            Missing cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${item.required})`).join(', ')}
+            Missing daily cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${item.required})`).join(', ')}
           </div>
         )}
 
@@ -4578,7 +4741,7 @@ export default function AdminPage() {
                 >
                   <option value="med_student">Med Student</option>
                   {!isNoResidentModeActiveOn(caseDate) ? <option value="resident">Resident</option> : null}
-                  <option value="attending">Anatomy (attending slot)</option>
+                  <option value="attending">Anatomy (optional)</option>
                 </select>
               </label>
               </div>

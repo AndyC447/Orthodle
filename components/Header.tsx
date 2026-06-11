@@ -276,8 +276,8 @@ export function Header() {
   }
 
   return (
-    <header className="border-b border-[#e5dfd3] bg-[#f7f4ee]">
-      <div className="relative mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6">
+    <header className="sticky top-0 z-40 border-b border-[#e5dfd3]/90 bg-[#f7f4ee]/92 backdrop-blur-xl supports-[backdrop-filter]:bg-[#f7f4ee]/82">
+      <div className="relative mx-auto flex max-w-5xl items-center justify-between px-4 py-2.5 sm:px-6 sm:py-3">
         <Link
           href="/"
           onClick={handleHomeClick}
@@ -289,7 +289,7 @@ export function Header() {
           </span>
         </Link>
 
-        <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 text-center text-[11px] uppercase tracking-[0.25em] text-[#7a857c] md:block">
+        <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 text-center text-[10px] uppercase tracking-[0.24em] text-[#7a857c] md:block">
           {dateStr}
         </div>
 
@@ -297,7 +297,7 @@ export function Header() {
           {showNotifications && notificationsOpen && (
             <div className="relative" ref={notificationPanelRef}>
               <div
-                className={`orthodle-ui-panel fixed left-4 right-4 top-[72px] z-50 overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:w-[320px] sm:max-w-[calc(100vw-32px)] ${
+                className={`orthodle-ui-panel fixed left-4 right-4 top-[66px] z-50 overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:w-[320px] sm:max-w-[calc(100vw-32px)] ${
                   theme === 'dark'
                     ? 'border-[#33453c] bg-[#18241f]'
                     : 'border-[#e7e1d6] bg-white'
@@ -543,7 +543,7 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className={`orthodle-ui-panel fixed left-4 right-4 top-[72px] z-50 overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+10px)] sm:min-w-[170px] ${
+              className={`orthodle-ui-panel fixed left-4 right-4 top-[66px] z-50 overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:min-w-[170px] ${
                 theme === 'dark'
                   ? 'border-[#33453c] bg-[#18241f]'
                   : 'border-[#e7e1d6] bg-white'
