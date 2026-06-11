@@ -97,17 +97,10 @@ a {
 
 button {
   cursor: pointer;
-  font: inherit;
 }
 
 button:disabled {
   cursor: not-allowed;
-}
-
-input,
-textarea,
-select {
-  font: inherit;
 }
 
 textarea {
