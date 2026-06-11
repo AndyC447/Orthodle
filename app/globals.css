@@ -64,7 +64,6 @@ body {
   background: var(--bg);
   color: var(--ink);
   line-height: 1.45;
-  font-feature-settings: "liga" 1, "kern" 1;
   transition:
     background-color 300ms ease,
     color 300ms ease;
@@ -270,12 +269,11 @@ textarea::placeholder {
 
 .orthodle-wordmark {
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1.92rem;
+  font-size: 1.86rem;
   font-weight: 700;
-  letter-spacing: -0.038em;
+  letter-spacing: -0.02em;
   line-height: 1;
   color: #102018;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .orthodle-wordmark-dot {
@@ -283,12 +281,11 @@ textarea::placeholder {
   align-items: center;
   justify-content: center;
   color: #c96b37;
-  text-shadow: 0 0 12px rgba(201, 107, 55, 0.18);
 }
 
 @media (max-width: 640px) {
   .orthodle-wordmark {
-    font-size: 1.78rem;
+    font-size: 1.72rem;
   }
 }
 
@@ -691,12 +688,10 @@ textarea::placeholder {
 
 :root[data-theme="dark"] .orthodle-wordmark {
   color: #f2f5ef;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
 }
 
 :root[data-theme="dark"] .orthodle-wordmark-dot {
   color: #e39764;
-  text-shadow: 0 0 14px rgba(227, 151, 100, 0.2);
 }
 
 :root[data-theme="dark"] header,
