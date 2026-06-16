@@ -3773,7 +3773,7 @@ function PlayPageContent() {
           ? []
           : [{ type: 'level' as const, key: 'resident' as const, label: levelTitles.resident }]),
         ...(noAnatomyModeActiveToday
-          ? [{ type: 'link' as const, href: '/archive', label: 'Archives' }]
+          ? [{ type: 'link' as const, href: '/archive', label: 'ARCHIVES' }]
           : [{ type: 'level' as const, key: 'attending' as const, label: attendingTabLabel }]),
         { type: 'link' as const, href: '/groups', label: groupsTitle, subtitle: groupsSubtitle },
       ]
@@ -5535,7 +5535,7 @@ function PlayPageContent() {
                     }`}
                   >
                     <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
-                      {item.label}
+                      {item.href === '/archive' ? item.label.toUpperCase() : item.label}
                     </div>
                     {item.subtitle ? (
                       <div className="mt-1 text-[6px] font-semibold uppercase tracking-[0.14em] text-[#748178] sm:text-[8px] sm:tracking-[0.22em]">
