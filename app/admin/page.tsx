@@ -4247,65 +4247,65 @@ export default function AdminPage() {
                         <span className="font-semibold text-[#102018]">{analyticsSummary.todayReturningUsers}</span> returning
                       </div>
 
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-3 py-3">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-2.5 py-3 sm:px-3">
                           <div className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                             Today&apos;s case
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                            <div>
-                              <div className="font-serif text-lg font-bold text-[#102018]">
+                          <div className="mt-3 grid grid-cols-3 gap-1 text-center">
+                            <div className="min-w-0 px-0.5">
+                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
                                 {analyticsSummary.todayCaseUsers}
                               </div>
-                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                                 Users
                               </div>
                             </div>
-                            <div>
-                              <div className="font-serif text-lg font-bold text-[#102018]">
+                            <div className="min-w-0 px-0.5">
+                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
                                 {analyticsSummary.todayCaseGuesses}
                               </div>
-                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                                 Guesses
                               </div>
                             </div>
-                            <div>
-                              <div className="font-serif text-lg font-bold text-[#102018]">
+                            <div className="min-w-0 px-0.5">
+                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
                                 {analyticsSummary.todayCaseCorrectGuesses}
                               </div>
-                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                                 Correct
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-3 py-3">
+                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-2.5 py-3 sm:px-3">
                           <div className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
                             Archive activity
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-                            <div>
-                              <div className="font-serif text-lg font-bold text-[#102018]">
+                          <div className="mt-3 grid grid-cols-3 gap-1 text-center">
+                            <div className="min-w-0 px-0.5">
+                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
                                 {analyticsSummary.todayArchiveUsers}
                               </div>
-                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                                 Users
                               </div>
                             </div>
-                            <div>
-                              <div className="font-serif text-lg font-bold text-[#102018]">
+                            <div className="min-w-0 px-0.5">
+                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
                                 {analyticsSummary.todayArchiveGuesses}
                               </div>
-                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                                 Guesses
                               </div>
                             </div>
-                            <div>
-                              <div className="font-serif text-lg font-bold text-[#102018]">
+                            <div className="min-w-0 px-0.5">
+                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
                                 {analyticsSummary.todayArchiveCorrectGuesses}
                               </div>
-                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
                                 Correct
                               </div>
                             </div>
@@ -4314,60 +4314,6 @@ export default function AdminPage() {
                       </div>
                     </div>
                   )}
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleCollapsedSection('analytics_top_regions')}
-                      className="flex w-full items-center justify-between gap-3 text-left"
-                    >
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                        Top regions
-                      </div>
-                    </button>
-                    {!collapsedSections.analytics_top_regions && (
-                      <div className="mt-3 space-y-2">
-                        {audienceSummary.topRegions.length > 0 ? (
-                          audienceSummary.topRegions.map(item => (
-                            <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
-                              <span className="min-w-0 break-all">{item.label}</span>
-                              <span className="font-semibold text-[#637268]">{item.count}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-[#637268]">No region data yet.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
-                    <button
-                      type="button"
-                      onClick={() => toggleCollapsedSection('analytics_top_timezones')}
-                      className="flex w-full items-center justify-between gap-3 text-left"
-                    >
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
-                        Top timezones
-                      </div>
-                    </button>
-                    {!collapsedSections.analytics_top_timezones && (
-                      <div className="mt-3 space-y-2">
-                        {audienceSummary.topTimezones.length > 0 ? (
-                          audienceSummary.topTimezones.map(item => (
-                            <div key={item.label} className="flex items-start justify-between gap-3 text-sm text-[#102018]">
-                              <span className="min-w-0 break-all">{item.label}</span>
-                              <span className="font-semibold text-[#637268]">{item.count}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-sm text-[#637268]">No timezone data yet.</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
                 </div>
               </>
             ) : analyticsLoading ? (
