@@ -147,6 +147,12 @@ type AnalyticsSummary = {
   todayReturningUsers: number
   todayGuesses: number
   todayCorrectGuesses: number
+  todayCaseUsers: number
+  todayCaseGuesses: number
+  todayCaseCorrectGuesses: number
+  todayArchiveUsers: number
+  todayArchiveGuesses: number
+  todayArchiveCorrectGuesses: number
 }
 
 type LevelAnalytics = {
@@ -2713,8 +2719,29 @@ export default function AdminPage() {
       0
     )
     const archivePlaySessions = new Set<string>()
+    const todayCaseSessions = new Set<string>()
+    const todayArchiveSessions = new Set<string>()
+    let todayCaseGuesses = 0
+    let todayCaseCorrectGuesses = 0
+    let todayArchiveGuesses = 0
+    let todayArchiveCorrectGuesses = 0
     for (const guess of guesses) {
       const caseDate = guess.cases?.case_date
+      const guessDate = timestampToLocalISO(guess.created_at)
+      const caseLevel = guess.cases?.level
+
+      if (guessDate === today && caseDate === today && caseLevel === 'med_student') {
+        todayCaseSessions.add(guess.session_id)
+        todayCaseGuesses += 1
+        if (guess.is_correct) todayCaseCorrectGuesses += 1
+      }
+
+      if (guessDate === today && caseDate && caseDate < today) {
+        todayArchiveSessions.add(guess.session_id)
+        todayArchiveGuesses += 1
+        if (guess.is_correct) todayArchiveCorrectGuesses += 1
+      }
+
       if (!caseDate || caseDate >= today) continue
 
       const archiveKey =
@@ -2756,6 +2783,12 @@ export default function AdminPage() {
       todayReturningUsers: todayRow.returning_sessions,
       todayGuesses: todayRow.guesses,
       todayCorrectGuesses: todayRow.correct_guesses,
+      todayCaseUsers: todayCaseSessions.size,
+      todayCaseGuesses,
+      todayCaseCorrectGuesses,
+      todayArchiveUsers: todayArchiveSessions.size,
+      todayArchiveGuesses,
+      todayArchiveCorrectGuesses,
     }
 
     const nextLevelAnalytics = levelOrder.map(levelValue => levelTotals[levelValue])
@@ -4206,48 +4239,76 @@ export default function AdminPage() {
                   </button>
                   {!collapsedSections.analytics_today && (
                     <div className="mt-3 space-y-3">
-                      <div className="grid grid-cols-3 gap-3 text-center">
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayUsers}
-                          </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            Users
-                          </div>
-                        </div>
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayGuesses}
-                          </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            Guesses
-                          </div>
-                        </div>
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayCorrectGuesses}
-                          </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            Correct
-                          </div>
-                        </div>
+                      <div className="rounded-lg border border-[#ece4d7] bg-white px-3 py-2.5 text-center text-[11px] text-[#637268]">
+                        <span className="font-semibold text-[#102018]">{analyticsSummary.todayUsers}</span> sitewide users
+                        {' · '}
+                        <span className="font-semibold text-[#102018]">{analyticsSummary.todayNewUsers}</span> new
+                        {' · '}
+                        <span className="font-semibold text-[#102018]">{analyticsSummary.todayReturningUsers}</span> returning
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 text-center">
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayNewUsers}
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-3 py-3">
+                          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                            Today&apos;s case
                           </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            New
+                          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                            <div>
+                              <div className="font-serif text-lg font-bold text-[#102018]">
+                                {analyticsSummary.todayCaseUsers}
+                              </div>
+                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                                Users
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-serif text-lg font-bold text-[#102018]">
+                                {analyticsSummary.todayCaseGuesses}
+                              </div>
+                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                                Guesses
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-serif text-lg font-bold text-[#102018]">
+                                {analyticsSummary.todayCaseCorrectGuesses}
+                              </div>
+                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                                Correct
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <div>
-                          <div className="font-serif text-xl font-bold text-[#102018]">
-                            {analyticsSummary.todayReturningUsers}
+
+                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-3 py-3">
+                          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
+                            Archive activity
                           </div>
-                          <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#637268]">
-                            Returning
+                          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+                            <div>
+                              <div className="font-serif text-lg font-bold text-[#102018]">
+                                {analyticsSummary.todayArchiveUsers}
+                              </div>
+                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                                Users
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-serif text-lg font-bold text-[#102018]">
+                                {analyticsSummary.todayArchiveGuesses}
+                              </div>
+                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                                Guesses
+                              </div>
+                            </div>
+                            <div>
+                              <div className="font-serif text-lg font-bold text-[#102018]">
+                                {analyticsSummary.todayArchiveCorrectGuesses}
+                              </div>
+                              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-[#637268]">
+                                Correct
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -4545,7 +4606,7 @@ export default function AdminPage() {
                                 quickStats.solveRate !== null
                                   ? `${Math.round(quickStats.solveRate)}% correct`
                                   : 'No solves'
-                              } · ${quickStats.players} played`
+                              } · ${quickStats.players} interacted`
                             : item.category
                           : 'Open slot'}
                       </div>
