@@ -4170,8 +4170,8 @@ export default function AdminPage() {
           <div className="mt-4 space-y-4">
             {analyticsSummary ? (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                <div className="grid grid-cols-2 gap-2.5">
+                  <div className="rounded-xl bg-[#fbfaf7] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(222,215,202,0.65)]">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                       Total users
                     </div>
@@ -4180,7 +4180,7 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                  <div className="rounded-xl bg-[#fbfaf7] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(222,215,202,0.65)]">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                       Combined daily users
                     </div>
@@ -4189,7 +4189,7 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                  <div className="rounded-xl bg-[#fbfaf7] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(222,215,202,0.65)]">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                       Total guesses
                     </div>
@@ -4198,7 +4198,7 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                  <div className="rounded-xl bg-[#fbfaf7] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(222,215,202,0.65)]">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                       Guess accuracy
                     </div>
@@ -4207,7 +4207,7 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                  <div className="rounded-xl bg-[#fbfaf7] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(222,215,202,0.65)]">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                       Avg guesses / user
                     </div>
@@ -4216,7 +4216,7 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5">
+                  <div className="rounded-xl bg-[#fbfaf7] px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(222,215,202,0.65)]">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#637268]">
                       Archive plays
                     </div>
@@ -4227,7 +4227,7 @@ export default function AdminPage() {
 
                 </div>
 
-                <div className="rounded-lg border border-[#ded7ca] bg-[#fbfaf7] p-3">
+                <div className="rounded-xl bg-[#fcfbf8] px-3 py-3 shadow-[inset_0_0_0_1px_rgba(231,225,214,0.85)]">
                   <button
                     type="button"
                     onClick={() => toggleCollapsedSection('analytics_today')}
@@ -4238,8 +4238,8 @@ export default function AdminPage() {
                     </div>
                   </button>
                   {!collapsedSections.analytics_today && (
-                    <div className="mt-3 space-y-3">
-                      <div className="rounded-lg border border-[#ece4d7] bg-white px-3 py-2.5 text-center text-[11px] text-[#637268]">
+                    <div className="mt-3 space-y-2.5">
+                      <div className="rounded-lg bg-white px-3 py-2 text-[11px] text-[#637268] shadow-[inset_0_0_0_1px_rgba(236,228,215,0.9)]">
                         <span className="font-semibold text-[#102018]">{analyticsSummary.todayUsers}</span> sitewide users
                         {' · '}
                         <span className="font-semibold text-[#102018]">{analyticsSummary.todayNewUsers}</span> new
@@ -4247,65 +4247,65 @@ export default function AdminPage() {
                         <span className="font-semibold text-[#102018]">{analyticsSummary.todayReturningUsers}</span> returning
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2.5">
-                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-2.5 py-3 sm:px-3">
-                          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                            Today&apos;s case
+                      <div className="space-y-2">
+                        <div className="rounded-lg bg-white px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(230,223,210,0.9)]">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                              Today&apos;s case
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-1 text-center">
-                            <div className="min-w-0 px-0.5">
-                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
+                          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                            <div>
+                              <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayCaseUsers}
                               </div>
-                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
+                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
                                 Users
                               </div>
                             </div>
-                            <div className="min-w-0 px-0.5">
-                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
+                            <div>
+                              <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayCaseGuesses}
                               </div>
-                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
+                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
                                 Guesses
                               </div>
                             </div>
-                            <div className="min-w-0 px-0.5">
-                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
+                            <div>
+                              <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayCaseCorrectGuesses}
                               </div>
-                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
+                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
                                 Correct
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className="rounded-lg border border-[#e6dfd2] bg-white px-2.5 py-3 sm:px-3">
-                          <div className="text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                            Archive activity
+                        <div className="rounded-lg bg-white px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(230,223,210,0.9)]">
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
+                              Archive activity
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-1 text-center">
-                            <div className="min-w-0 px-0.5">
-                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
+                          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                            <div>
+                              <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayArchiveUsers}
                               </div>
-                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
+                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
                                 Users
                               </div>
                             </div>
-                            <div className="min-w-0 px-0.5">
-                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
+                            <div>
+                              <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayArchiveGuesses}
                               </div>
-                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
+                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
                                 Guesses
                               </div>
                             </div>
-                            <div className="min-w-0 px-0.5">
-                              <div className="font-serif text-[24px] font-bold leading-none text-[#102018] sm:text-lg">
+                            <div>
+                              <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayArchiveCorrectGuesses}
                               </div>
-                              <div className="mt-1 text-[8.5px] font-medium uppercase leading-none tracking-[0.1em] text-[#637268] sm:text-[10px] sm:tracking-[0.16em]">
+                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
                                 Correct
                               </div>
                             </div>

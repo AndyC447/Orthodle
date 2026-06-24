@@ -675,7 +675,7 @@ function PlayPageContent() {
   const [expandedCarouselOffset, setExpandedCarouselOffset] = useState(0)
   const [expandedCarouselDragging, setExpandedCarouselDragging] = useState(false)
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
-  const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(DEFAULT_LEVEL_TITLES)
+  const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(() => readCachedLevelTitles())
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [groupsTitle, setGroupsTitle] = useState('Groups')
   const [groupsSubtitle, setGroupsSubtitle] = useState('COMPETE')
