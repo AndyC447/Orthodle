@@ -1709,6 +1709,7 @@ function PlayPageContent() {
         const maxGuessesForLoadedCase = isAnatomyModeForLoadedCase ? 1 : MAX_GUESSES
 
         if (
+          !isAdminPreview &&
           !previewCase &&
           isCanonicalTrackingHost() &&
           !isLocalhostBrowser() &&
