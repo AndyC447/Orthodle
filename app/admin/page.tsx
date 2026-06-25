@@ -4250,30 +4250,30 @@ export default function AdminPage() {
                       <div className="space-y-2">
                         <div className="rounded-lg bg-white px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(230,223,210,0.9)]">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                              Today&apos;s case
+                            Today&apos;s case
                           </div>
-                          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                            <div>
+                          <div className="mt-2 grid grid-cols-3 gap-0 text-center">
+                            <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayCaseUsers}
                               </div>
-                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
+                              <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Users
                               </div>
                             </div>
-                            <div>
+                            <div className="border-x border-[#eee7da] px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayCaseGuesses}
                               </div>
-                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
+                              <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Guesses
                               </div>
                             </div>
-                            <div>
+                            <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayCaseCorrectGuesses}
                               </div>
-                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
+                              <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Correct
                               </div>
                             </div>
@@ -4282,30 +4282,30 @@ export default function AdminPage() {
 
                         <div className="rounded-lg bg-white px-3 py-2.5 shadow-[inset_0_0_0_1px_rgba(230,223,210,0.9)]">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                              Archive activity
+                            Archive activity
                           </div>
-                          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                            <div>
+                          <div className="mt-2 grid grid-cols-3 gap-0 text-center">
+                            <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayArchiveUsers}
                               </div>
-                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
+                              <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Users
                               </div>
                             </div>
-                            <div>
+                            <div className="border-x border-[#eee7da] px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayArchiveGuesses}
                               </div>
-                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
+                              <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Guesses
                               </div>
                             </div>
-                            <div>
+                            <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
                                 {analyticsSummary.todayArchiveCorrectGuesses}
                               </div>
-                              <div className="mt-1 text-[9px] uppercase tracking-[0.12em] text-[#637268]">
+                              <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Correct
                               </div>
                             </div>
