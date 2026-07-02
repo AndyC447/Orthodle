@@ -5659,15 +5659,9 @@ function PlayPageContent() {
           {!onTodayCard && (
             <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:px-4">
               <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#a24d24]">
-                    Archive case
-                  </div>
-                  <p className="mt-1 text-[12px] leading-5 text-[#6d665d] sm:text-[13px]">
-                    You’re viewing the {formatLevel(selectedLevel, selectedDate, dailyCase)} case from {formatArchiveDate(selectedDate)}.
-                    Refresh the page or tap Orthodle to jump back to today.
-                  </p>
-                </div>
+                <p className="text-[12px] leading-5 text-[#6d665d] sm:text-[13px]">
+                  You&apos;re viewing an archived case from {formatArchiveDate(selectedDate)}.
+                </p>
                 <button
                   type="button"
                   onClick={() => {

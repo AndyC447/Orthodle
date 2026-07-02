@@ -2287,6 +2287,7 @@ export default function AdminPage() {
     setImageCredit2(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setImageRevealClue2('none')
     setShowCaseImage2Fields(false)
+    setImageFindings('')
     setLearningImageUrl('')
     setLearningImageCredit(DEFAULT_IMAGE_CREDIT_TEMPLATE)
     setLearningImageCaption('')
