@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import { buildAnswerSuggestions } from '@/lib/answer-suggestions'
 import {
   buildMultiSelectSynonymMetadata,
   extractPlainSynonyms,
@@ -58,6 +59,16 @@ type CasePreviewCache = {
 }
 
 type UploadSlot = 'case1' | 'case2' | 'teach1' | 'teach2'
+
+type DiagnosisChoiceLite = {
+  label: string
+}
+
+type AnswerReferenceCase = {
+  answer: string | null
+  case_date: string
+  level: Level
+}
 
 type LinkMetadataResult = {
   title: string | null
@@ -220,6 +231,7 @@ export default function CaseStudioPage() {
   const [category, setCategory] = useState('')
   const [prompt, setPrompt] = useState('')
   const [answer, setAnswer] = useState('')
+  const [showAnswerSuggestions, setShowAnswerSuggestions] = useState(false)
   const [synonyms, setSynonyms] = useState('')
   const [anatomyCorrectChoices, setAnatomyCorrectChoices] = useState('')
   const anatomyAutoCorrectChoicesRef = useRef('')
@@ -243,6 +255,8 @@ export default function CaseStudioPage() {
   const [referenceLinks, setReferenceLinks] = useState('')
   const [dropTarget, setDropTarget] = useState<UploadSlot | null>(null)
   const [slotBackups, setSlotBackups] = useState<CaseBackupEntry[]>([])
+  const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
+  const [answerReferenceCases, setAnswerReferenceCases] = useState<AnswerReferenceCase[]>([])
   const fileInputRefs = {
     case1: useRef<HTMLInputElement | null>(null),
     case2: useRef<HTMLInputElement | null>(null),
@@ -272,6 +286,18 @@ export default function CaseStudioPage() {
   const normalizedAnatomyCorrectChoices = useMemo(
     () => parseChoiceLetterList(anatomyCorrectChoices),
     [anatomyCorrectChoices]
+  )
+
+  const filteredAnswerSuggestions = useMemo(
+    () =>
+      buildAnswerSuggestions(
+        answer,
+        diagnosisChoices,
+        answerReferenceCases,
+        caseDate,
+        level
+      ),
+    [answer, answerReferenceCases, caseDate, diagnosisChoices, level]
   )
 
   useEffect(() => {
@@ -305,6 +331,30 @@ export default function CaseStudioPage() {
     setIsUnlocked(savedUnlock === 'true')
     setAuthReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!isUnlocked) return
+
+    let cancelled = false
+
+    async function loadAnswerReferences() {
+      const [{ data: choiceRows }, { data: caseRows }] = await Promise.all([
+        supabase.from('diagnosis_choices').select('label').order('label', { ascending: true }),
+        supabase.from('cases').select('answer, case_date, level').range(0, 1999),
+      ])
+
+      if (cancelled) return
+
+      setDiagnosisChoices((choiceRows || []) as DiagnosisChoiceLite[])
+      setAnswerReferenceCases((caseRows || []) as AnswerReferenceCase[])
+    }
+
+    void loadAnswerReferences()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isUnlocked])
 
   function refreshSlotBackups(nextDate = caseDate, nextLevel = level) {
     setSlotBackups(getCaseBackupsForSlot(nextDate, nextLevel).slice(0, 4))
@@ -1304,11 +1354,43 @@ export default function CaseStudioPage() {
                 </label>
                 <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
                   Answer
-                  <input
-                    value={answer}
-                    onChange={event => setAnswer(event.target.value)}
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
-                  />
+                  <div className="relative">
+                    <input
+                      value={answer}
+                      onChange={event => {
+                        setAnswer(event.target.value)
+                        setShowAnswerSuggestions(true)
+                      }}
+                      onFocus={() => setShowAnswerSuggestions(true)}
+                      onBlur={() => {
+                        window.setTimeout(() => setShowAnswerSuggestions(false), 120)
+                      }}
+                      className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
+                    />
+                    {showAnswerSuggestions && filteredAnswerSuggestions.length > 0 ? (
+                      <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-xl border border-[#ded7ca] bg-white shadow-[0_16px_28px_rgba(16,32,24,0.08)]">
+                        {filteredAnswerSuggestions.map(item => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onMouseDown={event => {
+                              event.preventDefault()
+                              setAnswer(item.label)
+                              setShowAnswerSuggestions(false)
+                            }}
+                            className="flex w-full items-center justify-between gap-3 border-b border-[#f1ece2] px-3 py-2 text-left text-[13px] text-[#102018] transition hover:bg-[#fbfaf7] last:border-b-0"
+                          >
+                            <span>{item.label}</span>
+                            {item.count > 0 ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a948d]">
+                                {item.count} used
+                              </span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </label>
               </div>
 

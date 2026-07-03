@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import { buildAnswerSuggestions } from '@/lib/answer-suggestions'
 import {
   buildMultiSelectSynonymMetadata,
   extractPlainSynonyms,
@@ -721,6 +722,7 @@ export default function AdminPage() {
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false)
   const [prompt, setPrompt] = useState('')
   const [answer, setAnswer] = useState('')
+  const [showAnswerSuggestions, setShowAnswerSuggestions] = useState(false)
   const [synonyms, setSynonyms] = useState('')
   const [anatomyCorrectChoices, setAnatomyCorrectChoices] = useState('')
   const anatomyAutoCorrectChoicesRef = useRef('')
@@ -1597,6 +1599,22 @@ export default function AdminPage() {
       })
       .slice(0, 8)
   }, [cases, category, level])
+
+  const filteredAnswerSuggestions = useMemo(
+    () =>
+      buildAnswerSuggestions(
+        answer,
+        diagnosisChoices,
+        cases.map(item => ({
+          answer: item.answer,
+          case_date: item.case_date,
+          level: item.level,
+        })),
+        caseDate,
+        level
+      ),
+    [answer, caseDate, cases, diagnosisChoices, level]
+  )
 
   const composerGuardrails = useMemo(() => {
     const issues: string[] = []
@@ -4808,12 +4826,44 @@ export default function AdminPage() {
               <div className={`grid gap-2.5 ${level === 'attending' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                 <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                   Answer
-                  <input
-                    value={answer}
-                    onChange={e => setAnswer(e.target.value)}
-                    placeholder="Carpal tunnel syndrome"
-                    className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                  />
+                  <div className="relative">
+                    <input
+                      value={answer}
+                      onChange={e => {
+                        setAnswer(e.target.value)
+                        setShowAnswerSuggestions(true)
+                      }}
+                      onFocus={() => setShowAnswerSuggestions(true)}
+                      onBlur={() => {
+                        window.setTimeout(() => setShowAnswerSuggestions(false), 120)
+                      }}
+                      placeholder="Carpal tunnel syndrome"
+                      className="w-full rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
+                    />
+                    {showAnswerSuggestions && filteredAnswerSuggestions.length > 0 ? (
+                      <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-20 overflow-hidden rounded-xl border border-[#ded7ca] bg-white shadow-[0_16px_28px_rgba(16,32,24,0.08)]">
+                        {filteredAnswerSuggestions.map(item => (
+                          <button
+                            key={item.label}
+                            type="button"
+                            onMouseDown={event => {
+                              event.preventDefault()
+                              setAnswer(item.label)
+                              setShowAnswerSuggestions(false)
+                            }}
+                            className="flex w-full items-center justify-between gap-3 border-b border-[#f1ece2] px-3 py-2 text-left text-sm text-[#102018] transition hover:bg-[#fbfaf7] last:border-b-0"
+                          >
+                            <span>{item.label}</span>
+                            {item.count > 0 ? (
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#8a948d]">
+                                {item.count} used
+                              </span>
+                            ) : null}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                   {duplicateAnswerMatches.length > 0 && (
                     <div className="rounded-lg bg-[#fffaf1] px-3 py-2.5 text-xs font-normal text-[#8a5a2b] ring-1 ring-inset ring-[#ead9b7]/75">
                       <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8a5a2b]">
