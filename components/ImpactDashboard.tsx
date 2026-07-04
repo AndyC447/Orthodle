@@ -36,6 +36,7 @@ function formatPercent(value: number, digits = 0) {
 }
 
 export function ImpactDashboard() {
+  const [screenshotMode, setScreenshotMode] = useState(false)
   const [visits, setVisits] = useState<VisitRow[]>([])
   const [guesses, setGuesses] = useState<GuessRow[]>([])
   const [caseCount, setCaseCount] = useState(0)
@@ -239,8 +240,25 @@ export function ImpactDashboard() {
     `Created a feedback-driven product loop with ${formatCount(metrics.feedbackEntries)} written feedback entries, ${formatCount(metrics.reactionCount)} quick reactions, and ${formatCount(submissionCount)} case submissions.`,
   ]
 
+  const cvLine = `Built and launched Orthodle, a daily orthopedics learning platform with ${formatCount(metrics.totalUsers)} users, ${formatCount(caseCount)} published cases, and ${formatCount(metrics.totalGuesses)} learner guesses across ${formatCount(metrics.countriesReached)} countries.`
+
   return (
     <>
+      <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 ${screenshotMode ? 'opacity-80' : ''}`}>
+        <div className="rounded-full border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#a24d24]">
+          {screenshotMode ? 'Screenshot mode on' : 'Resume asset mode'}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setScreenshotMode(prev => !prev)}
+            className="inline-flex items-center rounded-full border border-[#ded7ca] bg-white px-3.5 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#637268] transition hover:bg-[#fbfaf7]"
+          >
+            {screenshotMode ? 'Exit screenshot mode' : 'Screenshot mode'}
+          </button>
+        </div>
+      </div>
+
       <div className="night-surface overflow-hidden rounded-[28px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
@@ -267,6 +285,15 @@ export function ImpactDashboard() {
               Usage, content depth, feedback volume, and repeat engagement are all live below.
             </p>
           </div>
+        </div>
+
+        <div className="mt-5 rounded-[22px] border border-[#dfe9e2] bg-[#f7fbf8] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
+            One-line CV version
+          </div>
+          <p className="mt-2 text-[14px] leading-6 text-[#102018] sm:text-[15px]">
+            {loading ? 'Loading summary…' : cvLine}
+          </p>
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -331,6 +358,7 @@ export function ImpactDashboard() {
         </div>
       </div>
 
+      {!screenshotMode && (
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
         <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
@@ -377,6 +405,7 @@ export function ImpactDashboard() {
           </div>
         </div>
       </div>
+      )}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
         <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
@@ -402,6 +431,7 @@ export function ImpactDashboard() {
           </div>
         </div>
 
+        {!screenshotMode ? (
         <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
             Interview framing
@@ -422,6 +452,23 @@ export function ImpactDashboard() {
             </p>
           </div>
         </div>
+        ) : (
+          <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+              Screenshot notes
+            </div>
+            <div className="mt-4 space-y-3 text-[14px] leading-6 text-[#102018]">
+              <p>
+                Screenshot mode trims the extra narrative blocks so you can capture the strongest
+                traction and ownership signals cleanly.
+              </p>
+              <p className="text-[#637268]">
+                Use the one-line CV summary, spotlight metrics, resume bullets, and traction cards
+                as the most presentation-ready part of the page.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </>
   )
