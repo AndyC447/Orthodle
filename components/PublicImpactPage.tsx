@@ -244,11 +244,8 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
         <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-5 py-6 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
           <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#1f6448]">
-                Orthodle impact
-              </div>
-              <h1 className="mt-2 font-serif text-[34px] font-bold leading-tight text-[#102018] sm:text-[46px]">
-                A daily orthopedics case platform built around teaching, design, and repetition.
+              <h1 className="font-serif text-[30px] font-bold leading-tight text-[#102018] sm:text-[38px]">
+                Impact/About Me
               </h1>
               <div className="mt-4 max-w-2xl space-y-3">
                 {aboutText.split(/\n{2,}/).map(paragraph => (
