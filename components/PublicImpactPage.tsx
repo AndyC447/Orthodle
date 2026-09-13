@@ -165,7 +165,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
         const sessionDelta = sessionsB.size - sessionsA.size
         return sessionDelta || cityA.localeCompare(cityB)
       })
-      .slice(0, 5)
+      .slice(0, 6)
       .map(([city]) => city)
 
     return {
@@ -251,7 +251,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
         ) : null}
 
         <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-5 py-6 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
             <div>
               <h1 className="font-serif text-[30px] font-bold leading-tight text-[#102018] sm:text-[38px]">
                 Impact
@@ -332,14 +332,28 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                     Top user zones
                   </div>
-                  <ol className="mt-2 grid gap-1.5 text-[13px] font-bold text-[#102018] sm:grid-cols-2">
-                    {metrics.topCities.map((city, index) => (
-                      <li key={city} className="flex items-center gap-2 rounded-[10px] bg-[#f7fbf8] px-2.5 py-2">
-                        <span className="font-serif text-[15px] text-[#1f6448]">{index + 1}.</span>
-                        <span>{city}</span>
-                      </li>
-                    ))}
-                  </ol>
+                  <div className="mt-2 grid gap-1.5 text-[13px] font-bold text-[#102018] sm:grid-cols-2">
+                    {[metrics.topCities.slice(0, 3), metrics.topCities.slice(3, 6)].map(
+                      (column, columnIndex) => (
+                        <ol key={columnIndex} className="grid gap-1.5">
+                          {column.map((city, cityIndex) => {
+                            const rank = columnIndex * 3 + cityIndex + 1
+                            return (
+                              <li
+                                key={city}
+                                className="flex items-center gap-2 rounded-[10px] bg-[#f7fbf8] px-2.5 py-2"
+                              >
+                                <span className="font-serif text-[15px] text-[#1f6448]">
+                                  {rank}.
+                                </span>
+                                <span>{city}</span>
+                              </li>
+                            )
+                          })}
+                        </ol>
+                      )
+                    )}
+                  </div>
                 </div>
               ) : null}
             </div>
