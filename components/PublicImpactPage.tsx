@@ -11,6 +11,7 @@ type VisitRow = {
   session_id: string
   created_at: string
   geo_country: string | null
+  geo_city: string | null
 }
 
 type GuessRow = {
@@ -36,6 +37,29 @@ function timestampToLocalISO(timestamp: string) {
 
 function todayISO() {
   return timestampToLocalISO(new Date().toISOString())
+}
+
+function cleanLocationLabel(value: string | null) {
+  if (!value) return ''
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+
+  let decoded = trimmed
+  try {
+    decoded = decodeURIComponent(trimmed.replace(/\+/g, ' '))
+  } catch {
+    decoded = trimmed
+  }
+
+  const normalized = decoded
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  if (!normalized || /^(unknown|undefined|null|n\/a|not available)$/i.test(normalized)) {
+    return ''
+  }
+
+  return normalized
 }
 
 export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean }) {
@@ -81,7 +105,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
 
     async function loadStats() {
       const [visitRows, guessRows, caseRows] = await Promise.all([
-        fetchPaged<VisitRow>('visits', 'session_id, created_at, geo_country'),
+        fetchPaged<VisitRow>('visits', 'session_id, created_at, geo_country, geo_city'),
         fetchPaged<GuessRow>('guesses', 'session_id, created_at, is_correct, cases(case_date)'),
         fetchPaged<CountRow>('cases', 'id'),
       ])
@@ -104,6 +128,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
     const uniqueUsers = new Set<string>()
     const sessionsByDate = new Map<string, Set<string>>()
     const countries = new Set<string>()
+    const citySessions = new Map<string, Set<string>>()
     const today = todayISO()
     let archiveGuesses = 0
 
@@ -113,6 +138,12 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
       if (!sessionsByDate.has(date)) sessionsByDate.set(date, new Set())
       sessionsByDate.get(date)!.add(visit.session_id)
       if (visit.geo_country?.trim()) countries.add(visit.geo_country.trim())
+
+      const city = cleanLocationLabel(visit.geo_city)
+      if (city) {
+        if (!citySessions.has(city)) citySessions.set(city, new Set())
+        citySessions.get(city)!.add(visit.session_id)
+      }
     }
 
     for (const guess of guesses) {
@@ -129,6 +160,13 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
       (sum, sessions) => sum + sessions.size,
       0
     )
+    const topCities = [...citySessions.entries()]
+      .sort(([cityA, sessionsA], [cityB, sessionsB]) => {
+        const sessionDelta = sessionsB.size - sessionsA.size
+        return sessionDelta || cityA.localeCompare(cityB)
+      })
+      .slice(0, 5)
+      .map(([city]) => city)
 
     return {
       usersReached: Math.max(uniqueUsers.size, combinedDailyUsers),
@@ -137,6 +175,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
       totalGuesses: guesses.length,
       archiveGuesses,
       countriesReached: countries.size,
+      topCities,
     }
   }, [guesses, visits])
 
@@ -168,7 +207,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
     {
       label: 'Countries reached',
       value: metrics.countriesReached,
-      placeholder: 1,
+      placeholder: 40,
       cacheKey: 'orthodle_live_stat_impact_countries_reached_v1',
     },
   ]
@@ -288,6 +327,21 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   </div>
                 ))}
               </div>
+              {metrics.topCities.length > 0 ? (
+                <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3">
+                  <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
+                    Top user zones
+                  </div>
+                  <ol className="mt-2 grid gap-1.5 text-[13px] font-bold text-[#102018] sm:grid-cols-2">
+                    {metrics.topCities.map((city, index) => (
+                      <li key={city} className="flex items-center gap-2 rounded-[10px] bg-[#f7fbf8] px-2.5 py-2">
+                        <span className="font-serif text-[15px] text-[#1f6448]">{index + 1}.</span>
+                        <span>{city}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
