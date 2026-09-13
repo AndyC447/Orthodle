@@ -433,18 +433,18 @@ export default function ArchivePage() {
               {groupedDates.length} dates ready. Expand to browse the full archive.
             </div>
           ) : (
-            <div className="mt-2.5 space-y-2 sm:mt-3 sm:space-y-2.5">
+            <div className="mt-2.5 space-y-1.5 sm:mt-3 sm:space-y-2">
               {groupedDates.map((group, groupIndex) => (
                 <div
                   key={group.date}
-                  className="orthodle-archive-group rounded-[18px] bg-[#fcfbf8] px-2 py-2 ring-1 ring-inset ring-[#e7e1d6] sm:rounded-[20px] sm:px-3 sm:py-3"
+                  className="orthodle-archive-group grid gap-2 rounded-[14px] bg-[#fcfbf8] px-2.5 py-2 ring-1 ring-inset ring-[#e7e1d6] sm:grid-cols-[150px_minmax(0,1fr)] sm:items-center sm:rounded-[16px] sm:px-3 sm:py-2"
                   style={{ animationDelay: `${Math.min(groupIndex * 0.04, 0.24)}s` }}
                 >
-                  <div className={sectionLabelClass}>
+                  <div className={`${sectionLabelClass} sm:self-start sm:pt-1`}>
                     {formatDate(group.date)}
                   </div>
 
-                  <div className="mt-1.5 space-y-1.5 sm:mt-2 sm:grid sm:grid-cols-3 sm:gap-2 sm:space-y-0">
+                  <div className="grid gap-1.5 sm:grid-cols-3 sm:gap-2">
                     {levelOrder.map((level, levelIndex) => {
                       const item = group.items.find(entry => entry.level === level)
                       if (!item) return null
@@ -457,21 +457,23 @@ export default function ArchivePage() {
                         <Link
                           key={`${group.date}-${level}`}
                           href={`/?case=${item.id}&date=${group.date}&level=${level}`}
-                          className="orthodle-archive-entry block w-full rounded-[14px] bg-white px-2.5 py-2 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9] sm:rounded-[16px] sm:px-3 sm:py-2.5"
+                          className="orthodle-archive-entry grid min-h-[58px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] bg-white px-2.5 py-2 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9] sm:min-h-[54px] sm:rounded-[12px] sm:px-3 sm:py-2"
                           style={{ animationDelay: `${Math.min(groupIndex * 0.04 + levelIndex * 0.05, 0.34)}s` }}
                         >
-                          <div className={caseMetaLabelClass}>
-                            {toTitleCase(formatLevel(level, item.case_date, item))}
-                          </div>
-                          <div className="mt-0.5 line-clamp-2 font-serif text-[12.5px] font-bold leading-tight tracking-[-0.01em] text-[#102018] sm:mt-1 sm:text-[13px]">
-                            {showAnswers ? item.answer : formatCategoryLabel(item.category)}
-                          </div>
-                          {showAnswers && item.category && (
-                            <div className="mt-0.5 text-[9px] tracking-[0.01em] text-[#8b938d] sm:text-[10px]">
-                              {formatCategoryLabel(item.category)}
+                          <div className="min-w-0">
+                            <div className={caseMetaLabelClass}>
+                              {toTitleCase(formatLevel(level, item.case_date, item))}
                             </div>
-                          )}
-                          <div className={`mt-1 text-[9px] font-semibold sm:mt-1.5 sm:text-[10px] ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
+                            <div className="mt-0.5 line-clamp-1 font-serif text-[12.5px] font-bold leading-tight text-[#102018] sm:text-[13px]">
+                              {showAnswers ? item.answer : formatCategoryLabel(item.category)}
+                            </div>
+                            {showAnswers && item.category && (
+                              <div className="mt-0.5 truncate text-[9px] tracking-[0.01em] text-[#8b938d] sm:text-[10px]">
+                                {formatCategoryLabel(item.category)}
+                              </div>
+                            )}
+                          </div>
+                          <div className={`shrink-0 text-[9px] font-semibold sm:text-[10px] ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
                             {isCompleted ? 'Completed' : 'Open case'}
                           </div>
                         </Link>
