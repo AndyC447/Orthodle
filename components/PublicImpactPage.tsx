@@ -165,6 +165,12 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
       placeholder: 42604,
       cacheKey: 'orthodle_live_stat_impact_archive_plays_v1',
     },
+    {
+      label: 'Countries reached',
+      value: metrics.countriesReached,
+      placeholder: 1,
+      cacheKey: 'orthodle_live_stat_impact_countries_reached_v1',
+    },
   ]
 
   function saveAboutText() {
@@ -264,7 +270,9 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                 {statCards.map(card => (
                   <div
                     key={card.label}
-                    className="rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3"
+                    className={`rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3 ${
+                      card.label === 'Countries reached' ? 'col-span-2' : ''
+                    }`}
                   >
                     <div className="font-serif text-[28px] font-bold leading-none text-[#102018] sm:text-[32px]">
                       <LiveStatNumber
