@@ -22,17 +22,20 @@ export function Header() {
   const [reminderStatus, setReminderStatus] = useState('')
   const [isSavingReminder, setIsSavingReminder] = useState(false)
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
+  const [hasVisitedImpact, setHasVisitedImpact] = useState(true)
   const closeTimerRef = useRef<number | null>(null)
   const notificationPanelRef = useRef<HTMLDivElement | null>(null)
   const pathname = usePathname()
   const THEME_STORAGE_KEY = 'orthodle_theme'
   const DISMISSED_THREADS_STORAGE_KEY = 'orthodle_dismissed_feedback_threads_v1'
+  const IMPACT_VISITED_STORAGE_KEY = 'orthodle_visited_impact_page_v1'
   const showNotifications = true
   const showPlayLink = pathname !== '/'
   const visibleThreads =
     messagingPayload?.threads.filter(thread => !dismissedThreadIds.includes(thread.feedbackId)) || []
   const threadCount = visibleThreads.length || 0
   const hasAnyMessages = threadCount > 0
+  const shouldHighlightImpact = !hasVisitedImpact && pathname !== '/impact'
 
   const dateStr = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -46,6 +49,7 @@ export function Header() {
       (window.localStorage.getItem(THEME_STORAGE_KEY) as 'light' | 'dark' | null) || 'light'
     setTheme(savedTheme)
     document.documentElement.dataset.theme = savedTheme
+    setHasVisitedImpact(window.localStorage.getItem(IMPACT_VISITED_STORAGE_KEY) === '1')
 
     try {
       const raw = window.localStorage.getItem(DISMISSED_THREADS_STORAGE_KEY)
@@ -57,6 +61,13 @@ export function Header() {
       }
     } catch {}
   }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (pathname !== '/impact') return
+    window.localStorage.setItem(IMPACT_VISITED_STORAGE_KEY, '1')
+    setHasVisitedImpact(true)
+  }, [pathname])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -528,6 +539,8 @@ export function Header() {
             aria-label="Open navigation menu"
             onClick={() => setMenuOpen(prev => !prev)}
             className={`orthodle-ui-icon-button flex h-10 w-10 items-center justify-center ${
+              shouldHighlightImpact ? 'orthodle-impact-menu-pulse' : ''
+            } ${
               theme === 'dark'
                 ? 'border-[#33453c] bg-[#18241f] text-[#f4efe6] hover:bg-[#1d2a24]'
                 : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
@@ -554,6 +567,8 @@ export function Header() {
                   href="/impact"
                   onClick={() => setMenuOpen(false)}
                   className={`orthodle-ui-menu-item block ${
+                    shouldHighlightImpact ? 'orthodle-impact-menu-item-pulse' : ''
+                  } ${
                     theme === 'dark'
                       ? 'border-[#315f4d] bg-[#1f3329] text-[#cfe8da] hover:bg-[#244031]'
                       : 'border-[#cfe3d8] bg-[#f5fbf7] text-[#1f6448] hover:bg-[#edf7f0]'
