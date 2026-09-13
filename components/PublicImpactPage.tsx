@@ -23,7 +23,7 @@ type CountRow = { id: string }
 
 const PAGE_SIZE = 1000
 const ABOUT_TEXT_STORAGE_KEY = 'orthodle_admin_impact_about_text_v1'
-const DEFAULT_ABOUT_TEXT = `I am a fourth-year medical student currently on sub-internships and applying into orthopedic surgery this year.
+const DEFAULT_ABOUT_TEXT = `I am a fourth-year medical student at UCLA currently on sub-internships and applying into orthopedic surgery this year.
 
 I built Orthodle as a way to combine my interest in website design, teaching, daily puzzle games, and orthopedic learning. As I see interesting cases on sub-I rotations, I use the process of building them into Orthodle cases to study the pathology more deeply, sharpen the teaching point, and turn that learning into something useful for other learners.`
 
@@ -188,22 +188,18 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
     {
       label: 'Users reached',
       value: metrics.usersReached,
-      detail: 'live learner count',
     },
     {
       label: 'Published cases',
       value: caseCount,
-      detail: 'daily case library',
     },
     {
       label: 'Learner guesses',
       value: metrics.totalGuesses,
-      detail: 'active attempts',
     },
     {
       label: 'Archive plays',
       value: metrics.archiveGuesses,
-      detail: 'continued review',
     },
   ]
 
@@ -246,7 +242,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
         ) : null}
 
         <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-5 py-6 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#1f6448]">
                 Orthodle impact
@@ -254,9 +250,49 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
               <h1 className="mt-2 font-serif text-[34px] font-bold leading-tight text-[#102018] sm:text-[46px]">
                 A daily orthopedics case platform built around teaching, design, and repetition.
               </h1>
-              <p className="mt-4 max-w-2xl text-[15px] leading-7 text-[#4f5e55] sm:text-[16px]">
-                Orthodle is a daily puzzle-style orthopedics learning site I designed, built, and maintain. It blends clinical reasoning, visual case presentation, lightweight competition, and concise teaching points into a format learners can return to each day.
-              </p>
+              <div className="mt-4 max-w-2xl space-y-3">
+                {aboutText.split(/\n{2,}/).map(paragraph => (
+                  <p key={paragraph} className="text-[15px] leading-7 text-[#4f5e55] sm:text-[16px]">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+
+              {adminMode ? (
+                <div className="mt-5 rounded-[16px] border border-[#e7e1d6] bg-[#fcfbf8] p-3">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
+                    Edit about text
+                  </label>
+                  <textarea
+                    value={aboutDraft}
+                    onChange={event => {
+                      setAboutDraft(event.target.value)
+                      setAboutStatus('')
+                    }}
+                    rows={5}
+                    className="mt-2 w-full resize-y rounded-[12px] border border-[#ded7ca] bg-white px-3 py-2.5 text-[13px] leading-6 text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/10"
+                  />
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-[11px] font-medium text-[#637268]">{aboutStatus}</div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={resetAboutText}
+                        className="inline-flex h-9 items-center justify-center rounded-[10px] border border-[#ded7ca] bg-white px-3 text-[11px] font-bold text-[#637268] transition hover:bg-[#fbfaf7]"
+                      >
+                        Reset
+                      </button>
+                      <button
+                        type="button"
+                        onClick={saveAboutText}
+                        className="inline-flex h-9 items-center justify-center rounded-[10px] bg-[#1f6448] px-3 text-[11px] font-bold text-white transition hover:bg-[#18543c]"
+                      >
+                        Save text
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-[22px] border border-[#dce8e1] bg-[#f7fbf8] p-4">
@@ -275,95 +311,11 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                     <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                       {card.label}
                     </div>
-                    <div className="mt-1 text-[11px] text-[#7a837c]">{card.detail}</div>
                   </div>
                 ))}
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="mt-5 grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-          <section className="rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-6">
-            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-              About me
-            </div>
-            <div className="mt-3 space-y-3">
-              {aboutText.split(/\n{2,}/).map(paragraph => (
-                <p key={paragraph} className="text-[15px] leading-7 text-[#102018]">
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-
-            {adminMode ? (
-              <div className="mt-5 rounded-[16px] border border-[#e7e1d6] bg-[#fcfbf8] p-3">
-                <label className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                  Edit about text
-                </label>
-                <textarea
-                  value={aboutDraft}
-                  onChange={event => {
-                    setAboutDraft(event.target.value)
-                    setAboutStatus('')
-                  }}
-                  rows={8}
-                  className="mt-2 w-full resize-y rounded-[12px] border border-[#ded7ca] bg-white px-3 py-2.5 text-[13px] leading-6 text-[#102018] outline-none transition focus:border-[#1f6448] focus:ring-2 focus:ring-[#1f6448]/10"
-                />
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                  <div className="text-[11px] font-medium text-[#637268]">{aboutStatus}</div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={resetAboutText}
-                      className="inline-flex h-9 items-center justify-center rounded-[10px] border border-[#ded7ca] bg-white px-3 text-[11px] font-bold text-[#637268] transition hover:bg-[#fbfaf7]"
-                    >
-                      Reset
-                    </button>
-                    <button
-                      type="button"
-                      onClick={saveAboutText}
-                      className="inline-flex h-9 items-center justify-center rounded-[10px] bg-[#1f6448] px-3 text-[11px] font-bold text-white transition hover:bg-[#18543c]"
-                    >
-                      Save text
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </section>
-
-          <section className="rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-6">
-            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-              What I built
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {[
-                'Full-stack daily case platform',
-                'Admin case builder and scheduling tools',
-                'Live analytics and feedback loops',
-                'Mobile-first case and image experience',
-                'Group competition and leaderboard system',
-                'Archive for continued case review',
-              ].map(item => (
-                <div
-                  key={item}
-                  className="rounded-[16px] border border-[#e7e1d6] bg-[#fcfbf8] px-3.5 py-3 text-[13px] font-semibold leading-5 text-[#102018]"
-                >
-                  {item}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-5 rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-4">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                Resume summary
-              </div>
-              <p className="mt-2 text-[14px] leading-6 text-[#102018]">
-                Designed and launched Orthodle, a daily orthopedic case-learning platform with live usage analytics, a growing case library, learner feedback systems, and mobile-first clinical image workflows.
-              </p>
-            </div>
-          </section>
         </div>
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
