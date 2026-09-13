@@ -209,7 +209,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
           <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
             <div>
               <h1 className="font-serif text-[30px] font-bold leading-tight text-[#102018] sm:text-[38px]">
-                Impact/About Me
+                Impact
               </h1>
               <div className="mt-4 max-w-2xl space-y-3">
                 {aboutText.split(/\n{2,}/).map(paragraph => (
