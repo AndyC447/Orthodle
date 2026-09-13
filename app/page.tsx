@@ -78,6 +78,12 @@ type Case = {
   learning_image_caption_2?: string | null
 }
 
+type FallbackCaseResponse = {
+  case: Case
+  fallbackUsed: boolean
+  sourceCaseDate: string | null
+}
+
 type Guess = {
   text: string
   correct: boolean
@@ -620,6 +626,7 @@ function PlayPageContent() {
   const [playModeReady, setPlayModeReady] = useState(false)
   const [selectedDate, setSelectedDate] = useState(initialDate)
   const [dailyCase, setDailyCase] = useState<Case | null>(null)
+  const [fallbackSourceDate, setFallbackSourceDate] = useState<string | null>(null)
   const [guess, setGuess] = useState('')
   const [answerOptions, setAnswerOptions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -1633,6 +1640,7 @@ function PlayPageContent() {
     async function loadCase() {
       setLoading(true)
       setDailyCase(null)
+      setFallbackSourceDate(null)
         setGuess('')
           setGuesses([])
           setSelectedAnatomyLetters([])
@@ -1679,6 +1687,25 @@ function PlayPageContent() {
 
           data = (result.data as Case | null) || null
           error = result.error
+
+          if (!data && !error && selectedDate === today && !caseParam) {
+            const fallbackResponse = await fetch('/api/cases/fallback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ targetDate: selectedDate, level: selectedLevel }),
+            })
+
+            if (fallbackResponse.ok) {
+              const fallbackResult = (await fallbackResponse.json()) as FallbackCaseResponse
+              data = fallbackResult.case || null
+              if (fallbackResult.fallbackUsed) {
+                setFallbackSourceDate(fallbackResult.sourceCaseDate || null)
+              }
+            } else {
+              const fallbackError = await fallbackResponse.json().catch(() => null)
+              error = { message: fallbackError?.error || 'Could not create fallback case.' }
+            }
+          }
         }
 
         if (cancelled) return
@@ -5677,6 +5704,14 @@ function PlayPageContent() {
               </div>
             </div>
           )}
+
+          {onTodayCard && fallbackSourceDate ? (
+            <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:px-4">
+              <p className="text-[12px] leading-5 text-[#6d665d] sm:text-[13px]">
+                Backup case loaded from {formatArchiveDate(fallbackSourceDate)} because today&apos;s slot was empty.
+              </p>
+            </div>
+          ) : null}
 
           <div className={`orthodle-panel-shell orthodle-home-card relative z-20 rounded-[24px] border bg-white px-3 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-5 sm:py-5 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'} ${showCaseCardSettle ? 'orthodle-case-card-settle' : ''}`}>
             <div

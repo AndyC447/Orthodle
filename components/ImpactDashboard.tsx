@@ -180,67 +180,42 @@ export function ImpactDashboard() {
 
   const spotlightCards = [
     {
-      label: 'Total users reached',
-      value: formatCount(metrics.totalUsers),
-      note: 'Distinct learners who have used Orthodle',
+      title: 'Reach',
+      primaryValue: formatCount(metrics.totalUsers),
+      primaryLabel: 'total users',
+      secondaryValue: formatCount(metrics.weeklyActiveUsers),
+      secondaryLabel: 'weekly active',
     },
     {
-      label: 'Weekly active users',
-      value: formatCount(metrics.weeklyActiveUsers),
-      note: 'Recent recurring engagement across the platform',
+      title: 'Engagement',
+      primaryValue: formatCount(metrics.totalGuesses),
+      primaryLabel: 'total guesses',
+      secondaryValue: formatPercent(metrics.guessAccuracy),
+      secondaryLabel: 'guess accuracy',
     },
     {
-      label: 'Countries reached',
-      value: formatCount(metrics.countriesReached),
-      note: 'International footprint from real usage',
+      title: 'Content',
+      primaryValue: formatCount(caseCount),
+      primaryLabel: 'published cases',
+      secondaryValue: formatCount(metrics.countriesReached),
+      secondaryLabel: 'countries reached',
     },
     {
-      label: 'Cases published',
-      value: formatCount(caseCount),
-      note: 'Original clinical cases built and shipped',
-    },
-    {
-      label: 'Total guesses logged',
-      value: formatCount(metrics.totalGuesses),
-      note: 'Active learner interaction, not passive traffic',
-    },
-    {
-      label: 'Guess accuracy',
-      value: formatPercent(metrics.guessAccuracy),
-      note: 'Signal of challenge calibration and engagement',
+      title: 'Feedback loop',
+      primaryValue: formatCount(metrics.feedbackEntries),
+      primaryLabel: 'feedback entries',
+      secondaryValue: formatCount(submissionCount),
+      secondaryLabel: 'case submissions',
     },
   ]
 
-  const tractionRows = [
-    {
-      label: 'Returning users today',
-      value: formatCount(metrics.returningUsersToday),
-      sublabel: `${formatPercent(metrics.returningRateToday)} of today’s active users`,
-    },
-    {
-      label: 'Feedback entries',
-      value: formatCount(metrics.feedbackEntries),
-      sublabel: 'Written learner feedback captured on-platform',
-    },
-    {
-      label: 'Quick reactions',
-      value: formatCount(metrics.reactionCount),
-      sublabel: 'Lightweight product feedback signals',
-    },
-    {
-      label: 'Case submissions',
-      value: formatCount(submissionCount),
-      sublabel: 'Inbound contributor interest and collaboration',
-    },
-  ]
+  const cvLine = `Built and launched Orthodle, a daily orthopedics learning platform with ${formatCount(metrics.totalUsers)} users, ${formatCount(caseCount)} published cases, ${formatCount(metrics.totalGuesses)} learner guesses, and reach across ${formatCount(metrics.countriesReached)} countries.`
 
-  const resumeBullets = [
-    `Built and launched Orthodle, a daily orthopedics learning platform with ${formatCount(metrics.totalUsers)} total users and ${formatCount(metrics.weeklyActiveUsers)} weekly active users.`,
-    `Designed and maintained a clinical content library of ${formatCount(caseCount)} published cases that has generated ${formatCount(metrics.totalGuesses)} learner guesses across ${formatCount(metrics.countriesReached)} countries.`,
-    `Created a feedback-driven product loop with ${formatCount(metrics.feedbackEntries)} written feedback entries, ${formatCount(metrics.reactionCount)} quick reactions, and ${formatCount(submissionCount)} case submissions.`,
+  const compactHighlights = [
+    `${formatCount(metrics.returningUsersToday)} returning users today`,
+    `${formatPercent(metrics.returningRateToday)} returning rate today`,
+    `${formatCount(metrics.reactionCount)} quick reactions`,
   ]
-
-  const cvLine = `Built and launched Orthodle, a daily orthopedics learning platform with ${formatCount(metrics.totalUsers)} users, ${formatCount(caseCount)} published cases, and ${formatCount(metrics.totalGuesses)} learner guesses across ${formatCount(metrics.countriesReached)} countries.`
 
   return (
     <>
@@ -260,215 +235,84 @@ export function ImpactDashboard() {
       </div>
 
       <div className="night-surface overflow-hidden rounded-[28px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="max-w-3xl">
-            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
-              Impact snapshot
-            </div>
-            <h1 className="mt-2 font-serif text-[32px] font-bold leading-tight tracking-[-0.04em] text-[#102018] sm:text-[38px]">
-              Orthodle is a live product, not just a side project.
-            </h1>
-            <p className="mt-3 text-[14px] leading-6 text-[#637268] sm:text-[15px]">
-              This page is built to make the project legible to interviewers, faculty, and anyone
-              evaluating product ownership, execution, and real-world traction.
-            </p>
+        <div className="max-w-4xl">
+          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
+            Impact snapshot
           </div>
-
-          <div className="rounded-[24px] border border-[#ead9b7] bg-[#fffaf1] px-4 py-4 shadow-[0_10px_24px_rgba(138,107,63,0.08)] xl:max-w-[340px]">
-            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#a24d24]">
-              Resume-ready headline
-            </div>
-            <p className="mt-2 font-serif text-[20px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
-              Built, shipped, and grew a daily orthopedics learning platform with real user traction.
-            </p>
-            <p className="mt-2 text-[13px] leading-5 text-[#7a6954]">
-              Usage, content depth, feedback volume, and repeat engagement are all live below.
-            </p>
-          </div>
+          <h1 className="mt-2 font-serif text-[32px] font-bold leading-tight tracking-[-0.04em] text-[#102018] sm:text-[38px]">
+            Orthodle traction
+          </h1>
         </div>
 
-        <div className="mt-5 rounded-[22px] border border-[#dfe9e2] bg-[#f7fbf8] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#315f4d]">
-            One-line CV version
-          </div>
-          <p className="mt-2 text-[14px] leading-6 text-[#102018] sm:text-[15px]">
-            {loading ? 'Loading summary…' : cvLine}
+        <div className="mt-4 rounded-[22px] border border-[#dfe9e2] bg-[#f7fbf8] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+          <p className="text-[14px] leading-6 text-[#102018] sm:text-[15px]">
+            {loading ? 'Loading impact summary…' : cvLine}
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {compactHighlights.map(item => (
+              <div
+                key={item}
+                className="rounded-full border border-[#d8e5dd] bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#315f4d]"
+              >
+                {item}
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {spotlightCards.map(card => (
             <div
-              key={card.label}
+              key={card.title}
               className="rounded-[22px] border border-[#e7e1d6] bg-[#fbfaf7] px-4 py-4"
             >
               <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                {card.label}
+                {card.title}
               </div>
-              <div className="mt-2 font-serif text-[30px] font-bold text-[#102018]">
-                {loading ? '—' : card.value}
+              <div className="mt-3 font-serif text-[30px] font-bold leading-none text-[#102018]">
+                {loading ? '—' : card.primaryValue}
               </div>
-              <div className="mt-1.5 text-[12px] leading-5 text-[#6f786f]">
-                {card.note}
+              <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#6f786f]">
+                {card.primaryLabel}
+              </div>
+              <div className="mt-4 border-t border-[#e7e1d6] pt-3">
+                <div className="font-serif text-[24px] font-bold leading-none text-[#102018]">
+                  {loading ? '—' : card.secondaryValue}
+                </div>
+                <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#6f786f]">
+                  {card.secondaryLabel}
+                </div>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+      <div className="mt-5 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
         <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
           <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-            Resume bullets
+            Resume line
           </div>
-          <div className="mt-4 space-y-3">
-            {resumeBullets.map((bullet, index) => (
+          <p className="mt-3 text-[14px] leading-6 text-[#102018]">
+            {loading ? 'Loading resume line…' : cvLine}
+          </p>
+        </div>
+
+        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
+            Ownership
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {['Product design', 'Full-stack build', 'Content system', 'Analytics + iteration'].map(item => (
               <div
-                key={index}
-                className="rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-4 py-3"
+                key={item}
+                className="rounded-full border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]"
               >
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7a857c]">
-                  Bullet {index + 1}
-                </div>
-                <p className="mt-1.5 text-[14px] leading-6 text-[#102018]">{bullet}</p>
+                {item}
               </div>
             ))}
           </div>
         </div>
-
-        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-            What I owned
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            {[
-              ['Product design', 'Daily gameplay flow, mobile UX, solved-state polish, onboarding, and retention loops.'],
-              ['Full-stack build', 'Case engine, archive play, stats, groups, admin tools, and analytics instrumentation.'],
-              ['Content system', 'Clinical case publishing workflow, image handling, scheduling, and quality guardrails.'],
-              ['Growth feedback loop', 'Surveys, case feedback, usage tracking, and ongoing iteration from real learner behavior.'],
-            ].map(([title, body]) => (
-              <div key={title} className="rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-4 py-3">
-                <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7a857c]">
-                  {title}
-                </div>
-                <p className="mt-1.5 text-[13px] leading-5.5 text-[#102018]">{body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {!screenshotMode && (
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
-        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-            Why this matters
-          </div>
-          <div className="mt-4 space-y-3 text-[14px] leading-6 text-[#102018]">
-            <p>
-              Orthodle demonstrates product ownership beyond shipping a one-off app. It combines
-              repeated learner usage, original clinical content, and an admin system built for
-              ongoing operation.
-            </p>
-            <p>
-              The strongest signals here are not vanity metrics. They are repeat engagement,
-              real interaction volume, international reach, and continued feedback from users.
-            </p>
-            <p className="text-[#637268]">
-              In resume language: this is a live educational product with traction, content depth,
-              and a measurable iteration loop.
-            </p>
-          </div>
-        </div>
-
-        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-            Traction signals
-          </div>
-          <div className="mt-4 space-y-3">
-            {tractionRows.map(item => (
-              <div
-                key={item.label}
-                className="flex items-start justify-between gap-4 rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-4 py-3"
-              >
-                <div>
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#7a857c]">
-                    {item.label}
-                  </div>
-                  <div className="mt-1 text-[12px] leading-5 text-[#6f786f]">{item.sublabel}</div>
-                </div>
-                <div className="shrink-0 font-serif text-[26px] font-bold text-[#102018]">
-                  {loading ? '—' : item.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-      )}
-
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_0.9fr]">
-        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-            Training snapshot
-          </div>
-          <div className="mt-4 space-y-2.5">
-            {metrics.surveyBreakdown.length > 0 ? (
-              metrics.surveyBreakdown.map(item => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-[#e7e1d6] px-3.5 py-2.5"
-                >
-                  <div className="text-[14px] font-medium text-[#102018]">{item.label}</div>
-                  <div className="text-[13px] font-semibold text-[#637268]">
-                    {formatCount(item.count)}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-[13px] text-[#637268]">Survey responses will appear here.</div>
-            )}
-          </div>
-        </div>
-
-        {!screenshotMode ? (
-        <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-            Interview framing
-          </div>
-          <div className="mt-4 space-y-3 text-[14px] leading-6 text-[#102018]">
-            <p>
-              If someone asks what makes Orthodle meaningful, the short answer is that it blends
-              clinical education, consumer-product polish, and operational tooling into one
-              continuously used platform.
-            </p>
-            <p>
-              The strongest talking points are: you built the product, shipped the content system,
-              instrumented the analytics, and kept iterating from real learner behavior.
-            </p>
-            <p className="text-[#637268]">
-              This makes the project useful both as a learning initiative and as evidence of
-              product execution, design judgment, and full-stack ownership.
-            </p>
-          </div>
-        </div>
-        ) : (
-          <div className="night-surface rounded-[24px] border border-[#e7e1d6] bg-white p-5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#315f4d]">
-              Screenshot notes
-            </div>
-            <div className="mt-4 space-y-3 text-[14px] leading-6 text-[#102018]">
-              <p>
-                Screenshot mode trims the extra narrative blocks so you can capture the strongest
-                traction and ownership signals cleanly.
-              </p>
-              <p className="text-[#637268]">
-                Use the one-line CV summary, spotlight metrics, resume bullets, and traction cards
-                as the most presentation-ready part of the page.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </>
   )
