@@ -291,7 +291,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   </p>
                 ))}
               </div>
-              <div className="mt-5 max-w-2xl rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-3">
+              <div className="mt-5 max-w-2xl rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-3 lg:mt-12">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
                   Contact
                 </div>
