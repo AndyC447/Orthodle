@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { PublicFooter } from '@/components/PublicFooter'
 import { supabase } from '@/lib/supabase'
 
@@ -35,51 +36,6 @@ function timestampToLocalISO(timestamp: string) {
 
 function todayISO() {
   return timestampToLocalISO(new Date().toISOString())
-}
-
-function formatCount(value: number) {
-  return value.toLocaleString('en-US')
-}
-
-function AnimatedCount({ value, loading }: { value: number; loading: boolean }) {
-  const [displayValue, setDisplayValue] = useState(0)
-
-  useEffect(() => {
-    if (loading) {
-      setDisplayValue(0)
-      return
-    }
-
-    if (typeof window === 'undefined') {
-      setDisplayValue(value)
-      return
-    }
-
-    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (prefersReducedMotion) {
-      setDisplayValue(value)
-      return
-    }
-
-    let frameId = 0
-    const startAt = performance.now()
-    const duration = 950
-
-    function tick(now: number) {
-      const progress = Math.min(1, (now - startAt) / duration)
-      const eased = 1 - Math.pow(1 - progress, 3)
-      setDisplayValue(Math.round(value * eased))
-
-      if (progress < 1) {
-        frameId = requestAnimationFrame(tick)
-      }
-    }
-
-    frameId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frameId)
-  }, [loading, value])
-
-  return <>{loading ? '...' : formatCount(displayValue)}</>
 }
 
 export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean }) {
@@ -188,18 +144,26 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
     {
       label: 'Users reached',
       value: metrics.usersReached,
+      placeholder: 8182,
+      cacheKey: 'orthodle_live_stat_impact_users_reached_v1',
     },
     {
       label: 'Published cases',
       value: caseCount,
+      placeholder: 218,
+      cacheKey: 'orthodle_live_stat_impact_published_cases_v1',
     },
     {
       label: 'Learner guesses',
       value: metrics.totalGuesses,
+      placeholder: 42637,
+      cacheKey: 'orthodle_live_stat_impact_learner_guesses_v1',
     },
     {
       label: 'Archive plays',
       value: metrics.archiveGuesses,
+      placeholder: 42604,
+      cacheKey: 'orthodle_live_stat_impact_archive_plays_v1',
     },
   ]
 
@@ -303,7 +267,12 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                     className="rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3"
                   >
                     <div className="font-serif text-[28px] font-bold leading-none text-[#102018] sm:text-[32px]">
-                      <AnimatedCount value={card.value} loading={loading} />
+                      <LiveStatNumber
+                        value={card.value}
+                        loading={loading}
+                        placeholder={card.placeholder}
+                        cacheKey={card.cacheKey}
+                      />
                     </div>
                     <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                       {card.label}

@@ -1866,6 +1866,22 @@ a {
   animation: orthodle-skeleton 1.6s linear infinite;
 }
 
+.orthodle-live-stat-number {
+  display: inline-block;
+  min-width: 3ch;
+  font-variant-numeric: tabular-nums;
+  transform-origin: 50% 70%;
+  transition:
+    color 180ms ease,
+    text-shadow 180ms ease;
+}
+
+.orthodle-live-stat-number-active {
+  animation: orthodle-stat-ticker 150ms cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  color: #123b2b;
+  text-shadow: 0 8px 22px rgba(31, 100, 72, 0.14);
+}
+
 .orthodle-stat-tile {
   border-color: rgba(222, 210, 192, 0.76) !important;
   box-shadow:
@@ -1961,6 +1977,21 @@ a {
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+@keyframes orthodle-stat-ticker {
+  0% {
+    transform: translateY(0) rotateX(0deg);
+    filter: blur(0);
+  }
+  45% {
+    transform: translateY(-0.08em) rotateX(16deg);
+    filter: blur(0.25px);
+  }
+  100% {
+    transform: translateY(0) rotateX(0deg);
+    filter: blur(0);
   }
 }
 

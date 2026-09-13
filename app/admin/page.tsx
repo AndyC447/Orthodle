@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
+import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { buildAnswerSuggestions } from '@/lib/answer-suggestions'
 import {
   buildMultiSelectSynonymMetadata,
@@ -4195,7 +4196,12 @@ export default function AdminPage() {
                       Total users
                     </div>
                     <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                      {analyticsSummary.totalUniqueUsers}
+                      <LiveStatNumber
+                        value={analyticsSummary.totalUniqueUsers}
+                        loading={false}
+                        placeholder={1675}
+                        cacheKey="orthodle_live_stat_admin_total_users_v1"
+                      />
                     </div>
                   </div>
 
@@ -4204,7 +4210,12 @@ export default function AdminPage() {
                       Combined daily users
                     </div>
                     <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                      {analyticsSummary.cumulativeDailyUsers}
+                      <LiveStatNumber
+                        value={analyticsSummary.cumulativeDailyUsers}
+                        loading={false}
+                        placeholder={3493}
+                        cacheKey="orthodle_live_stat_admin_cumulative_daily_users_v1"
+                      />
                     </div>
                   </div>
 
@@ -4213,7 +4224,12 @@ export default function AdminPage() {
                       Total guesses
                     </div>
                     <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                      {analyticsSummary.totalGuesses}
+                      <LiveStatNumber
+                        value={analyticsSummary.totalGuesses}
+                        loading={false}
+                        placeholder={18251}
+                        cacheKey="orthodle_live_stat_admin_total_guesses_v1"
+                      />
                     </div>
                   </div>
 
@@ -4240,7 +4256,12 @@ export default function AdminPage() {
                       Archive plays
                     </div>
                     <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                      {analyticsSummary.archivePlays}
+                      <LiveStatNumber
+                        value={analyticsSummary.archivePlays}
+                        loading={false}
+                        placeholder={6029}
+                        cacheKey="orthodle_live_stat_admin_archive_plays_v1"
+                      />
                     </div>
                   </div>
 
@@ -4259,11 +4280,32 @@ export default function AdminPage() {
                   {!collapsedSections.analytics_today && (
                     <div className="mt-3 space-y-2.5">
                       <div className="rounded-lg bg-white px-3 py-2 text-[11px] text-[#637268] shadow-[inset_0_0_0_1px_rgba(236,228,215,0.9)]">
-                        <span className="font-semibold text-[#102018]">{analyticsSummary.todayUsers}</span> sitewide users
+                        <span className="font-semibold text-[#102018]">
+                          <LiveStatNumber
+                            value={analyticsSummary.todayUsers}
+                            loading={false}
+                            placeholder={0}
+                            cacheKey="orthodle_live_stat_admin_today_users_v1"
+                          />
+                        </span> sitewide users
                         {' · '}
-                        <span className="font-semibold text-[#102018]">{analyticsSummary.todayNewUsers}</span> new
+                        <span className="font-semibold text-[#102018]">
+                          <LiveStatNumber
+                            value={analyticsSummary.todayNewUsers}
+                            loading={false}
+                            placeholder={0}
+                            cacheKey="orthodle_live_stat_admin_today_new_users_v1"
+                          />
+                        </span> new
                         {' · '}
-                        <span className="font-semibold text-[#102018]">{analyticsSummary.todayReturningUsers}</span> returning
+                        <span className="font-semibold text-[#102018]">
+                          <LiveStatNumber
+                            value={analyticsSummary.todayReturningUsers}
+                            loading={false}
+                            placeholder={0}
+                            cacheKey="orthodle_live_stat_admin_today_returning_users_v1"
+                          />
+                        </span> returning
                       </div>
 
                       <div className="space-y-2">
@@ -4274,7 +4316,12 @@ export default function AdminPage() {
                           <div className="mt-2 grid grid-cols-3 gap-0 text-center">
                             <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
-                                {analyticsSummary.todayCaseUsers}
+                                <LiveStatNumber
+                                  value={analyticsSummary.todayCaseUsers}
+                                  loading={false}
+                                  placeholder={0}
+                                  cacheKey="orthodle_live_stat_admin_today_case_users_v1"
+                                />
                               </div>
                               <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Users
@@ -4282,7 +4329,12 @@ export default function AdminPage() {
                             </div>
                             <div className="border-x border-[#eee7da] px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
-                                {analyticsSummary.todayCaseGuesses}
+                                <LiveStatNumber
+                                  value={analyticsSummary.todayCaseGuesses}
+                                  loading={false}
+                                  placeholder={0}
+                                  cacheKey="orthodle_live_stat_admin_today_case_guesses_v1"
+                                />
                               </div>
                               <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Guesses
@@ -4290,7 +4342,12 @@ export default function AdminPage() {
                             </div>
                             <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
-                                {analyticsSummary.todayCaseCorrectGuesses}
+                                <LiveStatNumber
+                                  value={analyticsSummary.todayCaseCorrectGuesses}
+                                  loading={false}
+                                  placeholder={0}
+                                  cacheKey="orthodle_live_stat_admin_today_case_correct_v1"
+                                />
                               </div>
                               <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Correct
@@ -4306,7 +4363,12 @@ export default function AdminPage() {
                           <div className="mt-2 grid grid-cols-3 gap-0 text-center">
                             <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
-                                {analyticsSummary.todayArchiveUsers}
+                                <LiveStatNumber
+                                  value={analyticsSummary.todayArchiveUsers}
+                                  loading={false}
+                                  placeholder={0}
+                                  cacheKey="orthodle_live_stat_admin_today_archive_users_v1"
+                                />
                               </div>
                               <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Users
@@ -4314,7 +4376,12 @@ export default function AdminPage() {
                             </div>
                             <div className="border-x border-[#eee7da] px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
-                                {analyticsSummary.todayArchiveGuesses}
+                                <LiveStatNumber
+                                  value={analyticsSummary.todayArchiveGuesses}
+                                  loading={false}
+                                  placeholder={0}
+                                  cacheKey="orthodle_live_stat_admin_today_archive_guesses_v1"
+                                />
                               </div>
                               <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Guesses
@@ -4322,7 +4389,12 @@ export default function AdminPage() {
                             </div>
                             <div className="px-1">
                               <div className="font-serif text-[22px] font-bold leading-none text-[#102018]">
-                                {analyticsSummary.todayArchiveCorrectGuesses}
+                                <LiveStatNumber
+                                  value={analyticsSummary.todayArchiveCorrectGuesses}
+                                  loading={false}
+                                  placeholder={0}
+                                  cacheKey="orthodle_live_stat_admin_today_archive_correct_v1"
+                                />
                               </div>
                               <div className="mt-1 text-[8px] font-medium uppercase tracking-[0.08em] text-[#637268]">
                                 Correct

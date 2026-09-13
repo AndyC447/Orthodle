@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { supabase } from '@/lib/supabase'
 
 type VisitRow = {
@@ -181,31 +182,45 @@ export function ImpactDashboard() {
   const spotlightCards = [
     {
       title: 'Reach',
-      primaryValue: formatCount(metrics.totalUsers),
+      primaryValue: metrics.totalUsers,
       primaryLabel: 'total users',
-      secondaryValue: formatCount(metrics.weeklyActiveUsers),
+      primaryPlaceholder: 1675,
+      primaryCacheKey: 'orthodle_live_stat_admin_impact_total_users_v1',
+      secondaryValue: metrics.weeklyActiveUsers,
       secondaryLabel: 'weekly active',
+      secondaryPlaceholder: 120,
+      secondaryCacheKey: 'orthodle_live_stat_admin_impact_weekly_active_v1',
     },
     {
       title: 'Engagement',
-      primaryValue: formatCount(metrics.totalGuesses),
+      primaryValue: metrics.totalGuesses,
       primaryLabel: 'total guesses',
+      primaryPlaceholder: 18251,
+      primaryCacheKey: 'orthodle_live_stat_admin_impact_total_guesses_v1',
       secondaryValue: formatPercent(metrics.guessAccuracy),
       secondaryLabel: 'guess accuracy',
     },
     {
       title: 'Content',
-      primaryValue: formatCount(caseCount),
+      primaryValue: caseCount,
       primaryLabel: 'published cases',
-      secondaryValue: formatCount(metrics.countriesReached),
+      primaryPlaceholder: 218,
+      primaryCacheKey: 'orthodle_live_stat_admin_impact_case_count_v1',
+      secondaryValue: metrics.countriesReached,
       secondaryLabel: 'countries reached',
+      secondaryPlaceholder: 1,
+      secondaryCacheKey: 'orthodle_live_stat_admin_impact_countries_v1',
     },
     {
       title: 'Feedback loop',
-      primaryValue: formatCount(metrics.feedbackEntries),
+      primaryValue: metrics.feedbackEntries,
       primaryLabel: 'feedback entries',
-      secondaryValue: formatCount(submissionCount),
+      primaryPlaceholder: 111,
+      primaryCacheKey: 'orthodle_live_stat_admin_impact_feedback_v1',
+      secondaryValue: submissionCount,
       secondaryLabel: 'case submissions',
+      secondaryPlaceholder: 0,
+      secondaryCacheKey: 'orthodle_live_stat_admin_impact_submissions_v1',
     },
   ]
 
@@ -270,14 +285,30 @@ export function ImpactDashboard() {
                 {card.title}
               </div>
               <div className="mt-3 font-serif text-[30px] font-bold leading-none text-[#102018]">
-                {loading ? '—' : card.primaryValue}
+                <LiveStatNumber
+                  value={card.primaryValue}
+                  loading={loading}
+                  placeholder={card.primaryPlaceholder}
+                  cacheKey={card.primaryCacheKey}
+                />
               </div>
               <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#6f786f]">
                 {card.primaryLabel}
               </div>
               <div className="mt-4 border-t border-[#e7e1d6] pt-3">
                 <div className="font-serif text-[24px] font-bold leading-none text-[#102018]">
-                  {loading ? '—' : card.secondaryValue}
+                  {typeof card.secondaryValue === 'number' ? (
+                    <LiveStatNumber
+                      value={card.secondaryValue}
+                      loading={loading}
+                      placeholder={card.secondaryPlaceholder || 0}
+                      cacheKey={card.secondaryCacheKey}
+                    />
+                  ) : loading ? (
+                    '...'
+                  ) : (
+                    card.secondaryValue
+                  )}
                 </div>
                 <div className="mt-1 text-[11px] uppercase tracking-[0.16em] text-[#6f786f]">
                   {card.secondaryLabel}

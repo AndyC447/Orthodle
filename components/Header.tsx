@@ -585,6 +585,17 @@ export function Header() {
                 >
                   Archive
                 </Link>
+                <Link
+                  href="/impact"
+                  onClick={() => setMenuOpen(false)}
+                  className={`orthodle-ui-menu-item block ${
+                    theme === 'dark'
+                      ? 'border-[#315f4d] bg-[#1f3329] text-[#cfe8da] hover:bg-[#244031]'
+                      : 'border-[#cfe3d8] bg-[#f5fbf7] text-[#1f6448] hover:bg-[#edf7f0]'
+                  }`}
+                >
+                  Impact/About Me
+                </Link>
                 {showNotifications ? (
                   <button
                     type="button"
