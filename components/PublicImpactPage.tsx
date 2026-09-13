@@ -25,6 +25,7 @@ type CountRow = { id: string }
 
 const PAGE_SIZE = 1000
 const ABOUT_TEXT_STORAGE_KEY = 'orthodle_admin_impact_about_text_v1'
+const TOP_CITIES_STORAGE_KEY = 'orthodle_live_stat_impact_top_cities_v1'
 const DEFAULT_ABOUT_TEXT = `I am a fourth-year medical student at UCLA currently on sub-internships and applying into orthopedic surgery this year.
 
 I built Orthodle as a way to combine my interest in website design, teaching, daily puzzle games, and orthopedic learning. As I see interesting cases on sub-I rotations, I use the process of building them into Orthodle cases to study the pathology more deeply, sharpen the teaching point, and turn that learning into something useful for other learners.`
@@ -62,14 +63,33 @@ function cleanLocationLabel(value: string | null) {
   return normalized
 }
 
+function readCachedTopCities() {
+  if (typeof window === 'undefined') return []
+
+  try {
+    const cached = window.localStorage.getItem(TOP_CITIES_STORAGE_KEY)
+    const parsed = cached ? JSON.parse(cached) : []
+    return Array.isArray(parsed)
+      ? parsed.filter(city => typeof city === 'string' && city.trim()).slice(0, 6)
+      : []
+  } catch {
+    return []
+  }
+}
+
 export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean }) {
   const [visits, setVisits] = useState<VisitRow[]>([])
   const [guesses, setGuesses] = useState<GuessRow[]>([])
   const [caseCount, setCaseCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [cachedTopCities, setCachedTopCities] = useState<string[]>([])
   const [aboutText, setAboutText] = useState(DEFAULT_ABOUT_TEXT)
   const [aboutDraft, setAboutDraft] = useState(DEFAULT_ABOUT_TEXT)
   const [aboutStatus, setAboutStatus] = useState('')
+
+  useEffect(() => {
+    setCachedTopCities(readCachedTopCities())
+  }, [])
 
   useEffect(() => {
     if (!adminMode || typeof window === 'undefined') return
@@ -211,6 +231,14 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
       cacheKey: 'orthodle_live_stat_impact_countries_reached_v1',
     },
   ]
+  const displayedTopCities =
+    metrics.topCities.length > 0 ? metrics.topCities : cachedTopCities
+
+  useEffect(() => {
+    if (loading || metrics.topCities.length === 0 || typeof window === 'undefined') return
+    setCachedTopCities(metrics.topCities)
+    window.localStorage.setItem(TOP_CITIES_STORAGE_KEY, JSON.stringify(metrics.topCities))
+  }, [loading, metrics.topCities])
 
   function saveAboutText() {
     const nextText = aboutDraft.trim() || DEFAULT_ABOUT_TEXT
@@ -262,6 +290,22 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                     {paragraph}
                   </p>
                 ))}
+              </div>
+              <div className="mt-5 max-w-2xl rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-3">
+                <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
+                  Contact
+                </div>
+                <p className="mt-1.5 text-[13px] leading-6 text-[#4f5e55] sm:text-[14px]">
+                  Have content ideas, feedback, or anything else you&apos;d like to share?
+                  Reach me at{' '}
+                  <a
+                    href="mailto:contact@orthodle.com"
+                    className="font-bold text-[#1f6448] underline decoration-[#1f6448]/25 underline-offset-4 transition hover:text-[#102018]"
+                  >
+                    contact@orthodle.com
+                  </a>
+                  .
+                </p>
               </div>
 
               {adminMode ? (
@@ -327,13 +371,13 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   </div>
                 ))}
               </div>
-              {metrics.topCities.length > 0 ? (
+              {displayedTopCities.length > 0 ? (
                 <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3">
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                     Top user zones
                   </div>
                   <div className="mt-2 grid gap-1.5 text-[13px] font-bold text-[#102018] sm:grid-cols-2">
-                    {[metrics.topCities.slice(0, 3), metrics.topCities.slice(3, 6)].map(
+                    {[displayedTopCities.slice(0, 3), displayedTopCities.slice(3, 6)].map(
                       (column, columnIndex) => (
                         <ol key={columnIndex} className="grid gap-1.5">
                           {column.map((city, cityIndex) => {
