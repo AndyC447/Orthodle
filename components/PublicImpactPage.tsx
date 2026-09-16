@@ -1,66 +1,36 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { PublicFooter } from '@/components/PublicFooter'
-import { supabase } from '@/lib/supabase'
 
-type VisitRow = {
-  session_id: string
-  created_at: string
-  geo_country: string | null
-  geo_city: string | null
+type ImpactStats = {
+  usersReached: number
+  uniqueUsers: number
+  combinedDailyUsers: number
+  totalGuesses: number
+  archiveGuesses: number
+  countriesReached: number
+  topCities: string[]
+  caseCount: number
 }
 
-type GuessRow = {
-  session_id: string
-  created_at: string
-  is_correct: boolean | null
-  cases?: { case_date: string | null } | null
-}
-
-type CountRow = { id: string }
-
-const PAGE_SIZE = 1000
 const ABOUT_TEXT_STORAGE_KEY = 'orthodle_admin_impact_about_text_v1'
 const TOP_CITIES_STORAGE_KEY = 'orthodle_live_stat_impact_top_cities_v1'
 const DEFAULT_ABOUT_TEXT = `I am a fourth-year medical student at UCLA currently on sub-internships and applying into orthopedic surgery this year.
 
 I built Orthodle as a way to combine my interest in website design, teaching, daily puzzle games, and orthopedic learning. As I see interesting cases on sub-I rotations, I use the process of building them into Orthodle cases to study the pathology more deeply, sharpen the teaching point, and turn that learning into something useful for other learners.`
-
-function timestampToLocalISO(timestamp: string) {
-  const date = new Date(timestamp)
-  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
-  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 10)
-}
-
-function todayISO() {
-  return timestampToLocalISO(new Date().toISOString())
-}
-
-function cleanLocationLabel(value: string | null) {
-  if (!value) return ''
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-
-  let decoded = trimmed
-  try {
-    decoded = decodeURIComponent(trimmed.replace(/\+/g, ' '))
-  } catch {
-    decoded = trimmed
-  }
-
-  const normalized = decoded
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  if (!normalized || /^(unknown|undefined|null|n\/a|not available)$/i.test(normalized)) {
-    return ''
-  }
-
-  return normalized
+const EMPTY_IMPACT_STATS: ImpactStats = {
+  usersReached: 0,
+  uniqueUsers: 0,
+  combinedDailyUsers: 0,
+  totalGuesses: 0,
+  archiveGuesses: 0,
+  countriesReached: 0,
+  topCities: [],
+  caseCount: 0,
 }
 
 function readCachedTopCities() {
@@ -78,9 +48,7 @@ function readCachedTopCities() {
 }
 
 export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean }) {
-  const [visits, setVisits] = useState<VisitRow[]>([])
-  const [guesses, setGuesses] = useState<GuessRow[]>([])
-  const [caseCount, setCaseCount] = useState(0)
+  const [metrics, setMetrics] = useState<ImpactStats>(EMPTY_IMPACT_STATS)
   const [loading, setLoading] = useState(true)
   const [cachedTopCities, setCachedTopCities] = useState<string[]>([])
   const [aboutText, setAboutText] = useState(DEFAULT_ABOUT_TEXT)
@@ -102,40 +70,25 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
   useEffect(() => {
     let cancelled = false
 
-    async function fetchPaged<T>(table: string, select: string) {
-      const rows: T[] = []
-      let offset = 0
-
-      while (true) {
-        const { data, error } = await supabase
-          .from(table)
-          .select(select)
-          .range(offset, offset + PAGE_SIZE - 1)
-
-        if (error || !data || data.length === 0) break
-
-        rows.push(...(data as T[]))
-
-        if (data.length < PAGE_SIZE) break
-        offset += PAGE_SIZE
-      }
-
-      return rows
-    }
-
     async function loadStats() {
-      const [visitRows, guessRows, caseRows] = await Promise.all([
-        fetchPaged<VisitRow>('visits', 'session_id, created_at, geo_country, geo_city'),
-        fetchPaged<GuessRow>('guesses', 'session_id, created_at, is_correct, cases(case_date)'),
-        fetchPaged<CountRow>('cases', 'id'),
-      ])
+      try {
+        const response = await fetch('/api/impact-stats')
+        if (!response.ok) throw new Error('Could not load impact stats.')
+        const nextMetrics = (await response.json()) as ImpactStats
 
-      if (cancelled) return
+        if (cancelled) return
 
-      setVisits(visitRows)
-      setGuesses(guessRows)
-      setCaseCount(caseRows.length)
-      setLoading(false)
+        setMetrics({
+          ...EMPTY_IMPACT_STATS,
+          ...nextMetrics,
+          topCities: Array.isArray(nextMetrics.topCities)
+            ? nextMetrics.topCities.filter(city => typeof city === 'string' && city.trim()).slice(0, 6)
+            : [],
+        })
+        setLoading(false)
+      } catch {
+        if (!cancelled) setLoading(true)
+      }
     }
 
     void loadStats()
@@ -143,61 +96,6 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
       cancelled = true
     }
   }, [])
-
-  const metrics = useMemo(() => {
-    const uniqueUsers = new Set<string>()
-    const sessionsByDate = new Map<string, Set<string>>()
-    const countries = new Set<string>()
-    const citySessions = new Map<string, Set<string>>()
-    const today = todayISO()
-    let archiveGuesses = 0
-
-    for (const visit of visits) {
-      uniqueUsers.add(visit.session_id)
-      const date = timestampToLocalISO(visit.created_at)
-      if (!sessionsByDate.has(date)) sessionsByDate.set(date, new Set())
-      sessionsByDate.get(date)!.add(visit.session_id)
-      if (visit.geo_country?.trim()) countries.add(visit.geo_country.trim())
-
-      const city = cleanLocationLabel(visit.geo_city)
-      if (city) {
-        if (!citySessions.has(city)) citySessions.set(city, new Set())
-        citySessions.get(city)!.add(visit.session_id)
-      }
-    }
-
-    for (const guess of guesses) {
-      uniqueUsers.add(guess.session_id)
-      const date = timestampToLocalISO(guess.created_at)
-      if (!sessionsByDate.has(date)) sessionsByDate.set(date, new Set())
-      sessionsByDate.get(date)!.add(guess.session_id)
-
-      const caseDate = guess.cases?.case_date
-      if (caseDate && caseDate < today) archiveGuesses += 1
-    }
-
-    const combinedDailyUsers = [...sessionsByDate.values()].reduce(
-      (sum, sessions) => sum + sessions.size,
-      0
-    )
-    const topCities = [...citySessions.entries()]
-      .sort(([cityA, sessionsA], [cityB, sessionsB]) => {
-        const sessionDelta = sessionsB.size - sessionsA.size
-        return sessionDelta || cityA.localeCompare(cityB)
-      })
-      .slice(0, 6)
-      .map(([city]) => city)
-
-    return {
-      usersReached: Math.max(uniqueUsers.size, combinedDailyUsers),
-      uniqueUsers: uniqueUsers.size,
-      combinedDailyUsers,
-      totalGuesses: guesses.length,
-      archiveGuesses,
-      countriesReached: countries.size,
-      topCities,
-    }
-  }, [guesses, visits])
 
   const statCards = [
     {
@@ -208,7 +106,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
     },
     {
       label: 'Published cases',
-      value: caseCount,
+      value: metrics.caseCount,
       placeholder: 218,
       cacheKey: 'orthodle_live_stat_impact_published_cases_v1',
     },
