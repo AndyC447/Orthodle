@@ -65,7 +65,6 @@ export default function ArchivePage() {
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
   const [showCaseList, setShowCaseList] = useState(true)
-  const [showAnswers, setShowAnswers] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [answerQuery, setAnswerQuery] = useState('')
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
@@ -73,6 +72,7 @@ export default function ArchivePage() {
   const [feedbackRows, setFeedbackRows] = useState<FeedbackLite[]>([])
   const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
+  const [expandedBonusDates, setExpandedBonusDates] = useState<Set<string>>(new Set())
   const categoryMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -224,6 +224,18 @@ export default function ArchivePage() {
   function formatCategoryLabel(value: string | null | undefined) {
     const trimmed = typeof value === 'string' ? value.trim() : ''
     return trimmed ? toTitleCase(trimmed) : 'Case'
+  }
+
+  function toggleBonusCases(dateText: string) {
+    setExpandedBonusDates(current => {
+      const next = new Set(current)
+      if (next.has(dateText)) {
+        next.delete(dateText)
+      } else {
+        next.add(dateText)
+      }
+      return next
+    })
   }
 
   const hasActiveFilters = selectedCategory !== 'all' || Boolean(answerQuery.trim())
@@ -409,13 +421,6 @@ export default function ArchivePage() {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => setShowAnswers(current => !current)}
-                className={softButtonClass}
-              >
-                {showAnswers ? 'Show Category' : 'Show Answer'}
-              </button>
-              <button
-                type="button"
                 onClick={() => setShowCaseList(current => !current)}
                 className={softButtonClass}
               >
@@ -444,41 +449,58 @@ export default function ArchivePage() {
                     {formatDate(group.date)}
                   </div>
 
-                  <div className="grid gap-1.5 sm:grid-cols-3 sm:gap-2">
-                    {levelOrder.map((level, levelIndex) => {
-                      const item = group.items.find(entry => entry.level === level)
-                      if (!item) return null
-
-                      const isCompleted = completedArchiveKeys.has(
-                        `${item.case_date}:${item.level}:archive`
-                      )
+                  <div className="grid gap-1.5 sm:gap-2">
+                    {(() => {
+                      const dailyCases = group.items.filter(item => item.level === 'med_student')
+                      const bonusCases = group.items.filter(item => item.level !== 'med_student')
+                      const showBonusCases = expandedBonusDates.has(group.date)
+                      const visibleCases = showBonusCases ? [...dailyCases, ...bonusCases] : dailyCases
 
                       return (
-                        <Link
-                          key={`${group.date}-${level}`}
-                          href={`/?case=${item.id}&date=${group.date}&level=${level}`}
-                          className="orthodle-archive-entry grid min-h-[58px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] bg-white px-2.5 py-2 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9] sm:min-h-[54px] sm:rounded-[12px] sm:px-3 sm:py-2"
-                          style={{ animationDelay: `${Math.min(groupIndex * 0.04 + levelIndex * 0.05, 0.34)}s` }}
-                        >
-                          <div className="min-w-0">
-                            <div className={caseMetaLabelClass}>
-                              {toTitleCase(formatLevel(level, item.case_date, item))}
-                            </div>
-                            <div className="mt-0.5 line-clamp-1 font-serif text-[12.5px] font-bold leading-tight text-[#102018] sm:text-[13px]">
-                              {showAnswers ? item.answer : formatCategoryLabel(item.category)}
-                            </div>
-                            {showAnswers && item.category && (
-                              <div className="mt-0.5 truncate text-[9px] tracking-[0.01em] text-[#8b938d] sm:text-[10px]">
-                                {formatCategoryLabel(item.category)}
-                              </div>
-                            )}
+                        <>
+                          <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-2">
+                            {visibleCases.map((item, itemIndex) => {
+                              const isCompleted = completedArchiveKeys.has(
+                                `${item.case_date}:${item.level}:archive`
+                              )
+
+                              return (
+                                <Link
+                                  key={`${group.date}-${item.level}`}
+                                  href={`/?case=${item.id}&date=${group.date}&level=${item.level}`}
+                                  className={`orthodle-archive-entry grid min-h-[58px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] bg-white px-2.5 py-2 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9] sm:min-h-[54px] sm:rounded-[12px] sm:px-3 sm:py-2 ${
+                                    item.level === 'med_student' && visibleCases.length === 1 ? 'sm:max-w-[320px]' : ''
+                                  }`}
+                                  style={{ animationDelay: `${Math.min(groupIndex * 0.04 + itemIndex * 0.05, 0.34)}s` }}
+                                >
+                                  <div className="min-w-0">
+                                    <div className={caseMetaLabelClass}>
+                                      {toTitleCase(formatLevel(item.level, item.case_date, item))}
+                                    </div>
+                                    <div className="mt-0.5 line-clamp-1 font-serif text-[12.5px] font-bold leading-tight text-[#102018] sm:text-[13px]">
+                                      {formatCategoryLabel(item.category)}
+                                    </div>
+                                  </div>
+                                  <div className={`shrink-0 text-[9px] font-semibold sm:text-[10px] ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
+                                    {isCompleted ? 'Completed' : 'Open case'}
+                                  </div>
+                                </Link>
+                              )
+                            })}
                           </div>
-                          <div className={`shrink-0 text-[9px] font-semibold sm:text-[10px] ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
-                            {isCompleted ? 'Completed' : 'Open case'}
-                          </div>
-                        </Link>
+
+                          {bonusCases.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => toggleBonusCases(group.date)}
+                              className="justify-self-start rounded-[999px] border border-[#e2d8c9] bg-white px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-[#637268] transition hover:border-[#1f6448]/30 hover:bg-[#f7fbf8] hover:text-[#1f6448] sm:px-3 sm:text-[10px]"
+                            >
+                              {showBonusCases ? 'Hide older bonus cases' : `Older bonus cases (${bonusCases.length})`}
+                            </button>
+                          )}
+                        </>
                       )
-                    })}
+                    })()}
                   </div>
                 </div>
               ))}
