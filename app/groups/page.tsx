@@ -1171,6 +1171,14 @@ function formatMemberCount(count: number) {
   return `${count} member${count === 1 ? '' : 's'}`
 }
 
+function hasLeaderboardActivity(group: GroupAggregate) {
+  return (
+    group.score > 0 ||
+    group.totalSolves > 0 ||
+    group.memberStats.some(entry => entry.totalGuesses > 0 || entry.score > 0)
+  )
+}
+
 function getXpForStats(stats: MemberStats | null) {
   if (!stats) return 0
 
@@ -2226,9 +2234,21 @@ export default function GroupsPage() {
 
   const groupAggregates = weeklyServerAggregates ?? computedWeekGroupAggregates
   const allTimeGroupAggregates = allTimeServerAggregates ?? computedAllTimeGroupAggregates
+  const weeklyLeaderboardGroupAggregates = useMemo(
+    () => groupAggregates.filter(hasLeaderboardActivity),
+    [groupAggregates]
+  )
+  const allTimeLeaderboardGroupAggregates = useMemo(
+    () => allTimeGroupAggregates.filter(hasLeaderboardActivity),
+    [allTimeGroupAggregates]
+  )
 
   const activeGroupAggregates =
     leaderboardWindow === 'week' ? groupAggregates : allTimeGroupAggregates
+  const activeLeaderboardGroupAggregates =
+    leaderboardWindow === 'week'
+      ? weeklyLeaderboardGroupAggregates
+      : allTimeLeaderboardGroupAggregates
 
   const selectedGroupAggregate =
     activeGroupAggregates.find(entry => entry.group.id === selectedGroupId) || null
@@ -2237,8 +2257,10 @@ export default function GroupsPage() {
       ? selectedGroupAggregate.memberStats
       : selectedGroupAggregate?.memberStats.slice(0, 3) || []
   const selectedGroupRank = selectedGroupAggregate
-    ? activeGroupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
+    ? activeLeaderboardGroupAggregates.findIndex(entry => entry.group.id === selectedGroupAggregate.group.id) + 1
     : null
+  const selectedGroupLeaderboardRank =
+    selectedGroupRank && selectedGroupRank > 0 ? selectedGroupRank : null
   const viewerMembership = members.find(member => member.session_id === sessionId) || null
   const viewerGroup = viewerMembership
     ? groups.find(group => group.id === viewerMembership.group_id) || null
@@ -2270,8 +2292,10 @@ export default function GroupsPage() {
       ? buildMemberStats(viewerMembership, viewerAllTimeGuessRows, caseLookup, groupScoringSettings)
       : null
   const viewerGroupRank = viewerGroupAggregate
-    ? groupAggregates.findIndex(entry => entry.group.id === viewerGroupAggregate.group.id) + 1
+    ? weeklyLeaderboardGroupAggregates.findIndex(entry => entry.group.id === viewerGroupAggregate.group.id) + 1
     : null
+  const viewerGroupLeaderboardRank =
+    viewerGroupRank && viewerGroupRank > 0 ? viewerGroupRank : null
   const profileDisplayName =
     viewerMembership?.display_name ||
     accountSession?.displayName ||
@@ -2285,7 +2309,7 @@ export default function GroupsPage() {
   const nextProfileTitle = getLevelTitle(profileLevel.level + 1)
   const canChangeSelectedGroupIcon = Boolean(myMembership && isViewingOwnGroup)
   const canEditSelectedGroup = Boolean(selectedGroup?.creator_session_id === sessionId && isViewingOwnGroup)
-  const groupOfWeekAggregate = groupAggregates[0] || null
+  const groupOfWeekAggregate = weeklyLeaderboardGroupAggregates[0] || null
   const previousWeekRange = useMemo(() => getShiftedWeekRange(-1), [])
   const mvpEntry = groupOfWeekAggregate?.memberStats[0]
     ? {
@@ -2342,9 +2366,9 @@ export default function GroupsPage() {
       buildTrophyCase({
         stats: viewerMemberStats || null,
         isGroupMvp: mvpEntry?.stats.member.session_id === sessionId,
-        selectedGroupRank: viewerGroupRank,
+        selectedGroupRank: viewerGroupLeaderboardRank,
       }),
-    [mvpEntry?.stats.member.session_id, sessionId, viewerGroupRank, viewerMemberStats]
+    [mvpEntry?.stats.member.session_id, sessionId, viewerGroupLeaderboardRank, viewerMemberStats]
   )
   const selectedMemberTrophies = useMemo(
     () =>
@@ -2352,34 +2376,36 @@ export default function GroupsPage() {
         ? buildTrophyCase({
             stats: selectedMemberStats,
             isGroupMvp: mvpEntry?.stats.member.session_id === selectedMemberStats.member.session_id,
-            selectedGroupRank,
+            selectedGroupRank: selectedGroupLeaderboardRank,
           })
         : [],
-    [mvpEntry?.stats.member.session_id, selectedGroupRank, selectedMemberStats]
+    [mvpEntry?.stats.member.session_id, selectedGroupLeaderboardRank, selectedMemberStats]
   )
   const selectedWeeklyGroupAggregate =
     groupAggregates.find(entry => entry.group.id === selectedGroupId) || null
   const selectedWeeklyGroupRank = selectedWeeklyGroupAggregate
-    ? groupAggregates.findIndex(entry => entry.group.id === selectedWeeklyGroupAggregate.group.id) + 1
+    ? weeklyLeaderboardGroupAggregates.findIndex(entry => entry.group.id === selectedWeeklyGroupAggregate.group.id) + 1
     : null
+  const selectedWeeklyGroupLeaderboardRank =
+    selectedWeeklyGroupRank && selectedWeeklyGroupRank > 0 ? selectedWeeklyGroupRank : null
   const viewerGroupChallenge = buildWeeklyChallenge(viewerGroupAggregate)
   const viewerGroupRecap = buildWeeklyRecap(
     viewerGroupAggregate,
-    viewerGroupRank,
-    groupAggregates.length,
+    viewerGroupLeaderboardRank,
+    weeklyLeaderboardGroupAggregates.length,
     viewerGroupAggregate?.memberStats[0]?.member.display_name
   )
   const viewerGroupMomentum = (() => {
-    if (!viewerGroupAggregate || !viewerGroupRank) return null
-    if (viewerGroupRank === 1) {
-      const secondPlace = groupAggregates[1]
+    if (!viewerGroupAggregate || !viewerGroupLeaderboardRank) return null
+    if (viewerGroupLeaderboardRank === 1) {
+      const secondPlace = weeklyLeaderboardGroupAggregates[1]
       if (!secondPlace) return 'You own the top spot.'
       return `${Math.max(0, viewerGroupAggregate.score - secondPlace.score)} pts ahead of #2`
     }
 
-    const groupAhead = groupAggregates[viewerGroupRank - 2]
+    const groupAhead = weeklyLeaderboardGroupAggregates[viewerGroupLeaderboardRank - 2]
     if (!groupAhead) return null
-    return `${Math.max(0, groupAhead.score - viewerGroupAggregate.score)} pts behind #${viewerGroupRank - 1}`
+    return `${Math.max(0, groupAhead.score - viewerGroupAggregate.score)} pts behind #${viewerGroupLeaderboardRank - 1}`
   })()
   const viewerGroupTodaySolvers =
     viewerGroupAggregate?.memberStats
@@ -2404,23 +2430,23 @@ export default function GroupsPage() {
 
   const selectedGroupRecap = buildWeeklyRecap(
     selectedWeeklyGroupAggregate,
-    selectedWeeklyGroupRank,
-    groupAggregates.length,
+    selectedWeeklyGroupLeaderboardRank,
+    weeklyLeaderboardGroupAggregates.length,
     selectedWeeklyGroupAggregate?.memberStats[0]?.member.display_name
   )
   const selectedGroupMomentum = (() => {
-    if (!selectedWeeklyGroupAggregate || !selectedWeeklyGroupRank) return null
-    if (selectedWeeklyGroupRank === 1) {
-      const secondPlace = groupAggregates[1]
+    if (!selectedWeeklyGroupAggregate || !selectedWeeklyGroupLeaderboardRank) return null
+    if (selectedWeeklyGroupLeaderboardRank === 1) {
+      const secondPlace = weeklyLeaderboardGroupAggregates[1]
       if (!secondPlace) return 'You own the top spot.'
       const lead = Math.max(0, selectedWeeklyGroupAggregate.score - secondPlace.score)
       return `${lead} pts ahead of #2`
     }
 
-    const groupAhead = groupAggregates[selectedWeeklyGroupRank - 2]
+    const groupAhead = weeklyLeaderboardGroupAggregates[selectedWeeklyGroupLeaderboardRank - 2]
     if (!groupAhead) return null
     const deficit = Math.max(0, groupAhead.score - selectedWeeklyGroupAggregate.score)
-    return `${deficit} pts behind #${selectedWeeklyGroupRank - 1}`
+    return `${deficit} pts behind #${selectedWeeklyGroupLeaderboardRank - 1}`
   })()
   const groupActivityFeed = useMemo<ActivityFeedItem[]>(() => {
     if (!selectedGroupAggregate || !selectedGroup) return []
@@ -2471,12 +2497,12 @@ export default function GroupsPage() {
 
     const nowIso = new Date().toISOString()
 
-    if (selectedGroupRank && selectedGroupRank <= 3) {
+    if (selectedGroupLeaderboardRank && selectedGroupLeaderboardRank <= 3) {
       items.push({
         id: `rank-${selectedGroup.id}`,
         icon: 'rank',
         title: `${selectedGroup.name} is on the podium`,
-        detail: `Currently ranked #${selectedGroupRank} this week`,
+        detail: `Currently ranked #${selectedGroupLeaderboardRank} this week`,
         createdAt: nowIso,
       })
     }
@@ -2511,15 +2537,15 @@ export default function GroupsPage() {
       })
     }
 
-    if (selectedGroupRank && selectedGroupRank > 1) {
-      const groupAhead = activeGroupAggregates[selectedGroupRank - 2]
+    if (selectedGroupLeaderboardRank && selectedGroupLeaderboardRank > 1) {
+      const groupAhead = activeLeaderboardGroupAggregates[selectedGroupLeaderboardRank - 2]
       if (groupAhead) {
         const deficit = Math.max(0, groupAhead.score - selectedGroupAggregate.score)
         items.push({
           id: `gap-${selectedGroup.id}`,
           icon: 'rank',
           title: `${deficit} pts behind ${groupAhead.group.name}`,
-          detail: `A small run flips you from #${selectedGroupRank} to #${selectedGroupRank - 1}`,
+          detail: `A small run flips you from #${selectedGroupLeaderboardRank} to #${selectedGroupLeaderboardRank - 1}`,
           createdAt: nowIso,
         })
       }
@@ -2528,7 +2554,7 @@ export default function GroupsPage() {
     return items
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 5)
-  }, [activeGroupAggregates, caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupRank, solvedCaseIdsByViewer, visibleGuessRows])
+  }, [activeLeaderboardGroupAggregates, caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupLeaderboardRank, solvedCaseIdsByViewer, visibleGuessRows])
 
   const groupNotifications = useMemo<GroupNotificationItem[]>(() => {
     const items: GroupNotificationItem[] = []
@@ -2546,7 +2572,7 @@ export default function GroupsPage() {
       items.push({
         id: `viewer-rank:${viewerGroup.id}:${leaderboardWindow}`,
         icon: 'rank',
-        title: viewerGroupRank === 1 ? 'Your group is leading' : 'Your group race update',
+        title: viewerGroupLeaderboardRank === 1 ? 'Your group is leading' : 'Your group race update',
         detail: viewerGroupMomentum || 'Every solve can move the board.',
       })
 
@@ -2599,8 +2625,8 @@ export default function GroupsPage() {
     today,
     viewerGroup,
     viewerGroupAggregate,
+    viewerGroupLeaderboardRank,
     viewerGroupMomentum,
-    viewerGroupRank,
     viewerGroupTodaySolvers,
   ])
 
@@ -2638,8 +2664,8 @@ export default function GroupsPage() {
   }, [alreadyInJoinTarget, joinTargetGroup?.id, members, sessionId])
 
   const displayLeaderboard: DisplayGroup[] =
-    activeGroupAggregates.length > 0
-      ? activeGroupAggregates.map(entry => ({
+    activeLeaderboardGroupAggregates.length > 0
+      ? activeLeaderboardGroupAggregates.map(entry => ({
           id: entry.group.id,
           name: entry.group.name,
           icon: entry.group.icon,
@@ -4401,7 +4427,7 @@ export default function GroupsPage() {
                             {formatMemberCount(selectedGroupAggregate.members.length)}
                           </p>
                           <p className="mt-1.5 max-w-[16rem] text-[12px] font-medium leading-[1.35] text-[#f6efe0] sm:mt-2 sm:max-w-none sm:text-sm">
-                            "{getGroupTagline(selectedGroupRank)}"
+                            "{getGroupTagline(selectedGroupLeaderboardRank)}"
                           </p>
                         </div>
                       </div>
@@ -4478,10 +4504,10 @@ export default function GroupsPage() {
                   <div className="mt-3 grid grid-cols-3 divide-x divide-white/18 border-t border-white/14 pt-3 text-center sm:mt-5 sm:pt-4">
                     <div className="px-2">
                       <div className="font-serif text-[20px] font-bold leading-none text-white sm:text-[24px]">
-                        #{selectedGroupRank || '—'}
+                        #{selectedGroupLeaderboardRank || '—'}
                       </div>
                       <div className="mt-1 text-[7px] font-bold uppercase tracking-[0.1em] text-[#dfece5] sm:text-[9px] sm:tracking-[0.14em]">
-                        of {activeGroupAggregates.length} groups
+                        of {activeLeaderboardGroupAggregates.length} groups
                       </div>
                     </div>
                     <div className="px-2">
@@ -4632,10 +4658,10 @@ export default function GroupsPage() {
                           Group rank
                         </div>
                         <div className="mt-1 font-serif text-[24px] font-semibold leading-none text-[#102018]">
-                          #{viewerGroupRank || '—'}
+                          #{viewerGroupLeaderboardRank || '—'}
                         </div>
                         <div className="mt-1 text-[11px] text-[#2d7651]">
-                          of {activeGroupAggregates.length} groups
+                          of {weeklyLeaderboardGroupAggregates.length} groups
                         </div>
                       </div>
                       <div className="rounded-[16px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3">
@@ -5624,9 +5650,9 @@ export default function GroupsPage() {
                         Rank
                       </div>
                       <div className="mt-1 font-serif text-[20px] font-semibold leading-none text-[#102018] sm:text-[24px]">
-                        #{selectedGroupRank}
+                        #{selectedGroupLeaderboardRank || '—'}
                       </div>
-                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">of {groupAggregates.length || 1}</div>
+                      <div className="mt-1 text-[10px] text-[#637268] sm:text-[11px]">of {activeLeaderboardGroupAggregates.length || 1}</div>
                     </div>
                     <div className="min-w-0 border-l border-[#ece6db] px-1.5 sm:px-3">
                       <div className="truncate text-[8px] font-bold uppercase tracking-[0.12em] text-[#637268] sm:text-[9px] sm:tracking-[0.2em]">
