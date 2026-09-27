@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server'
+import { isAdminPassword } from '@/lib/admin-auth'
 
 export async function POST(req: Request) {
   const { password } = await req.json()
-  const adminPassword = process.env.ADMIN_PASSWORD || 'Pibbles'
 
-  if (password === adminPassword) return NextResponse.json({ ok: true })
+  if (isAdminPassword(password)) return NextResponse.json({ ok: true })
   return NextResponse.json({ ok: false }, { status: 401 })
 }

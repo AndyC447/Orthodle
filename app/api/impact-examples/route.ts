@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isAdminPassword } from '@/lib/admin-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { todayISO } from '@/lib/utils'
 import { EMPTY_EXAMPLES, EXAMPLE_SLOTS, validExampleSelection } from '@/lib/impact-examples'
@@ -39,8 +40,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const password = process.env.ADMIN_PASSWORD
-    if (!password || body.password !== password) {
+    if (!isAdminPassword(body.password)) {
       return NextResponse.json({ error: 'Sign in to admin again to manage examples.' }, { status: 401 })
     }
     const db = getSupabaseAdmin()

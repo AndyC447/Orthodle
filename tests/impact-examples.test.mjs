@@ -38,6 +38,7 @@ test('save requires authorization, rejects duplicates and unavailable cases, and
   } }
   const route = load('../app/api/impact-examples/route.ts', {
     '@/lib/impact-examples': helpers,
+    '@/lib/admin-auth': load('../lib/admin-auth.ts'),
     '@/lib/utils': { todayISO: () => '2026-09-27' },
     '@/lib/supabase-admin': { getSupabaseAdmin: () => db },
   })

@@ -64,6 +64,7 @@ export default function ArchivePage() {
   const sessionId = useMemo(() => getSessionId(), [])
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [showCaseList, setShowCaseList] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [answerQuery, setAnswerQuery] = useState('')
@@ -72,7 +73,6 @@ export default function ArchivePage() {
   const [feedbackRows, setFeedbackRows] = useState<FeedbackLite[]>([])
   const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
-  const [expandedBonusDates, setExpandedBonusDates] = useState<Set<string>>(new Set())
   const categoryMenuRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -96,15 +96,27 @@ export default function ArchivePage() {
 
   useEffect(() => {
     async function loadArchive() {
+      try {
       const [excludedSessionIds, { data }, { data: guessData }, { data: feedbackData }, { data: levelTitleData }] = await Promise.all([
         fetchExcludedStatsSessionIds(),
-        supabase
-          .from('cases')
-          .select('id, case_date, level, answer, synonyms, category, image_url, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
-          .gte('case_date', LAUNCH_DATE)
-          .lte('case_date', today)
-          .order('case_date', { ascending: false })
-          .limit(240),
+        (async () => {
+          const data: ArchiveCase[] = []
+          const pageSize = 500
+          for (let offset = 0; ; offset += pageSize) {
+            const result = await supabase
+              .from('cases')
+              .select('id, case_date, level, answer, synonyms, category, image_url, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
+              .gte('case_date', LAUNCH_DATE)
+              .lt('case_date', today)
+              .order('case_date', { ascending: false })
+              .order('id')
+              .range(offset, offset + pageSize - 1)
+            if (result.error) throw result.error
+            data.push(...(result.data || []) as ArchiveCase[])
+            if ((result.data || []).length < pageSize) break
+          }
+          return { data }
+        })(),
         supabase
           .from('guesses')
           .select('case_id, session_id')
@@ -148,7 +160,11 @@ export default function ArchivePage() {
       if (completedKeysFromServer.size > 0) {
         setCompletedArchiveKeys(current => new Set([...current, ...completedKeysFromServer]))
       }
-      setLoading(false)
+      } catch {
+        setLoadError('Could not load the full archive. Please reload to try again.')
+      } finally {
+        setLoading(false)
+      }
     }
 
     void loadArchive()
@@ -224,18 +240,6 @@ export default function ArchivePage() {
   function formatCategoryLabel(value: string | null | undefined) {
     const trimmed = typeof value === 'string' ? value.trim() : ''
     return trimmed ? toTitleCase(trimmed) : 'Case'
-  }
-
-  function toggleBonusCases(dateText: string) {
-    setExpandedBonusDates(current => {
-      const next = new Set(current)
-      if (next.has(dateText)) {
-        next.delete(dateText)
-      } else {
-        next.add(dateText)
-      }
-      return next
-    })
   }
 
   const hasActiveFilters = selectedCategory !== 'all' || Boolean(answerQuery.trim())
@@ -416,7 +420,7 @@ export default function ArchivePage() {
 
           <div className="mt-3 flex items-center justify-between gap-2 sm:mt-3.5">
             <div className={sectionLabelClass}>
-              Previous cases
+              Previous cases · all question types
             </div>
             <div className="flex items-center gap-1">
               <button
@@ -429,7 +433,9 @@ export default function ArchivePage() {
             </div>
           </div>
 
-          {loading ? (
+          {loadError ? (
+            <div role="alert" className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268]">{loadError}</div>
+          ) : loading ? (
             <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">Loading archive...</div>
           ) : groupedDates.length === 0 ? (
             <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">No archive cases are available yet.</div>
@@ -451,10 +457,7 @@ export default function ArchivePage() {
 
                   <div className="grid gap-1.5 sm:gap-2">
                     {(() => {
-                      const dailyCases = group.items.filter(item => item.level === 'med_student')
-                      const bonusCases = group.items.filter(item => item.level !== 'med_student')
-                      const showBonusCases = expandedBonusDates.has(group.date)
-                      const visibleCases = showBonusCases ? [...dailyCases, ...bonusCases] : dailyCases
+                      const visibleCases = group.items
 
                       return (
                         <>
@@ -466,7 +469,7 @@ export default function ArchivePage() {
 
                               return (
                                 <Link
-                                  key={`${group.date}-${item.level}`}
+                                  key={item.id}
                                   href={`/?case=${item.id}&date=${group.date}&level=${item.level}`}
                                   className={`orthodle-archive-entry grid min-h-[58px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] bg-white px-2.5 py-2 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9] sm:min-h-[54px] sm:rounded-[12px] sm:px-3 sm:py-2 ${
                                     item.level === 'med_student' && visibleCases.length === 1 ? 'sm:max-w-[320px]' : ''
@@ -489,15 +492,7 @@ export default function ArchivePage() {
                             })}
                           </div>
 
-                          {bonusCases.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => toggleBonusCases(group.date)}
-                              className="justify-self-start rounded-[999px] border border-[#e2d8c9] bg-white px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-[#637268] transition hover:border-[#1f6448]/30 hover:bg-[#f7fbf8] hover:text-[#1f6448] sm:px-3 sm:text-[10px]"
-                            >
-                              {showBonusCases ? 'Hide older bonus cases' : `Older bonus cases (${bonusCases.length})`}
-                            </button>
-                          )}
+
                         </>
                       )
                     })()}

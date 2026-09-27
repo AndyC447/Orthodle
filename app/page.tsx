@@ -747,7 +747,7 @@ function PlayPageContent() {
       levelParam === 'attending'
     ) {
       setSelectedLevel(
-        getInitialLevelFromParams(levelParam, {
+        getInitialLevelFromParams(levelParam, searchParams.get('case') || (dateParam && dateParam < today) ? null : {
           no_resident_mode: noResidentMode,
           no_resident_mode_start_date: noResidentModeStartDate,
           no_anatomy_mode: noAnatomyMode,
@@ -923,14 +923,14 @@ function PlayPageContent() {
     }
   }, [])
 
-  const noResidentModeActiveToday = !isAdminPreview && isNoResidentModeActive(
+  const noResidentModeActiveToday = !isAdminPreview && !caseParam && selectedDate === today && isNoResidentModeActive(
     {
       no_resident_mode: noResidentMode,
       no_resident_mode_start_date: noResidentModeStartDate,
     },
     today
   )
-  const noAnatomyModeActiveToday = !isAdminPreview && isNoAnatomyModeActive(
+  const noAnatomyModeActiveToday = !isAdminPreview && !caseParam && selectedDate === today && isNoAnatomyModeActive(
     {
       no_anatomy_mode: noAnatomyMode,
       no_anatomy_mode_start_date: noAnatomyModeStartDate,
