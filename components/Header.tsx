@@ -562,8 +562,8 @@ export function Header() {
                   onClick={() => setMenuOpen(false)}
                   className={`orthodle-ui-menu-item block ${
                     theme === 'dark'
-                      ? 'border-[#315f4d] bg-[#1f3329] text-[#cfe8da] hover:bg-[#244031]'
-                      : 'border-[#cfe3d8] bg-[#f5fbf7] text-[#1f6448] hover:bg-[#edf7f0]'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
                   }`}
                 >
                   Groups

@@ -584,6 +584,7 @@ function PlayPageContent() {
   const caseParam = searchParams.get('case')
   const isAdminPreview = searchParams.get('preview') === '1'
   const guessInputRef = useRef<HTMLInputElement | null>(null)
+  const suggestionListRef = useRef<HTMLDivElement | null>(null)
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
   const solvedAnswerHeroRef = useRef<HTMLDivElement | null>(null)
@@ -3193,6 +3194,18 @@ function PlayPageContent() {
     )
   }, [filteredAnswerOptions, showSuggestions])
 
+  useEffect(() => {
+    if (!showSuggestions || suggestionCursor < 0) return
+    const list = suggestionListRef.current
+    const option = list?.children[suggestionCursor] as HTMLElement | undefined
+    if (!list || !option) return
+    if (option.offsetTop < list.scrollTop) {
+      list.scrollTop = option.offsetTop
+    } else if (option.offsetTop + option.offsetHeight > list.scrollTop + list.clientHeight) {
+      list.scrollTop = option.offsetTop + option.offsetHeight - list.clientHeight
+    }
+  }, [suggestionCursor, showSuggestions])
+
   function selectSuggestion(option: string) {
     setGuess(option)
     setShowSuggestions(false)
@@ -3355,6 +3368,22 @@ function PlayPageContent() {
   }
 
   function handleGuessInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.nativeEvent.isComposing) return
+
+    if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && filteredAnswerOptions.length > 0) {
+      event.preventDefault()
+      setShowSuggestions(true)
+      moveSuggestionCursor(event.key === 'ArrowDown' ? 1 : -1)
+      return
+    }
+
+    if (event.key === 'Escape' && showSuggestions) {
+      event.preventDefault()
+      setShowSuggestions(false)
+      setSuggestionCursor(-1)
+      return
+    }
+
     if (event.key === 'Tab' && showSuggestions && filteredAnswerOptions.length > 0) {
       event.preventDefault()
       moveSuggestionCursor(event.shiftKey ? -1 : 1)
@@ -3382,11 +3411,19 @@ function PlayPageContent() {
 
     return (
       <div
+        ref={suggestionListRef}
+        id="diagnosis-suggestions"
+        role="listbox"
+        aria-label="Diagnosis suggestions"
         className={className}
       >
         {filteredAnswerOptions.map((option, index) => (
           <button
             key={option}
+            id={`diagnosis-suggestion-${index}`}
+            role="option"
+            aria-selected={index === suggestionCursor}
+            tabIndex={-1}
             type="button"
             onMouseDown={e => {
               e.preventDefault()
@@ -3802,7 +3839,7 @@ function PlayPageContent() {
         ...(noAnatomyModeActiveToday
           ? [{ type: 'link' as const, href: '/archive', label: 'ARCHIVES' }]
           : [{ type: 'level' as const, key: 'attending' as const, label: attendingTabLabel }]),
-        { type: 'link' as const, href: '/impact', label: 'Impact', subtitle: '' },
+        { type: 'link' as const, href: '/impact', label: 'ERAS', subtitle: '' },
       ]
       return tabs
     },
@@ -5560,7 +5597,7 @@ function PlayPageContent() {
                         : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
                     }`}
                   >
-                    <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
+                    <div className="font-serif text-[12px] font-bold uppercase leading-none sm:text-[14px]">
                       {item.href === '/archive' ? item.label.toUpperCase() : item.label}
                     </div>
                     {item.subtitle ? (
@@ -5613,7 +5650,7 @@ function PlayPageContent() {
                   }
                 >
                   <div className={`flex items-center justify-center ${itemLocked ? 'gap-0' : 'gap-1.5'}`}>
-                    <div className="font-serif text-[10px] font-bold leading-none sm:text-[12px]">
+                    <div className="font-serif text-[12px] font-bold uppercase leading-none sm:text-[14px]">
                       {item.label}
                     </div>
                   </div>
@@ -5943,6 +5980,12 @@ function PlayPageContent() {
                       <div className={shakeInput ? 'orthodle-shake flex items-stretch gap-2' : 'flex items-stretch gap-2'}>
                         <input
                           ref={guessInputRef}
+                          role="combobox"
+                          aria-label="Diagnosis"
+                          aria-autocomplete="list"
+                          aria-expanded={showSuggestions && !mobileInputDisabled && filteredAnswerOptions.length > 0}
+                          aria-controls={showSuggestions && !mobileInputDisabled && filteredAnswerOptions.length > 0 ? 'diagnosis-suggestions' : undefined}
+                          aria-activedescendant={showSuggestions && !mobileInputDisabled && suggestionCursor >= 0 && suggestionCursor < filteredAnswerOptions.length ? `diagnosis-suggestion-${suggestionCursor}` : undefined}
                           value={guess}
                           onChange={e => {
                             setGuess(e.target.value)
