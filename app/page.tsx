@@ -582,6 +582,7 @@ function PlayPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const caseParam = searchParams.get('case')
+  const isEmbeddedExample = Boolean(caseParam) && searchParams.get('embed') === '1'
   const isAdminPreview = searchParams.get('preview') === '1'
   const guessInputRef = useRef<HTMLInputElement | null>(null)
   const suggestionListRef = useRef<HTMLDivElement | null>(null)
@@ -4576,7 +4577,7 @@ function PlayPageContent() {
       onTouchMove={handleHomeSwipeMove}
       onTouchEnd={handleHomeSwipeEnd}
     >
-      <Header />
+      {!isEmbeddedExample && <Header />}
 
       <style jsx global>{`
         @keyframes orthodle-shake {
@@ -5353,7 +5354,7 @@ function PlayPageContent() {
         </div>
       )}
 
-      {showTutorial && (
+      {showTutorial && !isEmbeddedExample && (
         <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#102018]/60 px-4 pt-10 sm:items-center sm:pt-0">
           <div className="orthodle-mobile-sheet orthodle-bottom-sheet w-full max-w-sm max-h-[88vh] overflow-y-auto rounded-t-[28px] border border-[#e7e1d6] bg-white p-4 shadow-[0_18px_40px_rgba(16,32,24,0.18)] sm:max-h-none sm:rounded-[24px]">
             <div className="orthodle-bottom-sheet-handle mx-auto mb-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
@@ -5406,7 +5407,7 @@ function PlayPageContent() {
             opacity: homeSwipeBodyOpacity,
           }}
         >
-      <section className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
+      <section hidden={isEmbeddedExample} className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {showDailyCompleteCard && (
           <div
             className={`orthodle-daily-complete-shell orthodle-daily-complete-bloom relative mt-3 w-full overflow-hidden rounded-[22px] px-3.5 py-3 text-center text-[#102018] sm:px-5 sm:py-4 ${showRailCompleteMoment ? 'orthodle-rail-complete' : ''}`}
@@ -5708,7 +5709,7 @@ function PlayPageContent() {
 
       <div className="mx-auto w-full max-w-[700px] px-4 pt-0 pb-3 sm:px-0 sm:pb-8">
         <section className="space-y-4">
-          {!onTodayCard && (
+          {!onTodayCard && !isEmbeddedExample && (
             <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:px-4">
               <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-[12px] leading-5 text-[#6d665d] sm:text-[13px]">
@@ -6234,7 +6235,7 @@ function PlayPageContent() {
         </section>
       </div>
 
-      <PublicFooter />
+      {!isEmbeddedExample && <PublicFooter />}
         </div>
       </div>
 

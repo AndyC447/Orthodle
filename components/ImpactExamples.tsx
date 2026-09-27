@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { ImpactCasePicker } from '@/components/ImpactCasePicker'
 import { EMPTY_EXAMPLES, EXAMPLE_SLOTS, exampleCaseHref, type ExampleCase, type ExampleSelection } from '@/lib/impact-examples'
 
@@ -15,6 +14,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
   const [status, setStatus] = useState('')
   const [ready, setReady] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [activeCaseId, setActiveCaseId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -100,7 +100,12 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
             <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#1f6448]">{label}</h3>
             <p className="mt-2 text-[11px] font-semibold text-[#637268]">{item.category} · {item.case_date}</p>
             <p className="mt-2 line-clamp-3 font-serif text-[16px] leading-6 text-[#102018]">{item.prompt || 'Open this case to explore the question and teaching points.'}</p>
-            <Link href={exampleCaseHref(item)} className="mt-3 inline-flex rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#18543c]">{action}</Link>
+            <button type="button" aria-expanded={activeCaseId === item.id} aria-controls={`example-player-${key}`} onClick={() => setActiveCaseId(current => current === item.id ? null : item.id)} className="mt-3 inline-flex rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#18543c]">{activeCaseId === item.id ? 'Close example' : action}</button>
+            {activeCaseId === item.id && (
+              <div id={`example-player-${key}`} className="mt-3 overflow-hidden rounded-xl border border-[#dfe5dd]">
+                <iframe key={item.id} src={`${exampleCaseHref(item)}&embed=1`} title={`${label}: ${item.category || 'case'}`} className="block h-[min(740px,80vh)] min-h-[420px] w-full border-0" />
+              </div>
+            )}
           </article>
         ))}
       </div>
