@@ -80,7 +80,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
     <section aria-label="Example cases" className="mt-4 border-t border-[#dce8e1] pt-4">
       <h2 className="font-serif text-[22px] font-bold text-[#102018]">Try an example</h2>
       <p className="mt-1 text-[13px] leading-6 text-[#637268]">
-        Explore a featured case and earlier anatomy and classification questions.
+        Try a daily case, an anatomy question, or a classification challenge.
       </p>
       {adminMode && choicesLoaded && (
         <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white p-3">
@@ -94,15 +94,15 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
         </div>
       )}
       {adminMode && !choicesLoaded && <p role="status" className="mt-3 text-[12px] text-[#637268]">{status || 'Loading cases…'}</p>}
-      <div className="mt-3 grid gap-3">
+      <div className="mt-5 divide-y divide-[#dfe5dd]">
         {visible.map(({ key, label, action, item }) => (
-          <article key={key} className="rounded-[16px] border border-[#dfe5dd] bg-white p-4">
-            <h3 className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#1f6448]">{label}</h3>
-            <p className="mt-2 text-[11px] font-semibold text-[#637268]">{item.category} · {item.case_date}</p>
-            <p className="mt-2 line-clamp-3 font-serif text-[16px] leading-6 text-[#102018]">{item.prompt || 'Open this case to explore the question and teaching points.'}</p>
-            <button type="button" aria-expanded={activeCaseId === item.id} aria-controls={`example-player-${key}`} onClick={() => setActiveCaseId(current => current === item.id ? null : item.id)} className="mt-3 inline-flex rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#18543c]">{activeCaseId === item.id ? 'Close example' : action}</button>
+          <article key={key} className="py-5 first:pt-0">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="font-serif text-[20px] font-bold text-[#102018]">{label}</h3>
+              <button type="button" aria-expanded={activeCaseId === item.id} aria-controls={`example-player-${key}`} onClick={() => setActiveCaseId(current => current === item.id ? null : item.id)} className="inline-flex rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#18543c]">{activeCaseId === item.id ? 'Close example' : action}</button>
+            </div>
             {activeCaseId === item.id && (
-              <div id={`example-player-${key}`} className="mt-3 overflow-hidden rounded-xl border border-[#dfe5dd]">
+              <div id={`example-player-${key}`} className="mt-4">
                 <iframe key={item.id} src={`${exampleCaseHref(item)}&embed=1`} title={`${label}: ${item.category || 'case'}`} className="block h-[min(740px,80vh)] min-h-[420px] w-full border-0" />
               </div>
             )}

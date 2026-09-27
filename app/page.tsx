@@ -4572,7 +4572,7 @@ function PlayPageContent() {
 
   return (
     <main
-      className="app-surface home-surface relative min-h-screen overflow-x-hidden"
+      className={`app-surface home-surface relative min-h-screen overflow-x-hidden ${isEmbeddedExample ? 'orthodle-embedded-example' : ''}`}
       onTouchStart={handleHomeSwipeStart}
       onTouchMove={handleHomeSwipeMove}
       onTouchEnd={handleHomeSwipeEnd}
@@ -4580,6 +4580,20 @@ function PlayPageContent() {
       {!isEmbeddedExample && <Header />}
 
       <style jsx global>{`
+        .orthodle-embedded-example.app-surface {
+          background: transparent !important;
+        }
+        .orthodle-embedded-example .orthodle-home-card,
+        .orthodle-embedded-example .orthodle-imaging-shell,
+        .orthodle-embedded-example .orthodle-image-tile {
+          border: 0 !important;
+          border-radius: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+        }
+        .orthodle-embedded-example .orthodle-home-card {
+          padding: 0 !important;
+        }
         @keyframes orthodle-shake {
           0%, 100% { transform: translateX(0); }
           20% { transform: translateX(-8px); }
@@ -5707,7 +5721,7 @@ function PlayPageContent() {
 
       </section>
 
-      <div className="mx-auto w-full max-w-[700px] px-4 pt-0 pb-3 sm:px-0 sm:pb-8">
+      <div className={isEmbeddedExample ? 'mx-auto w-full max-w-[960px] px-2 py-2 sm:px-4' : 'mx-auto w-full max-w-[700px] px-4 pt-0 pb-3 sm:px-0 sm:pb-8'}>
         <section className="space-y-4">
           {!onTodayCard && !isEmbeddedExample && (
             <div className="rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3.5 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:px-4">

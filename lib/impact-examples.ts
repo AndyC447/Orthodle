@@ -1,5 +1,5 @@
 export const EXAMPLE_SLOTS = [
-  { key: 'featured', label: 'Featured live demo', action: 'Try this case' },
+  { key: 'featured', label: 'Daily case example', action: 'Try this case' },
   { key: 'anatomy', label: 'Anatomy example', action: 'Try anatomy' },
   { key: 'classification', label: 'Classification example', action: 'Try classification' },
 ] as const
