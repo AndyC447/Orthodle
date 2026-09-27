@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { ImpactExamples } from '@/components/ImpactExamples'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { PublicFooter } from '@/components/PublicFooter'
@@ -298,6 +299,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   </div>
                 </div>
               ) : null}
+              <ImpactExamples adminMode={adminMode} />
             </div>
           </div>
         </div>
