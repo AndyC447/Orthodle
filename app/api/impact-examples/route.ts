@@ -8,6 +8,10 @@ const fields = 'id, case_date, level, category, prompt'
 
 function failure(error: unknown) {
   console.error('Impact examples:', error)
+  const code = (error as { code?: string })?.code
+  if (code === '42P01' || code === 'PGRST205') {
+    return NextResponse.json({ error: 'Example storage is not set up yet. Run supabase-impact-examples.sql in the Supabase SQL editor.' }, { status: 503 })
+  }
   return NextResponse.json({ error: 'Could not load or save examples. Check the database setup and try again.' }, { status: 500 })
 }
 

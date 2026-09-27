@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { ImpactCasePicker } from '@/components/ImpactCasePicker'
 import { EMPTY_EXAMPLES, EXAMPLE_SLOTS, exampleCaseHref, type ExampleCase, type ExampleSelection } from '@/lib/impact-examples'
 
 export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
@@ -9,7 +10,8 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
   const [draft, setDraft] = useState<ExampleSelection>({ ...EMPTY_EXAMPLES })
   const [cases, setCases] = useState<ExampleCase[]>([])
   const [choices, setChoices] = useState<ExampleCase[]>([])
-  const [query, setQuery] = useState('')
+  const [authorized, setAuthorized] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [status, setStatus] = useState('')
   const [ready, setReady] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -17,6 +19,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
   useEffect(() => {
     let cancelled = false
     async function load() {
+      let selectionLoaded = false
       try {
         const response = await fetch('/api/impact-examples', { cache: 'no-store' })
         const data = await response.json()
@@ -25,19 +28,24 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
         setSelection(data.selection)
         setDraft(data.selection)
         setCases(data.cases)
-        if (adminMode) {
-          const listResponse = await fetch('/api/impact-examples', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'list', password: window.sessionStorage.getItem('orthodle_admin_password') }),
-          })
-          const list = await listResponse.json()
-          if (!listResponse.ok) throw new Error(list.error)
-          if (cancelled) return
-          setChoices(list.cases)
-        }
-        if (!cancelled) setReady(true)
+        selectionLoaded = true
       } catch (error) {
-        if (!cancelled) setStatus(error instanceof Error ? error.message : 'Could not load examples.')
+        if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Could not load saved examples.')
+      }
+      if (!adminMode || cancelled) return
+      try {
+        const response = await fetch('/api/impact-examples', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'list', password: window.sessionStorage.getItem('orthodle_admin_password') }),
+        })
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error)
+        if (cancelled) return
+        setChoices(data.cases)
+        setAuthorized(true)
+        setReady(selectionLoaded)
+      } catch (error) {
+        if (!cancelled) setStatus(error instanceof Error ? error.message : 'Could not load cases.')
       }
     }
     void load()
@@ -74,31 +82,18 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
       <p className="mt-1 text-[13px] leading-6 text-[#637268]">
         Explore a featured case and earlier anatomy and classification questions.
       </p>
-      {adminMode && (
+      {adminMode && authorized && (
         <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white p-3">
           <p className="text-[13px] leading-6 text-[#637268]">Choose the cases shown here. They stay the same until you change them. Only cases dated today or earlier are available.</p>
-          <label className="mt-3 block text-[12px] font-bold text-[#102018]">
-            Find a case
-            <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Search diagnosis, category, date, or question" className="mt-1 w-full rounded-lg border border-[#ded7ca] bg-white p-2 text-[13px] font-normal" />
-          </label>
           {EXAMPLE_SLOTS.map(slot => (
-            <label key={slot.key} className="mt-3 block text-[12px] font-bold text-[#102018]">
-              {slot.label}
-              <select disabled={!ready || saving} value={draft[slot.key] || ''} onChange={event => { setDraft(current => ({ ...current, [slot.key]: event.target.value || null })); setStatus('') }} className="mt-1 w-full rounded-lg border border-[#ded7ca] bg-white p-2 text-[13px] font-normal">
-                <option value="">Not shown</option>
-                {choices.filter(item => item.id === draft[slot.key] || `${item.case_date} ${item.answer} ${item.category} ${item.prompt} ${item.level}`.toLowerCase().includes(query.toLowerCase())).map(item => (
-                  <option key={item.id} value={item.id}>{item.case_date} · {item.answer || item.category || 'Case'} · {item.level}</option>
-                ))}
-              </select>
-              {choices.find(item => item.id === draft[slot.key]) && (
-                <Link href={exampleCaseHref(choices.find(item => item.id === draft[slot.key])!)} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-[12px] font-normal text-[#1f6448] underline">Preview selected case (new tab)</Link>
-              )}
-            </label>
+            <ImpactCasePicker key={slot.key} label={slot.label} cases={choices} selectedId={draft[slot.key]} disabled={saving} onSelect={id => { setDraft(current => ({ ...current, [slot.key]: id })); setStatus('') }} />
           ))}
+          {loadError && <p role="alert" className="mt-3 text-[12px] text-[#a24d24]">{loadError} Saving is disabled until saved selections can be loaded. Reload after setup.</p>}
           <button type="button" disabled={!ready || saving} onClick={save} className="mt-3 rounded-lg bg-[#1f6448] px-4 py-2 text-[12px] font-bold text-white disabled:opacity-50">{saving ? 'Saving…' : 'Save examples'}</button>
-          <p role="status" className="mt-2 text-[12px] text-[#637268]">{status || (!ready ? 'Loading examples…' : '')}</p>
+          <p role="status" className="mt-2 text-[12px] text-[#637268]">{status}</p>
         </div>
       )}
+      {adminMode && !authorized && <p role="status" className="mt-3 text-[12px] text-[#637268]">{status || 'Checking admin access…'} <Link href="/admin" className="underline">Admin sign-in</Link></p>}
       <div className="mt-3 grid gap-3">
         {visible.map(({ key, label, action, item }) => (
           <article key={key} className="rounded-[16px] border border-[#dfe5dd] bg-white p-4">
