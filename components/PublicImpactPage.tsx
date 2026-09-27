@@ -299,9 +299,9 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   </div>
                 </div>
               ) : null}
-              <ImpactExamples adminMode={adminMode} />
             </div>
           </div>
+          <ImpactExamples adminMode={adminMode} />
         </div>
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
