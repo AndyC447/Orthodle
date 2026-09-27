@@ -3687,6 +3687,8 @@ function PlayPageContent() {
 
     const handleGoHome = () => {
       if (selectedDate === today && !caseParam) return
+      router.push('/')
+      setSelectedLevel('med_student')
       setSelectedDate(today)
       setMessage('')
       setJustCompletedRound(false)
@@ -3696,20 +3698,8 @@ function PlayPageContent() {
 
     window.addEventListener('orthodle:go-home', handleGoHome)
     return () => window.removeEventListener('orthodle:go-home', handleGoHome)
-  }, [caseParam, selectedDate, today])
+  }, [caseParam, selectedDate, today, router])
 
-  useEffect(() => {
-    if (isAdminPreview) return
-    if (typeof window === 'undefined') return
-    if (!caseParam && selectedDate === today) return
-
-    const params = new URLSearchParams()
-    if (selectedLevel !== 'med_student') {
-      params.set('level', selectedLevel)
-    }
-    const nextUrl = params.toString() ? `/?${params.toString()}` : '/'
-    window.history.replaceState({}, '', nextUrl)
-  }, [caseParam, isAdminPreview, selectedDate, selectedLevel, today])
 
   useEffect(() => {
     if (isAdminPreview) return
@@ -5727,6 +5717,8 @@ function PlayPageContent() {
                 <button
                   type="button"
                   onClick={() => {
+                    router.push('/')
+                    setSelectedLevel('med_student')
                     setSelectedDate(today)
                     setMessage('')
                     setJustCompletedRound(false)

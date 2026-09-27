@@ -172,7 +172,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
               Back to admin
             </Link>
             <div className="rounded-[10px] border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#a24d24]">
-              Private admin view
+              Showcase editor
             </div>
           </div>
         ) : null}

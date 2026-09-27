@@ -10,7 +10,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
   const [draft, setDraft] = useState<ExampleSelection>({ ...EMPTY_EXAMPLES })
   const [cases, setCases] = useState<ExampleCase[]>([])
   const [choices, setChoices] = useState<ExampleCase[]>([])
-  const [authorized, setAuthorized] = useState(false)
+  const [choicesLoaded, setChoicesLoaded] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [status, setStatus] = useState('')
   const [ready, setReady] = useState(false)
@@ -36,13 +36,13 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
       try {
         const response = await fetch('/api/impact-examples', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'list', password: window.sessionStorage.getItem('orthodle_admin_password') }),
+          body: JSON.stringify({ action: 'list' }),
         })
         const data = await response.json()
         if (!response.ok) throw new Error(data.error)
         if (cancelled) return
         setChoices(data.cases)
-        setAuthorized(true)
+        setChoicesLoaded(true)
         setReady(selectionLoaded)
       } catch (error) {
         if (!cancelled) setStatus(error instanceof Error ? error.message : 'Could not load cases.')
@@ -58,7 +58,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
     try {
       const response = await fetch('/api/impact-examples', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', selection: draft, password: window.sessionStorage.getItem('orthodle_admin_password') }),
+        body: JSON.stringify({ action: 'save', selection: draft }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error)
@@ -82,7 +82,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
       <p className="mt-1 text-[13px] leading-6 text-[#637268]">
         Explore a featured case and earlier anatomy and classification questions.
       </p>
-      {adminMode && authorized && (
+      {adminMode && choicesLoaded && (
         <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white p-3">
           <p className="text-[13px] leading-6 text-[#637268]">Choose the cases shown here. They stay the same until you change them. Only cases dated today or earlier are available.</p>
           {EXAMPLE_SLOTS.map(slot => (
@@ -93,7 +93,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
           <p role="status" className="mt-2 text-[12px] text-[#637268]">{status}</p>
         </div>
       )}
-      {adminMode && !authorized && <p role="status" className="mt-3 text-[12px] text-[#637268]">{status || 'Checking admin access…'} <Link href="/admin" className="underline">Admin sign-in</Link></p>}
+      {adminMode && !choicesLoaded && <p role="status" className="mt-3 text-[12px] text-[#637268]">{status || 'Loading cases…'}</p>}
       <div className="mt-3 grid gap-3">
         {visible.map(({ key, label, action, item }) => (
           <article key={key} className="rounded-[16px] border border-[#dfe5dd] bg-white p-4">

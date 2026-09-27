@@ -28,9 +28,7 @@ test('selection validation and stable case links', () => {
   assert.equal(link.searchParams.get('date'), '2026-05-14')
 })
 
-test('save requires authorization, rejects duplicates and unavailable cases, and persists every slot', async () => {
-  const previous = process.env.ADMIN_PASSWORD
-  process.env.ADMIN_PASSWORD = 'test-only'
+test('save without sign-in rejects invalid cases and persists every slot', async () => {
   let saved = null
   const db = { from(table) {
     if (table === 'impact_examples') return { async upsert(rows) { saved = rows; return { error: null } } }
@@ -38,21 +36,14 @@ test('save requires authorization, rejects duplicates and unavailable cases, and
   } }
   const route = load('../app/api/impact-examples/route.ts', {
     '@/lib/impact-examples': helpers,
-    '@/lib/admin-auth': load('../lib/admin-auth.ts'),
     '@/lib/utils': { todayISO: () => '2026-09-27' },
     '@/lib/supabase-admin': { getSupabaseAdmin: () => db },
   })
   const save = body => route.POST(new Request('https://example.test/api/impact-examples', { method: 'POST', body: JSON.stringify(body) }))
-  try {
-    assert.equal((await save({ password: 'wrong' })).status, 401)
     assert.equal(saved, null)
-    assert.equal((await save({ password: 'test-only', action: 'save', selection: {} })).status, 400)
-    assert.equal((await save({ password: 'test-only', action: 'save', selection: { featured: id, anatomy: id, classification: null } })).status, 400)
-    assert.equal((await save({ password: 'test-only', action: 'save', selection: { featured: other, anatomy: null, classification: null } })).status, 400)
-    assert.equal((await save({ password: 'test-only', action: 'save', selection: { featured: id, anatomy: null, classification: null } })).status, 200)
+    assert.equal((await save({ action: 'save', selection: {} })).status, 400)
+    assert.equal((await save({ action: 'save', selection: { featured: id, anatomy: id, classification: null } })).status, 400)
+    assert.equal((await save({ action: 'save', selection: { featured: other, anatomy: null, classification: null } })).status, 400)
+    assert.equal((await save({ action: 'save', selection: { featured: id, anatomy: null, classification: null } })).status, 200)
     assert.deepEqual(saved, [{ slot: 'featured', case_id: id }, { slot: 'anatomy', case_id: null }, { slot: 'classification', case_id: null }])
-  } finally {
-    if (previous === undefined) delete process.env.ADMIN_PASSWORD
-    else process.env.ADMIN_PASSWORD = previous
-  }
 })
