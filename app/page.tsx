@@ -4582,6 +4582,42 @@ function PlayPageContent() {
       <style jsx global>{`
         .orthodle-embedded-example.app-surface {
           background: transparent !important;
+          min-height: 0 !important;
+        }
+        .orthodle-embedded-example .orthodle-image-tile {
+          min-height: 0 !important;
+        }
+        .orthodle-embedded-example .orthodle-image-tile img {
+          max-height: 320px !important;
+          object-fit: contain;
+        }
+        .orthodle-embedded-example .orthodle-anatomy-quiz-shell {
+          padding: 0 !important;
+        }
+        .orthodle-embedded-example .orthodle-anatomy-quiz-shell button {
+          min-height: 44px;
+        }
+        @media (max-width: 759px) {
+          .orthodle-embedded-example .orthodle-home-input {
+            min-width: 0;
+            width: 100%;
+            font-size: 16px;
+          }
+          .orthodle-embedded-example .orthodle-image-tile img {
+            max-height: 260px !important;
+          }
+        }
+        @media (min-width: 760px) {
+          .orthodle-embedded-example .embedded-case-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            column-gap: 24px;
+            align-items: start;
+          }
+          .orthodle-embedded-example .embedded-case-grid > * { grid-column: 1 / -1; min-width: 0; }
+          .orthodle-embedded-example .embedded-case-grid > .orthodle-imaging-shell { grid-column: 1; grid-row: 4; margin: 0; padding: 0; }
+          .orthodle-embedded-example .embedded-case-grid > .embedded-case-answers { grid-column: 2; grid-row: 4; }
+          .orthodle-embedded-example .embedded-case-answers .orthodle-anatomy-quiz-shell > div { grid-template-columns: minmax(0, 1fr); }
         }
         .orthodle-embedded-example .orthodle-home-card,
         .orthodle-embedded-example .orthodle-imaging-shell,
@@ -5757,7 +5793,7 @@ function PlayPageContent() {
 
           <div className={`orthodle-panel-shell orthodle-home-card relative z-20 rounded-[24px] border bg-white px-3 py-3 shadow-[0_8px_18px_rgba(16,32,24,0.04)] transition-all duration-300 sm:px-5 sm:py-5 ${isTransitioningLevel ? 'translate-y-1 opacity-85' : 'translate-y-0 opacity-100'} ${showCaseCardSettle ? 'orthodle-case-card-settle' : ''}`}>
             <div
-              className={homeSwipeDragging ? '' : 'transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]'}
+              className={`${isEmbeddedExample && visibleImages.length > 0 && imageRevealed && !imageHidden ? 'embedded-case-grid' : ''} ${homeSwipeDragging ? '' : 'transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]'}`}
               style={{
                 transform:
                   homeSwipeProgress > 0
@@ -5864,7 +5900,7 @@ function PlayPageContent() {
                   </div>
               )}
 
-              <div className={`${visibleImages.length > 0 && imageRevealed ? 'mt-1 sm:mt-1.5' : 'mt-2'} pt-0`}>
+              <div className={`embedded-case-answers ${visibleImages.length > 0 && imageRevealed ? 'mt-1 sm:mt-1.5' : 'mt-2'} pt-0`}>
                 {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
                     {hasValidSurgicalAnatomyChoices ? (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { EmbeddedCasePlayer } from '@/components/EmbeddedCasePlayer'
 import { ImpactCasePicker } from '@/components/ImpactCasePicker'
 import { EMPTY_EXAMPLES, EXAMPLE_SLOTS, exampleCaseHref, type ExampleCase, type ExampleSelection } from '@/lib/impact-examples'
 
@@ -77,7 +78,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
   if (!adminMode && visible.length === 0) return null
 
   return (
-    <section aria-label="Example cases" className="mt-4 border-t border-[#dce8e1] pt-4">
+    <section aria-label="Example cases" className="mt-6 min-w-0 border-t border-[#dce8e1] pt-5 sm:mt-8 sm:pt-6">
       <h2 className="font-serif text-[22px] font-bold text-[#102018]">Try an example</h2>
       <p className="mt-1 text-[13px] leading-6 text-[#637268]">
         Try a daily case, an anatomy question, or a classification challenge.
@@ -95,17 +96,26 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
       )}
       {adminMode && !choicesLoaded && <p role="status" className="mt-3 text-[12px] text-[#637268]">{status || 'Loading cases…'}</p>}
       <div className="mt-5 divide-y divide-[#dfe5dd]">
-        {visible.map(({ key, label, action, item }) => (
-          <article key={key} className="py-5 first:pt-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="font-serif text-[20px] font-bold text-[#102018]">{label}</h3>
-              <button type="button" aria-expanded={activeCaseId === item.id} aria-controls={`example-player-${key}`} onClick={() => setActiveCaseId(current => current === item.id ? null : item.id)} className="inline-flex rounded-lg bg-[#1f6448] px-3 py-2 text-[12px] font-bold text-white hover:bg-[#18543c]">{activeCaseId === item.id ? 'Close example' : action}</button>
+        {visible.map(({ key, label, item }) => (
+          <article key={key} className="py-2 first:pt-0">
+            <h3>
+              <button
+                id={`example-toggle-${key}`}
+                type="button"
+                aria-expanded={activeCaseId === item.id}
+                aria-controls={`example-player-${key}`}
+                onClick={() => setActiveCaseId(current => current === item.id ? null : item.id)}
+                className="flex min-h-[48px] w-full items-center gap-2 rounded-lg px-2 py-2 text-left font-serif text-[18px] sm:text-[20px] font-bold text-[#102018] transition hover:bg-[#f7fbf8] hover:text-[#1f6448] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448]"
+              >
+                <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`h-4 w-4 shrink-0 transition-transform ${activeCaseId === item.id ? 'rotate-90' : ''}`}>
+                  <path d="m7 4 6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {label}
+              </button>
+            </h3>
+            <div id={`example-player-${key}`} role="region" aria-labelledby={`example-toggle-${key}`} hidden={activeCaseId !== item.id} className="mt-2 sm:mt-4">
+              {activeCaseId === item.id && <EmbeddedCasePlayer key={item.id} src={`${exampleCaseHref(item)}&embed=1`} title={`${label}: ${item.category || 'case'}`} />}
             </div>
-            {activeCaseId === item.id && (
-              <div id={`example-player-${key}`} className="mt-4">
-                <iframe key={item.id} src={`${exampleCaseHref(item)}&embed=1`} title={`${label}: ${item.category || 'case'}`} className="block h-[min(740px,80vh)] min-h-[420px] w-full border-0" />
-              </div>
-            )}
           </article>
         ))}
       </div>

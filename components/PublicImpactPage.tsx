@@ -177,8 +177,8 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
           </div>
         ) : null}
 
-        <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-5 py-6 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
-          <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
+        <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-3 py-4 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
             <div>
               <h1 className="font-serif text-[30px] font-bold leading-tight text-[#102018] sm:text-[38px]">
                 Impact
@@ -275,7 +275,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                     Top user zones
                   </div>
-                  <div className="mt-2 grid gap-1.5 text-[13px] font-bold text-[#102018] sm:grid-cols-2">
+                  <div className="mt-2 grid gap-1.5 text-[13px] font-bold text-[#102018] min-[380px]:grid-cols-2">
                     {[displayedTopCities.slice(0, 3), displayedTopCities.slice(3, 6)].map(
                       (column, columnIndex) => (
                         <ol key={columnIndex} className="grid gap-1.5">
