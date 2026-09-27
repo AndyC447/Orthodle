@@ -684,8 +684,11 @@ function PlayPageContent() {
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
   const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(() => readCachedLevelTitles())
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
-  const [groupsTitle, setGroupsTitle] = useState('Groups')
-  const [groupsSubtitle, setGroupsSubtitle] = useState('COMPETE')
+  const [hasVisitedImpact, setHasVisitedImpact] = useState(true)
+
+  useEffect(() => {
+    setHasVisitedImpact(window.localStorage.getItem('orthodle_visited_impact_page_v1') === '1')
+  }, [])
   const [playBootstrapReady, setPlayBootstrapReady] = useState(false)
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
@@ -950,8 +953,6 @@ function PlayPageContent() {
         setAnswerOptions(cached.answerOptions)
         setLevelTaglines(cached.levelTaglines)
         setLevelTitles(cached.levelTitles || DEFAULT_LEVEL_TITLES)
-        setGroupsTitle(cached.groupsTitle ?? 'Groups')
-        setGroupsSubtitle(cached.groupsSubtitle ?? 'COMPETE')
         setPlayBootstrapReady(true)
         return
       }
@@ -1062,8 +1063,6 @@ function PlayPageContent() {
 
       setLevelTaglines(resolvedTaglines)
       setLevelTitles(resolvedTitles)
-      setGroupsTitle(resolvedGroupsTitle)
-      setGroupsSubtitle(resolvedGroupsSubtitle)
       setPlayBootstrapReady(true)
       writeCachedLevelTitles(resolvedTitles)
       writePlayBootstrapCache({
@@ -3803,11 +3802,11 @@ function PlayPageContent() {
         ...(noAnatomyModeActiveToday
           ? [{ type: 'link' as const, href: '/archive', label: 'ARCHIVES' }]
           : [{ type: 'level' as const, key: 'attending' as const, label: attendingTabLabel }]),
-        { type: 'link' as const, href: '/groups', label: groupsTitle, subtitle: groupsSubtitle },
+        { type: 'link' as const, href: '/impact', label: 'Impact', subtitle: '' },
       ]
       return tabs
     },
-    [dailyCase, groupsSubtitle, groupsTitle, levelTitles, noAnatomyModeActiveToday, noResidentModeActiveToday]
+    [dailyCase, levelTitles, noAnatomyModeActiveToday, noResidentModeActiveToday]
   )
   const homeBootReady = playModeReady && playBootstrapReady
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
@@ -4167,14 +4166,14 @@ function PlayPageContent() {
               <div className="mt-3 space-y-3">
                 <div className="rounded-[20px] border border-[#e2b670] bg-[radial-gradient(circle,rgba(255,240,214,0.14)_1.2px,transparent_1.2px),linear-gradient(145deg,#d47b2a,#b95f1f_52%,#8f4316)] [background-size:26px_26px,auto] px-4 py-4 text-white shadow-[0_16px_34px_rgba(143,67,22,0.16)]">
                   <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#fff1c9]">
-                    Winners banner
+                    Impact snapshot
                   </div>
                   <div className="mt-2 h-5 w-40 rounded-full bg-white/22" />
                   <div className="mt-2 h-3.5 w-28 rounded-full bg-white/16" />
                 </div>
                 <div className="rounded-[22px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_28%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-5 text-white shadow-[0_16px_34px_rgba(4,47,34,0.16)]">
                   <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f0c247]">
-                    Groups
+                    {activeHomeSwipeTarget.label}
                   </div>
                   <div className="mt-3 h-6 w-44 rounded-full bg-white/16" />
                   <div className="mt-3 grid gap-2">
@@ -4380,7 +4379,6 @@ function PlayPageContent() {
       return
     }
 
-    setSwipeTransitionTarget('groups', direction < 0 ? 'from-right' : 'from-left')
     window.setTimeout(() => {
       router.push(nextTarget.href)
     }, 200)
@@ -5354,7 +5352,7 @@ function PlayPageContent() {
               <p><strong>3.</strong> Wrong guesses unlock more clinical findings.</p>
               <p><strong>4.</strong> Imaging may appear later as part of the clues.</p>
               <p><strong>5.</strong> You get 6 guesses total for each case.</p>
-              <p><strong>6.</strong> Join or create a group to compete on the leaderboards in the Groups tab.</p>
+              <p><strong>6.</strong> Join or create a group to compete on the leaderboards in Groups from the hamburger menu.</p>
             </div>
 
             <button
@@ -5556,7 +5554,7 @@ function PlayPageContent() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`orthodle-home-tab orthodle-tap-ripple relative overflow-hidden flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
+                    className={`orthodle-home-tab orthodle-tap-ripple ${item.href === '/impact' && !hasVisitedImpact ? 'orthodle-impact-menu-item-pulse' : ''} relative overflow-hidden flex items-center rounded-[16px] border px-1.5 text-center transition duration-200 hover:scale-[1.01] sm:px-2 ${
                       item.subtitle
                         ? 'min-h-[54px] flex-col justify-center py-1.5 sm:min-h-[56px] sm:py-2'
                         : 'min-h-[42px] justify-center py-2 sm:min-h-[44px] sm:py-2'
