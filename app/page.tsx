@@ -778,7 +778,7 @@ function PlayPageContent() {
       window.localStorage.getItem(HOMEPAGE_SURVEY_DISMISS_KEY)
     )
     setShowTutorial(!window.localStorage.getItem(TUTORIAL_DISMISS_KEY))
-    setResumeRound(getLatestUnfinishedRoundProgress())
+    setResumeRound(isEmbeddedExample ? null : getLatestUnfinishedRoundProgress())
   }, [])
 
   useEffect(() => {
@@ -1144,6 +1144,7 @@ function PlayPageContent() {
   }, [today])
 
   async function submitHomepageSurvey(choice: string) {
+    if (isEmbeddedExample) return
     if (!homepageSurvey?.id || submittedHomepageSurveyChoice || isSubmittingHomepageSurvey) return
 
     setIsSubmittingHomepageSurvey(true)
@@ -1173,6 +1174,7 @@ function PlayPageContent() {
   }
 
   async function submitSharedHomepageSurvey(choice: string) {
+    if (isEmbeddedExample) return
     if (
       !sharedHomepageSurvey.survey?.id ||
       sharedHomepageSurvey.submittedChoice ||
@@ -1214,6 +1216,7 @@ function PlayPageContent() {
   }
 
   async function submitAnatomySurvey(choice: string) {
+    if (isEmbeddedExample) return
     if (!anatomySurvey?.id || submittedAnatomySurveyChoice || isSubmittingAnatomySurvey) return
 
     setIsSubmittingAnatomySurvey(true)
@@ -1244,6 +1247,7 @@ function PlayPageContent() {
   }
 
   async function submitSharedPostCaseSurvey(choice: string) {
+    if (isEmbeddedExample) return
     if (
       !sharedPostCaseSurvey.survey?.id ||
       sharedPostCaseSurvey.submittedChoice ||
@@ -1738,6 +1742,7 @@ function PlayPageContent() {
 
         if (
           !isAdminPreview &&
+          !isEmbeddedExample &&
           !previewCase &&
           isCanonicalTrackingHost() &&
           !isLocalhostBrowser() &&
@@ -1762,10 +1767,10 @@ function PlayPageContent() {
         setDailyCase(data)
 
         const isArchiveCase = data.case_date !== today
-        const savedProgress = getRoundProgress(data.case_date, data.level, isArchiveCase)
+        const savedProgress = isEmbeddedExample ? null : getRoundProgress(data.case_date, data.level, isArchiveCase)
         setJustCompletedRound(false)
 
-        if (previewCase) {
+        if (previewCase || isEmbeddedExample) {
           setGuesses([])
           setSelectedAnatomyLetters([])
           setGameWon(false)
@@ -1885,7 +1890,7 @@ function PlayPageContent() {
     return () => {
       cancelled = true
     }
-  }, [adminPreviewRefreshTick, caseParam, isAdminPreview, selectedLevel, selectedDate, today])
+  }, [adminPreviewRefreshTick, caseParam, isAdminPreview, isEmbeddedExample, selectedLevel, selectedDate, today])
 
   useEffect(() => {
     if (!isAdminPreview || typeof window === 'undefined') return
@@ -2181,6 +2186,7 @@ function PlayPageContent() {
   }
 
   async function shareResult() {
+    if (isEmbeddedExample) return
     const shareText = buildShareText()
 
     if (navigator.share) {
@@ -2201,6 +2207,7 @@ function PlayPageContent() {
   }
 
   async function submitQuickReaction(tag: string) {
+    if (isEmbeddedExample) return
     if (!dailyCase) return
     setShowCaseFeedback(true)
     if (submittedReactionTags.includes(tag)) {
@@ -2276,6 +2283,7 @@ function PlayPageContent() {
   }
 
   async function submitTypedFeedback() {
+    if (isEmbeddedExample) return
     if (!dailyCase) return
     setShowCaseFeedback(true)
 
@@ -3518,11 +3526,11 @@ function PlayPageContent() {
     }
     let data: { correct: boolean; remaining: number }
     try {
-      data = isAdminPreview
+      data = (isAdminPreview || isEmbeddedExample)
         ? (() => {
             const accepted = [dailyCase.answer, ...(dailyCase.synonyms || [])]
             const isAnatomyPreview =
-              dailyCase.level === 'attending' && surgicalAnatomyChoices.length >= 2
+              dailyCase.level === 'attending' && isAnatomyQuizCaseRecord(dailyCase)
             const correct = isAnatomyPreview
               ? isCorrectAnatomySelection(
                   currentGuess,
@@ -3576,7 +3584,7 @@ function PlayPageContent() {
             nextGuessCount === 1 ? 'guess' : 'guesses'
           }.`
       setMessage(nextMessage)
-      if (!isAdminPreview) {
+      if (!isAdminPreview && !isEmbeddedExample) {
         saveRoundProgress({
           caseId: dailyCase.id,
           caseDate: dailyCase.case_date,
@@ -3588,7 +3596,7 @@ function PlayPageContent() {
           message: nextMessage,
       })
       }
-      if (!isAdminPreview) {
+      if (!isAdminPreview && !isEmbeddedExample) {
         void refreshCommunityStats(dailyCase)
       }
       triggerSuccessPulse()
@@ -3602,7 +3610,7 @@ function PlayPageContent() {
       setJustCompletedRound(true)
       const nextMessage = useSurgicalAnatomyQuiz ? 'Incorrect.' : 'Out of guesses.'
       setMessage(nextMessage)
-      if (!isAdminPreview) {
+      if (!isAdminPreview && !isEmbeddedExample) {
         saveRoundProgress({
           caseId: dailyCase.id,
           caseDate: dailyCase.case_date,
@@ -3619,7 +3627,7 @@ function PlayPageContent() {
 
     const nextMessage = `Not quite. ${maxGuessesForCurrentCase - nextGuessCount} guesses remaining.`
     setMessage(nextMessage)
-    if (!isAdminPreview) {
+    if (!isAdminPreview && !isEmbeddedExample) {
       saveRoundProgress({
         caseId: dailyCase.id,
         caseDate: dailyCase.case_date,
@@ -3631,7 +3639,7 @@ function PlayPageContent() {
         message: nextMessage,
       })
     }
-    if (!isAdminPreview) {
+    if (!isAdminPreview && !isEmbeddedExample) {
       void refreshCommunityStats(dailyCase)
     }
     refocusGuessInput()
@@ -3703,7 +3711,7 @@ function PlayPageContent() {
 
 
   useEffect(() => {
-    if (isAdminPreview) return
+    if (isAdminPreview || isEmbeddedExample) return
     if (!dailyCase || !roundComplete || guesses.length === 0) return
 
     recordGameResult({
@@ -3716,12 +3724,12 @@ function PlayPageContent() {
       category: dailyCase.category,
     })
     setDailySummary(getStatsSummary().today)
-    setResumeRound(getLatestUnfinishedRoundProgress())
-  }, [dailyCase, gameWon, guesses, isAdminPreview, roundComplete])
+    setResumeRound(isEmbeddedExample ? null : getLatestUnfinishedRoundProgress())
+  }, [dailyCase, gameWon, guesses, isAdminPreview, isEmbeddedExample, roundComplete])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    setResumeRound(getLatestUnfinishedRoundProgress())
+    setResumeRound(isEmbeddedExample ? null : getLatestUnfinishedRoundProgress())
   }, [selectedDate, selectedLevel, dailyCase?.id, guesses.length, gameWon, gameOver])
 
   useEffect(() => {
@@ -4127,11 +4135,13 @@ function PlayPageContent() {
     !submittedHomepageSurveyChoice
   const anatomySurveyStorageKey = anatomySurvey ? getAnatomySurveyStorageKey(anatomySurvey) : null
   const shouldShowSharedPostCaseSurvey =
+    !isEmbeddedExample &&
     roundComplete &&
     Boolean(sharedPostCaseSurvey.survey) &&
     !sharedPostCaseSurvey.submittedChoice &&
     doesSurveyApplyToLevel(sharedPostCaseSurvey.survey.level_scope, selectedLevel)
   const shouldShowAnatomySurvey =
+    !isEmbeddedExample &&
     !shouldShowSharedPostCaseSurvey &&
     roundComplete &&
     useSurgicalAnatomyQuiz &&
@@ -4498,16 +4508,19 @@ function PlayPageContent() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (suppressQuickTakeawayPersistRef.current) return
+    if (isEmbeddedExample) return
     window.localStorage.setItem(QUICK_TAKEAWAY_OPEN_KEY, showQuickTakeaway ? 'true' : 'false')
   }, [showQuickTakeaway])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (isEmbeddedExample) return
     window.localStorage.setItem(ORTHODLE_INSIGHT_OPEN_KEY, showOrthodleInsight ? 'true' : 'false')
   }, [showOrthodleInsight])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    if (isEmbeddedExample) return
     window.localStorage.setItem(CASE_FEEDBACK_OPEN_KEY, showCaseFeedback ? 'true' : 'false')
   }, [showCaseFeedback])
 
@@ -6146,7 +6159,7 @@ function PlayPageContent() {
                     )}
                   </div>
 
-                  {roundComplete && (
+                  {roundComplete && !isEmbeddedExample && (
                     <div className="mx-auto mt-2 w-full max-w-[460px]">
                       <div className="grid gap-2 sm:grid-cols-2">
                         {canAdvanceToNextLevel && nextLevel ? (
@@ -6201,7 +6214,7 @@ function PlayPageContent() {
                     </div>
                   )}
 
-                  <div className="night-soft-surface orthodle-home-feedback-shell rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
+                  <div hidden={isEmbeddedExample} className="night-soft-surface orthodle-home-feedback-shell rounded-xl bg-[#fcfbf8] px-2.5 py-2 sm:px-3 sm:py-2.5">
                     <button
                       type="button"
                       onClick={() => setShowCaseFeedback(current => !current)}
