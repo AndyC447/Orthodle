@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
@@ -12,8 +12,7 @@ import {
   writeCachedLevelTitles,
 } from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
-import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
-import { clearStatsSummary, getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
+import { getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -36,11 +35,7 @@ type ArchiveCase = {
 type GuessLite = {
   case_id: string | null
   session_id: string
-}
-
-type FeedbackLite = {
-  case_id: string | null
-  feedback_tags: string[] | null
+  is_correct: boolean
 }
 
 const levelOrder: Level[] = ['med_student', 'resident', 'attending']
@@ -65,18 +60,14 @@ export default function ArchivePage() {
   const [cases, setCases] = useState<ArchiveCase[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
-  const [showCaseList, setShowCaseList] = useState(true)
+  const [month, setMonth] = useState(today.slice(0, 7))
+  const [selectedDate, setSelectedDate] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [answerQuery, setAnswerQuery] = useState('')
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
-  const [guessRows, setGuessRows] = useState<GuessLite[]>([])
-  const [feedbackRows, setFeedbackRows] = useState<FeedbackLite[]>([])
   const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
-  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false)
-  const categoryMenuRef = useRef<HTMLDivElement | null>(null)
-
   useEffect(() => {
-    setCompletedArchiveKeys(getCompletedCaseKeys(true))
+    setCompletedArchiveKeys(new Set([...getCompletedCaseKeys()].map(key => key.replace(/:daily$/, ':archive'))))
   }, [])
 
   useEffect(() => {
@@ -84,21 +75,9 @@ export default function ArchivePage() {
   }, [])
 
   useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
-      if (categoryMenuRef.current && !categoryMenuRef.current.contains(event.target as Node)) {
-        setCategoryMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    return () => document.removeEventListener('mousedown', handlePointerDown)
-  }, [])
-
-  useEffect(() => {
     async function loadArchive() {
       try {
-      const [excludedSessionIds, { data }, { data: guessData }, { data: feedbackData }, { data: levelTitleData }] = await Promise.all([
-        fetchExcludedStatsSessionIds(),
+      const [{ data }, { data: guessData }, { data: levelTitleData }] = await Promise.all([
         (async () => {
           const data: ArchiveCase[] = []
           const pageSize = 500
@@ -117,28 +96,27 @@ export default function ArchivePage() {
           }
           return { data }
         })(),
-        supabase
-          .from('guesses')
-          .select('case_id, session_id')
-          .limit(5000),
-        supabase
-          .from('case_feedback')
-          .select('case_id, feedback_tags')
-          .limit(5000),
+        (async () => {
+          const data: GuessLite[] = []
+          for (let offset = 0; ; offset += 500) {
+            const result = await supabase.from('guesses')
+              .select('case_id, session_id, is_correct')
+              .eq('session_id', sessionId).order('id').range(offset, offset + 499)
+            if (result.error) return { data: [] as GuessLite[] }
+            data.push(...(result.data || []) as GuessLite[])
+            if ((result.data || []).length < 500) break
+          }
+          return { data }
+        })(),
         supabase
           .from('level_display_settings')
           .select('level, title'),
       ])
 
       const nextCases = (data || []) as ArchiveCase[]
-      const nextGuessRows = filterExcludedSessionRows(
-        (guessData || []) as GuessLite[],
-        new Set(excludedSessionIds)
-      )
+      const nextGuessRows = (guessData || []) as GuessLite[]
 
       setCases(nextCases)
-      setGuessRows(nextGuessRows)
-      setFeedbackRows((feedbackData || []) as FeedbackLite[])
       const nextTitles = normalizeLevelTitles(
         ((levelTitleData || []) as Array<{ level: Level; title: string }>).reduce(
           (acc, item) => {
@@ -150,13 +128,15 @@ export default function ArchivePage() {
       )
       setLevelTitles(nextTitles)
       writeCachedLevelTitles(nextTitles)
-      const completedKeysFromServer = new Set(
-        nextGuessRows
-          .filter(row => row.session_id === sessionId && row.case_id)
-          .map(row => nextCases.find(item => item.id === row.case_id))
-          .filter((item): item is ArchiveCase => Boolean(item) && item.case_date !== today)
-          .map(item => `${item.case_date}:${item.level}:archive`)
-      )
+      const ownGuesses = new Map<string, GuessLite[]>()
+      for (const row of nextGuessRows) {
+        if (row.session_id !== sessionId || !row.case_id) continue
+        ownGuesses.set(row.case_id, [...(ownGuesses.get(row.case_id) || []), row])
+      }
+      const completedKeysFromServer = new Set(nextCases.filter(item => {
+        const guesses = ownGuesses.get(item.id) || []
+        return guesses.some(row => row.is_correct) || guesses.length >= (item.level === 'attending' && isAnatomyQuizCaseRecord(item) ? 1 : 6)
+      }).map(item => `${item.case_date}:${item.level}:archive`))
       if (completedKeysFromServer.size > 0) {
         setCompletedArchiveKeys(current => new Set([...current, ...completedKeysFromServer]))
       }
@@ -248,260 +228,100 @@ export default function ArchivePage() {
       item => !completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
     )
   }, [completedArchiveKeys, filteredCases])
-  const surpriseTarget =
-    surprisePool.length > 0
-      ? surprisePool[Math.floor(Math.random() * surprisePool.length)]
-      : null
-  const caseDifficultyMap = useMemo(() => {
-    const byCase = new Map<string, { guesses: number; players: Set<string> }>()
-
-    for (const row of guessRows) {
-      if (!row.case_id) continue
-      if (!byCase.has(row.case_id)) {
-        byCase.set(row.case_id, { guesses: 0, players: new Set() })
-      }
-      const current = byCase.get(row.case_id)!
-      current.guesses += 1
-      current.players.add(row.session_id)
-    }
-
-    return new Map(
-      [...byCase.entries()].map(([caseId, value]) => [
-        caseId,
-        value.players.size > 0 ? value.guesses / value.players.size : 0,
-      ])
-    )
-  }, [guessRows])
-  const attendingPick = useMemo(() => {
-    const pool = filteredCases.filter(item => item.level === 'attending')
-    return pool.length > 0 ? pool[0] : null
-  }, [filteredCases])
-  const hardestPick = useMemo(() => {
-    return [...filteredCases]
-      .filter(item => caseDifficultyMap.has(item.id))
-      .sort((a, b) => (caseDifficultyMap.get(b.id) || 0) - (caseDifficultyMap.get(a.id) || 0))[0] || null
-  }, [caseDifficultyMap, filteredCases])
-  const actionButtonClass =
-    'inline-flex min-h-[30px] items-center justify-center rounded-[10px] border px-2.5 py-1 text-[10px] font-semibold transition sm:min-h-[34px] sm:rounded-lg sm:px-3 sm:py-1.5 sm:text-[11px]'
-  const softButtonClass = `${actionButtonClass} border-[#ded7ca] bg-white text-[#55645b] hover:bg-[#fbfaf7]`
-  const activeButtonClass = `${actionButtonClass} border-[#1f6448] bg-[#1f6448] text-white hover:bg-[#174c37]`
-  const accentButtonClass = `${actionButtonClass} border-[#d9c7a6] bg-[#fffaf1] text-[#8a5a2b] hover:bg-[#fff3e0]`
-  const sectionLabelClass = 'text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]'
-  const fieldLabelClass = 'text-[10px] font-semibold uppercase tracking-[0.12em] text-[#637268]'
-  const caseMetaLabelClass = 'text-[10px] font-semibold tracking-[0.01em] text-[#637268]'
+  const surpriseTarget = useMemo(() => surprisePool.length > 0
+    ? surprisePool[Math.floor(Math.random() * surprisePool.length)]
+    : null, [surprisePool])
+  const monthDates = groupedDates.filter(group => group.date.startsWith(month))
+  const activeDate = monthDates.some(group => group.date === selectedDate) ? selectedDate : monthDates[0]?.date || ''
+  const activeCases = monthDates.find(group => group.date === activeDate)?.items || []
+  const [year, monthNumber] = month.split('-').map(Number)
+  const firstWeekday = new Date(year, monthNumber - 1, 1).getDay()
+  const daysInMonth = new Date(year, monthNumber, 0).getDate()
+  const monthTitle = new Date(year, monthNumber - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const earliestMonth = LAUNCH_DATE.slice(0, 7)
+  const latestMonth = today.slice(0, 7)
+  const monthOptions: string[] = []
+  for (let value = earliestMonth; value <= latestMonth;) {
+    monthOptions.push(value)
+    const [y, m] = value.split('-').map(Number)
+    value = `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}`
+  }
+  function changeMonth(offset: number) {
+    const date = new Date(year, monthNumber - 1 + offset, 1)
+    setMonth(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`)
+  }
+  function completed(item: ArchiveCase) {
+    return completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
+  }
+  const buttonClass = 'archive-control inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-35'
   return (
-    <main className="app-surface min-h-screen">
+    <main className="app-surface archive-calendar-page min-h-screen">
       <Header />
-
-      <section className="mx-auto max-w-4xl px-2.5 py-3 sm:px-6 sm:py-5">
-        <div className="night-surface rounded-[22px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:rounded-[24px] sm:p-4.5">
-          <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-[#637268]">
-            Archive
-          </div>
-
-          {(surpriseTarget || filteredCases.length > 0) && (
-            <div className="mt-2 grid grid-cols-2 gap-1.5 sm:mt-2.5 sm:flex sm:flex-wrap">
-              {surpriseTarget ? (
-                <Link
-                  href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}
-                  className={activeButtonClass}
-                >
-                  Surprise me
-                </Link>
-              ) : (
-                <div className={softButtonClass}>
-                  All done
-                </div>
-              )}
-              {hardestPick && (
-                <Link
-                  href={`/?case=${hardestPick.id}&date=${hardestPick.case_date}&level=${hardestPick.level}`}
-                  className={accentButtonClass}
-                >
-                  Hardest pick
-                </Link>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  clearStatsSummary()
-                  setCompletedArchiveKeys(new Set())
-                }}
-                className={`${softButtonClass} col-span-2 sm:col-span-1`}
-              >
-                Reset cases
-              </button>
-            </div>
-          )}
-
-          <div className="mt-2.5 rounded-[18px] bg-[#fcfbf8] px-2 py-2.5 ring-1 ring-inset ring-[#ebe5db]/70 sm:mt-3 sm:rounded-[20px] sm:px-3 sm:py-3">
-            <div className="grid gap-2">
-              <label className={`grid gap-1.5 ${fieldLabelClass}`}>
-                Diagnosis
-                <input
-                  value={answerQuery}
-                  onChange={e => setAnswerQuery(e.target.value)}
-                  placeholder="Search diagnosis or answer"
-                  className="min-h-[34px] rounded-[10px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[#102018] placeholder:text-[11px] placeholder:text-[#8b938d] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[12px] sm:placeholder:text-[12px]"
-                />
-              </label>
-
-              <label className={`grid gap-1.5 ${fieldLabelClass}`}>
-                Category
-                <div className="relative" ref={categoryMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setCategoryMenuOpen(current => !current)}
-                    className="flex min-h-[34px] w-full items-center justify-between rounded-[10px] border border-[#ded7ca] bg-white px-2.5 py-1.5 text-left text-[12px] font-medium text-[#102018] transition hover:bg-[#fbfaf7] sm:min-h-[38px] sm:rounded-lg sm:px-3 sm:py-2 sm:text-[13px]"
-                  >
-                    <span>{selectedCategory === 'all' ? 'All categories' : formatCategoryLabel(selectedCategory)}</span>
-                    <span className="ml-3 text-[10px] text-[#7a857c]">{categoryMenuOpen ? '▲' : '▼'}</span>
-                  </button>
-                  {categoryMenuOpen && (
-                    <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-40 overflow-hidden rounded-xl border border-[#e7e1d6] bg-white shadow-[0_18px_40px_rgba(16,32,24,0.06)]">
-                      <div className="max-h-[280px] overflow-y-auto p-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedCategory('all')
-                            setCategoryMenuOpen(false)
-                          }}
-                          className={`block w-full rounded-[10px] px-3 py-2 text-left text-[12px] transition sm:rounded-lg sm:text-[13px] ${
-                            selectedCategory === 'all'
-                              ? 'bg-[#f7fbf8] font-semibold text-[#1f6448]'
-                              : 'text-[#102018] hover:bg-[#fbfaf7]'
-                          }`}
-                        >
-                          All categories
-                        </button>
-                        {categoryOptions.map(option => (
-                          <button
-                            key={option}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCategory(option)
-                              setCategoryMenuOpen(false)
-                            }}
-                            className={`block w-full rounded-[10px] px-3 py-2 text-left text-[12px] transition sm:rounded-lg sm:text-[13px] ${
-                              selectedCategory === option
-                                ? 'bg-[#f7fbf8] font-semibold text-[#1f6448]'
-                                : 'text-[#102018] hover:bg-[#fbfaf7]'
-                            }`}
-                          >
-                            {formatCategoryLabel(option)}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </label>
-            </div>
-
-            {hasActiveFilters && (
-              <div className="mt-2 flex items-center justify-between gap-2 border-t border-[#eee8de] pt-2 sm:mt-2.5 sm:pt-2.5">
-                <p className="text-[10px] text-[#637268] sm:text-[11px]">
-                  {filteredCases.length} case{filteredCases.length === 1 ? '' : 's'}
-                </p>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedCategory('all')
-                    setAnswerQuery('')
-                  }}
-                  className={softButtonClass}
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-3 flex items-center justify-between gap-2 sm:mt-3.5">
-            <div className={sectionLabelClass}>
-              Previous cases · all question types
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setShowCaseList(current => !current)}
-                className={softButtonClass}
-              >
-                {showCaseList ? 'Collapse' : 'Expand'}
-              </button>
-            </div>
-          </div>
-
-          {loadError ? (
-            <div role="alert" className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268]">{loadError}</div>
-          ) : loading ? (
-            <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">Loading archive...</div>
-          ) : groupedDates.length === 0 ? (
-            <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-5 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">No archive cases are available yet.</div>
-          ) : !showCaseList ? (
-            <div className="mt-4 rounded-2xl bg-[#fbfaf7] px-4 py-4 text-[13px] text-[#637268] ring-1 ring-inset ring-[#ded7ca]">
-              {groupedDates.length} dates ready. Expand to browse the full archive.
-            </div>
-          ) : (
-            <div className="mt-2.5 space-y-1.5 sm:mt-3 sm:space-y-2">
-              {groupedDates.map((group, groupIndex) => (
-                <div
-                  key={group.date}
-                  className="orthodle-archive-group grid gap-2 rounded-[14px] bg-[#fcfbf8] px-2.5 py-2 ring-1 ring-inset ring-[#e7e1d6] sm:grid-cols-[150px_minmax(0,1fr)] sm:items-center sm:rounded-[16px] sm:px-3 sm:py-2"
-                  style={{ animationDelay: `${Math.min(groupIndex * 0.04, 0.24)}s` }}
-                >
-                  <div className={`${sectionLabelClass} sm:self-start sm:pt-1`}>
-                    {formatDate(group.date)}
-                  </div>
-
-                  <div className="grid gap-1.5 sm:gap-2">
-                    {(() => {
-                      const visibleCases = group.items
-
-                      return (
-                        <>
-                          <div className="grid gap-1.5 sm:grid-cols-2 sm:gap-2">
-                            {visibleCases.map((item, itemIndex) => {
-                              const isCompleted = completedArchiveKeys.has(
-                                `${item.case_date}:${item.level}:archive`
-                              )
-
-                              return (
-                                <Link
-                                  key={item.id}
-                                  href={`/?case=${item.id}&date=${group.date}&level=${item.level}`}
-                                  className={`orthodle-archive-entry grid min-h-[58px] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-[12px] bg-white px-2.5 py-2 ring-1 ring-inset ring-[#e3dccf] transition hover:bg-[#f8fbf9] sm:min-h-[54px] sm:rounded-[12px] sm:px-3 sm:py-2 ${
-                                    item.level === 'med_student' && visibleCases.length === 1 ? 'sm:max-w-[320px]' : ''
-                                  }`}
-                                  style={{ animationDelay: `${Math.min(groupIndex * 0.04 + itemIndex * 0.05, 0.34)}s` }}
-                                >
-                                  <div className="min-w-0">
-                                    <div className={caseMetaLabelClass}>
-                                      {toTitleCase(formatLevel(item.level, item.case_date, item))}
-                                    </div>
-                                    <div className="mt-0.5 line-clamp-1 font-serif text-[12.5px] font-bold leading-tight text-[#102018] sm:text-[13px]">
-                                      {formatCategoryLabel(item.category)}
-                                    </div>
-                                  </div>
-                                  <div className={`shrink-0 text-[9px] font-semibold sm:text-[10px] ${isCompleted ? 'text-[#8a5a2b]' : 'text-[#1f6448]'}`}>
-                                    {isCompleted ? 'Completed' : 'Open case'}
-                                  </div>
-                                </Link>
-                              )
-                            })}
-                          </div>
-
-
-                        </>
-                      )
-                    })()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+      <section className="mx-auto max-w-[1080px] px-3 py-6 sm:px-6 sm:py-9">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div><h1 className="font-serif text-3xl font-bold sm:text-4xl">Archives</h1>
+            <p className="mt-2 text-sm text-[#637268]">Pick a day and explore its cases. Daily, anatomy, and classification questions are all here.</p></div>
+          {surpriseTarget && <Link className={`${buttonClass} archive-surprise`} href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}>Surprise me</Link>}
         </div>
+        <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <label className="grid gap-1.5 text-sm font-semibold">Search cases
+            <input className="archive-control rounded-xl border px-3 py-2 font-normal" type="search" placeholder="Diagnosis or category" value={answerQuery} onChange={event => setAnswerQuery(event.target.value)} />
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold">Category
+            <select className="archive-control rounded-xl border px-3 py-2 font-normal" value={selectedCategory} onChange={event => setSelectedCategory(event.target.value)}>
+              <option value="all">All categories</option>
+              {categoryOptions.map(option => <option key={option} value={option}>{formatCategoryLabel(option)}</option>)}
+            </select>
+          </label>
+          {hasActiveFilters && <button className={buttonClass} onClick={() => { setSelectedCategory('all'); setAnswerQuery('') }}>Clear filters</button>}
+        </div>
+        {loadError ? <p role="alert" className="py-8">{loadError}</p> : loading ? <p role="status" className="py-8">Loading archive…</p> : <>
+          <div className="archive-calendar-shell rounded-2xl border p-2 sm:p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
+              <h2 className="font-serif text-xl font-bold sm:text-2xl" aria-live="polite">{monthTitle}</h2>
+              <div className="flex items-center gap-2">
+                <button className={buttonClass} aria-label="Previous month" disabled={month <= earliestMonth} onClick={() => changeMonth(-1)}>←</button>
+                <select aria-label="Jump to month" className="archive-control min-w-0 rounded-xl border px-2 py-2 text-sm" value={month} onChange={event => setMonth(event.target.value)}>
+                  {[...monthOptions].reverse().map(value => <option key={value} value={value}>{new Date(`${value}-01T12:00:00`).toLocaleDateString('en-US', {month:'short', year:'numeric'})}</option>)}
+                </select>
+                <button className={buttonClass} aria-label="Next month" disabled={month >= latestMonth} onClick={() => changeMonth(1)}>→</button>
+              </div>
+            </div>
+            <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2 px-1 text-xs">
+              <span className="flex items-center gap-2"><span className="archive-swatch archive-available" />Available</span>
+              <span className="flex items-center gap-2"><span className="archive-swatch archive-completed" />Completed</span>
+              <span className="text-[#637268]">Select a day to see its cases</span>
+            </div>
+            <div className="grid grid-cols-7 gap-1 sm:gap-2">
+              {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(day => <div key={day} className="py-2 text-center text-[11px] font-semibold text-[#637268] sm:text-sm">{day}</div>)}
+              {Array.from({length:firstWeekday}, (_, index) => <div key={`blank-${index}`} aria-hidden="true" />)}
+              {Array.from({length:daysInMonth}, (_, index) => {
+                const date = `${month}-${String(index+1).padStart(2,'0')}`
+                const dayCases = monthDates.find(group => group.date === date)?.items || []
+                const done = dayCases.filter(completed).length
+                const allDone = dayCases.length > 0 && done === dayCases.length
+                return <button key={date} type="button" disabled={!dayCases.length} aria-pressed={date === activeDate}
+                  aria-label={`${formatDate(date)}: ${dayCases.length ? `${dayCases.length} cases, ${done} completed, ${dayCases.length-done} available` : 'No available cases'}`}
+                  onClick={() => setSelectedDate(date)}
+                  className={`archive-day ${!dayCases.length ? 'archive-empty' : allDone ? 'archive-completed' : 'archive-available'} ${date === activeDate ? 'archive-day-selected' : ''}`}>
+                  <span className="text-sm font-bold sm:text-lg">{index+1}</span>
+                  {dayCases.length > 0 && <><span className="hidden text-xs sm:block">{dayCases.length} case{dayCases.length === 1 ? '' : 's'}</span><span className="text-[9px] sm:text-[11px]">{allDone ? '✓' : `${done}/${dayCases.length}`}<span className="hidden sm:inline"> {allDone ? 'Done' : 'done'}</span></span></>}
+                </button>
+              })}
+            </div>
+          </div>
+          <section className="mt-6" aria-label="Cases for selected day" aria-live="polite">
+            {activeDate ? <>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-serif text-xl font-bold">{formatDate(activeDate)}</h2><span className="text-sm text-[#637268]">Choose a case to play or revisit</span></div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{activeCases.map(item => <Link key={item.id} href={`/?case=${item.id}&date=${item.case_date}&level=${item.level}`} className={`archive-case rounded-xl border p-4 ${completed(item) ? 'archive-completed' : 'archive-available'}`}>
+                <div className="text-xs font-semibold">{toTitleCase(formatLevel(item.level, item.case_date, item).toLowerCase())}</div>
+                <h3 className="mt-1 font-serif text-xl font-bold">{formatCategoryLabel(item.category)}</h3>
+                <div className="mt-4 flex items-center justify-between text-sm font-semibold"><span>{completed(item) ? '✓ Completed · Play again' : 'Available · Open case'}</span><span aria-hidden="true">→</span></div>
+              </Link>)}</div>
+            </> : <div className="py-5"><h2 className="font-semibold">{hasActiveFilters ? 'No matching cases this month' : 'No archived cases this month'}</h2><p className="mt-1 text-sm text-[#637268]">{hasActiveFilters ? 'Try another month or clear your filters.' : 'Choose an earlier month to explore previous cases.'}</p></div>}
+            {hasActiveFilters && <div className="mt-4 flex flex-wrap items-center gap-2 text-sm"><span>{filteredCases.length} matching cases across the archive.</span>{Array.from(new Set(groupedDates.map(group => group.date.slice(0,7)))).filter(value => value !== month).map(value => <button key={value} className={buttonClass} onClick={() => setMonth(value)}>{new Date(`${value}-01T12:00:00`).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</button>)}</div>}
+          </section>
+        </>}
       </section>
       <PublicFooter />
     </main>
