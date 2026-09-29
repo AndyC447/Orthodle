@@ -417,6 +417,7 @@ export default function GroupDetailPage() {
   const groupId = Array.isArray(params.groupId) ? params.groupId[0] : params.groupId
   const sessionId = useMemo(() => getSessionId(), [])
   const [loading, setLoading] = useState(true)
+  const [memberSearch, setMemberSearch] = useState('')
   const [message, setMessage] = useState('')
   const [groups, setGroups] = useState<GroupRow[]>([])
   const [members, setMembers] = useState<GroupMemberRow[]>([])
@@ -750,16 +751,16 @@ export default function GroupDetailPage() {
   }
 
   return (
-    <main className="app-surface min-h-screen">
+    <main className="app-surface groups-experience min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
+      <section className="mx-auto max-w-[1040px] px-3 py-4 sm:px-6 sm:py-7">
         <div className="night-surface orthodle-groups-shell rounded-[20px] border border-[#e7e1d6] bg-white p-2.5 shadow-[0_8px_18px_rgba(16,32,24,0.03)] sm:rounded-[22px] sm:p-4">
           <div className="space-y-3.5 sm:space-y-4">
             <button
               type="button"
               onClick={() => router.push('/groups')}
-              className="text-[12px] font-semibold text-[#637268] transition hover:text-[#2d7651]"
+              className="orthodle-groups-button text-[12px]"
             >
               ← Back to groups
             </button>
@@ -803,7 +804,7 @@ export default function GroupDetailPage() {
                           className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#2d7651] bg-[#2d7651] px-4 text-[12px] font-semibold text-white shadow-[0_8px_18px_rgba(45,118,81,0.14)] transition hover:-translate-y-0.5 hover:bg-[#255e42]"
                         >
                           <Share2 size={15} strokeWidth={2} />
-                          {copied ? 'Invite copied' : 'Text invite'}
+                          {copied ? 'Invite copied' : 'Share invite'}
                         </button>
                         {membership ? (
                           <button
@@ -903,9 +904,13 @@ export default function GroupDetailPage() {
                       {formatMemberCount(aggregate.members.length)}
                     </div>
                   </div>
+                  <label className="mt-3 block text-xs font-semibold text-[#637268]">Find a teammate
+                    <input type="search" value={memberSearch} onChange={event => setMemberSearch(event.target.value)} placeholder="Search member names" className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]" />
+                  </label>
+                  {memberSearch && !aggregate.memberStats.some(entry => entry.member.display_name.toLowerCase().includes(memberSearch.trim().toLowerCase())) && <p role="status" className="mt-3 text-sm text-[#637268]">No teammates match that name.</p>}
                   <div className="mt-3 space-y-2">
                     {aggregate.memberStats.length > 0 ? (
-                      aggregate.memberStats.map((entry, index) => (
+                      aggregate.memberStats.map((entry, index) => !entry.member.display_name.toLowerCase().includes(memberSearch.trim().toLowerCase()) ? null : (
                         <div
                           key={entry.member.id}
                           className="orthodle-leaderboard-row grid grid-cols-[24px_1fr_auto] items-center gap-2 rounded-[14px] border border-[#ece6db] bg-white px-3 py-2.5 transition hover:-translate-y-0.5 hover:bg-[#fcfbf8]"

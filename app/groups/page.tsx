@@ -798,6 +798,7 @@ function GroupsTopBanner({
                     key={tab.id}
                     type="button"
                     onClick={() => onTabChange(tab.id)}
+                    aria-current={active ? 'page' : undefined}
                     className={`${
                       active
                         ? `orthodle-home-tab-active ${snapTabId === tab.id ? 'orthodle-tab-snap' : ''} ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
@@ -1021,6 +1022,7 @@ function GroupsTopBanner({
                     key={tab.id}
                     type="button"
                     onClick={() => onTabChange(tab.id)}
+                    aria-current={active ? 'page' : undefined}
                     className={`${
                       active
                         ? `orthodle-home-tab-active ${snapTabId === tab.id ? 'orthodle-tab-snap' : ''} ${navItemClass} shadow-[0_4px_10px_rgba(16,32,24,0.08)]`
@@ -1549,6 +1551,9 @@ export default function GroupsPage() {
   const today = useMemo(() => getLocalIsoDate(), [])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [groupSearch, setGroupSearch] = useState('')
+  const [memberSearch, setMemberSearch] = useState('')
+  const [groupsLoadError, setGroupsLoadError] = useState('')
   const [activeGroupsTab, setActiveGroupsTab] = useState<GroupsTab>('home')
   const [groups, setGroups] = useState<GroupRow[]>([])
   const [members, setMembers] = useState<GroupMemberRow[]>([])
@@ -1958,12 +1963,15 @@ export default function GroupsPage() {
   }
 
   async function loadGroupsData() {
+    setGroupsLoadError('')
+    setLoading(true)
     const { data: groupData, error: groupError } = await supabase
       .from('groups')
       .select('*')
       .order('created_at', { ascending: false })
 
     if (groupError) {
+      setGroupsLoadError('We could not load all group information. Please try again.')
       setMessage(groupError.message)
       setLoading(false)
       return
@@ -1978,6 +1986,7 @@ export default function GroupsPage() {
       .order('created_at', { ascending: true })
 
     if (memberError) {
+      setGroupsLoadError('We could not load all group information. Please try again.')
       setMessage(memberError.message)
       setLoading(false)
       return
@@ -2000,6 +2009,7 @@ export default function GroupsPage() {
     try {
       allGuesses = await fetchAllGroupGuessRows(memberSessionIds)
     } catch (error) {
+      setGroupsLoadError('We could not load the rankings. Please try again.')
       setMessage(error instanceof Error ? error.message : 'Could not load group guesses.')
       setLoading(false)
       return
@@ -2023,6 +2033,7 @@ export default function GroupsPage() {
       .in('id', caseIds)
 
     if (caseError) {
+      setGroupsLoadError('We could not load all group information. Please try again.')
       setMessage(caseError.message)
       setLoading(false)
       return
@@ -2268,6 +2279,10 @@ export default function GroupsPage() {
 
   useEffect(() => {
     if (activeGroupsTab !== 'my-group') return
+    if (selectedGroupId) {
+      setShowJoinPanel(false)
+      return
+    }
 
     if (viewerGroup?.id) {
       setSelectedGroupId(current => current || viewerGroup.id)
@@ -2278,7 +2293,7 @@ export default function GroupsPage() {
     setSelectedGroupId('')
     setGroupActionMode('join')
     setShowJoinPanel(true)
-  }, [activeGroupsTab, viewerGroup?.id])
+  }, [activeGroupsTab, viewerGroup?.id, selectedGroupId])
 
   const viewerGroupAggregate = viewerMembership
     ? groupAggregates.find(entry => entry.group.id === viewerMembership.group_id) || null
@@ -2907,6 +2922,7 @@ export default function GroupsPage() {
 
     if (memberError) {
       setCreating(false)
+      setGroupsLoadError('We could not load all group information. Please try again.')
       setMessage(memberError.message)
       return
     }
@@ -3524,6 +3540,16 @@ export default function GroupsPage() {
     window.localStorage.setItem(GROUP_NOTIFICATIONS_SEEN_KEY, JSON.stringify(nextSeenIds))
   }
 
+  useEffect(() => {
+    if (!showJoinPanel) return
+    const frame = window.requestAnimationFrame(() => {
+      const form = document.getElementById('groups-membership-form')
+      form?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+      form?.querySelector<HTMLInputElement>('input')?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [showJoinPanel, groupActionMode])
+
   function handleGroupsTabChange(tab: GroupsTab) {
     if (tab === 'my-group') {
       if (viewerGroup?.id) {
@@ -3543,6 +3569,7 @@ export default function GroupsPage() {
     }
 
     setActiveGroupsTab(tab)
+    setMemberSearch('')
     setShowJoinPanel(false)
   }
 
@@ -3638,8 +3665,10 @@ export default function GroupsPage() {
     showCreateGroupIconPicker ||
     showCreateMemberIconPicker
 
-  function shouldAllowGroupsSwipeStart(_target: EventTarget | null) {
-    return true
+  function shouldAllowGroupsSwipeStart(target: EventTarget | null) {
+    return !(target instanceof Element && target.closest(
+      'button, a, input, textarea, select, [role="dialog"], [contenteditable="true"]'
+    ))
   }
 
   function setSwipeTransitionTarget(target: 'home' | 'groups', direction: 'from-left' | 'from-right') {
@@ -3828,7 +3857,7 @@ export default function GroupsPage() {
 
   return (
     <main
-      className="app-surface relative min-h-screen overflow-x-hidden"
+      className="app-surface groups-experience relative min-h-screen overflow-x-hidden"
       onTouchStart={handleGroupsSwipeStart}
       onTouchMove={handleGroupsSwipeMove}
       onTouchEnd={handleGroupsSwipeEnd}
@@ -4004,11 +4033,175 @@ export default function GroupsPage() {
         </div>
       ) : null}
 
-      <section className="mx-auto max-w-[760px] px-2.5 py-2.5 sm:px-5 sm:py-5">
+      <section className="mx-auto max-w-[1040px] px-3 py-4 sm:px-6 sm:py-7">
+        <div className="groups-page-heading mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="font-serif text-[28px] font-bold tracking-tight text-[#102018] sm:text-[34px]">{activeGroupsTab === 'home' ? 'Groups' : activeGroupsTab === 'my-group' ? (isViewingOwnGroup ? 'Your team' : 'Team overview') : 'Your profile'}</h1>
+            <p className="mt-1 max-w-xl text-[14px] leading-6 text-[#637268]">{activeGroupsTab === 'home' ? 'Learn together. Build a streak. See how your team stacks up.' : activeGroupsTab === 'my-group' ? 'Your members, progress, and weekly achievements in one place.' : 'Make it yours, track your progress, and keep your account connected.'}</p>
+          </div>
+          {viewerGroup && activeGroupsTab === 'home' && <button type="button" onClick={() => handleGroupsTabChange('my-group')} className="orthodle-groups-button orthodle-groups-button-primary">Open my group →</button>}
+        </div>
+        {showJoinPanel ? (
+          <section id="groups-membership-form" aria-label="Group membership" className="orthodle-groups-card mt-5 scroll-mt-24 px-4 py-4">
+            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
+                  {groupActionMode === 'join' ? 'Join a group' : 'Create a group'}
+                </div>
+                <div className="mt-1 text-[12px] text-[#637268]">
+                  {groupActionMode === 'join'
+                    ? 'Use a group code from a teammate.'
+                    : 'Start a private leaderboard for your team.'}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                    <div className="orthodle-groups-segment-shell grid grid-cols-2 text-[10px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setGroupActionMode('join')}
+                        className={`orthodle-groups-segment-button ${groupActionMode === 'join' ? 'orthodle-groups-segment-button-active' : ''}`}
+                      >
+                        Join
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setGroupActionMode('create')}
+                        className={`orthodle-groups-segment-button ${groupActionMode === 'create' ? 'orthodle-groups-segment-button-active' : ''}`}
+                      >
+                        Create
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowJoinPanel(false)}
+                      className="orthodle-groups-icon-button h-7 w-7"
+                      aria-label="Close group form"
+                    >
+                      <X size={13} strokeWidth={2} />
+                    </button>
+              </div>
+            </div>
+
+            {groupActionMode === 'join' ? (
+              <>
+                <div className="mt-3">
+                  <IconPicker
+                    label="Your icon"
+                    selectedIcon={joinMemberIcon}
+                    isOpen={showJoinMemberIconPicker}
+                    onToggle={() => setShowJoinMemberIconPicker(prev => !prev)}
+                    onSelect={icon => {
+                      setJoinMemberIcon(icon)
+                      setShowJoinMemberIconPicker(false)
+                    }}
+                    ariaLabelPrefix="Use your icon"
+                  />
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">Group invite code<input
+                    aria-label="Group invite code"
+                    value={joinCode}
+                    onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
+                    placeholder="Group code"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  /></label>
+                  <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">Your display name<input
+                    aria-label="Your display name"
+                    value={joinDisplayName}
+                    onChange={event => setJoinDisplayName(event.target.value)}
+                    placeholder="Your display name"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  /></label>
+                  <button
+                    type="button"
+                    disabled={
+                      joining ||
+                      !normalizedJoinCode ||
+                      !joinDisplayName.trim() ||
+                      Boolean(normalizedJoinCode && !joinTargetGroup)
+                    }
+                    onClick={() => void submitGroupForm()}
+                    className="orthodle-groups-button orthodle-groups-button-primary min-h-[40px] px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {joining ? 'Joining...' : alreadyInJoinTarget ? 'Update' : 'Join'}
+                  </button>
+                </div>
+                <div className="mt-2 text-[11px] leading-5 text-[#637268]">
+                  Paste a teammate’s code or open their invite link and we’ll fill it in for you.
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <IconPicker
+                    label="Group icon"
+                    selectedIcon={createIcon}
+                    isOpen={showCreateGroupIconPicker}
+                    onToggle={() => setShowCreateGroupIconPicker(prev => !prev)}
+                    onSelect={icon => {
+                      setCreateIcon(icon)
+                      setShowCreateGroupIconPicker(false)
+                    }}
+                    ariaLabelPrefix="Use group icon"
+                  />
+                  <IconPicker
+                    label="Your icon"
+                    selectedIcon={createMemberIcon}
+                    isOpen={showCreateMemberIconPicker}
+                    onToggle={() => setShowCreateMemberIconPicker(prev => !prev)}
+                    onSelect={icon => {
+                      setCreateMemberIcon(icon)
+                      setShowCreateMemberIconPicker(false)
+                    }}
+                    ariaLabelPrefix="Use your icon"
+                  />
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                  <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">Group name<input
+                    aria-label="Group name"
+                    value={createName}
+                    onChange={event => setCreateName(event.target.value)}
+                    placeholder="Group name"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  /></label>
+                  <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">Your display name<input
+                    aria-label="Your display name"
+                    value={createDisplayName}
+                    onChange={event => setCreateDisplayName(event.target.value)}
+                    placeholder="Your display name"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  /></label>
+                  <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">Custom invite code (optional)<input
+                    aria-label="Custom invite code (optional)"
+                    value={createCode}
+                    onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
+                    placeholder="Custom code (optional)"
+                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
+                  /></label>
+                  <button
+                    type="button"
+                    disabled={creating || !createName.trim() || !createDisplayName.trim()}
+                    onClick={() => void submitGroupForm()}
+                    className="orthodle-groups-button orthodle-groups-button-primary min-h-[40px] px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {creating ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+                <div className="mt-2 rounded-[14px] bg-[#fcfbf8] px-3 py-2 text-[11px] leading-5 text-[#637268]">
+                  {createCode.trim()
+                    ? `Your invite code will be ${normalizeJoinCode(createCode)}.`
+                    : 'Leave custom code blank and Orthodle will make one for you.'}
+                </div>
+              </>
+            )}
+          </section>
+        ) : null}
+        {groupsLoadError && <div role="alert" className="orthodle-groups-card mb-4 flex flex-wrap items-center justify-between gap-3 p-4"><p className="text-sm text-[#637268]">{groupsLoadError}</p><button type="button" onClick={() => void loadGroupsData()} className="orthodle-groups-button">Try again</button></div>}
+
         {message && !dismissedMessages.includes(message) ? (
           <div className="orthodle-groups-card mb-3 px-3 py-2.5 text-[13px] text-[#355542] sm:mb-4 sm:px-4 sm:py-3 sm:text-sm">
             <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">{message}</div>
+              <div role="status" className="min-w-0 flex-1">{message}</div>
               <button
                 type="button"
                 onClick={dismissTopMessage}
@@ -4059,7 +4252,7 @@ export default function GroupsPage() {
           </div>
         ) : null}
 
-        {latestCompletedHonor ? (
+        {activeGroupsTab === 'home' && latestCompletedHonor ? (
           <section className="mb-3 overflow-hidden rounded-[22px] border border-[#e2b670] bg-[radial-gradient(circle,rgba(255,240,214,0.16)_1.4px,transparent_1.4px),linear-gradient(145deg,#d47b2a,#b95f1f_52%,#8f4316)] [background-position:0_0,0_0] [background-size:28px_28px,auto] px-3 py-3 text-white shadow-[0_18px_38px_rgba(143,67,22,0.28)] sm:mb-4 sm:px-4 sm:py-4">
             <div className="flex flex-col items-center justify-center gap-2 text-center">
               <div className="min-w-0">
@@ -4120,6 +4313,42 @@ export default function GroupsPage() {
           </section>
         ) : activeGroupsTab === 'home' ? (
           <div className="space-y-2.5 sm:space-y-3.5">
+            {!viewerGroup ? (
+              <section className="orthodle-groups-card p-3 sm:p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
+                      Start your group
+                    </div>
+                    <div className="mt-1 max-w-[470px] text-[12px] leading-5 text-[#637268]">
+                      Join a residency, class, or friend group to unlock member rankings, invite links, and your private team board.
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGroupActionMode('join')
+                        setShowJoinPanel(true)
+                      }}
+                      className="orthodle-groups-button text-[11px]"
+                    >
+                      Join with code
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGroupActionMode('create')
+                        setShowJoinPanel(true)
+                      }}
+                      className="orthodle-groups-button orthodle-groups-button-primary text-[11px]"
+                    >
+                      Create group
+                    </button>
+                  </div>
+                </div>
+              </section>
+            ) : null}
             <div className="grid grid-cols-1 gap-2.5 sm:gap-4 lg:grid-cols-[0.92fr_1.55fr]">
               <button
                 type="button"
@@ -4257,15 +4486,9 @@ export default function GroupsPage() {
                   Leaderboard
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                        setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
-                      }
-                      className="orthodle-groups-button px-3 text-xs"
-                    >
-                      {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
-                    </button>
+                  <div className="orthodle-groups-segment-shell grid-cols-2" role="group" aria-label="Leaderboard period">
+                    {(['week', 'all-time'] as const).map(period => <button key={period} type="button" aria-pressed={leaderboardWindow === period} onClick={() => setLeaderboardWindow(period)} className={`orthodle-groups-segment-button ${leaderboardWindow === period ? 'orthodle-groups-segment-button-active' : ''}`}>{period === 'week' ? 'This week' : 'All time'}</button>)}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowLeaderboardScoringGuide(true)}
@@ -4277,6 +4500,10 @@ export default function GroupsPage() {
                 </div>
               </div>
 
+              <label className="mt-4 block text-[12px] font-semibold text-[#637268]">Find a group
+                <input type="search" value={groupSearch} onChange={event => setGroupSearch(event.target.value)} placeholder="Search by group name" className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]" />
+              </label>
+              {groupSearch && !leaderboardEntries.some(group => group.name.toLowerCase().includes(groupSearch.trim().toLowerCase())) && <p role="status" className="py-4 text-sm text-[#637268]">No matching groups. Try another name or <button type="button" onClick={() => setGroupSearch('')} className="font-semibold underline">clear your search</button>.</p>}
               <div className="mt-2.5 flex justify-end">
                 <div className="text-[10px] text-[#637268] sm:text-[11px]">
                   {leaderboardEntries.length} {leaderboardEntries.length === 1 ? 'group' : 'groups'}
@@ -4290,6 +4517,7 @@ export default function GroupsPage() {
                   ))
                 ) : leaderboardEntries.length > 0 ? (
                   leaderboardEntries.map((group, index) => {
+                    if (!group.name.toLowerCase().includes(groupSearch.trim().toLowerCase())) return null
                     const rank = index + 1
                     return (
                       <button
@@ -4352,42 +4580,7 @@ export default function GroupsPage() {
               </div>
             </section>
 
-            {!viewerGroup ? (
-              <section className="orthodle-groups-card p-3 sm:p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
-                      Start your group
-                    </div>
-                    <div className="mt-1 max-w-[470px] text-[12px] leading-5 text-[#637268]">
-                      Join a residency, class, or friend group to unlock member rankings, invite links, and your private team board.
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGroupActionMode('join')
-                        setShowJoinPanel(true)
-                      }}
-                      className="orthodle-groups-button text-[11px]"
-                    >
-                      Join with code
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setGroupActionMode('create')
-                        setShowJoinPanel(true)
-                      }}
-                      className="orthodle-groups-button orthodle-groups-button-primary text-[11px]"
-                    >
-                      Create group
-                    </button>
-                  </div>
-                </div>
-              </section>
-            ) : null}
+
           </div>
         ) : null}
 
@@ -4433,15 +4626,15 @@ export default function GroupsPage() {
                       </div>
 
                     <div className="flex w-full flex-wrap items-center gap-2 sm:ml-2 sm:w-auto sm:self-auto">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setLeaderboardWindow(current => (current === 'week' ? 'all-time' : 'week'))
-                        }
-                          className="orthodle-groups-button h-9 min-w-0 border-[#e7d4a7]/50 bg-white/8 px-3 text-[11px] font-bold text-white sm:h-10 sm:flex-none sm:px-4 sm:text-xs"
-                        >
-                          {leaderboardWindow === 'week' ? 'This week' : 'All time'}⌄
-                      </button>
+                      <div className="orthodle-groups-segment-shell grid-cols-2" role="group" aria-label="Team leaderboard period">
+                        {(['week', 'all-time'] as const).map(period => (
+                          <button key={period} type="button" aria-pressed={leaderboardWindow === period}
+                            onClick={() => setLeaderboardWindow(period)}
+                            className={`orthodle-groups-segment-button ${leaderboardWindow === period ? 'orthodle-groups-segment-button-active' : ''}`}>
+                            {period === 'week' ? 'This week' : 'All time'}
+                          </button>
+                        ))}
+                      </div>
                       <button
                         type="button"
                         onClick={() => setShowLeaderboardScoringGuide(true)}
@@ -4821,9 +5014,14 @@ export default function GroupsPage() {
                   <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#102018]">
                     Member leaderboard
                   </div>
+                  <label className="mt-3 block text-xs font-semibold text-[#637268]">Find a teammate
+                    <input type="search" value={memberSearch} onChange={event => setMemberSearch(event.target.value)} placeholder="Search member names" className="mt-1 w-full rounded-xl border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]" />
+                  </label>
+                  {!selectedGroupAggregate.memberStats.some(entry => entry.member.display_name.toLowerCase().includes(memberSearch.trim().toLowerCase())) && memberSearch && <p role="status" className="mt-3 text-sm text-[#637268]">No teammates match that name.</p>}
+
                   <div className="mt-3 space-y-2">
                     {selectedGroupAggregate.memberStats.length > 0 ? (
-                      selectedGroupAggregate.memberStats.map((entry, index) => (
+                      selectedGroupAggregate.memberStats.map((entry, index) => !entry.member.display_name.toLowerCase().includes(memberSearch.trim().toLowerCase()) ? null : (
                         <button
                           key={entry.member.id}
                           type="button"
@@ -5132,19 +5330,27 @@ export default function GroupsPage() {
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="grid gap-1 text-xs font-semibold text-[#637268]">
+                      Username
                     <input
+                      autoComplete="username"
                       value={authUsername}
                       onChange={event => setAuthUsername(event.target.value)}
                       placeholder="Username"
                       className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448]"
                     />
+                    </label>
+                    <label className="grid gap-1 text-xs font-semibold text-[#637268]">
+                      Password
                     <input
                       type="password"
+                      autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                       value={authPassword}
                       onChange={event => setAuthPassword(event.target.value)}
                       placeholder="Password"
                       className="w-full rounded-xl border border-[#ded7ca] bg-[#fcfbf8] px-3 py-2 text-sm text-[#102018] outline-none transition focus:border-[#1f6448]"
                     />
+                    </label>
                   </div>
 
                   <button
@@ -5344,156 +5550,7 @@ export default function GroupsPage() {
           </div>
         ) : null}
 
-        {showJoinPanel ? (
-          <section className="orthodle-groups-card mt-5 px-4 py-4">
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                  {groupActionMode === 'join' ? 'Join a group' : 'Create a group'}
-                </div>
-                <div className="mt-1 text-[12px] text-[#637268]">
-                  {groupActionMode === 'join'
-                    ? 'Use a group code from a teammate.'
-                    : 'Start a private leaderboard for your team.'}
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                    <div className="orthodle-groups-segment-shell grid grid-cols-2 text-[10px] font-semibold">
-                      <button
-                        type="button"
-                        onClick={() => setGroupActionMode('join')}
-                        className={`orthodle-groups-segment-button ${groupActionMode === 'join' ? 'orthodle-groups-segment-button-active' : ''}`}
-                      >
-                        Join
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setGroupActionMode('create')}
-                        className={`orthodle-groups-segment-button ${groupActionMode === 'create' ? 'orthodle-groups-segment-button-active' : ''}`}
-                      >
-                        Create
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowJoinPanel(false)}
-                      className="orthodle-groups-icon-button h-7 w-7"
-                      aria-label="Close group form"
-                    >
-                      <X size={13} strokeWidth={2} />
-                    </button>
-              </div>
-            </div>
 
-            {groupActionMode === 'join' ? (
-              <>
-                <div className="mt-3">
-                  <IconPicker
-                    label="Your icon"
-                    selectedIcon={joinMemberIcon}
-                    isOpen={showJoinMemberIconPicker}
-                    onToggle={() => setShowJoinMemberIconPicker(prev => !prev)}
-                    onSelect={icon => {
-                      setJoinMemberIcon(icon)
-                      setShowJoinMemberIconPicker(false)
-                    }}
-                    ariaLabelPrefix="Use your icon"
-                  />
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-                  <input
-                    value={joinCode}
-                    onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
-                    placeholder="Group code"
-                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
-                  />
-                  <input
-                    value={joinDisplayName}
-                    onChange={event => setJoinDisplayName(event.target.value)}
-                    placeholder="Your display name"
-                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
-                  />
-                  <button
-                    type="button"
-                    disabled={
-                      joining ||
-                      !normalizedJoinCode ||
-                      !joinDisplayName.trim() ||
-                      Boolean(normalizedJoinCode && !joinTargetGroup)
-                    }
-                    onClick={() => void submitGroupForm()}
-                    className="orthodle-groups-button orthodle-groups-button-primary min-h-[40px] px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {joining ? 'Joining...' : alreadyInJoinTarget ? 'Update' : 'Join'}
-                  </button>
-                </div>
-                <div className="mt-2 text-[11px] leading-5 text-[#637268]">
-                  Paste a teammate’s code or open their invite link and we’ll fill it in for you.
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <IconPicker
-                    label="Group icon"
-                    selectedIcon={createIcon}
-                    isOpen={showCreateGroupIconPicker}
-                    onToggle={() => setShowCreateGroupIconPicker(prev => !prev)}
-                    onSelect={icon => {
-                      setCreateIcon(icon)
-                      setShowCreateGroupIconPicker(false)
-                    }}
-                    ariaLabelPrefix="Use group icon"
-                  />
-                  <IconPicker
-                    label="Your icon"
-                    selectedIcon={createMemberIcon}
-                    isOpen={showCreateMemberIconPicker}
-                    onToggle={() => setShowCreateMemberIconPicker(prev => !prev)}
-                    onSelect={icon => {
-                      setCreateMemberIcon(icon)
-                      setShowCreateMemberIconPicker(false)
-                    }}
-                    ariaLabelPrefix="Use your icon"
-                  />
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
-                  <input
-                    value={createName}
-                    onChange={event => setCreateName(event.target.value)}
-                    placeholder="Group name"
-                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
-                  />
-                  <input
-                    value={createDisplayName}
-                    onChange={event => setCreateDisplayName(event.target.value)}
-                    placeholder="Your display name"
-                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
-                  />
-                  <input
-                    value={createCode}
-                    onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
-                    placeholder="Custom code"
-                    className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
-                  />
-                  <button
-                    type="button"
-                    disabled={creating || !createName.trim() || !createDisplayName.trim()}
-                    onClick={() => void submitGroupForm()}
-                    className="orthodle-groups-button orthodle-groups-button-primary min-h-[40px] px-4 text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {creating ? 'Creating...' : 'Create'}
-                  </button>
-                </div>
-                <div className="mt-2 rounded-[14px] bg-[#fcfbf8] px-3 py-2 text-[11px] leading-5 text-[#637268]">
-                  {createCode.trim()
-                    ? `Your invite code will be ${normalizeJoinCode(createCode)}.`
-                    : 'Leave custom code blank and Orthodle will make one for you.'}
-                </div>
-              </>
-            )}
-          </section>
-        ) : null}
       </section>
 
       <section className="hidden mx-auto max-w-[700px] px-1.5 py-1.5 sm:px-2.5 sm:py-2.5">
@@ -6098,12 +6155,14 @@ export default function GroupsPage() {
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                       <input
+                        aria-label="Group invite code"
                         value={joinCode}
                         onChange={event => setJoinCode(normalizeJoinCode(event.target.value))}
                         placeholder="Group code"
                         className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <input
+                        aria-label="Your display name"
                         value={joinDisplayName}
                         onChange={event => setJoinDisplayName(event.target.value)}
                         placeholder="Your display name"
@@ -6233,21 +6292,24 @@ export default function GroupsPage() {
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
                       <input
+                        aria-label="Group name"
                         value={createName}
                         onChange={event => setCreateName(event.target.value)}
                         placeholder="Group name"
                         className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <input
+                        aria-label="Your display name"
                         value={createDisplayName}
                         onChange={event => setCreateDisplayName(event.target.value)}
                         placeholder="Your display name"
                         className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <input
+                        aria-label="Custom invite code (optional)"
                         value={createCode}
                         onChange={event => setCreateCode(normalizeJoinCode(event.target.value))}
-                        placeholder="Custom code"
+                        placeholder="Custom code (optional)"
                         className="w-full rounded-[12px] border border-[#dfd8cb] bg-white px-3 py-2 text-[12px] text-[#102018] outline-none transition focus:border-[#2d7651]"
                       />
                       <button

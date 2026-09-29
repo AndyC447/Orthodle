@@ -2135,3 +2135,50 @@ button[class*=" rounded-full"],
 a[class*=" rounded-full"] {
   border-radius: 12px !important;
 }
+
+/* Consistent Groups controls and surfaces across home, team, and profile views. */
+.groups-experience .orthodle-groups-card {
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 4px 16px rgba(16, 32, 24, .035);
+}
+.groups-experience .orthodle-groups-subcard {
+  background: #fafbf8;
+  box-shadow: none;
+}
+.groups-experience .orthodle-groups-button,
+.groups-experience .orthodle-groups-segment-button {
+  min-height: 44px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.groups-experience .orthodle-groups-icon-button { min-width: 44px; min-height: 44px; }
+.groups-experience :is(button, a, input, select, textarea):focus-visible {
+  outline: 2px solid #2d7651;
+  outline-offset: 3px;
+}
+.groups-experience button:disabled { cursor: not-allowed; }
+.groups-experience input,
+.groups-experience select,
+.groups-experience textarea { min-height: 44px; }
+.groups-experience input::placeholder { color: #78847c; }
+.groups-experience #groups-membership-form { box-shadow: 0 0 0 2px rgba(45,118,81,.12); }
+.groups-experience .orthodle-mvp-stat { border: 0; border-radius: 10px; box-shadow: none; }
+@media (max-width: 639px) {
+  .groups-experience :is(input, select, textarea) { font-size: 16px !important; }
+  .groups-experience .orthodle-groups-card { border-radius: 16px; }
+  .groups-experience .orthodle-groups-button { padding-inline: 14px; }
+  .groups-experience .orthodle-groups-segment-button { padding-inline: 10px; }
+  .groups-experience .fixed.inset-0 > div { max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain; }
+}
+:root[data-theme="dark"] .groups-experience .orthodle-groups-card { background: #14251d; border-color: #33483b; }
+:root[data-theme="dark"] .groups-experience .orthodle-groups-subcard { background: #192d22; }
+:root[data-theme="dark"] .groups-experience .groups-page-heading h1 { color: #f4efe6; }
+:root[data-theme="dark"] .groups-experience .groups-page-heading p { color: #b4c5ba; }
+@media (prefers-reduced-motion: reduce) {
+  .groups-experience *, .groups-experience *::before, .groups-experience *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
