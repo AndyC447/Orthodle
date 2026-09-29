@@ -288,7 +288,7 @@ export default function ArchivePage() {
               </div>
             </div>
             <div className="mb-4 flex flex-wrap gap-x-4 gap-y-2 px-1 text-xs">
-              <span className="flex items-center gap-2"><span className="archive-swatch archive-available" />Available</span>
+              <span className="flex items-center gap-2"><span className="archive-swatch archive-available" />Pending</span>
               <span className="flex items-center gap-2"><span className="archive-swatch archive-completed" />Completed</span>
               <span className="text-[#637268]">Select a day to see its cases</span>
             </div>
@@ -301,7 +301,7 @@ export default function ArchivePage() {
                 const done = dayCases.filter(completed).length
                 const allDone = dayCases.length > 0 && done === dayCases.length
                 return <button key={date} type="button" disabled={!dayCases.length} aria-pressed={date === activeDate}
-                  aria-label={`${formatDate(date)}: ${dayCases.length ? `${dayCases.length} cases, ${done} completed, ${dayCases.length-done} available` : 'No available cases'}`}
+                  aria-label={`${formatDate(date)}: ${dayCases.length ? `${dayCases.length} cases, ${done} completed, ${dayCases.length-done} pending` : 'No available cases'}`}
                   onClick={() => setSelectedDate(date)}
                   className={`archive-day ${!dayCases.length ? 'archive-empty' : allDone ? 'archive-completed' : 'archive-available'} ${date === activeDate ? 'archive-day-selected' : ''}`}>
                   <span className="text-sm font-bold sm:text-lg">{index+1}</span>
@@ -316,7 +316,7 @@ export default function ArchivePage() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{activeCases.map(item => <Link key={item.id} href={`/?case=${item.id}&date=${item.case_date}&level=${item.level}`} className={`archive-case rounded-xl border p-4 ${completed(item) ? 'archive-completed' : 'archive-available'}`}>
                 <div className="text-xs font-semibold">{toTitleCase(formatLevel(item.level, item.case_date, item).toLowerCase())}</div>
                 <h3 className="mt-1 font-serif text-xl font-bold">{formatCategoryLabel(item.category)}</h3>
-                <div className="mt-4 flex items-center justify-between text-sm font-semibold"><span>{completed(item) ? '✓ Completed · Play again' : 'Available · Open case'}</span><span aria-hidden="true">→</span></div>
+                <div className="mt-4 flex items-center justify-between text-sm font-semibold"><span>{completed(item) ? '✓ Completed · Play again' : 'Pending · Open case'}</span><span aria-hidden="true">→</span></div>
               </Link>)}</div>
             </> : <div className="py-5"><h2 className="font-semibold">{hasActiveFilters ? 'No matching cases this month' : 'No archived cases this month'}</h2><p className="mt-1 text-sm text-[#637268]">{hasActiveFilters ? 'Try another month or clear your filters.' : 'Choose an earlier month to explore previous cases.'}</p></div>}
             {hasActiveFilters && <div className="mt-4 flex flex-wrap items-center gap-2 text-sm"><span>{filteredCases.length} matching cases across the archive.</span>{Array.from(new Set(groupedDates.map(group => group.date.slice(0,7)))).filter(value => value !== month).map(value => <button key={value} className={buttonClass} onClick={() => setMonth(value)}>{new Date(`${value}-01T12:00:00`).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</button>)}</div>}
