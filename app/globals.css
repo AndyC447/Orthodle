@@ -2204,3 +2204,17 @@ a[class*=" rounded-full"] {
 :root[data-theme="dark"] .archive-available { background: #442728; border-color: #805051; color: #f2beb9; }
 :root[data-theme="dark"] .archive-empty { background: #202822; border-color: #303b32; color: #87938a; }
 :root[data-theme="dark"] .archive-calendar-page .text-\[\#637268\] { color: #b4c5ba; }
+
+.orthodle-how-to { position: fixed; inset: 0; margin: auto; width: min(520px, calc(100% - 24px)); max-height: 90vh; max-height: 90dvh; padding: 0; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #e7e1d6; border-radius: 24px; background: #fffdf9; color: #102018; box-shadow: 0 24px 80px #10201833; }
+.orthodle-how-to::backdrop { background: #102018a6; backdrop-filter: blur(3px); }
+.orthodle-how-to .how-to-eyebrow { color: #1f6448; }
+.orthodle-how-to .how-to-muted { color: #596b60; }
+.orthodle-how-to .how-to-icon { background: #edf5ee; color: #1f6448; }
+.orthodle-how-to .how-to-close, .orthodle-how-to .how-to-more { border-color: #e1e7dd; }
+.orthodle-how-to .how-to-footer { background: #fffdf9; }
+.orthodle-how-to button:focus-visible { outline: 3px solid #b58c3b; outline-offset: 3px; }
+:root[data-theme="dark"] .orthodle-how-to, :root[data-theme="dark"] .orthodle-how-to .how-to-footer { background: #17271f; color: #edf4ed; }
+:root[data-theme="dark"] .orthodle-how-to .how-to-muted { color: #b4c5ba; }
+:root[data-theme="dark"] .orthodle-how-to .how-to-eyebrow { color: #b5e7c3; }
+:root[data-theme="dark"] .orthodle-how-to .how-to-icon { background: #254333; color: #b5e7c3; }
+:root[data-theme="dark"] .orthodle-how-to, :root[data-theme="dark"] .orthodle-how-to .how-to-close, :root[data-theme="dark"] .orthodle-how-to .how-to-more { border-color: #3c5043; }

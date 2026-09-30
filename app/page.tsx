@@ -12,6 +12,7 @@ import {
   serializeAnatomyGuessLetters,
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
+import { HowToPlayDialog } from '@/components/HowToPlayDialog'
 import { PublicFooter } from '@/components/PublicFooter'
 import {
   DEFAULT_LEVEL_TITLES,
@@ -5417,45 +5418,7 @@ function PlayPageContent() {
         </div>
       )}
 
-      {showTutorial && !isEmbeddedExample && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-[#102018]/60 px-4 pt-10 sm:items-center sm:pt-0">
-          <div className="orthodle-mobile-sheet orthodle-bottom-sheet w-full max-w-sm max-h-[88vh] overflow-y-auto rounded-t-[28px] border border-[#e7e1d6] bg-white p-4 shadow-[0_18px_40px_rgba(16,32,24,0.18)] sm:max-h-none sm:rounded-[24px]">
-            <div className="orthodle-bottom-sheet-handle mx-auto mb-3 h-1 w-10 rounded-full bg-[#ded7ca] sm:hidden" />
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h2 className="mt-1.5 font-serif text-[25px] font-bold leading-tight tracking-[-0.03em] text-[#102018]">
-                  How to play
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={dismissTutorial}
-                aria-label="Close tutorial"
-                className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2 py-1 text-[11px] font-semibold text-[#637268] transition hover:bg-white"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mt-3 space-y-2.5 text-[13px] leading-5.5 text-[#102018]">
-              <p><strong>1.</strong> Read the case and narrow the diagnosis.</p>
-              <p><strong>2.</strong> There's a new case and anatomy quiz every day.</p>
-              <p><strong>3.</strong> Wrong guesses unlock more clinical findings.</p>
-              <p><strong>4.</strong> Imaging may appear later as part of the clues.</p>
-              <p><strong>5.</strong> You get 6 guesses total for each case.</p>
-              <p><strong>6.</strong> Join or create a group to compete on the leaderboards in Groups from the hamburger menu.</p>
-            </div>
-
-            <button
-              type="button"
-              onClick={dismissTutorial}
-              className="orthodle-primary-button orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple mt-4 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174c37]"
-            >
-              Start playing
-            </button>
-          </div>
-        </div>
-      )}
+      {showTutorial && !isEmbeddedExample && <HowToPlayDialog onDismiss={dismissTutorial} />}
 
       <div className="relative">
         {homeSwipePreview}
