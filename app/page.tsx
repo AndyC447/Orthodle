@@ -3827,6 +3827,9 @@ function PlayPageContent() {
 
   const homeTabs = useMemo(
     () => {
+      if (selectedDate !== today) {
+        return [{ type: 'link' as const, href: '/archive', label: 'Archives', subtitle: '' }]
+      }
       const attendingTabLabel =
         dailyCase?.level === 'attending' && !isAnatomyQuizCaseRecord(dailyCase)
           ? 'Attending'
@@ -3843,7 +3846,7 @@ function PlayPageContent() {
       ]
       return tabs
     },
-    [dailyCase, levelTitles, noAnatomyModeActiveToday, noResidentModeActiveToday]
+    [dailyCase, levelTitles, noAnatomyModeActiveToday, noResidentModeActiveToday, selectedDate, today]
   )
   const homeBootReady = playModeReady && playBootstrapReady
   const nextLevelMap = useMemo<Partial<Record<Level, Level>>>(
