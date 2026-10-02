@@ -3,20 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ImpactExamples } from '@/components/ImpactExamples'
+import { useImpactStats, type ImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { PublicFooter } from '@/components/PublicFooter'
-
-type ImpactStats = {
-  usersReached: number
-  uniqueUsers: number
-  combinedDailyUsers: number
-  totalGuesses: number
-  archiveGuesses: number
-  countriesReached: number
-  topCities: string[]
-  caseCount: number
-}
 
 const ABOUT_TEXT_STORAGE_KEY = 'orthodle_admin_impact_about_text_v1'
 const TOP_CITIES_STORAGE_KEY = 'orthodle_live_stat_impact_top_cities_v1'
@@ -49,8 +39,8 @@ function readCachedTopCities() {
 }
 
 export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean }) {
-  const [metrics, setMetrics] = useState<ImpactStats>(EMPTY_IMPACT_STATS)
-  const [loading, setLoading] = useState(true)
+  const { metrics: loadedMetrics, loading, error: statsError } = useImpactStats()
+  const metrics = loadedMetrics || EMPTY_IMPACT_STATS
   const [cachedTopCities, setCachedTopCities] = useState<string[]>([])
   const [aboutText, setAboutText] = useState(DEFAULT_ABOUT_TEXT)
   const [aboutDraft, setAboutDraft] = useState(DEFAULT_ABOUT_TEXT)
@@ -68,42 +58,12 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
     setAboutDraft(savedText)
   }, [adminMode])
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadStats() {
-      try {
-        const response = await fetch('/api/impact-stats')
-        if (!response.ok) throw new Error('Could not load impact stats.')
-        const nextMetrics = (await response.json()) as ImpactStats
-
-        if (cancelled) return
-
-        setMetrics({
-          ...EMPTY_IMPACT_STATS,
-          ...nextMetrics,
-          topCities: Array.isArray(nextMetrics.topCities)
-            ? nextMetrics.topCities.filter(city => typeof city === 'string' && city.trim()).slice(0, 6)
-            : [],
-        })
-        setLoading(false)
-      } catch {
-        if (!cancelled) setLoading(true)
-      }
-    }
-
-    void loadStats()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const statCards = [
     {
-      label: 'Users reached',
-      value: metrics.usersReached,
-      placeholder: 8182,
-      cacheKey: 'orthodle_live_stat_impact_users_reached_v1',
+      label: 'Combined daily users',
+      value: metrics.combinedDailyUsers,
+      placeholder: 0,
+      cacheKey: 'orthodle_live_stat_combined_daily_users_v2',
     },
     {
       label: 'Published cases',
@@ -252,17 +212,18 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                 {statCards.map(card => (
                   <div
                     key={card.label}
+                    title={card.label === 'Combined daily users' ? 'Each browser is counted once per reporting day. Returning on another day counts again.' : undefined}
                     className={`rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3 ${
                       card.label === 'Countries reached' ? 'col-span-2' : ''
                     }`}
                   >
                     <div className="font-serif text-[28px] font-bold leading-none text-[#102018] sm:text-[32px]">
-                      <LiveStatNumber
+                      {card.label === 'Combined daily users' && !loadedMetrics ? <span>{loading ? '…' : '—'}</span> : <LiveStatNumber
                         value={card.value}
                         loading={loading}
                         placeholder={card.placeholder}
                         cacheKey={card.cacheKey}
-                      />
+                      />}
                     </div>
                     <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                       {card.label}
@@ -270,6 +231,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                   </div>
                 ))}
               </div>
+              {statsError && <p role="status" className="mt-3 text-xs text-[#637268]">{loadedMetrics ? 'Snapshot temporarily out of date. Retrying…' : 'Snapshot unavailable. Retrying…'}</p>}
               {displayedTopCities.length > 0 ? (
                 <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3">
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">

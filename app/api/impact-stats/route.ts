@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
+import { analyticsDateISO, calculateAudienceStats } from '@/lib/audience-stats'
+import { filterExcludedSessionRows, getExcludedStatsSessionIds } from '@/lib/stats-exclusions'
 
 type VisitRow = {
   session_id: string
@@ -26,20 +28,11 @@ type ImpactStats = {
 }
 
 const PAGE_SIZE = 1000
-const CACHE_TTL_MS = 90 * 1000
+const CACHE_TTL_MS = 60 * 1000
 
 let cachedStats: ImpactStats | null = null
 let cachedAt = 0
-
-function timestampToLocalISO(timestamp: string) {
-  const date = new Date(timestamp)
-  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
-  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 10)
-}
-
-function todayISO() {
-  return timestampToLocalISO(new Date().toISOString())
-}
+let pendingStats: Promise<ImpactStats> | null = null
 
 function cleanLocationLabel(value: string | null) {
   if (!value) return ''
@@ -76,6 +69,7 @@ async function fetchPaged<T>(table: string, select: string) {
     const { data, error } = await supabase
       .from(table)
       .select(select)
+      .order('id')
       .range(offset, offset + PAGE_SIZE - 1)
 
     if (error) throw new Error(error.message)
@@ -100,24 +94,23 @@ async function fetchCount(table: string) {
 }
 
 async function buildImpactStats(): Promise<ImpactStats> {
-  const [visits, guesses, caseCount] = await Promise.all([
+  const [visitRows, guessRows, caseCount, excludedIds] = await Promise.all([
     fetchPaged<VisitRow>('visits', 'session_id, created_at, geo_country, geo_city'),
     fetchPaged<GuessRow>('guesses', 'session_id, created_at, cases(case_date)'),
     fetchCount('cases'),
+    getExcludedStatsSessionIds(),
   ])
 
-  const uniqueUsers = new Set<string>()
-  const sessionsByDate = new Map<string, Set<string>>()
+  const excluded = new Set(excludedIds)
+  const visits = filterExcludedSessionRows(visitRows, excluded)
+  const guesses = filterExcludedSessionRows(guessRows, excluded)
+  const { uniqueUsers, combinedDailyUsers } = calculateAudienceStats([...visits, ...guesses])
   const countries = new Set<string>()
   const citySessions = new Map<string, Set<string>>()
-  const today = todayISO()
+  const today = analyticsDateISO(new Date().toISOString())!
   let archiveGuesses = 0
 
   for (const visit of visits) {
-    uniqueUsers.add(visit.session_id)
-    const date = timestampToLocalISO(visit.created_at)
-    if (!sessionsByDate.has(date)) sessionsByDate.set(date, new Set())
-    sessionsByDate.get(date)!.add(visit.session_id)
     if (visit.geo_country?.trim()) countries.add(visit.geo_country.trim())
 
     const city = cleanLocationLabel(visit.geo_city)
@@ -128,19 +121,10 @@ async function buildImpactStats(): Promise<ImpactStats> {
   }
 
   for (const guess of guesses) {
-    uniqueUsers.add(guess.session_id)
-    const date = timestampToLocalISO(guess.created_at)
-    if (!sessionsByDate.has(date)) sessionsByDate.set(date, new Set())
-    sessionsByDate.get(date)!.add(guess.session_id)
-
     const caseDate = getCaseDate(guess)
     if (caseDate && caseDate < today) archiveGuesses += 1
   }
 
-  const combinedDailyUsers = [...sessionsByDate.values()].reduce(
-    (sum, sessions) => sum + sessions.size,
-    0
-  )
   const topCities = [...citySessions.entries()]
     .sort(([cityA, sessionsA], [cityB, sessionsB]) => {
       const sessionDelta = sessionsB.size - sessionsA.size
@@ -150,8 +134,8 @@ async function buildImpactStats(): Promise<ImpactStats> {
     .map(([city]) => city)
 
   return {
-    usersReached: Math.max(uniqueUsers.size, combinedDailyUsers),
-    uniqueUsers: uniqueUsers.size,
+    usersReached: combinedDailyUsers,
+    uniqueUsers,
     combinedDailyUsers,
     totalGuesses: guesses.length,
     archiveGuesses,
@@ -164,7 +148,7 @@ async function buildImpactStats(): Promise<ImpactStats> {
 export async function GET() {
   const now = Date.now()
   const headers = {
-    'Cache-Control': 'public, s-maxage=90, stale-while-revalidate=600',
+    'Cache-Control': 'no-store',
   }
 
   if (cachedStats && now - cachedAt < CACHE_TTL_MS) {
@@ -172,13 +156,16 @@ export async function GET() {
   }
 
   try {
-    const stats = await buildImpactStats()
+    if (!pendingStats) {
+      pendingStats = buildImpactStats().finally(() => { pendingStats = null })
+    }
+    const stats = await pendingStats
     cachedStats = stats
-    cachedAt = now
+    cachedAt = Date.now()
     return NextResponse.json(stats, { headers })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Could not load impact stats.'
-    if (cachedStats) return NextResponse.json(cachedStats, { headers })
+    if (cachedStats) return NextResponse.json({ ...cachedStats, stale: true }, { headers })
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

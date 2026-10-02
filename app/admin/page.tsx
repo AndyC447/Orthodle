@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import Link from 'next/link'
 import { useLocalToday } from '@/hooks/useLocalToday'
 import { fetchAdminPages } from '@/lib/admin-dashboard'
+import { useImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { buildAnswerSuggestions } from '@/lib/answer-suggestions'
@@ -823,6 +824,7 @@ export default function AdminPage() {
   const [showComposerChecklist, setShowComposerChecklist] = useState(false)
   const [showComposerCaseStats, setShowComposerCaseStats] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(true)
+  const { metrics: audienceMetrics, loading: audienceLoading, error: audienceError } = useImpactStats(isUnlocked && showAnalytics)
   const [showCasesByDate, setShowCasesByDate] = useState(true)
   const [browseDate, setBrowseDate] = useState('')
   const [overviewDate, setOverviewDate] = useState(shiftISODate(today, 1))
@@ -4219,6 +4221,7 @@ export default function AdminPage() {
 
         {showAnalytics && (
           <div className="mt-4 space-y-4">
+            {audienceError && <p role="status" className="text-xs text-[#637268]">{audienceMetrics ? 'User counts temporarily out of date. Retrying…' : 'User counts unavailable. Retrying…'}</p>}
             {analyticsSummary ? (
               <>
                 <div className="grid grid-cols-2 gap-2.5">
@@ -4227,12 +4230,12 @@ export default function AdminPage() {
                       Total users
                     </div>
                     <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                      <LiveStatNumber
-                        value={analyticsSummary.totalUniqueUsers}
+                      {audienceMetrics ? <LiveStatNumber
+                        value={audienceMetrics.uniqueUsers}
                         loading={false}
-                        placeholder={1675}
-                        cacheKey="orthodle_live_stat_admin_total_users_v1"
-                      />
+                        placeholder={0}
+                        cacheKey="orthodle_live_stat_unique_users_v2"
+                      /> : <span>{audienceLoading ? '…' : '—'}</span>}
                     </div>
                   </div>
 
@@ -4241,12 +4244,12 @@ export default function AdminPage() {
                       Combined daily users
                     </div>
                     <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                      <LiveStatNumber
-                        value={analyticsSummary.cumulativeDailyUsers}
+                      {audienceMetrics ? <LiveStatNumber
+                        value={audienceMetrics.combinedDailyUsers}
                         loading={false}
-                        placeholder={3493}
-                        cacheKey="orthodle_live_stat_admin_cumulative_daily_users_v1"
-                      />
+                        placeholder={0}
+                        cacheKey="orthodle_live_stat_combined_daily_users_v2"
+                      /> : <span>{audienceLoading ? '…' : '—'}</span>}
                     </div>
                   </div>
 
