@@ -217,7 +217,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
                       <LiveStatNumber
                         value={card.value}
                         loading={loading || !loadedMetrics}
-                        placeholder={null}
+                        placeholder={card.label === 'Total users' ? 9494 : null}
                         cacheKey={card.cacheKey}
                       />
                     </div>
