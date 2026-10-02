@@ -2,54 +2,69 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-function formatCount(value: number) {
-  return Math.max(0, Math.round(value)).toLocaleString('en-US')
+function formatCount(value: number | null) {
+  return value === null ? '—' : Math.max(0, Math.round(value)).toLocaleString('en-US')
 }
 
-function readCachedValue(cacheKey: string | undefined, fallback: number) {
-  if (!cacheKey || typeof window === 'undefined') return fallback
-  const cached = window.localStorage.getItem(cacheKey)
-  const parsed = cached ? Number(cached) : NaN
-  return Number.isFinite(parsed) ? parsed : fallback
+function readCachedValue(cacheKey: string | undefined): number | null {
+  if (!cacheKey || typeof window === 'undefined') return null
+  try {
+    const cached = window.localStorage.getItem(cacheKey)
+    if (cached === null || !cached.trim()) return null
+    const parsed = Number(cached)
+    return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : null
+  } catch {
+    return null
+  }
 }
 
-export function LiveStatNumber({
-  value,
-  loading,
-  placeholder,
-  cacheKey,
-}: {
+export function LiveStatNumber({ value, loading, placeholder, cacheKey }: {
   value: number
   loading: boolean
-  placeholder: number
+  placeholder: number | null
   cacheKey?: string
 }) {
-  const [displayValue, setDisplayValue] = useState(placeholder)
+  const [displayValue, setDisplayValue] = useState<number | null>(placeholder)
   const [isTicking, setIsTicking] = useState(false)
-  const latestValueRef = useRef(placeholder)
+  const latestValueRef = useRef<number | null>(placeholder)
+  const lastTargetRef = useRef<number | null>(null)
 
   useEffect(() => {
-    setDisplayValue(readCachedValue(cacheKey, placeholder))
+    const cached = readCachedValue(cacheKey)
+    latestValueRef.current = cached ?? placeholder
+    lastTargetRef.current = cached
+    setDisplayValue(cached ?? placeholder)
+    setIsTicking(false)
   }, [cacheKey, placeholder])
 
   useEffect(() => {
-    if (loading) return
-
-    const startValue = latestValueRef.current
-    const targetValue = Math.max(0, Math.round(value))
-
-    if (typeof window !== 'undefined' && cacheKey) {
-      window.localStorage.setItem(cacheKey, String(targetValue))
-    }
-
-    if (startValue === targetValue) {
-      setDisplayValue(targetValue)
+    if (loading) {
+      // Keep the last confirmed number visible, including if refresh interrupts a tick.
+      if (lastTargetRef.current !== null) {
+        latestValueRef.current = lastTargetRef.current
+        setDisplayValue(lastTargetRef.current)
+      }
+      setIsTicking(false)
       return
     }
+    if (!Number.isFinite(value)) return
+    const targetValue = Math.max(0, Math.round(value))
+    const previousTarget = lastTargetRef.current
+    const startValue = latestValueRef.current ?? targetValue
+    lastTargetRef.current = targetValue
 
-    if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    try {
+      if (cacheKey) window.localStorage.setItem(cacheKey, String(targetValue))
+    } catch {
+      // Storage may be unavailable; the in-memory value still stays visible.
+    }
+
+    // First data is shown directly. Only a change from known data earns an animation.
+    if (previousTarget === null || previousTarget === targetValue ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       latestValueRef.current = targetValue
       setDisplayValue(targetValue)
+      setIsTicking(false)
       return
     }
 
@@ -57,26 +72,25 @@ export function LiveStatNumber({
     const startAt = performance.now()
     const duration = 1100
     let frameId = 0
-
+    let settleTimer: number | undefined
     function tick(now: number) {
       const progress = Math.min(1, (now - startAt) / duration)
       const eased = 1 - Math.pow(1 - progress, 3)
       const nextValue = Math.round(startValue + (targetValue - startValue) * eased)
       latestValueRef.current = nextValue
       setDisplayValue(nextValue)
-
       if (progress < 1) {
         frameId = requestAnimationFrame(tick)
       } else {
-        latestValueRef.current = targetValue
-        setDisplayValue(targetValue)
-        window.setTimeout(() => setIsTicking(false), 180)
+        settleTimer = window.setTimeout(() => setIsTicking(false), 180)
       }
     }
-
     frameId = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(frameId)
-  }, [cacheKey, loading, value])
+    return () => {
+      cancelAnimationFrame(frameId)
+      if (settleTimer !== undefined) window.clearTimeout(settleTimer)
+    }
+  }, [cacheKey, placeholder, loading, value])
 
   return (
     <span className={`orthodle-live-stat-number ${isTicking ? 'orthodle-live-stat-number-active' : ''}`}>

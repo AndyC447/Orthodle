@@ -60,33 +60,28 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
 
   const statCards = [
     {
-      label: 'Combined daily users',
+      label: 'Total users',
       value: metrics.combinedDailyUsers,
-      placeholder: 0,
       cacheKey: 'orthodle_live_stat_combined_daily_users_v2',
     },
     {
       label: 'Published cases',
       value: metrics.caseCount,
-      placeholder: 218,
       cacheKey: 'orthodle_live_stat_impact_published_cases_v1',
     },
     {
       label: 'Learner guesses',
       value: metrics.totalGuesses,
-      placeholder: 42637,
       cacheKey: 'orthodle_live_stat_impact_learner_guesses_v1',
     },
     {
       label: 'Archive plays',
       value: metrics.archiveGuesses,
-      placeholder: 42604,
       cacheKey: 'orthodle_live_stat_impact_archive_plays_v1',
     },
     {
       label: 'Countries reached',
       value: metrics.countriesReached,
-      placeholder: 40,
       cacheKey: 'orthodle_live_stat_impact_countries_reached_v1',
     },
   ]
@@ -212,18 +207,18 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
                 {statCards.map(card => (
                   <div
                     key={card.label}
-                    title={card.label === 'Combined daily users' ? 'Each browser is counted once per reporting day. Returning on another day counts again.' : undefined}
+                    title={card.label === 'Total users' ? 'Each browser is counted once per reporting day. Returning on another day counts again.' : undefined}
                     className={`rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3 ${
                       card.label === 'Countries reached' ? 'col-span-2' : ''
                     }`}
                   >
                     <div className="font-serif text-[28px] font-bold leading-none text-[#102018] sm:text-[32px]">
-                      {card.label === 'Combined daily users' && !loadedMetrics ? <span>{loading ? '…' : '—'}</span> : <LiveStatNumber
+                      <LiveStatNumber
                         value={card.value}
-                        loading={loading}
-                        placeholder={card.placeholder}
+                        loading={loading || !loadedMetrics}
+                        placeholder={null}
                         cacheKey={card.cacheKey}
-                      />}
+                      />
                     </div>
                     <div className="mt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                       {card.label}
