@@ -2218,18 +2218,3 @@ a[class*=" rounded-full"] {
 :root[data-theme="dark"] .orthodle-how-to .how-to-eyebrow { color: #b5e7c3; }
 :root[data-theme="dark"] .orthodle-how-to .how-to-icon { background: #254333; color: #b5e7c3; }
 :root[data-theme="dark"] .orthodle-how-to, :root[data-theme="dark"] .orthodle-how-to .how-to-close, :root[data-theme="dark"] .orthodle-how-to .how-to-more { border-color: #3c5043; }
-
-/* Admin workspace */
-.admin-workspace .card, .admin-workspace .night-surface { border-radius: 18px; box-shadow: 0 3px 14px #10201805; }
-.admin-workspace :is(button, input, select) { min-height: 42px; }
-.admin-workspace :is(input, select, textarea) { max-width: 100%; }
-.admin-workspace button:disabled { opacity: .5; cursor: not-allowed; }
-.admin-workspace .admin-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 6px; border: 1px solid #ded7ca; border-radius: 10px; background: #fff; padding: 8px 14px; color: #254434; font-size: 13px; font-weight: 600; }
-.admin-workspace .admin-action:hover { background: #f2f7f1; }
-.admin-workspace .admin-workspace-nav { border-bottom: 1px solid #ded7ca; padding-bottom: 12px; }
-.admin-workspace .admin-workspace-nav [aria-pressed="true"] { background: #1f6448; color: white; border-color: #1f6448; }
-.admin-workspace .admin-live-label { border-radius: 999px; padding: 5px 10px; color: #1f6448; background: #eaf5ed; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.admin-workspace :is(button, a, input, select, textarea):focus-visible { outline: 2px solid #2d7651; outline-offset: 3px; }
-@media (max-width: 639px) { .admin-workspace :is(input, select, textarea) { font-size: 16px; } .admin-workspace .sticky.bottom-3 { position: static; } }
-:root[data-theme="dark"] .admin-workspace .admin-action { background: #192d22; border-color: #3c5043; color: #e5eee6; }
-:root[data-theme="dark"] .admin-workspace .admin-live-label { background: #254333; color: #b5e7c3; }

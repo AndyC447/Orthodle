@@ -384,7 +384,6 @@ const noResidentLevelOrder: Level[] = ['med_student', 'attending']
 const planningLevelOrder: Level[] = ['med_student']
 const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
-const MISSING_NOTICE_DISMISSED_KEY = 'orthodle_admin_hide_missing_cases_v1'
 const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'case_stats',
@@ -712,12 +711,9 @@ const CALENDAR_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
 
 export default function AdminPage() {
   const today = useLocalToday()
-  const [workspace, setWorkspace] = useState<'cases' | 'library' | 'activity' | 'settings'>('cases')
-  const [missingNoticeDismissed, setMissingNoticeDismissed] = useState(true)
   const [casesLoading, setCasesLoading] = useState(true)
   const [casesLoaded, setCasesLoaded] = useState(false)
   const [casesError, setCasesError] = useState('')
-  const [casesUpdatedAt, setCasesUpdatedAt] = useState('')
   const caseLoadSequence = useRef(0)
   const refreshCasesRef = useRef<() => Promise<void>>(async () => {})
   const [overviewStatsLoading, setOverviewStatsLoading] = useState(false)
@@ -828,12 +824,7 @@ export default function AdminPage() {
   const [showComposerCaseStats, setShowComposerCaseStats] = useState(false)
   const [showAnalytics, setShowAnalytics] = useState(true)
   const [showCasesByDate, setShowCasesByDate] = useState(true)
-  const [browseDate, setBrowseDate] = useState(today)
-  const [caseLibraryQuery, setCaseLibraryQuery] = useState('')
-  const libraryMatches = useMemo(() => {
-    const query = caseLibraryQuery.trim().toLowerCase()
-    return query ? cases.filter(item => `${item.answer} ${item.category} ${item.case_date}`.toLowerCase().includes(query)) : []
-  }, [cases, caseLibraryQuery])
+  const [browseDate, setBrowseDate] = useState('')
   const [overviewDate, setOverviewDate] = useState(shiftISODate(today, 1))
   const [overviewCalendarMonth, setOverviewCalendarMonth] = useState(
     getWeekStartISO(shiftISODate(today, 1))
@@ -859,7 +850,6 @@ export default function AdminPage() {
   )
 
   useEffect(() => {
-    setMissingNoticeDismissed(window.localStorage.getItem(MISSING_NOTICE_DISMISSED_KEY) === 'true')
     const savedUnlock = window.sessionStorage.getItem('orthodle_admin_unlocked')
     setIsUnlocked(savedUnlock === 'true')
     setAuthReady(true)
@@ -882,14 +872,6 @@ export default function AdminPage() {
       caseLoadSequence.current += 1
     }
   }, [isUnlocked, today])
-
-  function openComposer() {
-    setWorkspace('cases')
-    setShowComposer(true)
-    window.requestAnimationFrame(() => document.getElementById('admin-composer')?.scrollIntoView({
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start',
-    }))
-  }
 
   function refreshSlotBackups(nextDate = caseDate, nextLevel = level) {
     setSlotBackups(getCaseBackupsForSlot(nextDate, nextLevel).slice(0, 6))
@@ -1517,7 +1499,7 @@ export default function AdminPage() {
     return Array.from({ length: 7 }, (_, index) => {
       const day = new Date(windowStart)
       day.setDate(windowStart.getDate() + index)
-      const isoDate = shiftISODate(overviewCalendarMonth, index)
+      const isoDate = day.toISOString().slice(0, 10)
       const requiredLevels = planningLevelOrder
       const readiness = readinessByDate.get(isoDate) || {
         ready: 0,
@@ -1750,7 +1732,6 @@ export default function AdminPage() {
     clue5,
     clue6,
     duplicateAnswerMatches,
-    today,
     diagnosisChoices,
     imageRevealClue,
     imageRevealClue2,
@@ -2298,7 +2279,8 @@ export default function AdminPage() {
   }
 
   function selectOverviewDate(nextDate: string) {
-    if (nextDate) setOverviewDate(nextDate)
+    setOverviewDate(nextDate)
+    setCaseDate(nextDate)
   }
 
   function startCaseFor(date: string, nextLevel: Level) {
@@ -2334,7 +2316,7 @@ export default function AdminPage() {
     setTeachingPoint(getDefaultTeachingPointTemplate(nextLevel))
     setReferenceLinks('')
     setStatus(`Creating ${formatLevel(nextLevel)} case for ${date}`)
-    openComposer()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function clearForm() {
@@ -2420,7 +2402,7 @@ export default function AdminPage() {
     }
     setActiveSubmissionId(null)
     setStatus(`Editing ${c.case_date} · ${c.level}`)
-    openComposer()
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   function editSubmission(submission: SubmissionRow) {
@@ -2521,7 +2503,6 @@ export default function AdminPage() {
       if (request !== caseLoadSequence.current) return
       setCases(data)
       setCasesLoaded(true)
-      setCasesUpdatedAt(new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }))
     } catch {
       if (request === caseLoadSequence.current) setCasesError('Could not refresh the schedule. Displayed cases may be out of date. Try refreshing again.')
     } finally {
@@ -4473,10 +4454,9 @@ export default function AdminPage() {
         <button
           type="button"
           onClick={() => toggleCollapsedSection('cases_by_date')}
-          aria-expanded={!collapsedSections.cases_by_date}
           className="flex w-full items-center justify-between gap-3 text-left"
         >
-          <h2 className="font-serif text-xl font-bold">Case library</h2>
+          <h2 className="font-serif text-xl font-bold">Cases by Date</h2>
           {browseDate ? (
             <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
               {formatShortDate(browseDate)}
@@ -4486,15 +4466,6 @@ export default function AdminPage() {
 
         {!collapsedSections.cases_by_date && showCasesByDate && (
           <div className="mt-4 space-y-3">
-            <label className="grid gap-2 text-sm font-semibold text-[#637268]">Find a case
-              <input type="search" value={caseLibraryQuery} onChange={event => setCaseLibraryQuery(event.target.value)} placeholder="Search diagnosis, date, or category" className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-[#102018]" />
-            </label>
-            {caseLibraryQuery.trim() && <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-              {libraryMatches.slice(0, 24).map(item => <button key={item.id} type="button" onClick={() => editCase(item)} className="rounded-xl border border-[#cfded4] bg-[#f7fbf8] p-3 text-left"><span className="block text-xs text-[#637268]">{item.case_date} · {formatLevel(item.level)}</span><span className="mt-1 block font-semibold text-[#102018]">{item.answer}</span><span className="mt-2 block text-xs font-semibold text-[#1f6448]">Edit case →</span></button>)}
-              {libraryMatches.length === 0 && <p className="text-sm text-[#637268]">No cases match your search.</p>}
-              <p className="text-xs text-[#637268] sm:col-span-2 lg:col-span-3">{libraryMatches.length} matches{libraryMatches.length > 24 ? "; showing the first 24. Narrow your search for more specific results." : "."}</p>
-            </div>}
-
             <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
               <button
                 type="button"
@@ -4523,9 +4494,9 @@ export default function AdminPage() {
                     <button
                       type="button"
                       onClick={() => {
-                        const item = browsedCases.find(item => item.level === 'med_student')
-                        if (item) editCase(item)
-                        else startCaseFor(browseDate || today, 'med_student')
+                        setCaseDate(browseDate || today)
+                        setShowComposer(true)
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
                       }}
                       className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
                     >
@@ -4583,7 +4554,7 @@ export default function AdminPage() {
                                 {formatLevel(levelValue)}
                               </div>
                               <div className="mt-1.5 font-semibold text-[#102018]">
-                                {!casesLoaded ? (casesError ? 'Schedule unavailable' : 'Loading schedule…') : item ? item.answer : 'Not scheduled'}
+                                {item ? item.answer : 'Not scheduled'}
                               </div>
                               <div className="mt-1 text-sm text-[#637268]">
                                 {item ? item.category : 'Open slot'}
@@ -4602,7 +4573,6 @@ export default function AdminPage() {
                               <button
                                 type="button"
                                 onClick={() => startCaseFor(browseDate, levelValue)}
-                                disabled={!casesLoaded || Boolean(casesError)}
                                 className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
                               >
                                 Add
@@ -4652,12 +4622,13 @@ export default function AdminPage() {
             <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
               {title}
             </div>
-            <h2 className="mt-1 font-serif text-xl font-bold text-[#102018]">{new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', {weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'})}</h2>
+            {!showDatePicker && <div className="mt-1 text-sm font-semibold text-[#102018]">{new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>}
           </div>
-          {!showDatePicker && <span className="admin-live-label">{casesError ? 'Refresh needed' : casesLoading ? 'Updating…' : 'Live today'}</span>}
+          {!showDatePicker && <button type="button" disabled={casesLoading} onClick={() => void loadCases()} className="rounded-lg border border-[#ded7ca] px-2.5 py-1.5 text-xs font-semibold text-[#637268] disabled:opacity-50">{casesLoading ? 'Updating…' : 'Refresh'}</button>}
         </div>
+        {!showDatePicker && casesError && <p role="alert" className="mt-2 text-xs text-[#8a5a2b]">{casesError}</p>}
 
-          <div className={showDatePicker ? 'mt-3 grid gap-3 xl:grid-cols-[minmax(0,1fr)_260px]' : 'mt-2.5'}>
+          <div className={showDatePicker ? 'mt-2.5 grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_228px]' : 'mt-2.5'}>
           <div className={`grid gap-2 ${levelOrderForSection.length > 1 ? 'md:grid-cols-2' : ''}`}>
             {levelOrderForSection.map(levelValue => {
               const item = cases.find(entry => entry.level === levelValue)
@@ -4678,8 +4649,6 @@ export default function AdminPage() {
                         {levelValue === 'med_student' ? 'Cases' : formatLevel(levelValue)}
                       </div>
                       {item ? (
-                        <div className="flex items-center gap-2">
-                        <Link href={`/?case=${item.id}&date=${item.case_date}&level=${item.level}`} target="_blank" rel="noreferrer" className="text-xs font-semibold text-[#1f6448] underline underline-offset-4">View ↗</Link>
                         <button
                           type="button"
                           onClick={() => editCase(item)}
@@ -4687,7 +4656,6 @@ export default function AdminPage() {
                         >
                           Edit
                         </button>
-                        </div>
                       ) : (
                         <button
                           type="button"
@@ -4708,9 +4676,9 @@ export default function AdminPage() {
                           ? quickStats
                             ? `${item.category} · ${
                                 quickStats.solveRate !== null
-                                  ? `${Math.round(quickStats.solveRate)}% solved`
-                                  : 'No plays yet'
-                              } · ${quickStats.players} players`
+                                  ? `${Math.round(quickStats.solveRate)}% correct`
+                                  : 'No solves'
+                              } · ${quickStats.players} interacted`
                             : `${item.category} · ${overviewStatsError ? 'Stats unavailable' : 'Updating stats…'}`
                           : casesLoaded ? 'Open slot' : 'Please wait for the schedule to load.'}
                       </div>
@@ -4723,13 +4691,6 @@ export default function AdminPage() {
 
           {showDatePicker ? (
             <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
-              <div className="mb-3 flex flex-wrap items-end gap-2">
-                <label className="grid min-w-[140px] flex-1 gap-1 text-xs font-semibold text-[#637268]">Browse date
-                  <input type="date" aria-label="Overview date" value={overviewDate} onChange={event => selectOverviewDate(event.target.value)} className="w-full rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm text-[#102018]" />
-                </label>
-                <button type="button" className="admin-action" onClick={() => selectOverviewDate(today)}>Today</button>
-                <button type="button" className="admin-action" onClick={() => selectOverviewDate(tomorrow)}>Tomorrow</button>
-              </div>
               <div className="flex items-center justify-between gap-2">
                 <button
                   type="button"
@@ -4780,9 +4741,7 @@ export default function AdminPage() {
                       key={day.isoDate}
                       type="button"
                       onClick={() => selectOverviewDate(day.isoDate)}
-                      aria-pressed={day.isSelected}
-                      aria-label={`${day.isoDate}: ${day.readiness.ready}/${day.readiness.required} scheduled`}
-                      className={`flex min-w-0 min-h-[42px] items-center justify-center rounded-lg border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
+                      className={`flex aspect-square min-h-[30px] items-center justify-center rounded-lg border text-sm font-semibold transition hover:-translate-y-[1px] hover:bg-white ${cellTone}`}
                     >
                       {day.dayNumber}
                     </button>
@@ -4797,26 +4756,20 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="app-surface admin-workspace min-h-screen">
+    <main className="app-surface min-h-screen">
       <Header />
 
-      <div className="mx-auto max-w-[1280px] px-3 py-5 sm:px-6 sm:py-8">
-        <header className="mb-5 flex flex-wrap items-center justify-between gap-4">
-          <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-[#637268]">Orthodle admin</p><h1 className="mt-1 font-serif text-3xl font-bold">Case dashboard</h1><p className="mt-2 text-sm text-[#637268]">Review today, plan your schedule, and manage the site.</p></div>
-          <div className="flex flex-wrap items-center gap-3"><span role="status" className="text-xs text-[#637268]">{casesLoading ? 'Refreshing schedule…' : casesUpdatedAt ? `Updated ${casesUpdatedAt}` : ''}</span><button type="button" className="admin-action" disabled={casesLoading} onClick={() => { void loadCases() }}>Refresh</button><Link className="admin-action" href="/" target="_blank" rel="noreferrer">View site ↗</Link></div>
-        </header>
-        {casesError && <div role="alert" className="mb-4 rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-4 text-sm text-[#8a5a2b]">{casesError}</div>}
-
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
         {playModeSettingsReady && (
-          <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)] xl:items-start">
             {renderOverviewSection({
-              title: 'Today’s case',
+              title: 'Today overview',
               dateText: today,
               cases: todaysCases,
               levelOrderForSection: todaysLevelOrder,
             })}
             {renderOverviewSection({
-              title: 'Schedule explorer',
+              title: `${formatShortDate(overviewDate)} overview`,
               dateText: overviewDate,
               cases: overviewCases,
               levelOrderForSection: overviewLevelOrder,
@@ -4825,22 +4778,18 @@ export default function AdminPage() {
           </div>
         )}
 
-        {casesLoaded && !casesError && !missingNoticeDismissed && incompleteDates.length > 0 && (
-          <div className="mt-4 flex items-start justify-between gap-3 rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-4 text-sm leading-6 text-[#8a5a2b]">
-            <div><p className="font-semibold">Schedule gaps</p><p>These dates have other question types but no daily case: {incompleteDates.map(item => item.date).join(', ')}.</p></div>
-            <button type="button" className="admin-action shrink-0" aria-label="Permanently dismiss missing daily cases notice" title="Don't show this notice again on this browser" onClick={() => { window.localStorage.setItem(MISSING_NOTICE_DISMISSED_KEY, 'true'); setMissingNoticeDismissed(true) }}>×</button>
+        {incompleteDates.length > 0 && (
+          <div className="mt-2 rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-2 text-[12px] leading-5 text-[#8a5a2b]">
+            Missing daily cases on {incompleteDates.map(item => `${item.date} (${item.ready}/${item.required})`).join(', ')}
           </div>
         )}
-        <nav aria-label="Admin workspace" className="admin-workspace-nav my-5 grid grid-cols-2 gap-2 sm:flex">
-          {([{key:'cases',label:'Cases'}, {key:'library',label:'Library'}, {key:'activity',label:'Activity'}, {key:'settings',label:'Site settings'}] as const).map(tab => <button type="button" key={tab.key} aria-pressed={workspace === tab.key} className="admin-action flex-1 sm:flex-none" onClick={() => setWorkspace(tab.key)}>{tab.label}</button>)}
-        </nav>
-        <p className="mb-4 text-sm text-[#637268]">{workspace === 'cases' ? 'Write and schedule your case. Drafts stay in place when you switch sections.' : workspace === 'library' ? 'Find a case by date, diagnosis, or category, then open it in the editor.' : workspace === 'activity' ? 'Review learner activity, feedback, and community tools.' : 'Manage homepage messages, surveys, and visible question types.'}</p>
-        <div className={workspace === 'cases' ? 'mx-auto max-w-[960px]' : ''}>
-          <div hidden={workspace !== 'cases'} className="min-w-0 space-y-4">
-          <section id="admin-composer" className="card scroll-mt-5 rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+
+        <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_320px]">
+          <div className="space-y-3">
+          <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
+            <div className="flex items-center justify-between gap-4">
               <h2 className="font-serif text-xl font-bold">
-                Case editor
+                Create / Schedule Case
               </h2>
 
               <div className="flex items-center gap-2">
@@ -4853,7 +4802,6 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setShowComposer(prev => !prev)}
-                  aria-expanded={showComposer}
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
                 >
                   {showComposer ? 'Hide' : 'Show'}
@@ -5959,14 +5907,13 @@ export default function AdminPage() {
           </section>
           </div>
 
-          <aside aria-label={workspace === 'library' ? 'Case library' : workspace === 'activity' ? 'Activity and community' : 'Site settings'} hidden={workspace === 'cases'} className={workspace === 'library' ? 'min-w-0 space-y-4' : 'grid items-start gap-4 md:grid-cols-2'}>
+          <aside className="flex flex-col gap-3">
             {sidebarSectionOrder
               .filter(sectionId => !hiddenSidebarSectionIds.includes(sectionId))
-              .filter(sectionId => workspace === 'cases' ? false : workspace === 'library' ? sectionId === 'cases_by_date' : workspace === 'settings' ? ['homepage_notes', 'surveys', 'no_resident_mode', 'answer_choices', 'button_subtitles'].includes(sectionId) : ['case_stats', 'email_reminders', 'study_mode', 'analytics', 'feedback', 'groups', 'submissions'].includes(sectionId))
               .map(sectionId => (
               <div
                 key={sectionId}
-                draggable={workspace === 'activity' || workspace === 'settings'}
+                draggable
                 onDragStart={() => handleSidebarDragStart(sectionId)}
                 onDragOver={event => handleSidebarDragOver(event, sectionId)}
                 onDrop={() => handleSidebarDrop(sectionId)}
@@ -5974,7 +5921,7 @@ export default function AdminPage() {
                 className={
                   sidebarDropTarget === sectionId && draggedSidebarSection !== sectionId
                     ? 'rounded-[22px] border-2 border-dashed border-[#cfded4] bg-[#f7fbf8] p-1 transition'
-                    : sectionId === 'analytics' ? 'min-w-0 md:col-span-2' : 'min-w-0'
+                    : '[&>section>div:first-child]:active:cursor-grabbing [&>section>div:first-child]:cursor-grab transition'
                 }
               >
                 {sidebarSections[sectionId]}
