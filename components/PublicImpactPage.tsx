@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import type { ExampleSnapshot } from '@/lib/impact-examples'
 import { ImpactExamples } from '@/components/ImpactExamples'
 import { useImpactStats, type ImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
@@ -38,7 +39,7 @@ function readCachedTopCities() {
   }
 }
 
-export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean }) {
+export function PublicImpactPage({ adminMode = false, initialExamples = null }: { adminMode?: boolean; initialExamples?: ExampleSnapshot | null }) {
   const { metrics: loadedMetrics, loading, error: statsError } = useImpactStats()
   const metrics = loadedMetrics || EMPTY_IMPACT_STATS
   const [cachedTopCities, setCachedTopCities] = useState<string[]>([])
@@ -258,7 +259,7 @@ export function PublicImpactPage({ adminMode = false }: { adminMode?: boolean })
               ) : null}
             </div>
           </div>
-          <ImpactExamples adminMode={adminMode} />
+          <ImpactExamples adminMode={adminMode} initialExamples={initialExamples} />
         </div>
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">

@@ -1,7 +1,9 @@
+import { revalidateTag } from 'next/cache'
+import { readImpactExamples, IMPACT_EXAMPLES_TAG } from '@/lib/impact-examples-server'
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { todayISO } from '@/lib/utils'
-import { EMPTY_EXAMPLES, EXAMPLE_SLOTS, validExampleSelection } from '@/lib/impact-examples'
+import { EXAMPLE_SLOTS, validExampleSelection } from '@/lib/impact-examples'
 
 export const dynamic = 'force-dynamic'
 const fields = 'id, case_date, level, category, prompt'
@@ -17,22 +19,7 @@ function failure(error: unknown) {
 
 export async function GET() {
   try {
-    const db = getSupabaseAdmin()
-    const { data: rows, error } = await db.from('impact_examples').select('slot, case_id')
-    if (error) throw error
-    const ids = (rows || []).map(row => row.case_id).filter(Boolean)
-    const selection = { ...EMPTY_EXAMPLES }
-    let cases = []
-    if (ids.length) {
-      const result = await db.from('cases').select(fields).in('id', ids).lte('case_date', todayISO())
-      if (result.error) throw result.error
-      cases = result.data || []
-    }
-    for (const { key } of EXAMPLE_SLOTS) {
-      const id = rows?.find(row => row.slot === key)?.case_id
-      selection[key] = cases.some(item => item.id === id) ? id : null
-    }
-    return NextResponse.json({ selection, cases })
+    return NextResponse.json(await readImpactExamples())
   } catch (error) { return failure(error) }
 }
 
@@ -69,6 +56,7 @@ export async function POST(request: Request) {
       EXAMPLE_SLOTS.map(({ key }) => ({ slot: key, case_id: body.selection[key] })), { onConflict: 'slot' }
     )
     if (error) throw error
+    revalidateTag(IMPACT_EXAMPLES_TAG, { expire: 0 })
     return NextResponse.json({ ok: true })
   } catch (error) { return failure(error) }
 }

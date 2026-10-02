@@ -36,6 +36,8 @@ test('save without sign-in rejects invalid cases and persists every slot', async
   } }
   const route = load('../app/api/impact-examples/route.ts', {
     '@/lib/impact-examples': helpers,
+    '@/lib/impact-examples-server': { IMPACT_EXAMPLES_TAG: 'impact-examples' },
+    'next/cache': { revalidateTag: () => {} },
     '@/lib/utils': { todayISO: () => '2026-09-27' },
     '@/lib/supabase-admin': { getSupabaseAdmin: () => db },
   })
@@ -46,4 +48,75 @@ test('save without sign-in rejects invalid cases and persists every slot', async
     assert.equal((await save({ action: 'save', selection: { featured: other, anatomy: null, classification: null } })).status, 400)
     assert.equal((await save({ action: 'save', selection: { featured: id, anatomy: null, classification: null } })).status, 200)
     assert.deepEqual(saved, [{ slot: 'featured', case_id: id }, { slot: 'anatomy', case_id: null }, { slot: 'classification', case_id: null }])
+})
+
+test('server snapshot contains the saved selection and only published example cases', async () => {
+  const db = { from(table) {
+    if (table === 'impact_examples') return { select: async () => ({ data: [{ slot: 'featured', case_id: id }, { slot: 'anatomy', case_id: other }], error: null }) }
+    return { select() { return this }, in() { return this }, async lte(_field, date) {
+      assert.equal(date, '2026-10-02')
+      return { data: [{ id, case_date: '2026-09-03', level: 'med_student', category: 'Trauma', prompt: 'Example' }], error: null }
+    } }
+  } }
+  const server = load('../lib/impact-examples-server.ts', {
+    'next/cache': { unstable_cache: fn => fn },
+    '@/lib/impact-examples': helpers,
+    '@/lib/utils': { todayISO: () => '2026-10-02' },
+    '@/lib/supabase-admin': { getSupabaseAdmin: () => db },
+  })
+  const snapshot = await server.getCachedImpactExamples()
+  assert.equal(snapshot.selection.featured, id)
+  assert.equal(snapshot.selection.anatomy, null)
+  assert.equal(snapshot.cases.length, 1)
+})
+
+test('examples render with the page and opened players survive collapse and reopen', () => {
+  const state = [], effects = []
+  let cursor = 0
+  const react = {
+    useState(initial) {
+      const index = cursor++
+      if (!(index in state)) state[index] = initial
+      return [state[index], next => { state[index] = typeof next === 'function' ? next(state[index]) : next }]
+    },
+    useEffect(fn) { effects.push(fn) },
+  }
+  const code = ts.transpileModule(readFileSync(new URL('../components/ImpactExamples.tsx', import.meta.url), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText
+  const module = { exports: {} }
+  const mocks = {
+    react,
+    'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
+    '@/components/EmbeddedCasePlayer': { EmbeddedCasePlayer: 'player' },
+    '@/components/ImpactCasePicker': { ImpactCasePicker: 'picker' },
+    '@/lib/impact-examples': helpers,
+  }
+  new Function('require', 'module', 'exports', code)(name => mocks[name], module, module.exports)
+  const initialExamples = { selection: { featured: id, anatomy: null, classification: null }, cases: [{ id, case_date: '2026-09-03', level: 'med_student', category: 'Trauma' }] }
+  const render = () => {
+    cursor = 0
+    const tree = module.exports.ImpactExamples({ initialExamples })
+    // No client fetch should run for a server-provided snapshot.
+    while (effects.length) assert.equal(effects.shift()(), undefined)
+    return tree
+  }
+  const find = (node, predicate) => {
+    if (!node || typeof node !== 'object') return null
+    if (Array.isArray(node)) return node.map(child => find(child, predicate)).find(Boolean)
+    if (predicate(node)) return node
+    return find(node.props?.children, predicate)
+  }
+  let tree = render()
+  assert.equal(tree.type, 'section')
+  const toggle = () => find(tree, node => node.props?.id === 'example-toggle-featured').props.onClick()
+  assert.equal(find(tree, node => node.type === 'player'), undefined)
+  toggle(); tree = render()
+  assert.ok(find(tree, node => node.type === 'player'))
+  toggle(); tree = render()
+  assert.equal(find(tree, node => node.props?.role === 'region').props.hidden, true)
+  assert.ok(find(tree, node => node.type === 'player'))
+  toggle(); tree = render()
+  assert.equal(find(tree, node => node.props?.role === 'region').props.hidden, false)
+  assert.ok(find(tree, node => node.type === 'player'))
 })

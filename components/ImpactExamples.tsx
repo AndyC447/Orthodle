@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react'
 import { EmbeddedCasePlayer } from '@/components/EmbeddedCasePlayer'
 import { ImpactCasePicker } from '@/components/ImpactCasePicker'
-import { EMPTY_EXAMPLES, EXAMPLE_SLOTS, exampleCaseHref, type ExampleCase, type ExampleSelection } from '@/lib/impact-examples'
+import { EMPTY_EXAMPLES, EXAMPLE_SLOTS, exampleCaseHref, type ExampleCase, type ExampleSelection, type ExampleSnapshot } from '@/lib/impact-examples'
 
-export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
-  const [selection, setSelection] = useState<ExampleSelection>({ ...EMPTY_EXAMPLES })
-  const [draft, setDraft] = useState<ExampleSelection>({ ...EMPTY_EXAMPLES })
-  const [cases, setCases] = useState<ExampleCase[]>([])
+export function ImpactExamples({ adminMode = false, initialExamples = null }: { adminMode?: boolean; initialExamples?: ExampleSnapshot | null }) {
+  const [selection, setSelection] = useState<ExampleSelection>(initialExamples?.selection || { ...EMPTY_EXAMPLES })
+  const [draft, setDraft] = useState<ExampleSelection>(initialExamples?.selection || { ...EMPTY_EXAMPLES })
+  const [cases, setCases] = useState<ExampleCase[]>(initialExamples?.cases || [])
   const [choices, setChoices] = useState<ExampleCase[]>([])
   const [choicesLoaded, setChoicesLoaded] = useState(false)
   const [loadError, setLoadError] = useState('')
@@ -17,7 +17,10 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
   const [saving, setSaving] = useState(false)
   const [activeCaseId, setActiveCaseId] = useState<string | null>(null)
 
+  const [openedCaseIds, setOpenedCaseIds] = useState<Set<string>>(new Set())
+
   useEffect(() => {
+    if (!adminMode && initialExamples) return
     let cancelled = false
     async function load() {
       let selectionLoaded = false
@@ -51,7 +54,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
     }
     void load()
     return () => { cancelled = true }
-  }, [adminMode])
+  }, [adminMode, initialExamples])
 
   async function save() {
     setSaving(true)
@@ -101,7 +104,10 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
                 type="button"
                 aria-expanded={activeCaseId === item.id}
                 aria-controls={`example-player-${key}`}
-                onClick={() => setActiveCaseId(current => current === item.id ? null : item.id)}
+                onClick={() => {
+                  setOpenedCaseIds(current => new Set([...current, item.id]))
+                  setActiveCaseId(current => current === item.id ? null : item.id)
+                }}
                 className="flex min-h-[48px] w-full items-center gap-2 rounded-lg px-2 py-2 text-left font-serif text-[18px] sm:text-[20px] font-bold text-[#102018] transition hover:bg-[#f7fbf8] hover:text-[#1f6448] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448]"
               >
                 <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className={`h-4 w-4 shrink-0 transition-transform ${activeCaseId === item.id ? 'rotate-90' : ''}`}>
@@ -111,7 +117,7 @@ export function ImpactExamples({ adminMode = false }: { adminMode?: boolean }) {
               </button>
             </h3>
             <div id={`example-player-${key}`} role="region" aria-labelledby={`example-toggle-${key}`} hidden={activeCaseId !== item.id} className="mt-2 sm:mt-4">
-              {activeCaseId === item.id && <EmbeddedCasePlayer key={item.id} src={`${exampleCaseHref(item)}&embed=1`} title={`${label}: ${item.category || 'case'}`} />}
+              {openedCaseIds.has(item.id) && <EmbeddedCasePlayer key={item.id} src={`${exampleCaseHref(item)}&embed=1`} title={`${label}: ${item.category || 'case'}`} />}
             </div>
           </article>
         ))}
