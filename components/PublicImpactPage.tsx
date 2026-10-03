@@ -78,7 +78,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
     {
       label: 'Archive plays',
       value: metrics.archiveGuesses,
-      cacheKey: 'orthodle_live_stat_impact_archive_plays_v1',
+      cacheKey: 'orthodle_live_stat_impact_archive_plays_v2',
     },
     {
       label: 'Countries reached',
@@ -213,7 +213,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
                       card.label === 'Countries reached' ? 'col-span-2' : ''
                     }`}
                   >
-                    <div className="font-serif text-[28px] font-bold leading-none text-[#102018] sm:text-[32px]">
+                    <div className="font-serif tabular-nums text-[28px] font-bold leading-none text-[#102018] sm:text-[32px]">
                       <LiveStatNumber
                         value={card.value}
                         loading={loading || !loadedMetrics}
@@ -227,27 +227,27 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
                   </div>
                 ))}
               </div>
-              {statsError && <p role="status" className="mt-3 text-xs text-[#637268]">{loadedMetrics ? 'Snapshot temporarily out of date. Retrying…' : 'Snapshot unavailable. Retrying…'}</p>}
-              {displayedTopCities.length > 0 ? (
+              <p role="status" className="sr-only">{statsError ? 'Snapshot temporarily out of date. Retrying…' : ''}</p>
+              {(
                 <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3">
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                     Top user zones
                   </div>
                   <div className="mt-2 grid gap-1.5 text-[13px] font-bold text-[#102018] min-[380px]:grid-cols-2">
-                    {[displayedTopCities.slice(0, 3), displayedTopCities.slice(3, 6)].map(
+                    {[Array.from({ length: 3 }, (_, i) => displayedTopCities[i]), Array.from({ length: 3 }, (_, i) => displayedTopCities[i + 3])].map(
                       (column, columnIndex) => (
                         <ol key={columnIndex} className="grid gap-1.5">
                           {column.map((city, cityIndex) => {
                             const rank = columnIndex * 3 + cityIndex + 1
                             return (
                               <li
-                                key={city}
+                                key={rank}
                                 className="flex items-center gap-2 rounded-[10px] bg-[#f7fbf8] px-2.5 py-2"
                               >
                                 <span className="font-serif text-[15px] text-[#1f6448]">
                                   {rank}.
                                 </span>
-                                <span>{city}</span>
+                                <span className="truncate" title={city}>{city || '—'}</span>
                               </li>
                             )
                           })}
@@ -256,7 +256,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
                     )}
                   </div>
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
           <ImpactExamples adminMode={adminMode} initialExamples={initialExamples} />

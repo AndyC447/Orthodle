@@ -70,8 +70,9 @@ test('server snapshot contains the saved selection and only published example ca
   assert.equal(snapshot.cases.length, 1)
 })
 
-test('examples render with the page and opened players survive collapse and reopen', () => {
-  const state = [], effects = []
+test('examples stay loaded within a visit but reset on cached navigation and browser restoration', () => {
+  const state = [], effects = [], activations = []
+  const listeners = new Map()
   let cursor = 0
   const react = {
     useState(initial) {
@@ -79,7 +80,13 @@ test('examples render with the page and opened players survive collapse and reop
       if (!(index in state)) state[index] = initial
       return [state[index], next => { state[index] = typeof next === 'function' ? next(state[index]) : next }]
     },
-    useEffect(fn) { effects.push(fn) },
+    useEffect(fn, deps) {
+      const index = cursor++
+      if (state[index] && deps.every((value, i) => Object.is(value, state[index][i]))) return
+      state[index] = deps
+      effects.push(fn)
+      activations.push(fn)
+    },
   }
   const code = ts.transpileModule(readFileSync(new URL('../components/ImpactExamples.tsx', import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
@@ -92,13 +99,16 @@ test('examples render with the page and opened players survive collapse and reop
     '@/components/ImpactCasePicker': { ImpactCasePicker: 'picker' },
     '@/lib/impact-examples': helpers,
   }
-  new Function('require', 'module', 'exports', code)(name => mocks[name], module, module.exports)
+  new Function('require', 'module', 'exports', 'window', 'fetch', code)(name => mocks[name], module, module.exports, {
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: name => listeners.delete(name),
+  }, () => assert.fail('Server-provided examples should not be fetched again'))
   const initialExamples = { selection: { featured: id, anatomy: null, classification: null }, cases: [{ id, case_date: '2026-09-03', level: 'med_student', category: 'Trauma' }] }
   const render = () => {
     cursor = 0
     const tree = module.exports.ImpactExamples({ initialExamples })
     // No client fetch should run for a server-provided snapshot.
-    while (effects.length) assert.equal(effects.shift()(), undefined)
+    while (effects.length) effects.shift()()
     return tree
   }
   const find = (node, predicate) => {
@@ -119,4 +129,18 @@ test('examples render with the page and opened players survive collapse and reop
   toggle(); tree = render()
   assert.equal(find(tree, node => node.props?.role === 'region').props.hidden, false)
   assert.ok(find(tree, node => node.type === 'player'))
+  // Returning through Next's preserved page activates effects again.
+  const cleanup = activations[1]()
+  tree = render()
+  assert.equal(find(tree, node => node.type === 'player'), undefined)
+  assert.equal(find(tree, node => node.props?.role === 'region').props.hidden, true)
+  toggle(); tree = render()
+  assert.ok(find(tree, node => node.type === 'player'))
+  // Back/forward cache restores the document without mounting React again.
+  listeners.get('pageshow')({ persisted: true })
+  tree = render()
+  assert.equal(find(tree, node => node.type === 'player'), undefined)
+  assert.equal(find(tree, node => node.props?.role === 'region').props.hidden, true)
+  cleanup()
+  assert.equal(listeners.size, 0)
 })

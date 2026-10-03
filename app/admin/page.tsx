@@ -1,4 +1,5 @@
 'use client'
+import { countArchivePlays, isArchiveGuess } from '@/lib/audience-stats'
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import Link from 'next/link'
@@ -2771,7 +2772,6 @@ export default function AdminPage() {
       (sum, row) => sum + row.unique_sessions,
       0
     )
-    const archivePlaySessions = new Set<string>()
     const todayCaseSessions = new Set<string>()
     const todayArchiveSessions = new Set<string>()
     let todayCaseGuesses = 0
@@ -2789,22 +2789,13 @@ export default function AdminPage() {
         if (guess.is_correct) todayCaseCorrectGuesses += 1
       }
 
-      if (guessDate === today && caseDate && caseDate < today) {
+      if (guessDate === today && isArchiveGuess(guess)) {
         todayArchiveSessions.add(guess.session_id)
         todayArchiveGuesses += 1
         if (guess.is_correct) todayArchiveCorrectGuesses += 1
       }
-
-      if (!caseDate || caseDate >= today) continue
-
-      const archiveKey =
-        guess.case_id && guess.session_id
-          ? `${guess.session_id}__${guess.case_id}`
-          : `${guess.session_id}__${caseDate}__${guess.cases?.level || 'unknown'}`
-
-      archivePlaySessions.add(archiveKey)
     }
-    const archivePlays = archivePlaySessions.size
+    const archivePlays = countArchivePlays(guesses)
     const todayRow = byDate[today] || {
       date: today,
       visits: 0,
@@ -4294,7 +4285,7 @@ export default function AdminPage() {
                         value={analyticsSummary.archivePlays}
                         loading={false}
                         placeholder={6029}
-                        cacheKey="orthodle_live_stat_admin_archive_plays_v1"
+                        cacheKey="orthodle_live_stat_admin_archive_plays_v2"
                       />
                     </div>
                   </div>

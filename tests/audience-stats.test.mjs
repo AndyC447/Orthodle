@@ -103,3 +103,26 @@ test('public snapshot includes all pages and applies the same exclusions as admi
   assert.equal(cached.body.combinedDailyUsers, result.body.combinedDailyUsers)
   assert.equal(pages.length, requests)
 })
+
+test('archive plays use the submission day and deduplicate browser/case pairs', () => {
+  const guess = (session_id, case_id, case_date, created_at) => ({ session_id, case_id, cases: { case_date }, created_at })
+  const daily = guess('a', 'one', '2026-05-01', '2026-05-01T18:00:00Z')
+  assert.equal(audience.isArchiveGuess(daily), false)
+  assert.equal(audience.countArchivePlays([
+    daily,
+    guess('a', 'one', '2026-05-01', '2026-05-02T18:00:00Z'),
+    guess('a', 'one', '2026-05-01', '2026-05-03T18:00:00Z'),
+    guess('b', 'one', '2026-05-01', '2026-05-02T18:00:00Z'),
+    guess('a', 'two', '2026-05-01', '2026-05-02T18:00:00Z'),
+    guess('a', 'future', '2026-06-01', '2026-05-02T18:00:00Z'),
+    guess(null, 'two', '2026-05-01', '2026-05-02T18:00:00Z'),
+  ]), 3)
+})
+
+test('archive classification respects Pacific midnight and missing data', () => {
+  const base = { session_id: 'a', case_id: 'one', cases: [{ case_date: '2026-10-02' }] }
+  assert.equal(audience.isArchiveGuess({ ...base, created_at: '2026-10-03T06:59:00Z' }), false)
+  assert.equal(audience.isArchiveGuess({ ...base, created_at: '2026-10-03T07:00:00Z' }), true)
+  assert.equal(audience.isArchiveGuess({ ...base, created_at: 'invalid' }), false)
+  assert.equal(audience.isArchiveGuess({ ...base, cases: null, created_at: '2026-10-03T07:00:00Z' }), false)
+})

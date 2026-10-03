@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
@@ -66,6 +66,32 @@ export default function ArchivePage() {
   const [answerQuery, setAnswerQuery] = useState('')
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
   const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
+  const savedScroll = useRef<number | null>(null)
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem('orthodle_archive_view_v1') || 'null')
+      if (!saved) return
+      if (/^\d{4}-\d{2}$/.test(saved.month) && saved.month >= LAUNCH_DATE.slice(0, 7) && saved.month <= today.slice(0, 7)) setMonth(saved.month)
+      if (typeof saved.selectedDate === 'string') setSelectedDate(saved.selectedDate)
+      if (typeof saved.selectedCategory === 'string') setSelectedCategory(saved.selectedCategory)
+      if (typeof saved.answerQuery === 'string') setAnswerQuery(saved.answerQuery)
+      if (Number.isFinite(saved.scrollY)) savedScroll.current = Math.max(0, saved.scrollY)
+    } catch { /* Storage may be unavailable. */ }
+  }, [])
+  useEffect(() => {
+    if (loading || savedScroll.current === null) return
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo({ top: savedScroll.current || 0, behavior: 'instant' })
+      savedScroll.current = null
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [loading])
+  function rememberArchiveSpot() {
+    try {
+      sessionStorage.setItem('orthodle_archive_view_v1', JSON.stringify({ month, selectedDate: activeDate, selectedCategory, answerQuery, scrollY: window.scrollY }))
+    } catch { /* Navigation still works without storage. */ }
+  }
+
   useEffect(() => {
     setCompletedArchiveKeys(new Set([...getCompletedCaseKeys()].map(key => key.replace(/:daily$/, ':archive'))))
   }, [])
@@ -261,7 +287,7 @@ export default function ArchivePage() {
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div><h1 className="font-serif text-3xl font-bold sm:text-4xl">Archives</h1>
             <p className="mt-2 text-sm text-[#637268]">Pick a day and explore its cases. Daily, anatomy, and classification questions are all here.</p></div>
-          {surpriseTarget && <Link className={`${buttonClass} archive-surprise`} href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}>Surprise me</Link>}
+          {surpriseTarget && <Link onClick={rememberArchiveSpot} className={`${buttonClass} archive-surprise`} href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}>Surprise me</Link>}
         </div>
         <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
           <label className="grid gap-1.5 text-sm font-semibold">Search cases
@@ -313,7 +339,7 @@ export default function ArchivePage() {
           <section className="mt-6" aria-label="Cases for selected day" aria-live="polite">
             {activeDate ? <>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-serif text-xl font-bold">{formatDate(activeDate)}</h2><span className="text-sm text-[#637268]">Choose a case to play or revisit</span></div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{activeCases.map(item => <Link key={item.id} href={`/?case=${item.id}&date=${item.case_date}&level=${item.level}`} className={`archive-case rounded-xl border p-4 ${completed(item) ? 'archive-completed' : 'archive-available'}`}>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{activeCases.map(item => <Link key={item.id} onClick={rememberArchiveSpot} href={`/?case=${item.id}&date=${item.case_date}&level=${item.level}`} className={`archive-case rounded-xl border p-4 ${completed(item) ? 'archive-completed' : 'archive-available'}`}>
                 <div className="text-xs font-semibold">{toTitleCase(formatLevel(item.level, item.case_date, item).toLowerCase())}</div>
                 <h3 className="mt-1 font-serif text-xl font-bold">{formatCategoryLabel(item.category)}</h3>
                 <div className="mt-4 flex items-center justify-between text-sm font-semibold"><span>{completed(item) ? '✓ Completed · Play again' : 'Pending · Open case'}</span><span aria-hidden="true">→</span></div>

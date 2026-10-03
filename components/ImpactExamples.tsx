@@ -56,6 +56,21 @@ export function ImpactExamples({ adminMode = false, initialExamples = null }: { 
     return () => { cancelled = true }
   }, [adminMode, initialExamples])
 
+  useEffect(() => {
+    // Next can retain this page in its navigation cache. Each activation is a
+    // new demo session, even when React restores the existing component state.
+    const resetExamples = () => {
+      setActiveCaseId(null)
+      setOpenedCaseIds(new Set())
+    }
+    resetExamples()
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) resetExamples()
+    }
+    window.addEventListener('pageshow', onPageShow)
+    return () => window.removeEventListener('pageshow', onPageShow)
+  }, [])
+
   async function save() {
     setSaving(true)
     setStatus('')

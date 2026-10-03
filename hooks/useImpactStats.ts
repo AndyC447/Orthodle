@@ -32,7 +32,7 @@ export function useImpactStats(enabled = true) {
         const next = await response.json() as ImpactStats
         if (!Number.isFinite(next.combinedDailyUsers) || !Number.isFinite(next.uniqueUsers)) throw new Error('Invalid audience stats')
         if (controller.signal.aborted) return
-        setMetrics(next)
+        setMetrics(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next)
         setError(Boolean(next.stale))
       } catch {
         if (!controller.signal.aborted) setError(true)

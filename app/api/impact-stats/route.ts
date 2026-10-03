@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
-import { analyticsDateISO, calculateAudienceStats } from '@/lib/audience-stats'
+import { countArchivePlays, calculateAudienceStats } from '@/lib/audience-stats'
 import { filterExcludedSessionRows, getExcludedStatsSessionIds } from '@/lib/stats-exclusions'
 
 type VisitRow = {
@@ -11,6 +11,7 @@ type VisitRow = {
 }
 
 type GuessRow = {
+  case_id: string | null
   session_id: string
   created_at: string
   cases?: { case_date: string | null } | { case_date: string | null }[] | null
@@ -55,12 +56,6 @@ function cleanLocationLabel(value: string | null) {
   return normalized
 }
 
-function getCaseDate(guess: GuessRow) {
-  if (!guess.cases) return null
-  if (Array.isArray(guess.cases)) return guess.cases[0]?.case_date || null
-  return guess.cases.case_date
-}
-
 async function fetchPaged<T>(table: string, select: string) {
   const rows: T[] = []
   let offset = 0
@@ -96,7 +91,7 @@ async function fetchCount(table: string) {
 async function buildImpactStats(): Promise<ImpactStats> {
   const [visitRows, guessRows, caseCount, excludedIds] = await Promise.all([
     fetchPaged<VisitRow>('visits', 'session_id, created_at, geo_country, geo_city'),
-    fetchPaged<GuessRow>('guesses', 'session_id, created_at, cases(case_date)'),
+    fetchPaged<GuessRow>('guesses', 'case_id, session_id, created_at, cases(case_date)'),
     fetchCount('cases'),
     getExcludedStatsSessionIds(),
   ])
@@ -107,8 +102,8 @@ async function buildImpactStats(): Promise<ImpactStats> {
   const { uniqueUsers, combinedDailyUsers } = calculateAudienceStats([...visits, ...guesses])
   const countries = new Set<string>()
   const citySessions = new Map<string, Set<string>>()
-  const today = analyticsDateISO(new Date().toISOString())!
-  let archiveGuesses = 0
+  // Retain the response field for existing clients; it now counts distinct plays.
+  const archiveGuesses = countArchivePlays(guesses)
 
   for (const visit of visits) {
     if (visit.geo_country?.trim()) countries.add(visit.geo_country.trim())
@@ -118,11 +113,6 @@ async function buildImpactStats(): Promise<ImpactStats> {
       if (!citySessions.has(city)) citySessions.set(city, new Set())
       citySessions.get(city)!.add(visit.session_id)
     }
-  }
-
-  for (const guess of guesses) {
-    const caseDate = getCaseDate(guess)
-    if (caseDate && caseDate < today) archiveGuesses += 1
   }
 
   const topCities = [...citySessions.entries()]

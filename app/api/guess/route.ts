@@ -4,8 +4,12 @@ import { supabase } from '@/lib/supabase'
 import { isAcceptedGuess } from '@/lib/utils'
 
 export async function POST(req: Request) {
-  const { caseId, guess, sessionId, doNotTrack, preview } = await req.json()
+  const { caseId, guess, sessionId, doNotTrack, preview, requestId } = await req.json()
   const normalizedGuess = typeof guess === 'string' ? guess.trim() : ''
+  if (!normalizedGuess || typeof caseId !== 'string' || typeof sessionId !== 'string' || !sessionId.trim() ||
+      (requestId !== undefined && (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)))) {
+    return NextResponse.json({ error: 'Invalid guess submission' }, { status: 400 })
+  }
   const requestUrl = new URL(req.url)
   const host = req.headers.get('host') || requestUrl.host || ''
   const isLocalRequest =
@@ -42,12 +46,25 @@ export async function POST(req: Request) {
     return NextResponse.json({ correct, remaining: 6 })
   }
 
-  await supabase.from('guesses').insert({
+  const { error: insertError } = await supabase.from('guesses').insert({
+    ...(requestId ? { id: requestId } : {}),
     case_id: caseId,
     session_id: sessionId,
     guess_text: normalizedGuess,
     is_correct: correct,
   })
+
+  if (insertError) {
+    if (insertError.code !== '23505' || !requestId) {
+      return NextResponse.json({ error: 'Could not save guess. Please retry.' }, { status: 503 })
+    }
+    // The primary key makes retries atomic, including across server instances.
+    const { data: existing, error: readError } = await supabase.from('guesses')
+      .select('case_id, session_id, guess_text').eq('id', requestId).single()
+    if (readError || !existing || existing.case_id !== caseId || existing.session_id !== sessionId || existing.guess_text !== normalizedGuess) {
+      return NextResponse.json({ error: 'Submission ID conflict. Please retry.' }, { status: 409 })
+    }
+  }
 
   const { count } = await supabase
     .from('guesses')

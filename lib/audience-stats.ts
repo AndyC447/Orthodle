@@ -33,3 +33,21 @@ export function calculateAudienceStats(
     combinedDailyUsers: [...sessionsByDate.values()].reduce((sum, sessions) => sum + sessions.size, 0),
   }
 }
+
+export type ArchiveGuess = {
+  session_id: string | null
+  case_id: string | null
+  created_at: string
+  cases?: { case_date: string | null } | { case_date: string | null }[] | null
+}
+
+export function isArchiveGuess(guess: ArchiveGuess) {
+  const caseDate = Array.isArray(guess.cases) ? guess.cases[0]?.case_date : guess.cases?.case_date
+  const playedDate = analyticsDateISO(guess.created_at)
+  return Boolean(caseDate && playedDate && caseDate < playedDate)
+}
+
+export function countArchivePlays(guesses: ReadonlyArray<ArchiveGuess>) {
+  return new Set(guesses.filter(guess => guess.session_id && guess.case_id && isArchiveGuess(guess))
+    .map(guess => JSON.stringify([guess.session_id, guess.case_id]))).size
+}

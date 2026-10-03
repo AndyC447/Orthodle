@@ -7,6 +7,7 @@ export function EmbeddedCasePlayer({ src, title }: { src: string; title: string 
   const cleanup = useRef<(() => void) | null>(null)
   const [height, setHeight] = useState(420)
   const [loaded, setLoaded] = useState(false)
+  const [revision, setRevision] = useState(0)
   useEffect(() => () => cleanup.current?.(), [])
 
   function resizeOnLoad() {
@@ -42,8 +43,11 @@ export function EmbeddedCasePlayer({ src, title }: { src: string; title: string 
 
   return (
     <div className="relative min-w-0" aria-busy={!loaded}>
-      {!loaded && <p role="status" className="absolute inset-x-0 top-6 text-center text-sm text-[#637268]">Loading example…</p>}
-      <iframe ref={frame} src={src} title={title} onLoad={resizeOnLoad} style={{ height }} className={`block w-full border-0 ${loaded ? '' : 'opacity-0'}`} />
+      <div className="mb-2 flex justify-end">
+        <button type="button" onClick={() => { cleanup.current?.(); setLoaded(false); setRevision(value => value + 1) }} className="rounded-lg border border-[#dfe5dd] px-3 py-2 text-sm font-semibold text-[#1f6448] focus-visible:ring-2 focus-visible:ring-[#1f6448]">Reset example</button>
+      </div>
+      {!loaded && <p role="status" className="absolute inset-x-0 top-16 text-center text-sm text-[#637268]">Loading example…</p>}
+      <iframe key={revision} ref={frame} src={src} title={title} onLoad={resizeOnLoad} style={{ height }} className={`block w-full border-0 ${loaded ? '' : 'opacity-0'}`} />
     </div>
   )
 }

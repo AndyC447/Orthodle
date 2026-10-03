@@ -12,6 +12,7 @@ import {
   serializeAnatomyGuessLetters,
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
+import { ArchiveCaseActions } from '@/components/ArchiveCaseActions'
 import { HowToPlayDialog } from '@/components/HowToPlayDialog'
 import { PublicFooter } from '@/components/PublicFooter'
 import {
@@ -586,6 +587,8 @@ function PlayPageContent() {
   const isEmbeddedExample = Boolean(caseParam) && searchParams.get('embed') === '1'
   const isAdminPreview = searchParams.get('preview') === '1'
   const guessInputRef = useRef<HTMLInputElement | null>(null)
+  const guessInFlightRef = useRef(false)
+  const pendingGuessRef = useRef<{ signature: string; requestId: string } | null>(null)
   const suggestionListRef = useRef<HTMLDivElement | null>(null)
   const findingsRef = useRef<HTMLDivElement | null>(null)
   const solvedCardRef = useRef<HTMLDivElement | null>(null)
@@ -3505,9 +3508,10 @@ function PlayPageContent() {
     displayGuess?: string,
     submittedLetters?: string[]
   ) {
-    if (!dailyCase || gameWon || gameOver) return
+    if (!dailyCase || gameWon || gameOver || guessInFlightRef.current) return
 
     const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
+    if (!currentGuess) return
     const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
     const selectedLettersForGuess = submittedLetters || []
     const refocusGuessInput = () => {
@@ -3526,6 +3530,7 @@ function PlayPageContent() {
       setShowSuggestions(false)
     }
     let data: { correct: boolean; remaining: number }
+    guessInFlightRef.current = true
     try {
       data = (isAdminPreview || isEmbeddedExample)
         ? (() => {
@@ -3547,11 +3552,16 @@ function PlayPageContent() {
           })()
         : await (async () => {
             const sessionId = getSessionId()
+            const signature = JSON.stringify([dailyCase.id, sessionId, guesses.length, currentGuess])
+            if (pendingGuessRef.current?.signature !== signature) {
+              pendingGuessRef.current = { signature, requestId: crypto.randomUUID() }
+            }
             const res = await fetch('/api/guess', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 caseId: dailyCase.id,
+                requestId: pendingGuessRef.current.requestId,
                 guess: currentGuess,
                 sessionId,
                 doNotTrack: isTrackingDisabledForThisBrowser(),
@@ -3559,12 +3569,16 @@ function PlayPageContent() {
               }),
             })
 
-            return res.json()
+            const result = await res.json()
+            if (!res.ok || typeof result.correct !== 'boolean') throw new Error('Could not save guess')
+            pendingGuessRef.current = null
+            return result
           })()
     } catch {
-      setGuess('')
-      setMessage('Could not check that guess right now.')
+      setMessage('Could not check that guess right now. Please retry.')
       return
+    } finally {
+      guessInFlightRef.current = false
     }
     const nextGuessCount = guesses.length + 1
 
@@ -6125,6 +6139,9 @@ function PlayPageContent() {
                     )}
                   </div>
 
+                  {roundComplete && !isEmbeddedExample && !isAdminPreview && dailyCase.case_date !== today && (
+                    <ArchiveCaseActions currentId={dailyCase.id} />
+                  )}
                   {roundComplete && !isEmbeddedExample && (
                     <div className="mx-auto mt-2 w-full max-w-[460px]">
                       <div className="grid gap-2 sm:grid-cols-2">
@@ -6162,12 +6179,14 @@ function PlayPageContent() {
                             >
                               Share the case
                             </button>
-                            <Link
-                              href="/archive"
-                              className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
-                            >
-                              Browse archive
-                            </Link>
+                            {dailyCase.case_date === today && (
+                              <Link
+                                href="/archive"
+                                className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
+                              >
+                                Browse archive
+                              </Link>
+                            )}
                             <Link
                               href="/stats"
                               className="orthodle-home-secondary-action orthodle-solved-action orthodle-micro-press orthodle-tap-ripple rounded-lg border border-[#ded7ca] bg-white px-4 py-2 text-center font-semibold text-[#102018] transition hover:bg-[#fbfaf7]"
