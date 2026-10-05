@@ -3511,7 +3511,6 @@ function PlayPageContent() {
     if (!dailyCase || gameWon || gameOver || guessInFlightRef.current) return
 
     const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
-    if (!currentGuess) return
     const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
     const selectedLettersForGuess = submittedLetters || []
     const refocusGuessInput = () => {

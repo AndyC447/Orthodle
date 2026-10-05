@@ -6,7 +6,7 @@ import { isAcceptedGuess } from '@/lib/utils'
 export async function POST(req: Request) {
   const { caseId, guess, sessionId, doNotTrack, preview, requestId } = await req.json()
   const normalizedGuess = typeof guess === 'string' ? guess.trim() : ''
-  if (!normalizedGuess || typeof caseId !== 'string' || typeof sessionId !== 'string' || !sessionId.trim() ||
+  if (typeof guess !== 'string' || typeof caseId !== 'string' || typeof sessionId !== 'string' || !sessionId.trim() ||
       (requestId !== undefined && (typeof requestId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)))) {
     return NextResponse.json({ error: 'Invalid guess submission' }, { status: 400 })
   }

@@ -55,7 +55,7 @@ test('reusing an ID for another answer is rejected; a new attempt is allowed', a
 })
 test('invalid submissions and failed writes do not report success', async () => {
   const { send, rows } = setup()
-  assert.equal((await send({ guess: ' ' })).status, 400)
+  assert.equal((await send({ guess: null })).status, 400)
   assert.equal((await send({ requestId: 'invalid' })).status, 400)
   assert.equal(rows.size, 0)
   assert.equal((await setup(true).send({})).status, 503)
@@ -63,5 +63,25 @@ test('invalid submissions and failed writes do not report success', async () => 
 test('untracked previews do not insert records', async () => {
   const { send, rows } = setup()
   assert.equal((await send({ preview: true })).status, 200)
+  assert.equal(rows.size, 0)
+})
+
+test('empty and whitespace guesses consume one attempt and retries stay deduplicated', async () => {
+  const { send, rows } = setup()
+  const response = await send({ guess: '   ' })
+  assert.equal(response.status, 200)
+  assert.deepEqual(await response.json(), { correct: false, remaining: 5 })
+  assert.equal([...rows.values()][0].guess_text, '')
+  await send({ guess: '' })
+  assert.equal(rows.size, 1)
+  const next = await send({ guess: '', requestId: '22222222-2222-4222-8222-222222222222' })
+  assert.equal((await next.json()).remaining, 4)
+})
+
+test('preview accepts an empty guess without recording it', async () => {
+  const { send, rows } = setup()
+  const response = await send({ guess: '', preview: true })
+  assert.equal(response.status, 200)
+  assert.equal((await response.json()).correct, false)
   assert.equal(rows.size, 0)
 })
