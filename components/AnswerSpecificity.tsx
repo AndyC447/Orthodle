@@ -5,10 +5,10 @@ export function AnswerSpecificityBadge({ value }: { value?: string | null }) {
   if (state === 'off') return null
   const { label, helper } = ANSWER_SPECIFICITY[state]
   return (
-    <div className="mt-3">
-      <span title={helper} className="inline-flex rounded-full border border-[#cfe2d6] bg-[#f2faf5] px-3 py-1 text-xs font-semibold text-[#1f6448]">{label}</span>
+    <details key={state} className="mt-3">
+      <summary className="inline-flex cursor-pointer list-none rounded-full border border-[#cfe2d6] bg-[#f2faf5] px-3 py-1 text-xs font-semibold text-[#1f6448] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1f6448] [&::-webkit-details-marker]:hidden">{label}</summary>
       <p className="mt-1 text-xs leading-relaxed text-[#637268]">{helper}</p>
-    </div>
+    </details>
   )
 }
 

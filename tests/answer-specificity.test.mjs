@@ -26,13 +26,15 @@ const expected = {
   named_fracture: ['🎯 Named Fracture Required', 'Identify the specific named fracture pattern. A general fracture diagnosis will not be accepted.'],
 }
 
-test('player renders exact badge/helper text; legacy and off cases render no markup', () => {
+test('player helper is in a closed native disclosure; legacy and off cases render no markup', () => {
   for (const value of [undefined, null, '', 'off', 'unknown']) {
     assert.equal(renderToStaticMarkup(React.createElement(AnswerSpecificityBadge, { value })), '')
   }
   for (const [value, texts] of Object.entries(expected)) {
     const html = renderToStaticMarkup(React.createElement(AnswerSpecificityBadge, { value }))
     texts.forEach(text => assert.ok(html.includes(text)))
+    assert.match(html, /^<details[^>]*><summary/)
+    assert.doesNotMatch(html, /<details[^>]*\bopen\b|title=/)
   }
 })
 
