@@ -1,4 +1,7 @@
 'use client'
+
+import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
+import { normalizeAnswerSpecificity, type AnswerSpecificity } from '@/lib/answer-specificity'
 import { countArchivePlays, isArchiveGuess } from '@/lib/audience-stats'
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from 'react'
@@ -42,6 +45,7 @@ type CaseRow = {
   contributor_name: string | null
   category: string
   prompt: string
+  answer_specificity?: AnswerSpecificity
   answer: string
   synonyms: string[] | null
   image_url: string | null
@@ -441,6 +445,7 @@ type AdminCaseDraft = {
   contributorName: string
   category: string
   prompt: string
+  answer_specificity?: AnswerSpecificity
   answer: string
   synonyms: string
   anatomyCorrectChoices: string
@@ -733,6 +738,7 @@ export default function AdminPage() {
   const [category, setCategory] = useState('')
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false)
   const [prompt, setPrompt] = useState('')
+  const [answerSpecificity, setAnswerSpecificity] = useState<AnswerSpecificity>('off')
   const [answer, setAnswer] = useState('')
   const [showAnswerSuggestions, setShowAnswerSuggestions] = useState(false)
   const [synonyms, setSynonyms] = useState('')
@@ -977,6 +983,7 @@ export default function AdminPage() {
           setContributorName(draft.contributorName || '')
           setCategory(draft.category || '')
           setPrompt(draft.prompt || '')
+          setAnswerSpecificity(normalizeAnswerSpecificity(draft.answer_specificity))
           setAnswer(draft.answer || '')
           setSynonyms(draft.synonyms || '')
           setAnatomyCorrectChoices(draft.anatomyCorrectChoices || '')
@@ -1108,6 +1115,7 @@ export default function AdminPage() {
     const hasMeaningfulDraftContent = Boolean(
       contributorName.trim() ||
         category.trim() ||
+        answerSpecificity !== 'off' ||
         prompt.trim() ||
         answer.trim() ||
         synonyms.trim() ||
@@ -1145,6 +1153,7 @@ export default function AdminPage() {
       contributorName,
       category,
       prompt,
+      answer_specificity: answerSpecificity,
       answer,
       synonyms,
       anatomyCorrectChoices,
@@ -1182,6 +1191,7 @@ export default function AdminPage() {
     contributorName,
     category,
     prompt,
+    answerSpecificity,
     answer,
     synonyms,
     anatomyCorrectChoices,
@@ -1877,6 +1887,7 @@ export default function AdminPage() {
       contributor_name: null,
       category: category.trim(),
       prompt: prompt.trim(),
+      answer_specificity: answerSpecificity,
       answer: answer.trim(),
       synonyms: storedSynonyms,
       image_url: imageUrl.trim() || null,
@@ -2292,6 +2303,7 @@ export default function AdminPage() {
     setContributorName('')
     setCategory('')
     setPrompt('')
+    setAnswerSpecificity('off')
     setAnswer('')
     setSynonyms('')
     setAnatomyCorrectChoices('')
@@ -2328,6 +2340,7 @@ export default function AdminPage() {
     setContributorName('')
     setCategory('')
     setPrompt('')
+    setAnswerSpecificity('off')
     setAnswer('')
     setSynonyms('')
     setAnatomyCorrectChoices('')
@@ -2368,6 +2381,7 @@ export default function AdminPage() {
     setContributorName(c.contributor_name || '')
     setCategory(c.category || '')
     setPrompt(c.prompt || '')
+    setAnswerSpecificity(normalizeAnswerSpecificity(c.answer_specificity))
     setAnswer(c.answer || '')
     setSynonyms(extractPlainSynonyms(c.synonyms || []).join(', '))
     setAnatomyCorrectChoices(getCorrectAnatomyChoiceLetters(
@@ -2414,6 +2428,7 @@ export default function AdminPage() {
     setContributorName(submission.contributor_name || '')
     setCategory(submission.category || '')
     setPrompt(submission.prompt || '')
+    setAnswerSpecificity('off')
     setAnswer(submission.answer || '')
     setSynonyms(extractPlainSynonyms(submission.synonyms || []).join(', '))
     setAnatomyCorrectChoices(getCorrectAnatomyChoiceLetters(
@@ -2468,6 +2483,7 @@ export default function AdminPage() {
       contributor_name: snapshot.contributor_name || null,
       category: snapshot.category || '',
       prompt: snapshot.prompt || '',
+      answer_specificity: normalizeAnswerSpecificity(snapshot.answer_specificity),
       answer: snapshot.answer || '',
       synonyms: snapshot.synonyms || null,
       image_url: snapshot.image_url || null,
@@ -3650,6 +3666,7 @@ export default function AdminPage() {
       contributor_name: null,
       category,
       prompt,
+      answer_specificity: answerSpecificity,
       answer,
       synonyms: storedSynonyms,
       image_url: imageUrl || null,
@@ -4911,6 +4928,8 @@ export default function AdminPage() {
                   ) : null}
                 </div>
               </label>
+
+              <AnswerSpecificityField value={answerSpecificity} onChange={setAnswerSpecificity} />
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 <span>Case Prompt</span>

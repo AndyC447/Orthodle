@@ -1,3 +1,5 @@
+import { normalizeAnswerSpecificity, type AnswerSpecificity } from './answer-specificity'
+
 export type CaseBackupLevel = 'med_student' | 'resident' | 'attending'
 
 export type CaseBackupSnapshot = {
@@ -6,6 +8,7 @@ export type CaseBackupSnapshot = {
   level: CaseBackupLevel
   contributor_name?: string | null
   category: string | null
+  answer_specificity?: AnswerSpecificity
   prompt: string | null
   answer: string | null
   synonyms: string[] | null
@@ -58,6 +61,7 @@ function normalizeCaseSnapshot(snapshot: Partial<CaseBackupSnapshot>): CaseBacku
     contributor_name: snapshot.contributor_name || null,
     category: snapshot.category || null,
     prompt: snapshot.prompt || null,
+    answer_specificity: normalizeAnswerSpecificity(snapshot.answer_specificity),
     answer: snapshot.answer || null,
     synonyms: snapshot.synonyms || null,
     image_url: snapshot.image_url || null,
@@ -91,6 +95,7 @@ function comparableCaseSnapshot(snapshot: Partial<CaseBackupSnapshot>) {
     contributor_name: normalizeText(normalized.contributor_name),
     category: normalizeText(normalized.category),
     prompt: normalizeText(normalized.prompt),
+    answer_specificity: normalized.answer_specificity,
     answer: normalizeText(normalized.answer),
     synonyms: normalizeStringArray(normalized.synonyms),
     image_url: normalizeText(normalized.image_url),

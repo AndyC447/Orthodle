@@ -1,6 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import { ClueSolveStats } from '@/components/ClueSolveStats'
+import { buildClueStats, type ClueStats } from '@/lib/case-learning'
+import { fetchAdminPages } from '@/lib/admin-dashboard'
 import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
 import { supabase } from '@/lib/supabase'
@@ -25,6 +28,7 @@ type GuessCaseRelation = {
 }
 
 type GuessRow = {
+  id?: string
   session_id: string
   case_id: string | null
   is_correct: boolean
@@ -83,6 +87,8 @@ type LevelStats = {
 }
 
 type CaseStatsPayload = {
+  cases: CaseRow[]
+  clueStats: Record<string, ClueStats>
   levelStats: LevelStats[]
   lastUpdatedAt: string
   totalCases: number
@@ -403,6 +409,8 @@ function buildCaseStats(cases: CaseRow[], guessRows: GuessRow[]): CaseStatsPaylo
   const totalSolves = levelStats.reduce((sum, item) => sum + item.totalSolves, 0)
 
   return {
+    cases,
+    clueStats: buildClueStats(guessRows),
     levelStats,
     lastUpdatedAt: new Date().toISOString(),
     totalCases: cases.length,
@@ -435,12 +443,9 @@ export default function AdminCaseStatsPage() {
     setStatus('')
 
     try {
-      const { data: caseData, error: caseError } = await supabase
-        .from('cases')
-        .select('id, case_date, level, answer, category')
-        .order('case_date', { ascending: false })
-
-      if (caseError) throw caseError
+      const caseData = await fetchAdminPages<CaseRow>((from, to) => supabase
+        .from('cases').select('id, case_date, level, answer, category')
+        .order('case_date', { ascending: false }).order('id').range(from, to))
 
       const guessRows: GuessRow[] = []
       const pageSize = 1000
@@ -449,8 +454,8 @@ export default function AdminCaseStatsPage() {
       while (true) {
         const { data, error } = await supabase
           .from('guesses')
-          .select('session_id, case_id, is_correct, created_at, cases(level, case_date, answer, category)')
-          .order('created_at', { ascending: true })
+          .select('id, session_id, case_id, is_correct, created_at, cases(level, case_date, answer, category)')
+          .order('created_at', { ascending: true }).order('id')
           .range(from, from + pageSize - 1)
 
         if (error) throw error
@@ -720,6 +725,8 @@ export default function AdminCaseStatsPage() {
             </section>
           ))}
         </div>
+
+        {payload && <ClueSolveStats cases={payload.cases} stats={payload.clueStats} />}
 
         {loading && (
           <div className="mt-6 rounded-2xl border border-[#e7e1d6] bg-white px-4 py-3 text-sm text-[#637268]">

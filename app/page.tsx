@@ -1,4 +1,7 @@
 'use client'
+
+import { SimilarCaseAction } from '@/components/SimilarCaseAction'
+import { AnswerSpecificityBadge } from '@/components/AnswerSpecificity'
 import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
@@ -56,6 +59,7 @@ type Case = {
   contributor_name?: string | null
   category: string
   prompt: string
+  answer_specificity?: string | null
   answer: string
   synonyms: string[] | null
   image_url: string | null
@@ -5811,6 +5815,7 @@ function PlayPageContent() {
                 ) : dailyCase ? (
                   <div key={dailyCase.id} className="orthodle-home-copy orthodle-fade-up space-y-0">
                     {renderCasePrompt(dailyCase.prompt)}
+                    <AnswerSpecificityBadge value={dailyCase.answer_specificity} />
                   </div>
                 ) : (
                   <div className="rounded-xl border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-4 py-4 text-center">
@@ -6137,6 +6142,8 @@ function PlayPageContent() {
                       </div>
                     )}
                   </div>
+
+                  {roundComplete && !isEmbeddedExample && !isAdminPreview && <SimilarCaseAction current={dailyCase} />}
 
                   {roundComplete && !isEmbeddedExample && !isAdminPreview && dailyCase.case_date !== today && (
                     <ArchiveCaseActions currentId={dailyCase.id} />

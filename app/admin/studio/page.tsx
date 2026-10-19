@@ -1,5 +1,8 @@
 'use client'
 
+import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
+import { normalizeAnswerSpecificity, type AnswerSpecificity } from '@/lib/answer-specificity'
+
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
@@ -29,6 +32,7 @@ type CaseRow = {
   contributor_name: string | null
   category: string
   prompt: string
+  answer_specificity?: AnswerSpecificity
   answer: string
   synonyms: string[] | null
   image_url: string | null
@@ -230,6 +234,7 @@ export default function CaseStudioPage() {
   const [level, setLevel] = useState<Level>('med_student')
   const [category, setCategory] = useState('')
   const [prompt, setPrompt] = useState('')
+  const [answerSpecificity, setAnswerSpecificity] = useState<AnswerSpecificity>('off')
   const [answer, setAnswer] = useState('')
   const [showAnswerSuggestions, setShowAnswerSuggestions] = useState(false)
   const [synonyms, setSynonyms] = useState('')
@@ -377,7 +382,7 @@ export default function CaseStudioPage() {
       const { data, error } = await supabase
         .from('cases')
         .select(
-          'id, case_date, level, contributor_name, category, prompt, answer, synonyms, image_url, image_credit, image_reveal_clue, image_url_2, image_credit_2, image_reveal_clue_2, image_findings, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6, teaching_point, learning_image_url, learning_image_credit, learning_image_caption, learning_image_url_2, learning_image_credit_2, learning_image_caption_2'
+          'id, case_date, level, contributor_name, category, prompt, answer_specificity, answer, synonyms, image_url, image_credit, image_reveal_clue, image_url_2, image_credit_2, image_reveal_clue_2, image_findings, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6, teaching_point, learning_image_url, learning_image_credit, learning_image_caption, learning_image_url_2, learning_image_credit_2, learning_image_caption_2'
         )
         .eq('case_date', caseDate)
         .eq('level', level)
@@ -394,6 +399,7 @@ export default function CaseStudioPage() {
       if (!data) {
         setCategory(level === 'attending' ? 'Surgical Anatomy' : '')
         setPrompt('')
+        setAnswerSpecificity('off')
         setAnswer('')
         setSynonyms('')
         setAnatomyCorrectChoices('')
@@ -424,6 +430,7 @@ export default function CaseStudioPage() {
 
       setCategory(existingCase.category || (level === 'attending' ? 'Surgical Anatomy' : ''))
       setPrompt(existingCase.prompt || '')
+      setAnswerSpecificity(normalizeAnswerSpecificity(existingCase.answer_specificity))
       setAnswer(existingCase.answer || '')
       setSynonyms(extractPlainSynonyms(existingCase.synonyms).join(', '))
       setAnatomyCorrectChoices(
@@ -526,6 +533,7 @@ export default function CaseStudioPage() {
     learningImageUrl2,
     level,
     prompt,
+    answerSpecificity,
     referenceLinks,
     synonyms,
     teachingPoint,
@@ -552,6 +560,7 @@ export default function CaseStudioPage() {
       contributor_name: null,
       category: category.trim() || (level === 'attending' ? 'Surgical Anatomy' : 'Preview'),
       prompt,
+      answer_specificity: answerSpecificity,
       answer,
       synonyms: storedSynonyms,
       image_url: imageUrl.trim() || null,
@@ -866,6 +875,7 @@ export default function CaseStudioPage() {
     setLevel(snapshot.level)
     setCategory(snapshot.category || (snapshot.level === 'attending' ? 'Surgical Anatomy' : ''))
     setPrompt(snapshot.prompt || '')
+    setAnswerSpecificity(normalizeAnswerSpecificity(snapshot.answer_specificity))
     setAnswer(snapshot.answer || '')
     setSynonyms(extractPlainSynonyms(snapshot.synonyms).join(', '))
     setAnatomyCorrectChoices(
@@ -968,6 +978,7 @@ export default function CaseStudioPage() {
       contributor_name: null,
       category: category.trim(),
       prompt: prompt.trim(),
+      answer_specificity: answerSpecificity,
       answer: answer.trim(),
       synonyms: storedSynonyms,
       image_url: imageUrl.trim() || null,
@@ -1449,6 +1460,8 @@ export default function CaseStudioPage() {
                   </div>
                 </div>
               ) : null}
+
+              <AnswerSpecificityField value={answerSpecificity} onChange={setAnswerSpecificity} />
 
               <div className="rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-3">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
