@@ -170,6 +170,10 @@ const TEACHING_POINT_LABELS = new Map<string, string>([
   ['board pearl', 'Board Pearl'],
   ['explanation', 'Explanation'],
   ['clinical pearl', 'Clinical Pearl'],
+  ['clinical pearls', 'Clinical Pearls'],
+  ['demographics', 'Demographics'],
+  ['mechanism', 'Mechanism'],
+  ['pitfalls', 'Pitfalls'],
   ['why not the others', 'Why not the others?'],
   ['orthodle insight', 'Orthodle Insight'],
   ['ddx', 'DDx'],
@@ -2897,7 +2901,7 @@ function PlayPageContent() {
                 </>
               ) : (() => {
                 const normalizedLabel = normalizeTeachingSectionLabel(section.label)
-                const isPearlSection = normalizedLabel === 'clinical pearl'
+                const isPearlSection = normalizedLabel === 'clinical pearl' || normalizedLabel === 'clinical pearls'
                 const isDifferentialSection = normalizedLabel === 'why not the others?'
                 const isExplanationSection = normalizedLabel === 'explanation'
                 const isKeyCluesSection = normalizedLabel === 'key clues'

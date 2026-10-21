@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import Link from 'next/link'
 import { useLocalToday } from '@/hooks/useLocalToday'
 import { fetchAdminPages } from '@/lib/admin-dashboard'
+import { gptDraftSaveError, draftSynonyms, type DraftProvenance } from '@/lib/gpt-draft'
 import { useImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
@@ -440,6 +441,7 @@ const LEGACY_ANATOMY_TEACHING_POINT_TEMPLATE = `<u>**Explanation**:</u>
 <u>**Why not the others?**</u>`
 
 type AdminCaseDraft = {
+  gptDraftProvenance?: DraftProvenance | null
   caseDate: string
   level: Level
   contributorName: string
@@ -770,6 +772,7 @@ export default function AdminPage() {
   const [referenceLinks, setReferenceLinks] = useState('')
   const [status, setStatus] = useState('')
   const [draftStatus, setDraftStatus] = useState('')
+  const [gptDraftProvenance, setGptDraftProvenance] = useState<DraftProvenance | null>(null)
   const [slotBackups, setSlotBackups] = useState<CaseBackupEntry[]>([])
   const [cases, setCases] = useState<CaseRow[]>([])
   const [analytics, setAnalytics] = useState<AnalyticsRow[]>([])
@@ -1019,6 +1022,7 @@ export default function AdminPage() {
             setReferenceLinks(draft.referenceLinks || parsedTeaching.referenceLinks)
           }
           setActiveSubmissionId(draft.activeSubmissionId || null)
+          setGptDraftProvenance(draft.gptDraftProvenance || null)
           setDraftStatus(
             draft.savedAt
               ? `Draft restored from ${new Date(draft.savedAt).toLocaleString()}`
@@ -1148,6 +1152,7 @@ export default function AdminPage() {
     }
 
     const draft: AdminCaseDraft = {
+      gptDraftProvenance,
       caseDate,
       level,
       contributorName,
@@ -1217,6 +1222,7 @@ export default function AdminPage() {
     teachingPoint,
     referenceLinks,
     activeSubmissionId,
+    gptDraftProvenance,
   ])
 
   const recentEmailReminderChanges = useMemo<ReminderChangeItem[]>(() => {
@@ -1868,10 +1874,7 @@ export default function AdminPage() {
   }
 
   function buildPreviewCase() {
-    const synonymArray = synonyms
-      .split(',')
-      .map(item => item.trim())
-      .filter(Boolean)
+    const synonymArray = draftSynonyms(gptDraftProvenance, synonyms)
     const multiSelectMetadata =
       level === 'attending'
         ? buildMultiSelectSynonymMetadata(normalizedAnatomyCorrectChoices)
@@ -2298,6 +2301,14 @@ export default function AdminPage() {
   }
 
   function startCaseFor(date: string, nextLevel: Level) {
+    if (gptDraftProvenance && nextLevel === 'med_student') {
+      setCaseDate(date)
+      setLevel(nextLevel)
+      setShowComposer(true)
+      setStatus('GPT draft moved to this date. Review and save to schedule it.')
+      return
+    }
+    setGptDraftProvenance(null)
     setCaseDate(date)
     setLevel(nextLevel)
     setContributorName('')
@@ -2335,6 +2346,7 @@ export default function AdminPage() {
   }
 
   function clearForm() {
+    setGptDraftProvenance(null)
     setCaseDate(shiftISODate(today, 1))
     setLevel('med_student')
     setContributorName('')
@@ -2376,6 +2388,7 @@ export default function AdminPage() {
   }
 
   function editCase(c: CaseRow) {
+    setGptDraftProvenance(null)
     setCaseDate(c.case_date)
     setLevel(c.level)
     setContributorName(c.contributor_name || '')
@@ -2423,6 +2436,7 @@ export default function AdminPage() {
   }
 
   function editSubmission(submission: SubmissionRow) {
+    setGptDraftProvenance(null)
     setCaseDate(submission.scheduled_date || today)
     setLevel(submission.level)
     setContributorName(submission.contributor_name || '')
@@ -3603,6 +3617,12 @@ export default function AdminPage() {
       return
     }
 
+    const draftSaveError = gptDraftSaveError(gptDraftProvenance, caseDate, existingCase)
+    if (draftSaveError) {
+      setStatus(draftSaveError)
+      return
+    }
+
     const isMeaningfullyDifferent =
       existingCase &&
       (
@@ -3622,10 +3642,7 @@ export default function AdminPage() {
       }
     }
 
-    const synonymArray = synonyms
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
+    const synonymArray = draftSynonyms(gptDraftProvenance, synonyms)
     const invalidAnatomyLetters = normalizedAnatomyCorrectChoices.filter(
       letter => !anatomyChoiceItemsForComposer.some(choice => choice.letter === letter)
     )
@@ -3696,9 +3713,10 @@ export default function AdminPage() {
         ? saveCaseBackup(existingCase as CaseRow, 'admin')
         : null
 
-    let { error } = await supabase.from('cases').upsert(casePayload, {
-      onConflict: 'case_date,level',
-    })
+    // Insert-only also protects against another tab filling the slot after our check.
+    let { error } = await (gptDraftProvenance
+      ? supabase.from('cases').insert(casePayload)
+      : supabase.from('cases').upsert(casePayload, { onConflict: 'case_date,level' }))
 
     let savedWithoutCaptionColumns = false
 
@@ -3707,9 +3725,9 @@ export default function AdminPage() {
       delete casePayloadWithoutCaptions.learning_image_caption
       delete casePayloadWithoutCaptions.learning_image_caption_2
 
-      const retryResult = await supabase.from('cases').upsert(casePayloadWithoutCaptions, {
-        onConflict: 'case_date,level',
-      })
+      const retryResult = await (gptDraftProvenance
+        ? supabase.from('cases').insert(casePayloadWithoutCaptions)
+        : supabase.from('cases').upsert(casePayloadWithoutCaptions, { onConflict: 'case_date,level' }))
 
       error = retryResult.error
       savedWithoutCaptionColumns = !retryResult.error
@@ -4798,12 +4816,15 @@ export default function AdminPage() {
         <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_320px]">
           <div className="space-y-3">
           <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-serif text-xl font-bold">
                 Create / Schedule Case
               </h2>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link href={`/admin/gpt-draft?date=${caseDate}`} className="rounded-lg bg-[#eaf4ee] px-3 py-1.5 text-sm font-semibold text-[#1f6448] transition hover:bg-[#dbece1]">
+                  GPT Draft
+                </Link>
                 <Link
                   href="/admin/studio"
                   className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
@@ -4847,6 +4868,7 @@ export default function AdminPage() {
                       Submission draft
                     </div>
                   ) : null}
+                  {gptDraftProvenance && <Link href="/admin/gpt-draft" className="text-xs font-semibold text-[#1f6448]">GPT draft · Source: {gptDraftProvenance.sourceDate} · New slots only</Link>}
                 </div>
                 {(status || draftStatus) ? (
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[#7b847e]">
