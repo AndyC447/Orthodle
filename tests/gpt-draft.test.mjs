@@ -14,6 +14,7 @@ function load(file, imports = {}, globals = {}) {
   return exports
 }
 const lib = load('../lib/gpt-draft.ts')
+const caseSave = load('../lib/case-save.ts')
 const paging = load('../lib/admin-dashboard.ts')
 const plain = value => JSON.parse(JSON.stringify(value))
 const source = {
@@ -192,10 +193,11 @@ test('missing key, incomplete output, and refusals never produce a draft', async
   }
 })
 
-function adminSaveHarness({ existing = null, provenance = true, conflict = false, captionFallback = false } = {}) {
+function adminSaveHarness({ existing = null, provenance = true, conflict = false, captionFallback = false, missingFields = [], studio = false, backupFails = false } = {}) {
   const editor = lib.toEditorDraft(saved(), '2026-11-01')
-  const writes = []; const messages = []
-  const code = readFileSync(new URL('../app/admin/page.tsx', import.meta.url), 'utf8')
+  const writes = []; const messages = []; const backups = []
+  let cleared = false
+  const code = readFileSync(new URL(studio ? '../app/admin/studio/page.tsx' : '../app/admin/page.tsx', import.meta.url), 'utf8')
   const ast = ts.createSourceFile('admin.tsx', code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let fn
   function visit(node) { if (ts.isFunctionDeclaration(node) && node.name?.text === 'saveCase') fn = node; ts.forEachChild(node, visit) }
@@ -204,21 +206,22 @@ function adminSaveHarness({ existing = null, provenance = true, conflict = false
   const compiled = ts.transpileModule(fn.getText(ast), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
   const write = async (method, payload) => {
     writes.push({ method, payload })
-    return { error: conflict ? { message: 'duplicate key' } : captionFallback && writes.length === 1 ? { message: 'missing learning_image_caption column' } : null }
+    const missing = missingFields.find(field => field in payload) || (captionFallback && writes.length === 1 ? 'learning_image_caption' : null)
+    return { error: conflict ? { message: 'duplicate key' } : missing ? { code: 'PGRST204', message: `Could not find the '${missing}' column of 'cases' in the schema cache` } : null }
   }
   const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: existing, error: null }), insert: p => write('insert', p), upsert: p => write('upsert', p) }
   const context = vm.createContext({
-    ...editor, answerSpecificity: 'off', gptDraftProvenance: provenance ? editor.gptDraftProvenance : null,
+    ...editor, ...caseSave, clues: [editor.clue1, editor.clue2, editor.clue3], answerSpecificity: 'off', gptDraftProvenance: provenance ? editor.gptDraftProvenance : null,
     normalizedAnatomyCorrectChoices: [], anatomyChoiceItemsForComposer: [],
     supabase: { from: () => query }, gptDraftSaveError: lib.gptDraftSaveError, draftSynonyms: lib.draftSynonyms,
     normalizeCreditValue: value => value || null, mergeTeachingPointAndReferences: value => value,
-    isMissingTeachingImageCaptionColumnError: message => message.includes('learning_image_caption'),
+    saveCaseBackup: payload => { if (backupFails) throw new Error('Storage full'); backups.push(payload); return {} },
     shouldCreateCaseBackup: () => false, formatLevel: value => value,
     window: { confirm: () => true, localStorage: { removeItem: () => {} } }, ADMIN_DRAFT_STORAGE_KEY: lib.ADMIN_CASE_DRAFT_KEY,
-    setStatus: text => messages.push(text), setDraftStatus: () => {}, refreshSlotBackups: () => {}, clearForm: () => {}, loadCases: async () => {},
+    setStatus: text => messages.push(text), setDraftStatus: () => {}, refreshSlotBackups: () => {}, clearForm: () => { cleared = true; messages.push('') }, loadCases: async () => {},
   })
   vm.runInContext(compiled, context)
-  return { save: () => context.saveCase(), writes, messages, context }
+  return { save: () => context.saveCase(), writes, messages, context, backups, cleared: () => cleared }
 }
 
 test('actual admin save inserts GPT drafts and preserves aliases and images', async () => {
@@ -246,6 +249,39 @@ test('caption compatibility retry remains insert-only and normal manual cases st
   assert.deepEqual(retry.writes.map(w => w.method), ['insert', 'insert'])
   const normal = adminSaveHarness({ provenance: false, existing: source }); await normal.save()
   assert.equal(normal.writes[0].method, 'upsert')
+})
+
+for (const studio of [false, true]) {
+  test(`${studio ? 'studio' : 'admin'} saves when specificity and both caption columns are absent, preserving unsupported content`, async () => {
+    const h = adminSaveHarness({ studio, missingFields: ['answer_specificity', 'learning_image_caption', 'learning_image_caption_2'] })
+    h.context.answerSpecificity = 'named_fracture'
+    await h.save()
+    assert.equal(h.writes.length, 4)
+    assert.ok(h.writes.every(w => w.method === (studio ? 'upsert' : 'insert')))
+    assert.equal(h.writes.at(-1).payload.answer_specificity, undefined)
+    assert.equal(h.writes.at(-1).payload.answer, source.answer)
+    assert.equal(h.backups[0].answer_specificity, 'named_fracture')
+    assert.equal(h.backups[0].learning_image_caption, source.learning_image_caption)
+    assert.match(h.messages.at(-1), /case was saved.*answer guidance and teaching image captions/)
+    assert.match(h.messages.at(-1), /case backups/)
+  })
+}
+
+test('failed local backup keeps unsaved optional content in the admin editor', async () => {
+  const h = adminSaveHarness({ missingFields: ['answer_specificity'], backupFails: true })
+  h.context.answerSpecificity = 'named_diagnosis'
+  await h.save()
+  assert.equal(h.cleared(), false)
+  assert.match(h.messages.at(-1), /Keep this editor open/)
+})
+
+test('disabled specificity can be omitted without backing up empty optional content', async () => {
+  const h = adminSaveHarness({ missingFields: ['answer_specificity'] })
+  await h.save()
+  assert.equal(h.writes.length, 2)
+  assert.equal(h.backups.length, 0)
+  assert.equal(h.cleared(), true)
+  assert.match(h.messages.at(-1), /Case saved/)
 })
 
 test('actual draft-page interactions preserve edits, reject/regenerate, preview, and hand off with backup', async () => {

@@ -22,6 +22,7 @@ import {
 } from '@/lib/case-backups'
 import { supabase } from '@/lib/supabase'
 import { todayISO } from '@/lib/utils'
+import { saveCaseCompat, hasOmittedCaseContent, caseSaveCompatibilityNotice } from '@/lib/case-save'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
@@ -202,13 +203,6 @@ function splitTeachingPointAndReferences(value: string | null | undefined) {
   }
 }
 
-function isMissingTeachingImageCaptionColumnError(message: string | undefined) {
-  if (!message) return false
-  return /Could not find the 'learning_image_caption(?:_2)?' column of 'cases' in the schema cache/i.test(
-    message
-  )
-}
-
 function stripPreviewText(value: string) {
   return value
     .replace(/<\/?u>/gi, '')
@@ -381,9 +375,7 @@ export default function CaseStudioPage() {
 
       const { data, error } = await supabase
         .from('cases')
-        .select(
-          'id, case_date, level, contributor_name, category, prompt, answer_specificity, answer, synonyms, image_url, image_credit, image_reveal_clue, image_url_2, image_credit_2, image_reveal_clue_2, image_findings, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6, teaching_point, learning_image_url, learning_image_credit, learning_image_caption, learning_image_url_2, learning_image_credit_2, learning_image_caption_2'
-        )
+        .select('*')
         .eq('case_date', caseDate)
         .eq('level', level)
         .maybeSingle()
@@ -1018,35 +1010,24 @@ export default function CaseStudioPage() {
         ? saveCaseBackup(existingCase as CaseRow, 'studio')
         : null
 
-    let { error } = await supabase.from('cases').upsert(casePayload, {
-      onConflict: 'case_date,level',
-    })
-
-    let savedWithoutCaptionColumns = false
-
-    if (error && isMissingTeachingImageCaptionColumnError(error.message)) {
-      const casePayloadWithoutCaptions = { ...casePayload }
-      delete casePayloadWithoutCaptions.learning_image_caption
-      delete casePayloadWithoutCaptions.learning_image_caption_2
-
-      const retryResult = await supabase.from('cases').upsert(casePayloadWithoutCaptions, {
-        onConflict: 'case_date,level',
-      })
-
-      error = retryResult.error
-      savedWithoutCaptionColumns = !retryResult.error
-    }
+    const { error, omittedFields } = await saveCaseCompat(casePayload, payload =>
+      supabase.from('cases').upsert(payload, { onConflict: 'case_date,level' }))
 
     if (error) {
       setStatus(`Error saving case: ${error.message}`)
       return
     }
 
-    setStatus(
-      savedWithoutCaptionColumns
-        ? `Case saved for ${caseDate} · ${formatLevel(level)}.${createdBackup ? ' Previous version backed up automatically.' : ''} Teaching image captions need the database update before they can be stored.`
-        : `Case saved for ${caseDate} · ${formatLevel(level)}.${createdBackup ? ' Previous version backed up automatically.' : ''}`
-    )
+    let compatibilityNotice = caseSaveCompatibilityNotice(omittedFields)
+    if (hasOmittedCaseContent(casePayload, omittedFields)) {
+      try {
+        saveCaseBackup(casePayload, 'studio')
+        compatibilityNotice += ' Your full version is preserved in this browser\'s case backups.'
+      } catch {
+        compatibilityNotice += ' A local backup could not be saved. Keep this editor open to preserve the unsupported fields.'
+      }
+    }
+    setStatus(`Case saved for ${caseDate} · ${formatLevel(level)}.${createdBackup ? ' Previous version backed up automatically.' : ''}${compatibilityNotice}`)
     refreshSlotBackups(caseDate, level)
   }
 

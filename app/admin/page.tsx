@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import Link from 'next/link'
 import { useLocalToday } from '@/hooks/useLocalToday'
 import { fetchAdminPages } from '@/lib/admin-dashboard'
+import { saveCaseCompat, hasOmittedCaseContent, caseSaveCompatibilityNotice } from '@/lib/case-save'
 import { gptDraftSaveError, draftSynonyms, type DraftProvenance } from '@/lib/gpt-draft'
 import { useImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
@@ -703,13 +704,6 @@ function renderRichTextWithBreaks(text: string, keyPrefix = 'inline-breaks') {
   })
 
   return nodes
-}
-
-function isMissingTeachingImageCaptionColumnError(message: string | undefined) {
-  if (!message) return false
-  return /Could not find the 'learning_image_caption(?:_2)?' column of 'cases' in the schema cache/i.test(
-    message
-  )
 }
 
 const ANALYTICS_PAGE_SIZE = 1000
@@ -3714,35 +3708,27 @@ export default function AdminPage() {
         : null
 
     // Insert-only also protects against another tab filling the slot after our check.
-    let { error } = await (gptDraftProvenance
-      ? supabase.from('cases').insert(casePayload)
-      : supabase.from('cases').upsert(casePayload, { onConflict: 'case_date,level' }))
-
-    let savedWithoutCaptionColumns = false
-
-    if (error && isMissingTeachingImageCaptionColumnError(error.message)) {
-      const casePayloadWithoutCaptions = { ...casePayload }
-      delete casePayloadWithoutCaptions.learning_image_caption
-      delete casePayloadWithoutCaptions.learning_image_caption_2
-
-      const retryResult = await (gptDraftProvenance
-        ? supabase.from('cases').insert(casePayloadWithoutCaptions)
-        : supabase.from('cases').upsert(casePayloadWithoutCaptions, { onConflict: 'case_date,level' }))
-
-      error = retryResult.error
-      savedWithoutCaptionColumns = !retryResult.error
-    }
+    const { error, omittedFields } = await saveCaseCompat(casePayload, payload => gptDraftProvenance
+      ? supabase.from('cases').insert(payload)
+      : supabase.from('cases').upsert(payload, { onConflict: 'case_date,level' }))
 
     if (error) {
       setStatus(`Error saving case: ${error.message}`)
       return
     }
 
-    setStatus(
-      savedWithoutCaptionColumns
-        ? `Case saved for ${caseDate} · ${level}.${createdBackup ? ' Previous version backed up automatically.' : ''} Teaching image captions need the database update before they can be stored.`
-        : `Case saved for ${caseDate} · ${level}.${createdBackup ? ' Previous version backed up automatically.' : ''}`
-    )
+    let compatibilityNotice = caseSaveCompatibilityNotice(omittedFields)
+    let keepEditor = false
+    if (hasOmittedCaseContent(casePayload, omittedFields)) {
+      try {
+        saveCaseBackup(casePayload, 'admin')
+        compatibilityNotice += ' Your full version is preserved in this browser\'s case backups.'
+      } catch {
+        keepEditor = true
+        compatibilityNotice += ' A local backup could not be saved. Keep this editor open to preserve the unsupported fields.'
+      }
+    }
+    const savedMessage = `Case saved for ${caseDate} · ${level}.${createdBackup ? ' Previous version backed up automatically.' : ''}${compatibilityNotice}`
     if (activeSubmissionId) {
       const { data: savedCase } = await supabase
         .from('cases')
@@ -3761,12 +3747,13 @@ export default function AdminPage() {
         .eq('id', activeSubmissionId)
     }
 
-    if (typeof window !== 'undefined') {
+    if (!keepEditor && typeof window !== 'undefined') {
       window.localStorage.removeItem(ADMIN_DRAFT_STORAGE_KEY)
     }
-    setDraftStatus('Draft cleared after save.')
+    if (!keepEditor) setDraftStatus('Draft cleared after save.')
     refreshSlotBackups(caseDate, level)
-    clearForm()
+    if (!keepEditor) clearForm()
+    setStatus(savedMessage)
     await loadCases()
   }
 

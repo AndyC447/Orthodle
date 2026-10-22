@@ -72,7 +72,8 @@ for (const editor of ['../app/admin/page.tsx', '../app/admin/studio/page.tsx']) 
       assert.deepEqual(record.synonyms, aliases)
       assert.equal(record.answer, values.answer)
     }
-    assert.match(text, /upsert\(casePayload,/)
+    assert.match(text, /saveCaseCompat\(casePayload,/)
+    assert.match(text, /upsert\(payload,/)
     assert.match(text, /<AnswerSpecificityField value=\{answerSpecificity\}/)
   })
 }
