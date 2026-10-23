@@ -23,7 +23,7 @@ async function nextCase({ cases = records, guesses = [], completed = [], error =
     'react/jsx-runtime': jsx,
     'next/link': { default: 'a' },
     '@/lib/utils': { getCompletedCaseKeys: () => completed, getSessionId: () => 'session', todayISO: () => '2026-10-02' },
-    '@/lib/anatomy-quiz': { isAnatomyQuizCaseRecord: item => item.id === 'anatomy' },
+    '@/lib/anatomy-quiz': { isChoiceQuestionCase: item => ['anatomy', 'classification'].includes(item.id) },
     '@/lib/supabase': { supabase: { from: table => {
       const query = { select() { return this }, gte() { return this }, lt() { return this }, eq() { return this }, order() { return this },
         range: async () => ({ data: table === 'cases' ? cases : guesses, error }) }
@@ -44,6 +44,10 @@ test('next archive case skips current, server completions, exhausted anatomy, an
 test('next archive case wraps to newer cases', async () => {
   const [href] = await nextCase({ cases: [records[0], records[1]] })
   assert.equal(new URL(href, 'https://test.local').searchParams.get('case'), 'newer')
+})
+test('next archive case skips a completed classification question in the daily slot', async () => {
+  const [href] = await nextCase({ cases: [records[1], { id: 'classification', level: 'med_student', case_date: '2026-05-18' }, records.at(-1)], guesses: [{ case_id: 'classification', is_correct: false }] })
+  assert.equal(new URL(href, 'https://test.local').searchParams.get('case'), 'pending')
 })
 test('empty archive and network errors keep calendar return available without a broken next link', async () => {
   const [href, status] = await nextCase({ cases: [records[1]] })

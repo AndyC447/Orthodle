@@ -1,4 +1,5 @@
 import { normalizeAnswer } from '@/lib/utils'
+import { isQuestionTypeMetadata, readQuestionType, type QuestionType } from './question-type'
 
 const MULTI_SELECT_SYNONYM_PREFIX = '__multi_select__:'
 
@@ -19,11 +20,23 @@ export function getAnatomyChoiceItems(choiceSource: Array<string | null | undefi
     }))
 }
 
+export function validateChoiceQuestion(choiceSource: Array<string | null | undefined>, correctLetters: string[]) {
+  const items = getAnatomyChoiceItems(choiceSource)
+  if (items.length < 2 || correctLetters.length === 0 || correctLetters.some(letter => !items.some(item => item.letter === letter))) {
+    return 'Add at least two answer choices and select valid correct letters before saving.'
+  }
+  const lastChoice = choiceSource.map(choice => Boolean(choice?.trim())).lastIndexOf(true)
+  if (choiceSource.slice(0, lastChoice + 1).some(choice => !choice?.trim())) return 'Fill answer choices in order without blank gaps so the correct letters stay aligned.'
+  if (new Set(items.map(item => item.normalizedLabel)).size !== items.length) return 'Each answer choice must be different.'
+  return ''
+}
+
 export function extractPlainSynonyms(synonyms: string[] | null | undefined) {
   return (synonyms || []).filter(
     synonym =>
       typeof synonym === 'string' &&
       synonym.trim().length > 0 &&
+      !isQuestionTypeMetadata(synonym) &&
       !synonym.trim().toLowerCase().startsWith(MULTI_SELECT_SYNONYM_PREFIX)
   )
 }
@@ -91,7 +104,7 @@ export function parseAnatomyGuessLetters(
   guessText: string,
   choiceSource: Array<string | null | undefined>
 ) {
-  const directLetters = parseChoiceLetterList(guessText)
+  const directLetters = /^\s*[A-F](?:[\s,|;]+[A-F])*\s*$/i.test(guessText) ? parseChoiceLetterList(guessText) : []
   if (directLetters.length > 0) return directLetters
 
   const normalizedGuess = normalizeAnswer(stripAnatomyChoicePrefix(guessText))
@@ -121,6 +134,7 @@ export function isCorrectAnatomySelection(
 }
 
 type AnatomyQuizCaseLike = {
+  level?: string | null
   answer?: string | null
   synonyms?: string[] | null
   clue_1?: string | null
@@ -129,6 +143,16 @@ type AnatomyQuizCaseLike = {
   clue_4?: string | null
   clue_5?: string | null
   clue_6?: string | null
+}
+
+export function getCaseQuestionType(caseLike: AnatomyQuizCaseLike | null | undefined): QuestionType {
+  const stored = readQuestionType(caseLike?.synonyms)
+  if (stored) return stored
+  return caseLike?.level === 'attending' && isAnatomyQuizCaseRecord(caseLike) ? 'anatomy' : 'diagnosis'
+}
+
+export function isChoiceQuestionCase(caseLike: AnatomyQuizCaseLike | null | undefined) {
+  return getCaseQuestionType(caseLike) !== 'diagnosis'
 }
 
 export function isAnatomyQuizCaseRecord(caseLike: AnatomyQuizCaseLike | null | undefined) {

@@ -29,7 +29,7 @@ function setup(failInsert = false) {
   const mocks = {
     'next/server': { NextResponse }, '@/lib/supabase': { supabase: db },
     '@/lib/utils': { isAcceptedGuess: guess => guess === 'correct' },
-    '@/lib/anatomy-quiz': { isAnatomyQuizCaseRecord: () => false },
+    '@/lib/anatomy-quiz': { isChoiceQuestionCase: () => false, extractPlainSynonyms: synonyms => synonyms || [] },
   }
   const code = ts.transpileModule(readFileSync(new URL('../app/api/guess/route.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   new Function('require', 'exports', code)(name => mocks[name], exports)

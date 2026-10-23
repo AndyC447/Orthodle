@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
-import { isAnatomyQuizCaseRecord } from '@/lib/anatomy-quiz'
+import { isChoiceQuestionCase } from '@/lib/anatomy-quiz'
 
 export function ArchiveCaseActions({ currentId }: { currentId: string }) {
   const [nextHref, setNextHref] = useState<string | null>(null)
@@ -46,7 +46,7 @@ export function ArchiveCaseActions({ currentId }: { currentId: string }) {
       const next = ordered.find(item => {
         if (item.id === currentId || completed.has(`${item.case_date}:${item.level}:archive`)) return false
         const progress = counts.get(item.id)
-        const limit = item.level === 'attending' && isAnatomyQuizCaseRecord(item) ? 1 : 6
+        const limit = isChoiceQuestionCase(item) ? 1 : 6
         return !progress || (!progress.correct && progress.count < limit)
       })
       if (cancelled) return

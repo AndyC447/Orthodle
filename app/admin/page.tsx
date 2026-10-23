@@ -1,6 +1,9 @@
 'use client'
 
 import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
+import { QuestionTypeField } from '@/components/QuestionTypeField'
+import { normalizeQuestionType, withQuestionType, type QuestionType } from '@/lib/question-type'
+import { getCaseQuestionType, isChoiceQuestionCase, validateChoiceQuestion } from '@/lib/anatomy-quiz'
 import { normalizeAnswerSpecificity, type AnswerSpecificity } from '@/lib/answer-specificity'
 import { countArchivePlays, isArchiveGuess } from '@/lib/audience-stats'
 
@@ -442,6 +445,7 @@ const LEGACY_ANATOMY_TEACHING_POINT_TEMPLATE = `<u>**Explanation**:</u>
 <u>**Why not the others?**</u>`
 
 type AdminCaseDraft = {
+  questionType?: QuestionType
   gptDraftProvenance?: DraftProvenance | null
   caseDate: string
   level: Level
@@ -730,6 +734,8 @@ export default function AdminPage() {
   const [authReady, setAuthReady] = useState(false)
   const [caseDate, setCaseDate] = useState(shiftISODate(today, 1))
   const [level, setLevel] = useState<Level>('med_student')
+  const [questionType, setQuestionType] = useState<QuestionType>('diagnosis')
+  const isChoiceQuestion = questionType !== 'diagnosis'
   const [contributorName, setContributorName] = useState('')
   const [category, setCategory] = useState('')
   const [showCategorySuggestions, setShowCategorySuggestions] = useState(false)
@@ -983,6 +989,7 @@ export default function AdminPage() {
           setAnswerSpecificity(normalizeAnswerSpecificity(draft.answer_specificity))
           setAnswer(draft.answer || '')
           setSynonyms(draft.synonyms || '')
+          setQuestionType(draft.questionType ? normalizeQuestionType(draft.questionType) : draft.level === 'attending' ? 'anatomy' : 'diagnosis')
           setAnatomyCorrectChoices(draft.anatomyCorrectChoices || '')
           setImageUrl(draft.imageUrl || '')
           setImageCredit(draft.imageCredit || DEFAULT_IMAGE_CREDIT_TEMPLATE)
@@ -1112,6 +1119,7 @@ export default function AdminPage() {
 
     const hasMeaningfulDraftContent = Boolean(
       contributorName.trim() ||
+        questionType !== 'diagnosis' ||
         category.trim() ||
         answerSpecificity !== 'off' ||
         prompt.trim() ||
@@ -1146,6 +1154,7 @@ export default function AdminPage() {
     }
 
     const draft: AdminCaseDraft = {
+      questionType,
       gptDraftProvenance,
       caseDate,
       level,
@@ -1217,6 +1226,7 @@ export default function AdminPage() {
     referenceLinks,
     activeSubmissionId,
     gptDraftProvenance,
+    questionType,
   ])
 
   const recentEmailReminderChanges = useMemo<ReminderChangeItem[]>(() => {
@@ -1558,7 +1568,7 @@ export default function AdminPage() {
   )
 
   useEffect(() => {
-    if (level !== 'attending') {
+    if (!isChoiceQuestion) {
       anatomyAutoCorrectChoicesRef.current = ''
       return
     }
@@ -1581,7 +1591,7 @@ export default function AdminPage() {
       anatomyAutoCorrectChoicesRef.current = ''
       return current
     })
-  }, [derivedAnatomyCorrectChoicesForComposer, level])
+  }, [derivedAnatomyCorrectChoicesForComposer, isChoiceQuestion])
 
   const duplicateAnswerMatches = useMemo(() => {
     const normalizedAnswer = normalizeAnswer(answer)
@@ -1816,11 +1826,11 @@ export default function AdminPage() {
       },
     ]
 
-    if (level === 'attending') {
+    if (isChoiceQuestion) {
       items.push({
         label: 'Answer choices',
         ready: anatomyChoiceItemsForComposer.length >= 2,
-        note: 'Use at least two anatomy answer choices.',
+        note: 'Use at least two answer choices.',
       })
       items.push({
         label: 'Correct choices',
@@ -1849,6 +1859,7 @@ export default function AdminPage() {
     learningImageUrl2,
     level,
     normalizedAnatomyCorrectChoices,
+    isChoiceQuestion,
     previewClues.length,
     prompt,
     teachingPoint,
@@ -1870,10 +1881,10 @@ export default function AdminPage() {
   function buildPreviewCase() {
     const synonymArray = draftSynonyms(gptDraftProvenance, synonyms)
     const multiSelectMetadata =
-      level === 'attending'
+      isChoiceQuestion
         ? buildMultiSelectSynonymMetadata(normalizedAnatomyCorrectChoices)
         : null
-    const storedSynonyms = multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray
+    const storedSynonyms = withQuestionType(multiSelectMetadata ? [...extractPlainSynonyms(synonymArray), multiSelectMetadata] : extractPlainSynonyms(synonymArray), questionType)
 
     const storedTeachingPoint = mergeTeachingPointAndReferences(teachingPoint, referenceLinks)
 
@@ -2061,7 +2072,7 @@ export default function AdminPage() {
     nextClues: string[],
     options?: { hasImage1?: boolean; hasImage2?: boolean }
   ) {
-    if (level === 'attending') return
+    if (isChoiceQuestion) return
 
     const firstIndex = firstShownAboveClueIndex(nextClues)
     const secondIndex = secondShownAboveClueIndex(nextClues)
@@ -2303,6 +2314,7 @@ export default function AdminPage() {
       return
     }
     setGptDraftProvenance(null)
+    setQuestionType(nextLevel === 'attending' ? 'anatomy' : 'diagnosis')
     setCaseDate(date)
     setLevel(nextLevel)
     setContributorName('')
@@ -2340,6 +2352,7 @@ export default function AdminPage() {
   }
 
   function clearForm() {
+    setQuestionType('diagnosis')
     setGptDraftProvenance(null)
     setCaseDate(shiftISODate(today, 1))
     setLevel('med_student')
@@ -2382,6 +2395,7 @@ export default function AdminPage() {
   }
 
   function editCase(c: CaseRow) {
+    setQuestionType(getCaseQuestionType(c))
     setGptDraftProvenance(null)
     setCaseDate(c.case_date)
     setLevel(c.level)
@@ -2430,6 +2444,7 @@ export default function AdminPage() {
   }
 
   function editSubmission(submission: SubmissionRow) {
+    setQuestionType(getCaseQuestionType(submission))
     setGptDraftProvenance(null)
     setCaseDate(submission.scheduled_date || today)
     setLevel(submission.level)
@@ -3509,7 +3524,7 @@ export default function AdminPage() {
         : []
 
     const anatomyChoiceStats =
-      matchingCase.level === 'attending'
+      isChoiceQuestionCase(matchingCase)
         ? buildAnatomyChoiceBreakdown(
             [
               matchingCase.clue_1,
@@ -3637,20 +3652,17 @@ export default function AdminPage() {
     }
 
     const synonymArray = draftSynonyms(gptDraftProvenance, synonyms)
-    const invalidAnatomyLetters = normalizedAnatomyCorrectChoices.filter(
-      letter => !anatomyChoiceItemsForComposer.some(choice => choice.letter === letter)
-    )
-
-    if (level === 'attending' && invalidAnatomyLetters.length > 0) {
-      setStatus(`Correct choices include invalid letters: ${invalidAnatomyLetters.join(', ')}.`)
+    const choiceError = isChoiceQuestion ? validateChoiceQuestion([clue1, clue2, clue3, clue4, clue5, clue6], normalizedAnatomyCorrectChoices) : ''
+    if (choiceError) {
+      setStatus(choiceError)
       return
     }
 
     const multiSelectMetadata =
-      level === 'attending'
+      isChoiceQuestion
         ? buildMultiSelectSynonymMetadata(normalizedAnatomyCorrectChoices)
         : null
-    const storedSynonyms = multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray
+    const storedSynonyms = withQuestionType(multiSelectMetadata ? [...extractPlainSynonyms(synonymArray), multiSelectMetadata] : extractPlainSynonyms(synonymArray), questionType)
 
     const savedImageCredit = normalizeCreditValue(imageCredit)
     const savedImageCredit2 = normalizeCreditValue(imageCredit2)
@@ -4877,24 +4889,32 @@ export default function AdminPage() {
               </label>
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                Level
+                Publish slot
                 <select
                   value={level}
                   onChange={e => {
                     const nextLevel = e.target.value as Level
                     setLevel(nextLevel)
+                    setQuestionType(nextLevel === 'attending' ? 'anatomy' : 'diagnosis')
                     if (nextLevel === 'attending' && !category.trim()) {
                       setCategory('Surgical Anatomy')
                     }
                   }}
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 >
-                  <option value="med_student">Med Student</option>
+                  <option value="med_student">Daily Case</option>
                   {!isNoResidentModeActiveOn(caseDate) ? <option value="resident">Resident</option> : null}
                   <option value="attending">Anatomy (optional)</option>
                 </select>
               </label>
               </div>
+
+              <QuestionTypeField value={questionType} onChange={next => {
+                setQuestionType(next)
+                if ([DEFAULT_TEACHING_POINT_TEMPLATE, DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE, ''].some(template => template.trim() === teachingPoint.trim())) {
+                  setTeachingPoint(getDefaultTeachingPointTemplate(next === 'diagnosis' ? 'med_student' : 'attending'))
+                }
+              }} />
 
               <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                 Category
@@ -4952,7 +4972,7 @@ export default function AdminPage() {
                 />
               </label>
 
-              <div className={`grid gap-2.5 ${level === 'attending' ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+              <div className={`grid gap-2.5 ${isChoiceQuestion ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                 <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                   Answer
                   <div className="relative">
@@ -5022,7 +5042,7 @@ export default function AdminPage() {
                   />
                 </label>
 
-                {level === 'attending' ? (
+                {isChoiceQuestion ? (
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
                     Correct Choices
                     <input
@@ -5095,13 +5115,13 @@ export default function AdminPage() {
                       />
                     </label>
                     <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      {level === 'attending' ? 'Image 1 Timing' : 'Image 1 Reveal'}
+                      {isChoiceQuestion ? 'Image 1 Timing' : 'Image 1 Reveal'}
                       <select
-                        value={imageRevealClue}
+                        value={isChoiceQuestion && imageRevealClue !== 'after' ? 'none' : imageRevealClue}
                         onChange={e => setImageRevealClue(e.target.value)}
                         className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                       >
-                        {level === 'attending' ? (
+                        {isChoiceQuestion ? (
                           <>
                             <option value="none">Show before answer</option>
                             <option value="after">Reveal after answer</option>
@@ -5177,13 +5197,13 @@ export default function AdminPage() {
                       </label>
                       <div className="grid gap-2.5 sm:grid-cols-2">
                         <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                          {level === 'attending' ? 'Image 2 Timing' : 'Image 2 Reveal'}
+                          {isChoiceQuestion ? 'Image 2 Timing' : 'Image 2 Reveal'}
                           <select
-                            value={imageRevealClue2}
+                            value={isChoiceQuestion && imageRevealClue2 !== 'after' ? 'none' : imageRevealClue2}
                             onChange={e => setImageRevealClue2(e.target.value)}
                             className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                           >
-                            {level === 'attending' ? (
+                            {isChoiceQuestion ? (
                               <>
                                 <option value="none">Show before answer</option>
                                 <option value="after">Reveal after answer</option>
@@ -5465,11 +5485,11 @@ export default function AdminPage() {
 
               <div className="rounded-xl bg-[#fcfbf8] px-3 py-3 ring-1 ring-inset ring-[#ebe5db]/65">
                 <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                  {level === 'attending' ? 'Answer choices' : 'Clinical clues'}
+                  {isChoiceQuestion ? 'Answer choices' : 'Clinical clues'}
                 </div>
                 <div className="grid gap-2.5 sm:grid-cols-2">
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'A' : 'Clue 1'}
+                    {isChoiceQuestion ? 'A' : 'Clue 1'}
                     <textarea
                       ref={element => {
                         clueTextareaRefs.current[0] = element
@@ -5484,7 +5504,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'B' : 'Clue 2'}
+                    {isChoiceQuestion ? 'B' : 'Clue 2'}
                     <textarea
                       ref={element => {
                         clueTextareaRefs.current[1] = element
@@ -5499,7 +5519,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'C' : 'Clue 3'}
+                    {isChoiceQuestion ? 'C' : 'Clue 3'}
                     <textarea
                       ref={element => {
                         clueTextareaRefs.current[2] = element
@@ -5514,7 +5534,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'D' : 'Clue 4'}
+                    {isChoiceQuestion ? 'D' : 'Clue 4'}
                     <textarea
                       ref={element => {
                         clueTextareaRefs.current[3] = element
@@ -5529,7 +5549,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'E' : 'Clue 5'}
+                    {isChoiceQuestion ? 'E' : 'Clue 5'}
                     <textarea
                       ref={element => {
                         clueTextareaRefs.current[4] = element
@@ -5545,7 +5565,7 @@ export default function AdminPage() {
                   </label>
 
                   <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                    {level === 'attending' ? 'F' : 'Clue 6'}
+                    {isChoiceQuestion ? 'F' : 'Clue 6'}
                     <textarea
                       ref={element => {
                         clueTextareaRefs.current[5] = element
@@ -5749,7 +5769,7 @@ export default function AdminPage() {
                           : '—'}
                       </div>
                     </div>
-                    {level === 'attending' ? (
+                    {isChoiceQuestion ? (
                       <>
                         <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
                           <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">

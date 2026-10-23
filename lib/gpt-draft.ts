@@ -1,4 +1,5 @@
 import type { CaseBackupSnapshot } from './case-backups'
+import { isQuestionTypeMetadata, readQuestionType } from './question-type'
 
 export const GPT_DRAFT_SHELF_KEY = 'orthodle_gpt_draft_shelf_v1'
 export const ADMIN_CASE_DRAFT_KEY = 'orthodle_admin_case_draft_v1'
@@ -51,7 +52,7 @@ export function rankSources(
     const reviewer = row.session_id || row.id
     perCase.set(reviewer, Boolean(perCase.get(reviewer)) || (row.feedback_tags || []).some(tag => tag.toLowerCase().trim() === 'great case'))
   }
-  return cases.filter(c => c.level === 'med_student' && c.case_date < today && c.answer?.trim() && c.prompt?.trim() && caseClues(c).length > 0).map(source => {
+  return cases.filter(c => c.level === 'med_student' && (!readQuestionType(c.synonyms) || readQuestionType(c.synonyms) === 'diagnosis') && c.case_date < today && c.answer?.trim() && c.prompt?.trim() && caseClues(c).length > 0).map(source => {
     const plays = players.get(source.id)?.size || 0
     const votes = [...(reviews.get(source.id)?.values() || [])]
     const great = votes.filter(Boolean).length
@@ -125,7 +126,8 @@ export function toEditorDraft(saved: SavedDraft, date: string) {
   const provenance: DraftProvenance = { sourceCaseId: saved.source.id, sourceDate: saved.source.case_date, draftId: saved.id, generatedAt: saved.generatedAt, originalAnswer: saved.source.answer, originalSynonyms: [...(saved.source.synonyms || [])] }
   return {
     caseDate: date, level: 'med_student' as const, contributorName: '', category: c.category || '', prompt: c.prompt,
-    answer: c.answer, answer_specificity: c.answer_specificity || 'off', synonyms: (c.synonyms || []).join(', '), anatomyCorrectChoices: '',
+    questionType: 'diagnosis' as const,
+    answer: c.answer, answer_specificity: c.answer_specificity || 'off', synonyms: (c.synonyms || []).filter(s => !isQuestionTypeMetadata(s)).join(', '), anatomyCorrectChoices: '',
     imageUrl: c.image_url || '', imageCredit: c.image_credit || '', imageRevealClue: reveal(c.image_reveal_clue),
     imageUrl2: c.image_url_2 || '', imageCredit2: c.image_credit_2 || '', imageRevealClue2: reveal(c.image_reveal_clue_2), imageFindings: c.image_findings || '',
     learningImageUrl: c.learning_image_url || '', learningImageCredit: c.learning_image_credit || '', learningImageCaption: c.learning_image_caption || '',
@@ -145,6 +147,7 @@ export function gptDraftSaveError(provenance: DraftProvenance | null, date: stri
 
 export function draftSynonyms(provenance: DraftProvenance | null, text: string) {
   // Preserve aliases containing commas unless Andy explicitly edits the alias field.
-  if (provenance && text === provenance.originalSynonyms.join(', ')) return [...provenance.originalSynonyms]
+  const originalAliases = provenance?.originalSynonyms.filter(s => !isQuestionTypeMetadata(s))
+  if (originalAliases && text === originalAliases.join(', ')) return [...originalAliases]
   return text.split(',').map(s => s.trim()).filter(Boolean)
 }

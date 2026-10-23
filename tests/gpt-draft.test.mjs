@@ -13,7 +13,9 @@ function load(file, imports = {}, globals = {}) {
   vm.runInNewContext(compiled, { exports, require: id => { if (!(id in imports)) throw new Error(`Unexpected import: ${id}`); return imports[id] }, ...globals })
   return exports
 }
-const lib = load('../lib/gpt-draft.ts')
+const questionTypes = load('../lib/question-type.ts')
+const anatomy = load('../lib/anatomy-quiz.ts', { './question-type': questionTypes, '@/lib/utils': { normalizeAnswer: value => value.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ') } })
+const lib = load('../lib/gpt-draft.ts', { './question-type': questionTypes })
 const caseSave = load('../lib/case-save.ts')
 const paging = load('../lib/admin-dashboard.ts')
 const plain = value => JSON.parse(JSON.stringify(value))
@@ -60,6 +62,13 @@ test('ranking excludes non-daily/unpublished cases and penalizes upcoming alias 
   assert.equal(ranked.length, 1)
   assert.equal(ranked[0].score, original.score * .25)
   assert.equal(ranked[0].lastDiagnosisDate, '2026-11-01')
+})
+
+test('GPT diagnosis sources exclude anatomy and classification questions in the daily slot', () => {
+  const quizCases = ['anatomy', 'classification'].map(type => ({ ...source, id: type, synonyms: questionTypes.withQuestionType([], type) }))
+  const ranked = lib.rankSources([source, ...quizCases], guesses(source.id, 10), [], '2026-10-23')
+  assert.equal(ranked.length, 1)
+  assert.equal(ranked[0].source.id, source.id)
 })
 
 test('negative and untagged reviews reduce the smoothed positive rating', () => {
@@ -132,6 +141,7 @@ function routeHarness({ key = 'test-only-key', responseStatus = 'completed', ref
     '@/lib/admin-dashboard': paging,
     '@/lib/stats-exclusions': { getExcludedStatsSessionIds: async () => ['admin'] },
     '@/lib/gpt-draft': lib,
+    '@/lib/question-type': questionTypes,
   }, {
     process: { env: { OPENAI_API_KEY: key } }, crypto: webcrypto, AbortSignal,
     fetch: async (_url, init) => {
@@ -211,7 +221,7 @@ function adminSaveHarness({ existing = null, provenance = true, conflict = false
   }
   const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: existing, error: null }), insert: p => write('insert', p), upsert: p => write('upsert', p) }
   const context = vm.createContext({
-    ...editor, ...caseSave, clues: [editor.clue1, editor.clue2, editor.clue3], answerSpecificity: 'off', gptDraftProvenance: provenance ? editor.gptDraftProvenance : null,
+    ...editor, ...caseSave, ...questionTypes, ...anatomy, isChoiceQuestion: false, questionType: 'diagnosis', clues: [editor.clue1, editor.clue2, editor.clue3], answerSpecificity: 'off', gptDraftProvenance: provenance ? editor.gptDraftProvenance : null,
     normalizedAnatomyCorrectChoices: [], anatomyChoiceItemsForComposer: [],
     supabase: { from: () => query }, gptDraftSaveError: lib.gptDraftSaveError, draftSynonyms: lib.draftSynonyms,
     normalizeCreditValue: value => value || null, mergeTeachingPointAndReferences: value => value,
@@ -228,7 +238,7 @@ test('actual admin save inserts GPT drafts and preserves aliases and images', as
   const h = adminSaveHarness()
   await h.save()
   assert.equal(h.writes[0].method, 'insert')
-  assert.deepEqual(plain(h.writes[0].payload.synonyms), source.synonyms)
+  assert.deepEqual(plain(anatomy.extractPlainSynonyms(h.writes[0].payload.synonyms)), source.synonyms)
   assert.equal(h.writes[0].payload.image_url, source.image_url)
   assert.equal(h.writes[0].payload.image_reveal_clue, 2)
   assert.equal(h.writes[0].payload.learning_image_caption, source.learning_image_caption)
@@ -283,6 +293,38 @@ test('disabled specificity can be omitted without backing up empty optional cont
   assert.equal(h.cleared(), true)
   assert.match(h.messages.at(-1), /Case saved/)
 })
+
+for (const studio of [false, true]) {
+  test(`${studio ? 'studio' : 'admin'} saves and reloads every question type in the same daily slot`, async () => {
+    const h = adminSaveHarness({ studio, provenance: false })
+    Object.assign(h.context, {
+      answer: 'Type II', synonyms: 'Second type', clue1: 'Type I', clue2: 'Type II', clue3: '', clue4: '', clue5: '', clue6: '', clues: ['Type I', 'Type II'],
+      anatomyChoiceItemsForComposer: anatomy.getAnatomyChoiceItems(['Type I', 'Type II']),
+      anatomyChoiceItems: anatomy.getAnatomyChoiceItems(['Type I', 'Type II']),
+      normalizedAnatomyCorrectChoices: ['B'],
+    })
+    for (const questionType of ['anatomy', 'classification', 'diagnosis']) {
+      h.context.questionType = questionType
+      h.context.isChoiceQuestion = questionType !== 'diagnosis'
+      await h.save()
+      const record = h.writes.at(-1).payload
+      assert.equal(record.level, 'med_student')
+      assert.equal(anatomy.getCaseQuestionType(record), questionType)
+      assert.equal(record.image_url, source.image_url)
+      assert.equal(record.clue_1, 'Type I')
+      assert.deepEqual(plain(anatomy.extractPlainSynonyms(record.synonyms)), ['Second type'])
+      assert.deepEqual(plain(anatomy.getStoredMultiSelectLetters(record.synonyms)), questionType === 'diagnosis' ? [] : ['B'])
+    }
+  })
+
+  test(`${studio ? 'studio' : 'admin'} refuses a quiz without choices and a valid correct letter`, async () => {
+    const h = adminSaveHarness({ studio, provenance: false })
+    Object.assign(h.context, { questionType: 'classification', isChoiceQuestion: true, anatomyChoiceItems: [], normalizedAnatomyCorrectChoices: [] })
+    await h.save()
+    assert.equal(h.writes.length, 0)
+    assert.match(h.messages.at(-1), /at least two answer choices/)
+  })
+}
 
 test('actual draft-page interactions preserve edits, reject/regenerate, preview, and hand off with backup', async () => {
   const h = routeHarness()

@@ -9,6 +9,9 @@ import Link from 'next/link'
 import {
   getAnatomyChoiceItems,
   isAnatomyQuizCaseRecord,
+  isChoiceQuestionCase,
+  getCaseQuestionType,
+  extractPlainSynonyms,
   getCorrectAnatomyChoiceLetters,
   isCorrectAnatomySelection,
   parseAnatomyGuessLetters,
@@ -308,7 +311,7 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
   'pain',
 ])
 
-const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v2'
+const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v3'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v2'
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
@@ -974,7 +977,7 @@ function PlayPageContent() {
       const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }, { data: titleRows }] = await Promise.all([
         supabase
           .from('cases')
-          .select('answer, level, case_date')
+          .select('answer, level, case_date, synonyms')
           .range(0, 1999),
         supabase
           .from('diagnosis_choices')
@@ -993,18 +996,18 @@ function PlayPageContent() {
 
       const hiddenAnswers = readHiddenDiagnosisAnswers()
       const allCaseAnswerRows =
-        ((caseAnswers || []) as Array<{ answer: string | null; level: Level; case_date: string | null }>).filter(
+        ((caseAnswers || []) as Array<{ answer: string | null; level: Level; case_date: string | null; synonyms: string[] | null }>).filter(
           item => Boolean(item.answer?.trim() && item.level && item.case_date)
         )
 
       const diagnosisCaseAnswers = allCaseAnswerRows
-        .filter(item => isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
+        .filter(item => !isChoiceQuestionCase(item) && isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
         .map(item => item.answer?.trim())
         .filter(Boolean) as string[]
 
       const anatomyOnlyAnswerSet = new Set(
         allCaseAnswerRows
-          .filter(item => !isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
+          .filter(item => isChoiceQuestionCase(item) || !isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
           .map(item => normalizeAnswer(item.answer || ''))
           .filter(Boolean)
       )
@@ -1603,7 +1606,7 @@ function PlayPageContent() {
         : null
 
     const anatomyChoiceStats =
-      caseItem.level === 'attending' && isAnatomyQuizCaseRecord(caseItem)
+      isChoiceQuestionCase(caseItem)
         ? buildAnatomyChoiceBreakdown(
             [caseItem.clue_1, caseItem.clue_2, caseItem.clue_3, caseItem.clue_4, caseItem.clue_5, caseItem.clue_6],
             publicGuessRows,
@@ -1748,7 +1751,7 @@ function PlayPageContent() {
         }
 
         const isAnatomyModeForLoadedCase =
-          data.level === 'attending' && isAnatomyQuizCaseRecord(data)
+          isChoiceQuestionCase(data)
         const useQuizMode = isAnatomyModeForLoadedCase
         const maxGuessesForLoadedCase = isAnatomyModeForLoadedCase ? 1 : MAX_GUESSES
 
@@ -1955,7 +1958,7 @@ function PlayPageContent() {
   )
 
   const isSurgicalAnatomyMode =
-    selectedLevel === 'attending' && isAnatomyQuizCaseRecord(dailyCase)
+    isChoiceQuestionCase(dailyCase)
   const hasValidSurgicalAnatomyChoices = surgicalAnatomyChoices.length >= 2
   const useSurgicalAnatomyQuiz = isSurgicalAnatomyMode && hasValidSurgicalAnatomyChoices
   const maxGuessesForCurrentCase = isSurgicalAnatomyMode ? 1 : MAX_GUESSES
@@ -3541,9 +3544,9 @@ function PlayPageContent() {
     try {
       data = (isAdminPreview || isEmbeddedExample)
         ? (() => {
-            const accepted = [dailyCase.answer, ...(dailyCase.synonyms || [])]
+            const accepted = [dailyCase.answer, ...extractPlainSynonyms(dailyCase.synonyms)]
             const isAnatomyPreview =
-              dailyCase.level === 'attending' && isAnatomyQuizCaseRecord(dailyCase)
+              isChoiceQuestionCase(dailyCase)
             const correct = isAnatomyPreview
               ? isCorrectAnatomySelection(
                   currentGuess,
@@ -3903,7 +3906,7 @@ function PlayPageContent() {
     dailySummary.levels
       .filter(
         item =>
-          visibleTodayLevels.includes(item.level) && (item.won || item.guessesUsed === 6)
+          visibleTodayLevels.includes(item.level)
       )
       .map(item => item.level)
   ).size
@@ -3912,7 +3915,7 @@ function PlayPageContent() {
   const onTodayCard = selectedDate === today
   const dailyCaseSolvedToday =
     dailySummary.levels.some(
-      item => item.level === 'med_student' && (item.won || item.guessesUsed === 6)
+      item => item.level === 'med_student'
     ) || (onTodayCard && selectedLevel === 'med_student' && roundComplete)
   const anatomyQuizLocked = !noAnatomyModeActiveToday && onTodayCard && !isAdminPreview && !dailyCaseSolvedToday
   const showDailyCompleteCard = onTodayCard && todayComplete
@@ -5904,6 +5907,7 @@ function PlayPageContent() {
               <div className={`embedded-case-answers ${visibleImages.length > 0 && imageRevealed ? 'mt-1 sm:mt-1.5' : 'mt-2'} pt-0`}>
                 {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
+                    <div className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#1f6448]">{getCaseQuestionType(dailyCase) === 'classification' ? 'Classification' : 'Anatomy'} question</div>
                     {hasValidSurgicalAnatomyChoices ? (
                       <>
                         <div className="grid gap-2.5 sm:grid-cols-2">
@@ -5981,7 +5985,7 @@ function PlayPageContent() {
                     ) : isAdminPreview ? (
                       <div className="mt-3 rounded-2xl border border-dashed border-[#d9cfbf] bg-[#fbfaf7] px-4 py-4 text-center">
                         <p className="text-[12px] leading-5 text-[#6d766f]">
-                          This anatomy case needs at least two saved answer choices before it can run as a quiz.
+                          This question needs at least two saved answer choices before it can run as a quiz.
                         </p>
                       </div>
                     ) : null}

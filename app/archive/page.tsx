@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
-import { isAnatomyQuizCaseRecord } from '@/lib/anatomy-quiz'
+import { isAnatomyQuizCaseRecord, isChoiceQuestionCase } from '@/lib/anatomy-quiz'
 import {
   DEFAULT_LEVEL_TITLES,
   normalizeLevelTitles,
@@ -161,7 +161,7 @@ export default function ArchivePage() {
       }
       const completedKeysFromServer = new Set(nextCases.filter(item => {
         const guesses = ownGuesses.get(item.id) || []
-        return guesses.some(row => row.is_correct) || guesses.length >= (item.level === 'attending' && isAnatomyQuizCaseRecord(item) ? 1 : 6)
+        return guesses.some(row => row.is_correct) || guesses.length >= (isChoiceQuestionCase(item) ? 1 : 6)
       }).map(item => `${item.case_date}:${item.level}:archive`))
       if (completedKeysFromServer.size > 0) {
         setCompletedArchiveKeys(current => new Set([...current, ...completedKeysFromServer]))

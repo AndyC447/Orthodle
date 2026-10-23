@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { isAdminPassword } from '@/lib/admin-auth'
+import { readQuestionType } from '@/lib/question-type'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { fetchAdminPages } from '@/lib/admin-dashboard'
 import { getExcludedStatsSessionIds } from '@/lib/stats-exclusions'
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       const { data, error } = await db.from('cases').select('*').eq('id', body.sourceId).eq('level', 'med_student').lt('case_date', today).single()
       if (error || !data) return NextResponse.json({ error: 'The source case is no longer available.' }, { status: 404, headers })
       const source = data as SourceCase
+      if (readQuestionType(source.synonyms) && readQuestionType(source.synonyms) !== 'diagnosis') return NextResponse.json({ error: 'GPT Draft currently supports diagnosis cases, not multiple-choice questions.' }, { status: 422, headers })
       if (!source.prompt?.trim() || !source.answer?.trim() || !caseClues(source).length) return NextResponse.json({ error: 'The source needs a presentation, answer, and clues.' }, { status: 422, headers })
       const { data: recent, error: recentError } = await db.from('cases').select('prompt, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6, teaching_point').eq('level', 'med_student').lte('case_date', today).order('case_date', { ascending: false }).limit(3)
       if (recentError) throw recentError

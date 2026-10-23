@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isAnatomyQuizCaseRecord, isCorrectAnatomySelection } from '@/lib/anatomy-quiz'
+import { isChoiceQuestionCase, isCorrectAnatomySelection, extractPlainSynonyms } from '@/lib/anatomy-quiz'
 import { supabase } from '@/lib/supabase'
 import { isAcceptedGuess } from '@/lib/utils'
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
   if (error || !caseRow) return NextResponse.json({ error: 'Case not found' }, { status: 404 })
 
-  const accepted = [caseRow.answer, ...(caseRow.synonyms || [])]
+  const accepted = [caseRow.answer, ...extractPlainSynonyms(caseRow.synonyms)]
   const anatomyChoices = [
     caseRow.clue_1,
     caseRow.clue_2,
@@ -37,13 +37,14 @@ export async function POST(req: Request) {
     caseRow.clue_6,
   ]
   const shouldUseStrictAnatomyMatching =
-    caseRow.level === 'attending' && isAnatomyQuizCaseRecord(caseRow)
+    isChoiceQuestionCase(caseRow)
+  const maxGuesses = shouldUseStrictAnatomyMatching ? 1 : 6
   const correct = shouldUseStrictAnatomyMatching
     ? isCorrectAnatomySelection(normalizedGuess, anatomyChoices, caseRow.answer, caseRow.synonyms || [])
     : isAcceptedGuess(normalizedGuess, accepted)
 
   if (isLocalRequest) {
-    return NextResponse.json({ correct, remaining: 6 })
+    return NextResponse.json({ correct, remaining: maxGuesses })
   }
 
   const { error: insertError } = await supabase.from('guesses').insert({
@@ -72,5 +73,5 @@ export async function POST(req: Request) {
     .eq('case_id', caseId)
     .eq('session_id', sessionId)
 
-  return NextResponse.json({ correct, remaining: Math.max(0, 6 - (count || 0)) })
+  return NextResponse.json({ correct, remaining: Math.max(0, maxGuesses - (count || 0)) })
 }

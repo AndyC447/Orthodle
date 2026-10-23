@@ -1,6 +1,9 @@
 'use client'
 
 import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
+import { QuestionTypeField } from '@/components/QuestionTypeField'
+import { withQuestionType, type QuestionType } from '@/lib/question-type'
+import { getCaseQuestionType, validateChoiceQuestion } from '@/lib/anatomy-quiz'
 import { normalizeAnswerSpecificity, type AnswerSpecificity } from '@/lib/answer-specificity'
 
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
@@ -226,6 +229,8 @@ export default function CaseStudioPage() {
   const [loadingCase, setLoadingCase] = useState(false)
   const [caseDate, setCaseDate] = useState(shiftISODate(today, 1))
   const [level, setLevel] = useState<Level>('med_student')
+  const [questionType, setQuestionType] = useState<QuestionType>('diagnosis')
+  const isChoiceQuestion = questionType !== 'diagnosis'
   const [category, setCategory] = useState('')
   const [prompt, setPrompt] = useState('')
   const [answerSpecificity, setAnswerSpecificity] = useState<AnswerSpecificity>('off')
@@ -300,7 +305,7 @@ export default function CaseStudioPage() {
   )
 
   useEffect(() => {
-    if (level !== 'attending') {
+    if (!isChoiceQuestion) {
       anatomyAutoCorrectChoicesRef.current = ''
       return
     }
@@ -323,7 +328,7 @@ export default function CaseStudioPage() {
       anatomyAutoCorrectChoicesRef.current = ''
       return current
     })
-  }, [derivedAnatomyCorrectChoices, level])
+  }, [derivedAnatomyCorrectChoices, isChoiceQuestion])
 
   useEffect(() => {
     const savedUnlock = window.sessionStorage.getItem(CASE_STUDIO_UNLOCKED_KEY)
@@ -389,6 +394,7 @@ export default function CaseStudioPage() {
       }
 
       if (!data) {
+        setQuestionType(level === 'attending' ? 'anatomy' : 'diagnosis')
         setCategory(level === 'attending' ? 'Surgical Anatomy' : '')
         setPrompt('')
         setAnswerSpecificity('off')
@@ -418,6 +424,7 @@ export default function CaseStudioPage() {
       }
 
       const existingCase = data as CaseRow
+      setQuestionType(getCaseQuestionType(existingCase))
       const parsedTeaching = splitTeachingPointAndReferences(existingCase.teaching_point)
 
       setCategory(existingCase.category || (level === 'attending' ? 'Surgical Anatomy' : ''))
@@ -507,6 +514,7 @@ export default function CaseStudioPage() {
   }, [
     answer,
     anatomyCorrectChoices,
+    questionType,
     caseDate,
     category,
     clues,
@@ -539,10 +547,10 @@ export default function CaseStudioPage() {
       .filter(Boolean)
 
     const multiSelectMetadata =
-      level === 'attending'
+      isChoiceQuestion
         ? buildMultiSelectSynonymMetadata(normalizedAnatomyCorrectChoices)
         : null
-    const storedSynonyms = multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray
+    const storedSynonyms = withQuestionType(multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray, questionType)
     const storedTeachingPoint = mergeTeachingPointAndReferences(teachingPoint, referenceLinks)
 
     return {
@@ -865,6 +873,7 @@ export default function CaseStudioPage() {
     const parsedTeaching = splitTeachingPointAndReferences(snapshot.teaching_point)
     setCaseDate(snapshot.case_date)
     setLevel(snapshot.level)
+    setQuestionType(getCaseQuestionType(snapshot))
     setCategory(snapshot.category || (snapshot.level === 'attending' ? 'Surgical Anatomy' : ''))
     setPrompt(snapshot.prompt || '')
     setAnswerSpecificity(normalizeAnswerSpecificity(snapshot.answer_specificity))
@@ -944,11 +953,9 @@ export default function CaseStudioPage() {
       return
     }
 
-    const invalidAnatomyLetters = normalizedAnatomyCorrectChoices.filter(
-      letter => !anatomyChoiceItems.some(choice => choice.letter === letter)
-    )
-    if (level === 'attending' && invalidAnatomyLetters.length > 0) {
-      setStatus(`Correct choices include invalid letters: ${invalidAnatomyLetters.join(', ')}.`)
+    const choiceError = isChoiceQuestion ? validateChoiceQuestion(clues, normalizedAnatomyCorrectChoices) : ''
+    if (choiceError) {
+      setStatus(choiceError)
       return
     }
 
@@ -958,10 +965,10 @@ export default function CaseStudioPage() {
       .filter(Boolean)
 
     const multiSelectMetadata =
-      level === 'attending'
+      isChoiceQuestion
         ? buildMultiSelectSynonymMetadata(normalizedAnatomyCorrectChoices)
         : null
-    const storedSynonyms = multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray
+    const storedSynonyms = withQuestionType(multiSelectMetadata ? [...synonymArray, multiSelectMetadata] : synonymArray, questionType)
     const storedTeachingPoint = mergeTeachingPointAndReferences(teachingPoint, referenceLinks)
 
     const casePayload = {
@@ -1163,18 +1170,20 @@ export default function CaseStudioPage() {
           ) : null}
           {setRevealClue ? (
             <select
-              value={revealClue}
+              value={isChoiceQuestion && revealClue !== 'after' ? 'none' : revealClue}
               onChange={event => setRevealClue(event.target.value)}
               className="w-full rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
             >
-              <option value="none">No reveal timing</option>
+              <option value="none">{isChoiceQuestion ? 'Show before answer' : 'No reveal timing'}</option>
+              {!isChoiceQuestion && <>
               <option value="1">Show before Clue 1</option>
               <option value="2">Show before Clue 2</option>
               <option value="3">Show before Clue 3</option>
               <option value="4">Show before Clue 4</option>
               <option value="5">Show before Clue 5</option>
               <option value="6">Show before Clue 6</option>
-              <option value="after">Show after the round</option>
+              </>}
+              <option value="after">{isChoiceQuestion ? 'Reveal after answer' : 'Show after the round'}</option>
             </select>
           ) : null}
         </div>
@@ -1324,7 +1333,7 @@ export default function CaseStudioPage() {
                   />
                 </label>
                 <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
-                  Level
+                  Publish slot
                   <select
                     value={level}
                     onChange={event => setLevel(event.target.value as Level)}
@@ -1332,7 +1341,7 @@ export default function CaseStudioPage() {
                   >
                     <option value="med_student">Daily Case</option>
                     <option value="resident">Resident</option>
-                    <option value="attending">Anatomy Quiz</option>
+                    <option value="attending">Anatomy (separate slot)</option>
                   </select>
                 </label>
                 <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
@@ -1386,7 +1395,13 @@ export default function CaseStudioPage() {
                 </label>
               </div>
 
-              <div className={`grid gap-2 ${level === 'attending' ? 'lg:grid-cols-2' : ''}`}>
+              <QuestionTypeField value={questionType} onChange={next => {
+                setQuestionType(next)
+                if ([DEFAULT_TEACHING_POINT_TEMPLATE, DEFAULT_ANATOMY_TEACHING_POINT_TEMPLATE, ''].some(template => template.trim() === teachingPoint.trim())) {
+                  setTeachingPoint(getDefaultTeachingPointTemplate(next === 'diagnosis' ? 'med_student' : 'attending'))
+                }
+              }} />
+              <div className={`grid gap-2 ${isChoiceQuestion ? 'lg:grid-cols-2' : ''}`}>
                 <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
                   Synonyms
                   <input
@@ -1396,7 +1411,7 @@ export default function CaseStudioPage() {
                     className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                   />
                 </label>
-                {level === 'attending' ? (
+                {isChoiceQuestion ? (
                   <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
                     Correct choices
                     <input
@@ -1461,9 +1476,9 @@ export default function CaseStudioPage() {
 
               <div className="rounded-[18px] border border-[#e7e1d6] bg-[#fcfbf8] px-3 py-3">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                  {level === 'attending' ? 'Anatomy answers' : 'Clinical clues'}
+                  {isChoiceQuestion ? 'Answer choices' : 'Clinical clues'}
                 </div>
-                {level === 'attending' ? (
+                {isChoiceQuestion ? (
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     {clues.map((clue, index) => {
                       const letter = String.fromCharCode(65 + index)
