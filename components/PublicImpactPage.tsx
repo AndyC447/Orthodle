@@ -136,10 +136,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
         <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-3 py-4 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
             <div>
-              <h1 className="font-serif text-[30px] font-bold leading-tight text-[#102018] sm:text-[38px]">
-                Impact
-              </h1>
-              <div className="mt-4 max-w-2xl space-y-3">
+              <div className="max-w-2xl space-y-3">
                 {aboutText.split(/\n{2,}/).map(paragraph => (
                   <p key={paragraph} className="text-[15px] leading-7 text-[#4f5e55] sm:text-[16px]">
                     {paragraph}
