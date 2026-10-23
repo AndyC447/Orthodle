@@ -7,8 +7,35 @@ const compiled = ts.transpileModule(readFileSync(new URL('../lib/case-save.ts', 
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
 const exports = {}
-new Function('exports', compiled)(exports)
+const categories = {}
+new Function('exports', ts.transpileModule(readFileSync(new URL('../lib/case-category.ts', import.meta.url), 'utf8'), {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+}).outputText)(categories)
+new Function('exports', 'require', compiled)(exports, () => categories)
 const { saveCaseCompat } = exports
+
+test('case saves normalize legacy categories without mutating the draft', async () => {
+  const draft = { category: 'hand / trauma', answer: 'Original' }
+  await saveCaseCompat(draft, async payload => {
+    assert.equal(payload.category, 'Hand')
+    return { error: null }
+  })
+  assert.equal(draft.category, 'hand / trauma')
+})
+
+test('category aliases merge, preserve custom topics, and remain stable on repeated normalization', () => {
+  for (const [input, expected] of [
+    ['Bone Diseases', 'Bone Disorders'], ['bone fractures', 'Bone Disorders'],
+    ['Bone Tumors', 'Bone Disorders'], ['foot/ankle', 'Foot / Ankle'],
+    ['Foot / Ankle', 'Foot / Ankle'], ['Hand / Trauma', 'Hand'],
+    ['HAND', 'Hand'], [' sports medicine ', 'Sports'],
+    ['Custom Topic', 'Custom Topic'], ['Wrist/nerve', 'Wrist / nerve'],
+    [null, ''], ['', ''],
+  ]) {
+    assert.equal(categories.normalizeCaseCategory(input), expected)
+    assert.equal(categories.normalizeCaseCategory(expected), expected)
+  }
+})
 
 test('modern schema writes all optional fields without retries or payload mutation', async () => {
   const payload = { answer_specificity: 'named_diagnosis', learning_image_caption: '**caption**', answer: 'Original answer' }

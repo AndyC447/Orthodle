@@ -97,7 +97,7 @@ export function ImpactExamples({ adminMode = false, initialExamples = null }: { 
 
   return (
     <section aria-label="Example cases" className="mt-6 min-w-0 border-t border-[#dce8e1] pt-5 sm:mt-8 sm:pt-6">
-      <h2 className="font-serif text-[22px] font-bold text-[#102018]">Try an example</h2>
+      <h2 className="public-section-title font-serif text-[22px] font-bold text-[#102018]">Try an example</h2>
       {adminMode && choicesLoaded && (
         <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white p-3">
           <p className="text-[13px] leading-6 text-[#637268]">Choose the cases shown here. They stay the same until you change them. Only cases dated today or earlier are available.</p>

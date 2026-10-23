@@ -200,16 +200,16 @@ export default function StudyModePage() {
   return (
     <main className="app-surface min-h-screen">
       <Header />
-      <section className="mx-auto w-full max-w-4xl px-4 pb-10 pt-4 sm:px-6 sm:pt-6">
-        <div className="night-surface rounded-[26px] border border-[#e7e1d6] px-4 py-4 shadow-[0_16px_34px_rgba(16,32,24,0.05)] sm:px-6 sm:py-6">
+      <section className="public-page-shell mx-auto w-full max-w-4xl px-4 pb-10 pt-4 sm:px-6 sm:pt-6">
+        <div className="public-card night-surface rounded-[26px] border border-[#e7e1d6] px-4 py-4 shadow-[0_16px_34px_rgba(16,32,24,0.05)] sm:px-6 sm:py-6">
           <div className="text-center">
             <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#315f4d]">
               Study Mode
             </div>
-            <h1 className="mt-2 font-serif text-[32px] font-bold tracking-[-0.03em] text-[#102018] sm:text-[40px]">
+            <h1 className="public-page-title mt-2 font-serif text-[32px] font-bold tracking-[-0.03em] text-[#102018] sm:text-[40px]">
               Study diagnoses like flashcards
             </h1>
-            <p className="mx-auto mt-2 max-w-2xl text-[13px] leading-6 text-[#637268] sm:text-[14px]">
+            <p className="public-body mx-auto mt-2 max-w-2xl text-[13px] leading-6 text-[#637268] sm:text-[14px]">
               Search any diagnosis and swipe left or right to move through the learning points.
             </p>
           </div>
@@ -287,7 +287,7 @@ export default function StudyModePage() {
                           <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#f0c247] sm:text-[10px]">
                             {toTitleCase(formatLevel(currentCase.level, currentCase.case_date))}
                           </div>
-                          <h2 className="mt-2 font-serif text-[28px] font-bold leading-tight tracking-[-0.04em] text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.18)] sm:text-[36px]">
+                          <h2 className="public-page-title mt-2 font-serif text-[28px] font-bold leading-tight tracking-[-0.04em] text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.18)] sm:text-[36px]">
                             {currentCase.answer}
                           </h2>
                           <div className="mt-2 text-[11px] font-medium text-[#deebe5] sm:text-[12px]">

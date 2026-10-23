@@ -16,7 +16,7 @@ function load(file, imports = {}, globals = {}) {
 const questionTypes = load('../lib/question-type.ts')
 const anatomy = load('../lib/anatomy-quiz.ts', { './question-type': questionTypes, '@/lib/utils': { normalizeAnswer: value => value.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ') } })
 const lib = load('../lib/gpt-draft.ts', { './question-type': questionTypes })
-const caseSave = load('../lib/case-save.ts')
+const caseSave = load('../lib/case-save.ts', { './case-category': load('../lib/case-category.ts') })
 const paging = load('../lib/admin-dashboard.ts')
 const plain = value => JSON.parse(JSON.stringify(value))
 const source = {

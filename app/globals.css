@@ -2183,6 +2183,20 @@ a[class*=" rounded-full"] {
   }
 }
 
+/* Shared mobile rhythm, based on the case player. Desktop keeps each page's layout. */
+@media (max-width: 639px) {
+  .public-page-shell { padding-inline: 16px; padding-top: 12px; font-size: 13px; line-height: 1.65; }
+  .public-page-shell :is(input, select, textarea) { font-size: 16px; }
+  .public-page-header { margin-bottom: 16px; gap: 12px; }
+  .public-page-title { font-size: 22px; line-height: 1.2; letter-spacing: -0.03em; }
+  .public-section-title { font-size: 18px; line-height: 1.3; letter-spacing: -0.02em; }
+  .public-body { font-size: 13px; line-height: 1.65; }
+  .public-label { font-size: 11px; line-height: 1.5; }
+  .public-card { padding: 12px; }
+  .public-section { margin-top: 16px; }
+  .public-action { min-height: 44px; font-size: 13px; line-height: 1.4; }
+}
+
 /* Archive calendar: status is conveyed through text as well as color. */
 .archive-calendar-page { color: #102018; }
 .archive-calendar-page .archive-control { min-height: 44px; background: #fff; border-color: #ded7ca; color: #253e30; }

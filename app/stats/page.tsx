@@ -57,12 +57,12 @@ export default function StatsPage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-5xl px-3 pb-1 pt-3 sm:px-6 sm:pt-6">
+      <section className="public-page-shell mx-auto max-w-5xl px-3 pb-1 pt-3 sm:px-6 sm:pt-6">
         <div className="night-surface overflow-hidden rounded-[24px] border border-[#ebe5db] bg-white shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:rounded-[28px]">
-          <div className="p-2.5 sm:p-4 md:p-5">
+          <div className="public-card p-2.5 sm:p-4 md:p-5">
             <div>
-              <div className="px-10 text-center sm:px-16">
-                <h1 className="font-serif text-[22px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:text-[28px]">
+              <div className="px-2 text-center sm:px-16">
+                <h1 className="public-page-title font-serif text-[22px] font-bold leading-tight tracking-[-0.03em] text-[#102018] sm:text-[28px]">
                   Your daily performance
                 </h1>
                 <div className="mt-2">

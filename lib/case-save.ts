@@ -1,3 +1,5 @@
+import { normalizeCaseCategory } from './case-category'
+
 const OPTIONAL_CASE_FIELDS = ['answer_specificity', 'learning_image_caption', 'learning_image_caption_2'] as const
 type OptionalCaseField = typeof OPTIONAL_CASE_FIELDS[number]
 type SaveError = { message: string; code?: string }
@@ -15,7 +17,10 @@ export async function saveCaseCompat<T extends Record<string, unknown>>(
   payload: T,
   write: (payload: Partial<T>) => PromiseLike<{ error: SaveError | null }>
 ) {
-  const compatible: Partial<T> = { ...payload }
+  const compatible: Partial<T> = {
+    ...payload,
+    ...(typeof payload.category === 'string' ? { category: normalizeCaseCategory(payload.category) } : {}),
+  }
   const omittedFields: OptionalCaseField[] = []
   for (;;) {
     const { error } = await write({ ...compatible })

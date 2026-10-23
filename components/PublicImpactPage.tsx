@@ -118,7 +118,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
     <main className="app-surface min-h-screen">
       <Header />
 
-      <section className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <section className="public-page-shell mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
         {adminMode ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <Link
@@ -134,20 +134,20 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
         ) : null}
 
         <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-3 py-4 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
             <div>
               <div className="max-w-2xl space-y-3">
                 {aboutText.split(/\n{2,}/).map(paragraph => (
-                  <p key={paragraph} className="text-[15px] leading-7 text-[#4f5e55] sm:text-[16px]">
+                  <p key={paragraph} className="public-body text-[15px] leading-7 text-[#4f5e55] sm:text-[16px]">
                     {paragraph}
                   </p>
                 ))}
               </div>
-              <div className="mt-5 max-w-2xl rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-3 lg:mt-12">
+              <div className="public-card public-section mt-5 max-w-2xl rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-3 lg:mt-12">
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
                   Contact
                 </div>
-                <p className="mt-1.5 text-[13px] leading-6 text-[#4f5e55] sm:text-[14px]">
+                <p className="public-body mt-1.5 text-[13px] leading-6 text-[#4f5e55] sm:text-[14px]">
                   Have content ideas, feedback, or anything else you&apos;d like to share?
                   Reach me at{' '}
                   <a
@@ -197,7 +197,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
               ) : null}
             </div>
 
-            <div className="rounded-[22px] border border-[#dce8e1] bg-[#f7fbf8] p-4">
+            <div className="public-card rounded-[22px] border border-[#dce8e1] bg-[#f7fbf8] p-4">
               <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                 Live snapshot
               </div>

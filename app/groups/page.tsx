@@ -3921,7 +3921,7 @@ export default function GroupsPage() {
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                   Groups
                 </div>
-                <h2 className="mt-1 font-serif text-[25px] font-semibold tracking-[-0.04em] text-[#102018]">
+                <h2 className="public-section-title mt-1 font-serif text-[25px] font-semibold tracking-[-0.04em] text-[#102018]">
                   Compete with friends
                 </h2>
               </div>
@@ -3967,7 +3967,7 @@ export default function GroupsPage() {
                 <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#637268]">
                   This week
                 </div>
-                <h2 className="mt-1 font-serif text-[25px] font-semibold tracking-[-0.04em] text-[#102018]">
+                <h2 className="public-section-title mt-1 font-serif text-[25px] font-semibold tracking-[-0.04em] text-[#102018]">
                   How group scoring works
                 </h2>
               </div>
@@ -4033,11 +4033,11 @@ export default function GroupsPage() {
         </div>
       ) : null}
 
-      <section className="mx-auto max-w-[1040px] px-3 py-4 sm:px-6 sm:py-7">
-        <div className="groups-page-heading mb-5 flex flex-wrap items-end justify-between gap-3">
+      <section className="public-page-shell mx-auto max-w-[1040px] px-3 py-4 sm:px-6 sm:py-7">
+        <div className="public-page-header groups-page-heading mb-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="font-serif text-[28px] font-bold tracking-tight text-[#102018] sm:text-[34px]">{activeGroupsTab === 'home' ? 'Groups' : activeGroupsTab === 'my-group' ? (isViewingOwnGroup ? 'Your team' : 'Team overview') : 'Your profile'}</h1>
-            <p className="mt-1 max-w-xl text-[14px] leading-6 text-[#637268]">{activeGroupsTab === 'home' ? 'Learn together. Build a streak. See how your team stacks up.' : activeGroupsTab === 'my-group' ? 'Your members, progress, and weekly achievements in one place.' : 'Make it yours, track your progress, and keep your account connected.'}</p>
+            <h1 className="public-page-title font-serif text-[28px] font-bold tracking-tight text-[#102018] sm:text-[34px]">{activeGroupsTab === 'home' ? 'Groups' : activeGroupsTab === 'my-group' ? (isViewingOwnGroup ? 'Your team' : 'Team overview') : 'Your profile'}</h1>
+            <p className="public-body mt-1 max-w-xl text-[14px] leading-6 text-[#637268]">{activeGroupsTab === 'home' ? 'Learn together. Build a streak. See how your team stacks up.' : activeGroupsTab === 'my-group' ? 'Your members, progress, and weekly achievements in one place.' : 'Make it yours, track your progress, and keep your account connected.'}</p>
           </div>
           {viewerGroup && activeGroupsTab === 'home' && <button type="button" onClick={() => handleGroupsTabChange('my-group')} className="orthodle-groups-button orthodle-groups-button-primary">Open my group →</button>}
         </div>
@@ -5119,7 +5119,7 @@ export default function GroupsPage() {
               </>
             ) : (
               <section className="orthodle-groups-card p-5 text-center">
-                <h1 className="font-serif text-2xl font-bold text-[#102018]">No group yet</h1>
+                <h1 className="public-page-title font-serif text-2xl font-bold text-[#102018]">No group yet</h1>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#637268]">
                   Create or join a group to unlock your private leaderboard.
                 </p>
@@ -5188,7 +5188,7 @@ export default function GroupsPage() {
                       <button
                         type="button"
                         onClick={() => setIsEditingProfileName(true)}
-                        className="mx-auto block max-w-full break-words text-center font-serif text-[26px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[36px]"
+                        className="public-page-title mx-auto block max-w-full break-words text-center font-serif text-[26px] font-bold leading-[1.02] tracking-[-0.05em] text-white transition hover:text-[#f7e7bc] sm:text-[36px]"
                       >
                         {isViewerCurrentMvp ? '👑 ' : ''}
                         {profileDisplayName}

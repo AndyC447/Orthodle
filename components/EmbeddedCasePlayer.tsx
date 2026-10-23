@@ -29,6 +29,10 @@ export function EmbeddedCasePlayer({ src, title }: { src: string; title: string 
       })
     }
     const observer = new ResizeObserver(resize)
+    // An example can load while its accordion is hidden. Re-measure on reopening
+    // and orientation changes, even if the image itself was already cached.
+    const frameObserver = new ResizeObserver(resize)
+    if (frame.current) frameObserver.observe(frame.current)
     const mutations = new MutationObserver(resize)
     mutations.observe(doc.body, { childList: true, subtree: true })
     doc.addEventListener('load', resize, true)
@@ -36,6 +40,7 @@ export function EmbeddedCasePlayer({ src, title }: { src: string; title: string 
     cleanup.current = () => {
       cancelAnimationFrame(pending)
       observer.disconnect()
+      frameObserver.disconnect()
       mutations.disconnect()
       doc.removeEventListener('load', resize, true)
     }

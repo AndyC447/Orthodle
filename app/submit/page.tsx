@@ -305,9 +305,9 @@ export default function SubmitCasePage() {
     <main className="app-surface min-h-screen">
       <Header />
 
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
-        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
-          <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
+      <div className="public-page-shell mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">
+        <section className="public-card rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
+          <h2 className="public-page-title mt-2 font-serif text-[24px] font-bold text-[#102018]">
             Recommend a case idea
           </h2>
 
@@ -372,13 +372,13 @@ export default function SubmitCasePage() {
           </div>
         </section>
 
-        <section className="mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
+        <section className="public-card public-section mt-5 rounded-2xl border border-[#ded7ca] bg-white p-4 shadow-sm sm:mt-6 sm:p-5">
           <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                 Full submission
               </div>
-              <h2 className="mt-2 font-serif text-[24px] font-bold text-[#102018]">
+              <h2 className="public-section-title mt-2 font-serif text-[24px] font-bold text-[#102018]">
                 Build the full case
               </h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-[#637268]">

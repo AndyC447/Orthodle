@@ -2,6 +2,7 @@
 
 import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
 import { QuestionTypeField } from '@/components/QuestionTypeField'
+import { CASE_CATEGORIES, normalizeCaseCategory } from '@/lib/case-category'
 import { withQuestionType, type QuestionType } from '@/lib/question-type'
 import { getCaseQuestionType, validateChoiceQuestion } from '@/lib/anatomy-quiz'
 import { normalizeAnswerSpecificity, type AnswerSpecificity } from '@/lib/answer-specificity'
@@ -427,7 +428,7 @@ export default function CaseStudioPage() {
       setQuestionType(getCaseQuestionType(existingCase))
       const parsedTeaching = splitTeachingPointAndReferences(existingCase.teaching_point)
 
-      setCategory(existingCase.category || (level === 'attending' ? 'Surgical Anatomy' : ''))
+      setCategory(normalizeCaseCategory(existingCase.category) || (level === 'attending' ? 'Surgical Anatomy' : ''))
       setPrompt(existingCase.prompt || '')
       setAnswerSpecificity(normalizeAnswerSpecificity(existingCase.answer_specificity))
       setAnswer(existingCase.answer || '')
@@ -1349,9 +1350,14 @@ export default function CaseStudioPage() {
                   <input
                     value={category}
                     onChange={event => setCategory(event.target.value)}
+                    onBlur={() => setCategory(normalizeCaseCategory(category))}
+                    list="studio-case-categories"
                     placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Trauma'}
                     className="rounded-lg border border-[#ded7ca] px-3 py-2 text-[13px] text-[#102018]"
                   />
+                  <datalist id="studio-case-categories">
+                    {CASE_CATEGORIES.map(label => <option key={label} value={label} />)}
+                  </datalist>
                 </label>
                 <label className="grid gap-1 text-[12px] font-semibold text-[#637268]">
                   Answer

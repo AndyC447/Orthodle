@@ -2,6 +2,7 @@
 
 import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
 import { QuestionTypeField } from '@/components/QuestionTypeField'
+import { CASE_CATEGORIES, normalizeCaseCategory } from '@/lib/case-category'
 import { normalizeQuestionType, withQuestionType, type QuestionType } from '@/lib/question-type'
 import { getCaseQuestionType, isChoiceQuestionCase, validateChoiceQuestion } from '@/lib/anatomy-quiz'
 import { normalizeAnswerSpecificity, type AnswerSpecificity } from '@/lib/answer-specificity'
@@ -1624,7 +1625,7 @@ export default function AdminPage() {
     const counts = new Map<string, { label: string; count: number }>()
 
     for (const item of cases) {
-      const label = item.category?.trim()
+      const label = normalizeCaseCategory(item.category)
       if (!label) continue
       const key = label.toLowerCase()
       const existing = counts.get(key)
@@ -1639,7 +1640,10 @@ export default function AdminPage() {
       counts.set('surgical anatomy', { label: 'Surgical Anatomy', count: 0 })
     }
 
-    const query = category.trim().toLowerCase()
+    for (const label of CASE_CATEGORIES) {
+      if (!counts.has(label.toLowerCase())) counts.set(label.toLowerCase(), { label, count: 0 })
+    }
+    const query = normalizeCaseCategory(category).toLowerCase()
 
     return Array.from(counts.values())
       .filter(item => !query || item.label.toLowerCase().includes(query))
@@ -2543,7 +2547,7 @@ export default function AdminPage() {
       const data = await fetchAdminPages<CaseRow>((from, to) => supabase.from('cases').select('*')
         .order('case_date', { ascending: false }).order('level').order('id').range(from, to))
       if (request !== caseLoadSequence.current) return
-      setCases(data)
+      setCases(data.map(item => ({ ...item, category: normalizeCaseCategory(item.category) })))
       setCasesLoaded(true)
     } catch {
       if (request === caseLoadSequence.current) setCasesError('Could not refresh the schedule. Displayed cases may be out of date. Try refreshing again.')
@@ -4927,6 +4931,7 @@ export default function AdminPage() {
                     }}
                     onFocus={() => setShowCategorySuggestions(true)}
                     onBlur={() => {
+                      setCategory(normalizeCaseCategory(category))
                       window.setTimeout(() => setShowCategorySuggestions(false), 120)
                     }}
                     placeholder={level === 'attending' ? 'Surgical Anatomy' : 'Wrist / nerve'}

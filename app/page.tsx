@@ -1,6 +1,7 @@
 'use client'
 
 import { SimilarCaseAction } from '@/components/SimilarCaseAction'
+import { normalizeCaseCategory } from '@/lib/case-category'
 import { AnswerSpecificityBadge } from '@/components/AnswerSpecificity'
 import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -1779,7 +1780,7 @@ function PlayPageContent() {
           })
         }
 
-        setDailyCase(data)
+        setDailyCase({ ...data, category: normalizeCaseCategory(data.category) })
 
         const isArchiveCase = data.case_date !== today
         const savedProgress = isEmbeddedExample ? null : getRoundProgress(data.case_date, data.level, isArchiveCase)
@@ -4626,11 +4627,20 @@ function PlayPageContent() {
           min-height: 0 !important;
         }
         .orthodle-embedded-example .orthodle-image-tile {
+          display: block;
           min-height: 0 !important;
         }
         .orthodle-embedded-example .orthodle-image-tile img {
+          width: 100%;
+          height: auto;
           max-height: 320px !important;
           object-fit: contain;
+        }
+        .orthodle-embedded-example .orthodle-imaging-shell {
+          animation: none !important;
+          clip-path: none !important;
+          opacity: 1;
+          transform: none;
         }
         .orthodle-embedded-example .orthodle-anatomy-quiz-shell {
           padding: 0 !important;
@@ -5807,7 +5817,7 @@ function PlayPageContent() {
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#c76b3a]" />
-                  <span>{dailyCase?.category || formatLevel(selectedLevel, selectedDate, dailyCase)}</span>
+                  <span>{normalizeCaseCategory(dailyCase?.category) || formatLevel(selectedLevel, selectedDate, dailyCase)}</span>
                 </div>
               </div>
 

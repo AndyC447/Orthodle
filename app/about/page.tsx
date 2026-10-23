@@ -33,43 +33,43 @@ export default function AboutPage() {
     <main className="min-h-screen bg-[#fbfaf7]">
       <Header />
 
-      <section className="mx-auto max-w-6xl px-6 pt-8 pb-4 text-center">
+      <section className="public-page-shell mx-auto max-w-6xl px-6 pt-8 pb-4 text-center">
         <div className="inline-flex rounded-full border border-white/70 bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#6b4630]">
           About
         </div>
-        <h1 className="mt-4 font-serif text-[42px] font-bold leading-[1.05] text-[#6b4630] md:text-[48px]">
+        <h1 className="public-page-title mt-3 font-serif text-[42px] font-bold leading-[1.05] text-[#6b4630] sm:mt-4 md:text-[48px]">
           Meet the team behind Orthodle
         </h1>
-        <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-7 text-[#5d6570]">
+        <p className="public-body mx-auto mt-3 max-w-2xl text-[15px] leading-7 text-[#5d6570]">
           This page is set up with simple placeholders so you can drop in your photo,
           background, and any extra details you want visitors to see.
         </p>
       </section>
 
-      <section className="mx-auto max-w-6xl space-y-6 px-6 pb-10">
+      <section className="mx-auto max-w-6xl space-y-4 px-4 pb-10 sm:space-y-6 sm:px-6">
         {profileCards.map(card => {
           const imageFirst = card.imageSide === 'left'
 
           return (
             <div
               key={card.name}
-              className="rounded-[28px] border border-white/70 bg-white px-6 py-6 shadow-[0_18px_40px_rgba(73,91,115,0.12)]"
+              className="public-card rounded-[28px] border border-white/70 bg-white px-6 py-6 shadow-[0_18px_40px_rgba(73,91,115,0.12)]"
             >
               <div
-                className={`flex flex-col gap-6 md:items-center ${
+                className={`flex flex-col gap-4 sm:gap-6 md:items-center ${
                   imageFirst ? 'md:flex-row' : 'md:flex-row-reverse'
                 }`}
               >
                 <PhotoPlaceholder />
 
                 <div className="flex-1">
-                  <div className="font-serif text-[20px] font-bold text-[#6b4630] md:text-[24px]">
+                  <div className="public-section-title font-serif text-[20px] font-bold text-[#6b4630] md:text-[24px]">
                     {card.name}
                   </div>
                   <div className="mt-1 text-[12px] font-semibold uppercase tracking-[0.2em] text-[#8a6c58]">
                     {card.role}
                   </div>
-                  <p className="mt-4 max-w-3xl text-[15px] leading-8 text-[#3f454d]">
+                  <p className="public-body mt-3 max-w-3xl text-[15px] leading-8 text-[#3f454d] sm:mt-4">
                     {card.bio}
                   </p>
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { normalizeCaseCategory } from '@/lib/case-category'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { isAnatomyQuizCaseRecord, isChoiceQuestionCase } from '@/lib/anatomy-quiz'
@@ -73,7 +74,7 @@ export default function ArchivePage() {
       if (!saved) return
       if (/^\d{4}-\d{2}$/.test(saved.month) && saved.month >= LAUNCH_DATE.slice(0, 7) && saved.month <= today.slice(0, 7)) setMonth(saved.month)
       if (typeof saved.selectedDate === 'string') setSelectedDate(saved.selectedDate)
-      if (typeof saved.selectedCategory === 'string') setSelectedCategory(saved.selectedCategory)
+      if (typeof saved.selectedCategory === 'string') setSelectedCategory(normalizeCaseCategory(saved.selectedCategory))
       if (typeof saved.answerQuery === 'string') setAnswerQuery(saved.answerQuery)
       if (Number.isFinite(saved.scrollY)) savedScroll.current = Math.max(0, saved.scrollY)
     } catch { /* Storage may be unavailable. */ }
@@ -139,7 +140,7 @@ export default function ArchivePage() {
           .select('level, title'),
       ])
 
-      const nextCases = (data || []) as ArchiveCase[]
+      const nextCases = ((data || []) as ArchiveCase[]).map(item => ({ ...item, category: normalizeCaseCategory(item.category) }))
       const nextGuessRows = (guessData || []) as GuessLite[]
 
       setCases(nextCases)
@@ -279,21 +280,21 @@ export default function ArchivePage() {
   function completed(item: ArchiveCase) {
     return completedArchiveKeys.has(`${item.case_date}:${item.level}:archive`)
   }
-  const buttonClass = 'archive-control inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-35'
+  const buttonClass = 'public-action archive-control inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-35'
   return (
     <main className="app-surface archive-calendar-page min-h-screen">
       <Header />
-      <section className="mx-auto max-w-[1080px] px-3 py-6 sm:px-6 sm:py-9">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div><h1 className="font-serif text-3xl font-bold sm:text-4xl">Archives</h1>
-            <p className="mt-2 text-sm text-[#637268]">Pick a day and explore its cases. Daily, anatomy, and classification questions are all here.</p></div>
+      <section className="public-page-shell mx-auto max-w-[1080px] px-3 py-6 sm:px-6 sm:py-9">
+        <div className="public-page-header mb-6 flex flex-wrap items-center justify-between gap-4">
+          <div><h1 className="public-page-title font-serif text-3xl font-bold sm:text-4xl">Archives</h1>
+            <p className="public-body mt-1 text-sm text-[#637268] sm:mt-2">Pick a day and explore its cases. Daily, anatomy, and classification questions are all here.</p></div>
           {surpriseTarget && <Link onClick={rememberArchiveSpot} className={`${buttonClass} archive-surprise`} href={`/?case=${surpriseTarget.id}&date=${surpriseTarget.case_date}&level=${surpriseTarget.level}`}>Surprise me</Link>}
         </div>
-        <div className="mb-5 grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-          <label className="grid gap-1.5 text-sm font-semibold">Search cases
+        <div className="mb-4 grid gap-3 sm:mb-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <label className="public-label grid gap-1.5 text-sm font-semibold">Search cases
             <input className="archive-control rounded-xl border px-3 py-2 font-normal" type="search" placeholder="Diagnosis or category" value={answerQuery} onChange={event => setAnswerQuery(event.target.value)} />
           </label>
-          <label className="grid gap-1.5 text-sm font-semibold">Category
+          <label className="public-label grid gap-1.5 text-sm font-semibold">Category
             <select className="archive-control rounded-xl border px-3 py-2 font-normal" value={selectedCategory} onChange={event => setSelectedCategory(event.target.value)}>
               <option value="all">All categories</option>
               {categoryOptions.map(option => <option key={option} value={option}>{formatCategoryLabel(option)}</option>)}
@@ -304,7 +305,7 @@ export default function ArchivePage() {
         {loadError ? <p role="alert" className="py-8">{loadError}</p> : loading ? <p role="status" className="py-8">Loading archive…</p> : <>
           <div className="archive-calendar-shell rounded-2xl border p-2 sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
-              <h2 className="font-serif text-xl font-bold sm:text-2xl" aria-live="polite">{monthTitle}</h2>
+              <h2 className="public-section-title font-serif text-xl font-bold sm:text-2xl" aria-live="polite">{monthTitle}</h2>
               <div className="flex items-center gap-2">
                 <button className={buttonClass} aria-label="Previous month" disabled={month <= earliestMonth} onClick={() => changeMonth(-1)}>←</button>
                 <select aria-label="Jump to month" className="archive-control min-w-0 rounded-xl border px-2 py-2 text-sm" value={month} onChange={event => setMonth(event.target.value)}>
@@ -336,13 +337,13 @@ export default function ArchivePage() {
               })}
             </div>
           </div>
-          <section className="mt-6" aria-label="Cases for selected day" aria-live="polite">
+          <section className="public-section mt-6" aria-label="Cases for selected day" aria-live="polite">
             {activeDate ? <>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="font-serif text-xl font-bold">{formatDate(activeDate)}</h2><span className="text-sm text-[#637268]">Choose a case to play or revisit</span></div>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{activeCases.map(item => <Link key={item.id} onClick={rememberArchiveSpot} href={`/?case=${item.id}&date=${item.case_date}&level=${item.level}`} className={`archive-case rounded-xl border p-4 ${completed(item) ? 'archive-completed' : 'archive-available'}`}>
-                <div className="text-xs font-semibold">{toTitleCase(formatLevel(item.level, item.case_date, item).toLowerCase())}</div>
-                <h3 className="mt-1 font-serif text-xl font-bold">{formatCategoryLabel(item.category)}</h3>
-                <div className="mt-4 flex items-center justify-between text-sm font-semibold"><span>{completed(item) ? '✓ Completed · Play again' : 'Pending · Open case'}</span><span aria-hidden="true">→</span></div>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><h2 className="public-section-title font-serif text-xl font-bold">{formatDate(activeDate)}</h2><span className="public-body text-sm text-[#637268]">Choose a case to play or revisit</span></div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{activeCases.map(item => <Link key={item.id} onClick={rememberArchiveSpot} href={`/?case=${item.id}&date=${item.case_date}&level=${item.level}`} className={`public-card archive-case rounded-xl border p-4 ${completed(item) ? 'archive-completed' : 'archive-available'}`}>
+                <div className="public-label text-xs font-semibold">{toTitleCase(formatLevel(item.level, item.case_date, item).toLowerCase())}</div>
+                <h3 className="public-section-title mt-1 font-serif text-xl font-bold">{formatCategoryLabel(item.category)}</h3>
+                <div className="public-body mt-3 flex items-center justify-between text-sm font-semibold sm:mt-4"><span>{completed(item) ? '✓ Completed · Play again' : 'Pending · Open case'}</span><span aria-hidden="true">→</span></div>
               </Link>)}</div>
             </> : <div className="py-5"><h2 className="font-semibold">{hasActiveFilters ? 'No matching cases this month' : 'No archived cases this month'}</h2><p className="mt-1 text-sm text-[#637268]">{hasActiveFilters ? 'Try another month or clear your filters.' : 'Choose an earlier month to explore previous cases.'}</p></div>}
             {hasActiveFilters && <div className="mt-4 flex flex-wrap items-center gap-2 text-sm"><span>{filteredCases.length} matching cases across the archive.</span>{Array.from(new Set(groupedDates.map(group => group.date.slice(0,7)))).filter(value => value !== month).map(value => <button key={value} className={buttonClass} onClick={() => setMonth(value)}>{new Date(`${value}-01T12:00:00`).toLocaleDateString('en-US',{month:'short',year:'numeric'})}</button>)}</div>}
