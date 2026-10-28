@@ -197,26 +197,6 @@ type DiagnosisChoiceLite = {
   label: string
 }
 
-type CaseCommunityStats = {
-  players: number
-  totalGuesses: number
-  totalCorrectGuesses: number
-  solveRate: number | null
-  averageGuessesPerPlayer: number | null
-  averageGuessesToSolve: number | null
-  firstTrySolveRate: number | null
-  mostCommonSolveClue: number | null
-  mostCommonIncorrectGuesses: Array<{ label: string; count: number }>
-  anatomyResponseCount: number
-  anatomyChoiceBreakdown: Array<{
-    letter: string
-    label: string
-    count: number
-    rate: number
-    isCorrect: boolean
-  }>
-}
-
 type OverviewCaseQuickStat = {
   players: number
   solveRate: number | null
@@ -230,54 +210,21 @@ type HomepageAnnouncementRow = {
   created_at: string
 }
 
-type HomepageSurveyRow = {
-  id: string
-  question: string
-  option_1: string
-  option_2: string
-  option_3: string
-  start_date: string
-  end_date: string | null
-  created_at: string
-  response_counts?: Record<string, number>
-}
-
-type AnatomySurveyRow = {
-  id: string
-  question: string
-  option_1: string
-  option_2: string
-  option_3: string
-  start_date: string
-  end_date: string | null
-  created_at: string
-  response_counts?: Record<string, number>
-}
-
 type AdminSidebarSectionId =
   | 'button_subtitles'
-  | 'case_stats'
   | 'email_reminders'
-  | 'study_mode'
   | 'analytics'
   | 'homepage_notes'
-  | 'surveys'
   | 'submissions'
   | 'answer_choices'
   | 'feedback'
   | 'groups'
-  | 'no_resident_mode'
-  | 'cases_by_date'
 
 type AdminCollapsedSectionId =
   | 'analytics_today'
   | 'analytics_top_regions'
   | 'analytics_top_timezones'
-  | 'case_stats_incorrect_guesses'
-  | 'cases_jump_to_date'
   | 'homepage_notes'
-  | 'surveys'
-  | 'cases_by_date'
 
 type PlayModeSettingsRow = {
   no_resident_mode: boolean
@@ -398,17 +345,12 @@ const ADMIN_SIDEBAR_ORDER_STORAGE_KEY = 'orthodle_admin_sidebar_order_v1'
 const ADMIN_COLLAPSED_SECTIONS_STORAGE_KEY = 'orthodle_admin_collapsed_sections_v1'
 const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
-  'case_stats',
   'email_reminders',
-  'study_mode',
   'analytics',
   'homepage_notes',
-  'surveys',
   'answer_choices',
   'feedback',
   'groups',
-  'no_resident_mode',
-  'cases_by_date',
 ]
 const DEFAULT_IMAGE_CREDIT_TEMPLATE = 'Credit:'
 const DEFAULT_TEACHING_POINT_TEMPLATE = `**<u>Clinical Pearl</u>**
@@ -785,7 +727,7 @@ export default function AdminPage() {
     topTimezones: [],
   })
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
-  const [caseCommunityStats, setCaseCommunityStats] = useState<CaseCommunityStats | null>(null)
+
   const [overviewCaseQuickStats, setOverviewCaseQuickStats] = useState<Record<string, OverviewCaseQuickStat>>({})
   const [submissionSummary, setSubmissionSummary] = useState({
     total: 0,
@@ -812,31 +754,14 @@ export default function AdminPage() {
   const [announcementStartDate, setAnnouncementStartDate] = useState(shiftISODate(today, 1))
   const [announcementEndDate, setAnnouncementEndDate] = useState(shiftISODate(today, 1))
   const [editingAnnouncementId, setEditingAnnouncementId] = useState<string | null>(null)
-  const [homepageSurveys, setHomepageSurveys] = useState<HomepageSurveyRow[]>([])
-  const [surveyQuestion, setSurveyQuestion] = useState('To tailor my questions most effectively, what level of training are you?')
-  const [surveyOption1, setSurveyOption1] = useState('Med Student')
-  const [surveyOption2, setSurveyOption2] = useState('Resident')
-  const [surveyOption3, setSurveyOption3] = useState('Attending')
-  const [surveyStartDate, setSurveyStartDate] = useState(shiftISODate(today, 1))
-  const [surveyEndDate, setSurveyEndDate] = useState(shiftISODate(today, 1))
-  const [editingSurveyId, setEditingSurveyId] = useState<string | null>(null)
-  const [anatomySurveys, setAnatomySurveys] = useState<AnatomySurveyRow[]>([])
-  const [anatomySurveyQuestion, setAnatomySurveyQuestion] = useState(
-    'Do you like the new anatomy quiz format, or would you rather have a third case?'
-  )
-  const [anatomySurveyOption1, setAnatomySurveyOption1] = useState('I like the anatomy quiz')
-  const [anatomySurveyOption2, setAnatomySurveyOption2] = useState('I prefer a third case')
-  const [anatomySurveyOption3, setAnatomySurveyOption3] = useState('I like both')
-  const [anatomySurveyStartDate, setAnatomySurveyStartDate] = useState(shiftISODate(today, 1))
-  const [anatomySurveyEndDate, setAnatomySurveyEndDate] = useState(shiftISODate(today, 1))
-  const [editingAnatomySurveyId, setEditingAnatomySurveyId] = useState<string | null>(null)
+
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
   const [showComposerChecklist, setShowComposerChecklist] = useState(false)
-  const [showComposerCaseStats, setShowComposerCaseStats] = useState(false)
+
   const [showAnalytics, setShowAnalytics] = useState(true)
   const { metrics: audienceMetrics, loading: audienceLoading, error: audienceError } = useImpactStats(isUnlocked && showAnalytics)
-  const [showCasesByDate, setShowCasesByDate] = useState(true)
+
   const [browseDate, setBrowseDate] = useState('')
   const [overviewDate, setOverviewDate] = useState(shiftISODate(today, 1))
   const [overviewCalendarMonth, setOverviewCalendarMonth] = useState(
@@ -851,11 +776,7 @@ export default function AdminPage() {
     analytics_today: false,
     analytics_top_regions: false,
     analytics_top_timezones: false,
-    case_stats_incorrect_guesses: true,
-    cases_jump_to_date: false,
     homepage_notes: false,
-    surveys: false,
-    cases_by_date: false,
   })
   const hiddenSidebarSectionIds = useMemo<AdminSidebarSectionId[]>(
     () => ['button_subtitles', 'submissions'],
@@ -972,8 +893,6 @@ export default function AdminPage() {
     loadEmailReminderSummary()
     loadHomepageAnnouncements()
     loadPlayModeSettings()
-    loadHomepageSurveys()
-    loadAnatomySurveys()
 
     if (typeof window !== 'undefined') {
       try {
@@ -1350,11 +1269,6 @@ export default function AdminPage() {
       textarea.style.height = `${Math.max(textarea.scrollHeight, textarea.clientHeight, 46)}px`
     }
   }, [clue1, clue2, clue3, clue4, clue5, clue6, level])
-
-  useEffect(() => {
-    if (!isUnlocked) return
-    void loadCaseCommunityStats()
-  }, [isUnlocked, caseDate, level, cases])
 
   const groupedCases = useMemo(() => {
     const grouped = new Map<string, CaseRow[]>()
@@ -3023,186 +2937,6 @@ export default function AdminPage() {
     }
   }
 
-  async function saveHomeDisplaySettings(
-    nextSettings: Partial<PlayModeSettingsRow>,
-    successMessage: string
-  ) {
-    setSavingHomeDisplaySettings(true)
-
-    const nextResidentMode = nextSettings.no_resident_mode ?? noResidentMode
-    const nextResidentStartDate =
-      nextResidentMode
-        ? nextSettings.no_resident_mode_start_date ?? noResidentModeStartDate
-        : null
-    const nextAnatomyMode = nextSettings.no_anatomy_mode ?? noAnatomyMode
-    const nextAnatomyStartDate =
-      nextAnatomyMode
-        ? nextSettings.no_anatomy_mode_start_date ?? noAnatomyModeStartDate
-        : null
-
-    const fullPayload = {
-      id: 'default',
-      no_resident_mode: nextResidentMode,
-      no_resident_mode_start_date: nextResidentStartDate,
-      no_anatomy_mode: nextAnatomyMode,
-      no_anatomy_mode_start_date: nextAnatomyStartDate,
-      updated_at: new Date().toISOString(),
-    }
-
-    let { error } = await supabase.from('play_mode_settings').upsert(fullPayload, {
-      onConflict: 'id',
-    })
-
-    if (
-      error &&
-      (error.message.includes('no_anatomy_mode') ||
-        error.message.includes('no_anatomy_mode_start_date')) &&
-      nextSettings.no_anatomy_mode === undefined &&
-      nextSettings.no_anatomy_mode_start_date === undefined
-    ) {
-      const fallbackResult = await supabase.from('play_mode_settings').upsert(
-        {
-          id: 'default',
-          no_resident_mode: nextResidentMode,
-          no_resident_mode_start_date: nextResidentStartDate,
-          updated_at: fullPayload.updated_at,
-        },
-        { onConflict: 'id' }
-      )
-      error = fallbackResult.error
-    }
-
-    if (error) {
-      setStatus(
-        error.message.includes('relation') || error.message.includes('does not exist')
-          ? 'Home display settings are not set up yet. Run the SQL once, then try again.'
-          : error.message.includes('no_anatomy_mode') || error.message.includes('no_anatomy_mode_start_date')
-            ? 'Run the new home display SQL once to schedule the anatomy quiz on or off.'
-            : `Could not save home display settings: ${error.message}`
-      )
-      setSavingHomeDisplaySettings(false)
-      return
-    }
-
-    setNoResidentMode(Boolean(nextResidentMode))
-    setNoResidentModeStartDate(nextResidentStartDate || shiftISODate(today, 1))
-    setNoAnatomyMode(Boolean(nextAnatomyMode))
-    setNoAnatomyModeStartDate(nextAnatomyStartDate || shiftISODate(today, 1))
-
-    if (
-      nextResidentMode &&
-      level === 'resident' &&
-      caseDate >= (nextResidentStartDate || today)
-    ) {
-      setLevel('med_student')
-    }
-    if (
-      nextAnatomyMode &&
-      level === 'attending' &&
-      caseDate >= (nextAnatomyStartDate || today)
-    ) {
-      setLevel('med_student')
-    }
-
-    setStatus(successMessage)
-    setSavingHomeDisplaySettings(false)
-  }
-
-  async function loadHomepageSurveys() {
-    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
-    const { data } = await supabase
-      .from('homepage_surveys')
-      .select('id, question, option_1, option_2, option_3, start_date, end_date, created_at')
-      .order('start_date', { ascending: false })
-
-    const surveys = (data as HomepageSurveyRow[] | null) || []
-    if (surveys.length === 0) {
-      setHomepageSurveys([])
-      return
-    }
-
-    const surveyIds = surveys.map(item => item.id)
-    const { data: responseData } = await supabase
-      .from('homepage_survey_responses')
-      .select('survey_id, response, session_id')
-      .in('survey_id', surveyIds)
-
-    const countsBySurvey = new Map<string, Record<string, number>>()
-
-    for (const survey of surveys) {
-      countsBySurvey.set(survey.id, {
-        [survey.option_1]: 0,
-        [survey.option_2]: 0,
-        [survey.option_3]: 0,
-      })
-    }
-
-    for (const row of filterExcludedSessionRows(responseData || [], excludedSessionIdSet)) {
-      const existing = countsBySurvey.get(row.survey_id)
-      if (!existing) continue
-      existing[row.response] = (existing[row.response] || 0) + 1
-    }
-
-    setHomepageSurveys(
-      surveys.map(item => ({
-        ...item,
-        response_counts: countsBySurvey.get(item.id) || {},
-      }))
-    )
-  }
-
-  async function loadAnatomySurveys() {
-    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
-    const { data, error } = await supabase
-      .from('anatomy_case_surveys')
-      .select('id, question, option_1, option_2, option_3, start_date, end_date, created_at')
-      .order('start_date', { ascending: false })
-
-    if (error) {
-      setStatus(
-        error.message.includes('relation') || error.message.includes('does not exist')
-          ? 'Anatomy surveys are not set up yet. Run the new SQL once, then try again.'
-          : `Could not load anatomy surveys: ${error.message}`
-      )
-      return
-    }
-
-    const surveys = (data as AnatomySurveyRow[] | null) || []
-    if (surveys.length === 0) {
-      setAnatomySurveys([])
-      return
-    }
-
-    const surveyIds = surveys.map(item => item.id)
-    const { data: responseData } = await supabase
-      .from('anatomy_case_survey_responses')
-      .select('survey_id, response, session_id')
-      .in('survey_id', surveyIds)
-
-    const countsBySurvey = new Map<string, Record<string, number>>()
-
-    for (const survey of surveys) {
-      countsBySurvey.set(survey.id, {
-        [survey.option_1]: 0,
-        [survey.option_2]: 0,
-        [survey.option_3]: 0,
-      })
-    }
-
-    for (const row of filterExcludedSessionRows(responseData || [], excludedSessionIdSet)) {
-      const existing = countsBySurvey.get(row.survey_id)
-      if (!existing) continue
-      existing[row.response] = (existing[row.response] || 0) + 1
-    }
-
-    setAnatomySurveys(
-      surveys.map(item => ({
-        ...item,
-        response_counts: countsBySurvey.get(item.id) || {},
-      }))
-    )
-  }
-
   function resetAnnouncementForm() {
     setEditingAnnouncementId(null)
     setAnnouncementMessage('')
@@ -3260,290 +2994,6 @@ export default function AdminPage() {
 
     setStatus('Homepage note deleted.')
     setHomepageAnnouncements(prev => prev.filter(item => item.id !== id))
-  }
-
-  function resetSurveyForm() {
-    setEditingSurveyId(null)
-    setSurveyQuestion('To tailor my questions most effectively, what level of training are you?')
-    setSurveyOption1('Med Student')
-    setSurveyOption2('Resident')
-    setSurveyOption3('Attending')
-    setSurveyStartDate(tomorrow)
-    setSurveyEndDate(tomorrow)
-  }
-
-  function resetAnatomySurveyForm() {
-    setEditingAnatomySurveyId(null)
-    setAnatomySurveyQuestion('Do you like the new anatomy quiz format, or would you rather have a third case?')
-    setAnatomySurveyOption1('I like the anatomy quiz')
-    setAnatomySurveyOption2('I prefer a third case')
-    setAnatomySurveyOption3('I like both')
-    setAnatomySurveyStartDate(tomorrow)
-    setAnatomySurveyEndDate(tomorrow)
-  }
-
-  async function saveHomepageSurvey() {
-    const question = surveyQuestion.trim()
-    const option1 = surveyOption1.trim()
-    const option2 = surveyOption2.trim()
-    const option3 = surveyOption3.trim()
-
-    if (!question || !option1 || !option2 || !option3) {
-      setStatus('Add a survey question and all three answer choices before saving.')
-      return
-    }
-
-    const payload = {
-      question,
-      option_1: option1,
-      option_2: option2,
-      option_3: option3,
-      start_date: surveyStartDate,
-      end_date: surveyEndDate || null,
-    }
-
-    const result = editingSurveyId
-      ? await supabase.from('homepage_surveys').update(payload).eq('id', editingSurveyId)
-      : await supabase.from('homepage_surveys').insert(payload)
-
-    if (result.error) {
-      setStatus('Could not save the homepage survey.')
-      return
-    }
-
-    setStatus(editingSurveyId ? 'Homepage survey updated.' : 'Homepage survey scheduled.')
-    resetSurveyForm()
-    await loadHomepageSurveys()
-  }
-
-  async function saveAnatomySurvey() {
-    const question = anatomySurveyQuestion.trim()
-    const option1 = anatomySurveyOption1.trim()
-    const option2 = anatomySurveyOption2.trim()
-    const option3 = anatomySurveyOption3.trim()
-
-    if (!question || !option1 || !option2 || !option3) {
-      setStatus('Add an anatomy survey question and all three answer choices before saving.')
-      return
-    }
-
-    const payload = {
-      question,
-      option_1: option1,
-      option_2: option2,
-      option_3: option3,
-      start_date: anatomySurveyStartDate,
-      end_date: anatomySurveyEndDate || null,
-    }
-
-    const result = editingAnatomySurveyId
-      ? await supabase.from('anatomy_case_surveys').update(payload).eq('id', editingAnatomySurveyId)
-      : await supabase.from('anatomy_case_surveys').insert(payload)
-
-    if (result.error) {
-      setStatus(
-        result.error.message.includes('relation') || result.error.message.includes('does not exist')
-          ? 'Anatomy surveys are not set up yet. Run the new SQL once, then try again.'
-          : `Could not save the anatomy survey: ${result.error.message}`
-      )
-      return
-    }
-
-    setStatus(editingAnatomySurveyId ? 'Anatomy survey updated.' : 'Anatomy survey scheduled.')
-    resetAnatomySurveyForm()
-    await loadAnatomySurveys()
-  }
-
-  function editHomepageSurvey(item: HomepageSurveyRow) {
-    setEditingSurveyId(item.id)
-    setSurveyQuestion(item.question)
-    setSurveyOption1(item.option_1)
-    setSurveyOption2(item.option_2)
-    setSurveyOption3(item.option_3)
-    setSurveyStartDate(item.start_date)
-    setSurveyEndDate(item.end_date || item.start_date)
-    setStatus('')
-  }
-
-  function editAnatomySurvey(item: AnatomySurveyRow) {
-    setEditingAnatomySurveyId(item.id)
-    setAnatomySurveyQuestion(item.question)
-    setAnatomySurveyOption1(item.option_1)
-    setAnatomySurveyOption2(item.option_2)
-    setAnatomySurveyOption3(item.option_3)
-    setAnatomySurveyStartDate(item.start_date)
-    setAnatomySurveyEndDate(item.end_date || item.start_date)
-    setStatus('')
-  }
-
-  async function deleteHomepageSurvey(id: string) {
-    const { error } = await supabase.from('homepage_surveys').delete().eq('id', id)
-
-    if (error) {
-      setStatus('Could not delete the homepage survey.')
-      return
-    }
-
-    if (editingSurveyId === id) {
-      resetSurveyForm()
-    }
-
-    setStatus('Homepage survey deleted.')
-    setHomepageSurveys(prev => prev.filter(item => item.id !== id))
-  }
-
-  async function deleteAnatomySurvey(id: string) {
-    const { error } = await supabase.from('anatomy_case_surveys').delete().eq('id', id)
-
-    if (error) {
-      setStatus(
-        error.message.includes('relation') || error.message.includes('does not exist')
-          ? 'Anatomy surveys are not set up yet. Run the new SQL once, then try again.'
-          : `Could not delete the anatomy survey: ${error.message}`
-      )
-      return
-    }
-
-    if (editingAnatomySurveyId === id) {
-      resetAnatomySurveyForm()
-    }
-
-    setStatus('Anatomy survey deleted.')
-    setAnatomySurveys(prev => prev.filter(item => item.id !== id))
-  }
-
-  async function loadCaseCommunityStats() {
-    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
-    const matchingCase = cases.find(item => item.case_date === caseDate && item.level === level)
-
-    if (!matchingCase) {
-      setCaseCommunityStats(null)
-      return
-    }
-
-    const { data: guessRows, error: guessError } = await supabase
-      .from('guesses')
-      .select('session_id, is_correct, created_at, guess_text')
-      .eq('case_id', matchingCase.id)
-      .order('created_at', { ascending: true })
-
-    if (guessError) {
-      setStatus(`Could not load case stats: ${guessError.message}`)
-      setCaseCommunityStats(null)
-      return
-    }
-
-    const publicGuessRows = filterExcludedSessionRows(guessRows || [], excludedSessionIdSet)
-    const players = new Set<string>(publicGuessRows.map(item => item.session_id))
-
-    const guessesBySession = new Map<
-      string,
-      Array<{ is_correct: boolean; created_at: string }>
-    >()
-
-    for (const guessRow of publicGuessRows) {
-      const item = {
-        is_correct: Boolean(guessRow.is_correct),
-        created_at: guessRow.created_at,
-      }
-      const existing = guessesBySession.get(guessRow.session_id)
-
-      if (existing) {
-        existing.push(item)
-      } else {
-        guessesBySession.set(guessRow.session_id, [item])
-      }
-    }
-
-    let solvedPlayers = 0
-    let firstTrySolves = 0
-    let totalGuessesBeforeSolve = 0
-    const solveClueCounts = new Map<number, number>()
-    const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
-    const acceptedGuesses = [matchingCase.answer, ...(matchingCase.synonyms || [])]
-
-    for (const sessionGuesses of guessesBySession.values()) {
-      const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
-      if (solvedIndex === -1) continue
-
-      solvedPlayers += 1
-      totalGuessesBeforeSolve += solvedIndex + 1
-      const solveClue = solvedIndex + 1
-      solveClueCounts.set(solveClue, (solveClueCounts.get(solveClue) || 0) + 1)
-
-      if (solvedIndex === 0) {
-        firstTrySolves += 1
-      }
-    }
-
-    for (const guessRow of publicGuessRows) {
-      if (guessRow.is_correct) continue
-
-      const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
-      const rawGuess = guessRow.guess_text?.trim()
-
-      if (!normalizedGuess || !rawGuess) continue
-      if (isAcceptedGuess(rawGuess, acceptedGuesses)) continue
-
-      const existing = incorrectGuessCounts.get(normalizedGuess)
-      if (existing) {
-        existing.count += 1
-      } else {
-        incorrectGuessCounts.set(normalizedGuess, { label: rawGuess, count: 1 })
-      }
-    }
-
-    const mostCommonSolveClue =
-      solveClueCounts.size > 0
-        ? [...solveClueCounts.entries()].sort((a, b) => {
-            if (b[1] !== a[1]) return b[1] - a[1]
-            return a[0] - b[0]
-          })[0][0]
-        : null
-
-    const mostCommonIncorrectGuesses =
-      incorrectGuessCounts.size > 0
-        ? [...incorrectGuessCounts.values()]
-            .sort((a, b) => {
-              if (b.count !== a.count) return b.count - a.count
-              return a.label.localeCompare(b.label)
-            })
-            .slice(0, 3)
-        : []
-
-    const anatomyChoiceStats =
-      isChoiceQuestionCase(matchingCase)
-        ? buildAnatomyChoiceBreakdown(
-            [
-              matchingCase.clue_1,
-              matchingCase.clue_2,
-              matchingCase.clue_3,
-              matchingCase.clue_4,
-              matchingCase.clue_5,
-              matchingCase.clue_6,
-            ],
-            publicGuessRows,
-            matchingCase.answer,
-            matchingCase.synonyms || []
-          )
-        : { responseCount: 0, breakdown: [] }
-
-    setCaseCommunityStats({
-      players: players.size,
-      totalGuesses: publicGuessRows.length,
-      totalCorrectGuesses: publicGuessRows.filter(item => item.is_correct).length,
-      solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
-      averageGuessesPerPlayer:
-        players.size > 0 ? publicGuessRows.length / players.size : null,
-      averageGuessesToSolve:
-        solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
-      firstTrySolveRate:
-        solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
-      mostCommonSolveClue,
-      mostCommonIncorrectGuesses,
-      anatomyResponseCount: anatomyChoiceStats.responseCount,
-      anatomyChoiceBreakdown: anatomyChoiceStats.breakdown,
-    })
   }
 
   async function uploadImage(file: File, slot: 1 | 2 = 1) {
@@ -3820,13 +3270,7 @@ export default function AdminPage() {
         </Link>
       </section>
     ),
-    case_stats: (
-      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <Link href="/admin/case-stats" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
-          Case Stats
-        </Link>
-      </section>
-    ),
+
     email_reminders: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <div className="flex flex-wrap items-center gap-2">
@@ -3853,148 +3297,7 @@ export default function AdminPage() {
         </div>
       </section>
     ),
-    study_mode: (
-      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <Link href="/study" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
-          Study Mode
-        </Link>
-      </section>
-    ),
-    no_resident_mode: (
-      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <h2 className="font-serif text-xl font-bold">Home case display</h2>
 
-        <div className="mt-1 text-[11px] uppercase tracking-[0.18em] text-[#7a857c]">
-          Control what shows in the home rail
-        </div>
-
-        <div className="mt-3 grid gap-3">
-          <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-[#102018]">Resident case</div>
-                <div className="mt-0.5 text-[12px] leading-5 text-[#637268]">
-                  Hide the resident slot from the home page starting on a specific day.
-                </div>
-              </div>
-              <div className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                {noResidentMode ? 'Hidden' : 'Visible'}
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-2">
-              <label className="grid gap-1.5 text-sm font-semibold text-[#637268]">
-                Hide starting
-                <input
-                  type="date"
-                  value={noResidentModeStartDate}
-                  onChange={event => setNoResidentModeStartDate(event.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() =>
-                    void saveHomeDisplaySettings(
-                      {
-                        no_resident_mode: true,
-                        no_resident_mode_start_date: noResidentModeStartDate,
-                      },
-                      `Resident case will be hidden on the home page starting ${noResidentModeStartDate || shiftISODate(today, 1)}.`
-                    )
-                  }
-                  disabled={savingHomeDisplaySettings || !noResidentModeStartDate}
-                  className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60 sm:flex-1"
-                >
-                  {savingHomeDisplaySettings && !noResidentMode ? 'Saving...' : noResidentMode ? 'Update hide date' : 'Hide on home'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    void saveHomeDisplaySettings(
-                      {
-                        no_resident_mode: false,
-                        no_resident_mode_start_date: null,
-                      },
-                      'Resident case restored on the home page.'
-                    )
-                  }
-                  disabled={savingHomeDisplaySettings || !noResidentMode}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60 sm:flex-1"
-                >
-                  Show
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#e7e1d6] bg-[#fcfbf8] p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-[#102018]">Anatomy quiz</div>
-                <div className="mt-0.5 text-[12px] leading-5 text-[#637268]">
-                  When hidden, the home rail swaps Anatomy Quiz for Archives.
-                </div>
-              </div>
-              <div className="rounded-full border border-[#ded7ca] bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
-                {noAnatomyMode ? 'Hidden' : 'Visible'}
-              </div>
-            </div>
-
-            <div className="mt-3 grid gap-2">
-              <label className="grid gap-1.5 text-sm font-semibold text-[#637268]">
-                Hide starting
-                <input
-                  type="date"
-                  value={noAnatomyModeStartDate}
-                  onChange={event => setNoAnatomyModeStartDate(event.target.value)}
-                  className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
-                />
-              </label>
-
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="button"
-                  onClick={() =>
-                    void saveHomeDisplaySettings(
-                      {
-                        no_anatomy_mode: true,
-                        no_anatomy_mode_start_date: noAnatomyModeStartDate,
-                      },
-                      `Anatomy quiz will be hidden on the home page starting ${noAnatomyModeStartDate || shiftISODate(today, 1)}.`
-                    )
-                  }
-                  disabled={savingHomeDisplaySettings || !noAnatomyModeStartDate}
-                  className="rounded-lg border border-[#1f6448] bg-[#1f6448] px-3 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60 sm:flex-1"
-                >
-                  {savingHomeDisplaySettings && !noAnatomyMode ? 'Saving...' : noAnatomyMode ? 'Update hide date' : 'Hide on home'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    void saveHomeDisplaySettings(
-                      {
-                        no_anatomy_mode: false,
-                        no_anatomy_mode_start_date: null,
-                      },
-                      'Anatomy quiz restored on the home page.'
-                    )
-                  }
-                  disabled={savingHomeDisplaySettings || !noAnatomyMode}
-                  className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2 text-sm font-semibold text-[#102018] transition hover:bg-[#fbfaf7] disabled:opacity-60 sm:flex-1"
-                >
-                  Show
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    ),
     homepage_notes: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <button
@@ -4096,24 +3399,7 @@ export default function AdminPage() {
         )}
       </section>
     ),
-    surveys: (
-      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="font-serif text-xl font-bold">Surveys</h2>
-            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              Dedicated page
-            </div>
-          </div>
-          <Link
-            href="/admin/surveys"
-            className="inline-flex h-10 items-center justify-center rounded-full border border-[#1f6448] bg-[#1f6448] px-4 text-sm font-semibold text-white transition hover:bg-[#174c37]"
-          >
-            Open survey manager
-          </Link>
-        </div>
-      </section>
-    ),
+
     submissions: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -4465,147 +3751,7 @@ export default function AdminPage() {
         )}
       </section>
     ),
-    cases_by_date: (
-      <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-4 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-        <button
-          type="button"
-          onClick={() => toggleCollapsedSection('cases_by_date')}
-          className="flex w-full items-center justify-between gap-3 text-left"
-        >
-          <h2 className="font-serif text-xl font-bold">Cases by Date</h2>
-          {browseDate ? (
-            <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-              {formatShortDate(browseDate)}
-            </div>
-          ) : null}
-        </button>
 
-        {!collapsedSections.cases_by_date && showCasesByDate && (
-          <div className="mt-4 space-y-3">
-            <div className="rounded-xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-              <button
-                type="button"
-                onClick={() => toggleCollapsedSection('cases_jump_to_date')}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <div className="text-sm font-semibold text-[#637268]">Jump to date</div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                  {collapsedSections.cases_jump_to_date ? 'Show' : 'Hide'}
-                </div>
-              </button>
-
-              {!collapsedSections.cases_jump_to_date && (
-                <>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-                    <label className="grid gap-2 text-sm font-semibold text-[#637268]">
-                      <span className="sr-only">Jump to date</span>
-                      <input
-                        type="date"
-                        value={browseDate}
-                        onChange={e => setBrowseDate(e.target.value)}
-                        className="rounded-lg border border-[#ded7ca] bg-white px-3 py-2.5 text-sm text-[#102018]"
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCaseDate(browseDate || today)
-                        setShowComposer(true)
-                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                      }}
-                      className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                    >
-                      Open in editor
-                    </button>
-                  </div>
-
-                  {quickBrowseDates.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {quickBrowseDates.map(date => (
-                        <button
-                          key={date}
-                          type="button"
-                          onClick={() => setBrowseDate(date)}
-                          className={
-                            browseDate === date
-                              ? 'rounded-full border border-[#cfded4] bg-[#f7fbf8] px-3 py-1.5 text-[11px] font-semibold text-[#1f6448]'
-                              : 'rounded-full border border-[#ded7ca] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#637268] transition hover:bg-[#fbfaf7]'
-                          }
-                        >
-                          {formatShortDate(date)}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
-
-              {browseDate && (
-                <div className="mt-4 rounded-xl border border-[#e7e1d6] bg-white p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                      {browseDate} overview
-                    </div>
-                    <div className="rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                      {browsedLevelOrder.filter(levelValue => browsedCases.some(item => item.level === levelValue)).length}/{browsedLevelOrder.length} ready
-                    </div>
-                  </div>
-
-                  <div className="mt-3 grid gap-2">
-                    {browsedLevelOrder.map(levelValue => {
-                      const item = browsedCases.find(entry => entry.level === levelValue)
-                      return (
-                        <div
-                          key={`browse-${browseDate}-${levelValue}`}
-                          className={
-                            item
-                              ? 'rounded-xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-3'
-                              : 'rounded-xl border border-dashed border-[#ded7ca] bg-[#fcfbf8] px-3 py-3'
-                          }
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#637268]">
-                                {formatLevel(levelValue)}
-                              </div>
-                              <div className="mt-1.5 font-semibold text-[#102018]">
-                                {item ? item.answer : 'Not scheduled'}
-                              </div>
-                              <div className="mt-1 text-sm text-[#637268]">
-                                {item ? item.category : 'Open slot'}
-                              </div>
-                            </div>
-
-                            {item ? (
-                              <button
-                                type="button"
-                                onClick={() => editCase(item)}
-                                className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                              >
-                                Edit
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => startCaseFor(browseDate, levelValue)}
-                                className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                              >
-                                Add
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </section>
-    ),
   }
 
   function renderOverviewSection({
@@ -4809,15 +3955,7 @@ export default function AdminPage() {
               </h2>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Link href={`/admin/gpt-draft?date=${caseDate}`} className="rounded-lg bg-[#eaf4ee] px-3 py-1.5 text-sm font-semibold text-[#1f6448] transition hover:bg-[#dbece1]">
-                  GPT Draft
-                </Link>
-                <Link
-                  href="/admin/studio"
-                  className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-sm font-semibold text-[#102018] transition hover:bg-white"
-                >
-                  Case Studio
-                </Link>
+
                 <button
                   type="button"
                   onClick={() => setShowComposer(prev => !prev)}
@@ -4855,7 +3993,7 @@ export default function AdminPage() {
                       Submission draft
                     </div>
                   ) : null}
-                  {gptDraftProvenance && <Link href="/admin/gpt-draft" className="text-xs font-semibold text-[#1f6448]">GPT draft · Source: {gptDraftProvenance.sourceDate} · New slots only</Link>}
+
                 </div>
                 {(status || draftStatus) ? (
                   <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-[#7b847e]">
@@ -5675,188 +4813,6 @@ export default function AdminPage() {
                       ))}
                     </div>
                   </div>
-                ) : null}
-              </div>
-
-              <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <button
-                  type="button"
-                  onClick={() => setShowComposerCaseStats(current => !current)}
-                  className="flex w-full items-center justify-between gap-3 text-left"
-                >
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                      Case stats
-                    </div>
-                    <div className="mt-1 text-sm text-[#637268]">
-                      {caseCommunityStats
-                        ? `${caseCommunityStats.players} players · ${
-                            caseCommunityStats.solveRate !== null
-                              ? formatPercent(caseCommunityStats.solveRate)
-                              : '—'
-                          } solve rate`
-                        : 'No saved case stats yet'}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#637268]">
-                    {showComposerCaseStats ? 'Hide' : 'Show'}
-                  </div>
-                </button>
-
-                {showComposerCaseStats ? (
-                  caseCommunityStats ? (
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                        Players
-                      </div>
-                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                        {caseCommunityStats.players}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                        Total guesses
-                      </div>
-                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                        {caseCommunityStats.totalGuesses}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                        Solve rate
-                      </div>
-                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                        {caseCommunityStats.solveRate !== null
-                          ? formatPercent(caseCommunityStats.solveRate)
-                          : '—'}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                        Avg guesses / player
-                      </div>
-                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                        {caseCommunityStats.averageGuessesPerPlayer?.toFixed(1) ?? '—'}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                        Avg to solve
-                      </div>
-                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                        {caseCommunityStats.averageGuessesToSolve?.toFixed(1) ?? '—'}
-                      </div>
-                    </div>
-                    <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                        First-try solves
-                      </div>
-                      <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                        {caseCommunityStats.firstTrySolveRate !== null
-                          ? formatPercent(caseCommunityStats.firstTrySolveRate)
-                          : '—'}
-                      </div>
-                    </div>
-                    {isChoiceQuestion ? (
-                      <>
-                        <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                            Answer responses
-                          </div>
-                          <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                            {caseCommunityStats.anatomyResponseCount}
-                          </div>
-                        </div>
-                        <div className="sm:col-span-2 rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                            Choice breakdown
-                          </div>
-                          {caseCommunityStats.anatomyChoiceBreakdown.length > 0 ? (
-                            <div className="mt-2 space-y-1.5">
-                              {caseCommunityStats.anatomyChoiceBreakdown.map(choice => (
-                                <div
-                                  key={`${choice.letter}-${choice.label}`}
-                                  className="flex items-center justify-between gap-3 rounded-lg border border-[#ebe5db] bg-[#fcfbf8] px-3 py-2"
-                                >
-                                  <div className="min-w-0">
-                                    <div className="truncate text-sm font-semibold text-[#102018]">
-                                      {choice.letter}. {choice.label}
-                                    </div>
-                                  </div>
-                                  <div className="shrink-0 text-right">
-                                    <div className="font-serif text-lg font-bold text-[#102018]">
-                                      {Math.round(choice.rate)}%
-                                    </div>
-                                    <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                                      {choice.count} pick{choice.count === 1 ? '' : 's'}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="mt-2 rounded-lg border border-dashed border-[#ded7ca] bg-[#fbfaf7] px-3 py-3 text-sm text-[#8a948d]">
-                              Anatomy answer percentages will appear after people start selecting choices.
-                            </div>
-                          )}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5">
-                          <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                            Most common solve clue
-                          </div>
-                          <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                            {caseCommunityStats.mostCommonSolveClue !== null
-                              ? `Clue ${caseCommunityStats.mostCommonSolveClue}`
-                              : '—'}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => toggleCollapsedSection('case_stats_incorrect_guesses')}
-                          className="rounded-xl border border-[#ded7ca] bg-white px-3 py-2.5 text-left transition hover:bg-[#fcfbf8]"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                                Top incorrect guesses
-                              </div>
-                              <div className="mt-1 font-serif text-xl font-bold text-[#102018]">
-                                {caseCommunityStats.mostCommonIncorrectGuesses[0]?.label || '—'}
-                              </div>
-                            </div>
-                            <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#637268]">
-                              {collapsedSections.case_stats_incorrect_guesses ? 'Show' : 'Hide'}
-                            </span>
-                          </div>
-
-                          {!collapsedSections.case_stats_incorrect_guesses &&
-                            caseCommunityStats.mostCommonIncorrectGuesses.length > 0 && (
-                              <div className="mt-2 space-y-1.5 border-t border-[#ebe5db] pt-2 text-sm text-[#102018]">
-                                {caseCommunityStats.mostCommonIncorrectGuesses.map((guess, index) => (
-                                  <div key={`${guess.label}-${index}`} className="flex items-center justify-between gap-3">
-                                    <span className="min-w-0 truncate">
-                                      {index + 1}. {guess.label}
-                                    </span>
-                                    <span className="shrink-0 text-[11px] font-semibold text-[#637268]">
-                                      {guess.count}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  ) : (
-                  <p className="mt-3 text-sm text-[#637268]">
-                    No saved case stats for this date and level yet.
-                  </p>
-                  )
                 ) : null}
               </div>
 

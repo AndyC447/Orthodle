@@ -29,14 +29,7 @@ import {
   writeCachedLevelTitles,
 } from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
-import {
-  getSurveyLevelScopeLabel,
-  normalizeSurveyOptions,
-  SITE_SURVEY_STORAGE_PREFIX,
-  type SiteSurveyRow,
-  type SurveyLevelScope,
-  type SurveyPlacement,
-} from '@/lib/site-surveys'
+
 import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 import {
   clearStatsSummary,
@@ -190,26 +183,6 @@ type HomepageAnnouncementRow = {
   end_date: string | null
 }
 
-type HomepageSurveyRow = {
-  id: string
-  question: string
-  option_1: string
-  option_2: string
-  option_3: string
-  start_date: string
-  end_date: string | null
-}
-
-type AnatomySurveyRow = {
-  id: string
-  question: string
-  option_1: string
-  option_2: string
-  option_3: string
-  start_date: string
-  end_date: string | null
-}
-
 type PlayModeSettingsRow = {
   no_resident_mode: boolean
   no_resident_mode_start_date: string | null
@@ -222,23 +195,15 @@ type LevelDisplaySettingsRow = {
   title: string
 }
 
-type ActiveSurveyState = {
-  survey: SiteSurveyRow | null
-  submittedChoice: string | null
-  isSubmitting: boolean
-  status: string
-}
-
 const HOMEPAGE_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_homepage_announcement'
-const HOMEPAGE_SURVEY_DISMISS_KEY = 'orthodle_dismissed_homepage_survey'
+
 const TUTORIAL_DISMISS_KEY = 'orthodle_dismissed_intro_v1'
 const RESUME_ROUND_DISMISS_KEY = 'orthodle_dismissed_resume_round'
 const QUICK_TAKEAWAY_OPEN_KEY = 'orthodle_quick_takeaway_open_v1'
 const ORTHODLE_INSIGHT_OPEN_KEY = 'orthodle_insight_open_v1'
 const CASE_FEEDBACK_OPEN_KEY = 'orthodle_case_feedback_open_v1'
 const SWIPE_NAV_TRANSITION_KEY = 'orthodle_swipe_nav_transition_v1'
-const HOMEPAGE_SURVEY_STORAGE_PREFIX = 'orthodle_homepage_survey'
-const ANATOMY_SURVEY_STORAGE_PREFIX = 'orthodle_anatomy_survey'
+
 const FEEDBACK_TAG_OPTIONS = ['Too easy', 'Too hard', 'Unclear clue', 'Great case'] as const
 const REACTION_STORAGE_PREFIX = 'orthodle_case_reactions'
 
@@ -580,18 +545,6 @@ function getInitialDateFromParams(value: string | null, fallback: string) {
   return fallback
 }
 
-function getSiteSurveyDismissKey(survey: Pick<SiteSurveyRow, 'id' | 'question' | 'start_date' | 'options'>) {
-  return `${SITE_SURVEY_STORAGE_PREFIX}:${survey.id}:${survey.start_date}:${survey.question}:${normalizeSurveyOptions(survey.options || []).join('|')}`
-}
-
-function getAnatomySurveyStorageKey(survey: Pick<AnatomySurveyRow, 'id' | 'question' | 'start_date' | 'option_1' | 'option_2' | 'option_3'>) {
-  return `${ANATOMY_SURVEY_STORAGE_PREFIX}:${survey.id}:${survey.start_date}:${survey.question}:${[survey.option_1, survey.option_2, survey.option_3].map(option => option?.trim() || '').filter(Boolean).join('|')}`
-}
-
-function doesSurveyApplyToLevel(levelScope: SurveyLevelScope | null | undefined, level: Level) {
-  return !levelScope || levelScope === 'all' || levelScope === level
-}
-
 function PlayPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -711,27 +664,7 @@ function PlayPageContent() {
   const [homepageAnnouncement, setHomepageAnnouncement] = useState<HomepageAnnouncementRow | null>(null)
   const [dismissedHomepageAnnouncementKey, setDismissedHomepageAnnouncementKey] = useState<string | null>(null)
   const [dismissedResumeRoundToken, setDismissedResumeRoundToken] = useState<string | null>(null)
-  const [homepageSurvey, setHomepageSurvey] = useState<HomepageSurveyRow | null>(null)
-  const [dismissedHomepageSurveyKey, setDismissedHomepageSurveyKey] = useState<string | null>(null)
-  const [submittedHomepageSurveyChoice, setSubmittedHomepageSurveyChoice] = useState<string | null>(null)
-  const [isSubmittingHomepageSurvey, setIsSubmittingHomepageSurvey] = useState(false)
-  const [homepageSurveyStatus, setHomepageSurveyStatus] = useState('')
-  const [sharedHomepageSurvey, setSharedHomepageSurvey] = useState<ActiveSurveyState>({
-    survey: null,
-    submittedChoice: null,
-    isSubmitting: false,
-    status: '',
-  })
-  const [anatomySurvey, setAnatomySurvey] = useState<AnatomySurveyRow | null>(null)
-  const [submittedAnatomySurveyChoice, setSubmittedAnatomySurveyChoice] = useState<string | null>(null)
-  const [isSubmittingAnatomySurvey, setIsSubmittingAnatomySurvey] = useState(false)
-  const [anatomySurveyStatus, setAnatomySurveyStatus] = useState('')
-  const [sharedPostCaseSurvey, setSharedPostCaseSurvey] = useState<ActiveSurveyState>({
-    survey: null,
-    submittedChoice: null,
-    isSubmitting: false,
-    status: '',
-  })
+
   const [showTutorial, setShowTutorial] = useState(false)
   const [resumeRound, setResumeRound] = useState<ReturnType<typeof getLatestUnfinishedRoundProgress>>(null)
   const [pendingResumeKey, setPendingResumeKey] = useState<string | null>(null)
@@ -790,9 +723,7 @@ function PlayPageContent() {
     setDismissedResumeRoundToken(
       window.localStorage.getItem(RESUME_ROUND_DISMISS_KEY)
     )
-    setDismissedHomepageSurveyKey(
-      window.localStorage.getItem(HOMEPAGE_SURVEY_DISMISS_KEY)
-    )
+
     setShowTutorial(!window.localStorage.getItem(TUTORIAL_DISMISS_KEY))
     setResumeRound(isEmbeddedExample ? null : getLatestUnfinishedRoundProgress())
   }, [])
@@ -825,42 +756,6 @@ function PlayPageContent() {
     setFeedbackStatus('')
     setFeedbackText('')
   }, [dailyCase])
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !homepageSurvey?.id) {
-      setSubmittedHomepageSurveyChoice(null)
-      return
-    }
-
-    const saved = window.localStorage.getItem(
-      `${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageSurvey.id}`
-    )
-    setSubmittedHomepageSurveyChoice(saved || null)
-  }, [homepageSurvey])
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !sharedHomepageSurvey.survey?.id) {
-      setSharedHomepageSurvey(prev => ({ ...prev, submittedChoice: null, status: '' }))
-      return
-    }
-
-    const saved = window.localStorage.getItem(
-      getSiteSurveyDismissKey(sharedHomepageSurvey.survey)
-    )
-    setSharedHomepageSurvey(prev => ({ ...prev, submittedChoice: saved || null, status: '' }))
-  }, [sharedHomepageSurvey.survey?.id])
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !sharedPostCaseSurvey.survey?.id) {
-      setSharedPostCaseSurvey(prev => ({ ...prev, submittedChoice: null, status: '' }))
-      return
-    }
-
-    const saved = window.localStorage.getItem(
-      getSiteSurveyDismissKey(sharedPostCaseSurvey.survey)
-    )
-    setSharedPostCaseSurvey(prev => ({ ...prev, submittedChoice: saved || null, status: '' }))
-  }, [sharedPostCaseSurvey.survey?.id])
 
   useEffect(() => {
     let cancelled = false
@@ -1158,374 +1053,6 @@ function PlayPageContent() {
       cancelled = true
     }
   }, [today])
-
-  async function submitHomepageSurvey(choice: string) {
-    if (isEmbeddedExample) return
-    if (!homepageSurvey?.id || submittedHomepageSurveyChoice || isSubmittingHomepageSurvey) return
-
-    setIsSubmittingHomepageSurvey(true)
-    setHomepageSurveyStatus('')
-    const trackingDisabled = isTrackingDisabledForThisBrowser()
-
-    try {
-      if (!isLocalhostBrowser() && !trackingDisabled) {
-        await supabase.from('homepage_survey_responses').insert({
-          survey_id: homepageSurvey.id,
-          response: choice,
-          session_id: getSessionId() || null,
-        })
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(`${HOMEPAGE_SURVEY_STORAGE_PREFIX}:${homepageSurvey.id}`, choice)
-      }
-      setSubmittedHomepageSurveyChoice(choice)
-      setHomepageSurveyStatus('Thanks for responding!')
-      window.setTimeout(() => {
-        dismissHomepageSurvey()
-      }, 1900)
-    } finally {
-      setIsSubmittingHomepageSurvey(false)
-    }
-  }
-
-  async function submitSharedHomepageSurvey(choice: string) {
-    if (isEmbeddedExample) return
-    if (
-      !sharedHomepageSurvey.survey?.id ||
-      sharedHomepageSurvey.submittedChoice ||
-      sharedHomepageSurvey.isSubmitting
-    ) {
-      return
-    }
-
-    setSharedHomepageSurvey(prev => ({ ...prev, isSubmitting: true, status: '' }))
-    const trackingDisabled = isTrackingDisabledForThisBrowser()
-
-    try {
-      if (!isLocalhostBrowser() && !trackingDisabled) {
-        await supabase.from('site_survey_responses').insert({
-          survey_id: sharedHomepageSurvey.survey.id,
-          response: choice,
-          session_id: getSessionId() || null,
-          placement: 'homepage_header',
-        })
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(getSiteSurveyDismissKey(sharedHomepageSurvey.survey), choice)
-      }
-
-      setSharedHomepageSurvey(prev => ({
-        ...prev,
-        submittedChoice: choice,
-        isSubmitting: false,
-        status: 'Thanks for responding!',
-      }))
-    } catch {
-      setSharedHomepageSurvey(prev => ({
-        ...prev,
-        isSubmitting: false,
-        status: 'Could not save that response.',
-      }))
-    }
-  }
-
-  async function submitAnatomySurvey(choice: string) {
-    if (isEmbeddedExample) return
-    if (!anatomySurvey?.id || submittedAnatomySurveyChoice || isSubmittingAnatomySurvey) return
-
-    setIsSubmittingAnatomySurvey(true)
-    setAnatomySurveyStatus('')
-    const trackingDisabled = isTrackingDisabledForThisBrowser()
-
-    try {
-      if (!isLocalhostBrowser() && !trackingDisabled) {
-        await supabase.from('anatomy_case_survey_responses').insert({
-          survey_id: anatomySurvey.id,
-          response: choice,
-          session_id: getSessionId() || null,
-          case_id: dailyCase?.id || null,
-          case_date: dailyCase?.case_date || selectedDate,
-          level: dailyCase?.level || selectedLevel,
-        })
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(getAnatomySurveyStorageKey(anatomySurvey), choice)
-      }
-
-      setSubmittedAnatomySurveyChoice(choice)
-      setAnatomySurveyStatus('Thanks for the feedback.')
-    } finally {
-      setIsSubmittingAnatomySurvey(false)
-    }
-  }
-
-  async function submitSharedPostCaseSurvey(choice: string) {
-    if (isEmbeddedExample) return
-    if (
-      !sharedPostCaseSurvey.survey?.id ||
-      sharedPostCaseSurvey.submittedChoice ||
-      sharedPostCaseSurvey.isSubmitting
-    ) {
-      return
-    }
-
-    setSharedPostCaseSurvey(prev => ({ ...prev, isSubmitting: true, status: '' }))
-    const trackingDisabled = isTrackingDisabledForThisBrowser()
-
-    try {
-      if (!isLocalhostBrowser() && !trackingDisabled) {
-        await supabase.from('site_survey_responses').insert({
-          survey_id: sharedPostCaseSurvey.survey.id,
-          response: choice,
-          session_id: getSessionId() || null,
-          placement: 'after_case',
-          case_id: dailyCase?.id || null,
-          case_date: dailyCase?.case_date || selectedDate,
-          level: dailyCase?.level || selectedLevel,
-        })
-      }
-
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(getSiteSurveyDismissKey(sharedPostCaseSurvey.survey), choice)
-      }
-
-      setSharedPostCaseSurvey(prev => ({
-        ...prev,
-        submittedChoice: choice,
-        isSubmitting: false,
-        status: 'Thanks for the feedback.',
-      }))
-    } catch {
-      setSharedPostCaseSurvey(prev => ({
-        ...prev,
-        isSubmitting: false,
-        status: 'Could not save that response.',
-      }))
-    }
-  }
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadSharedHomepageSurvey() {
-      const isLocalhost =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-      const { data, error } = await supabase
-        .from('site_surveys')
-        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
-        .eq('placement', 'homepage_header')
-        .lte('start_date', today)
-        .or(`end_date.is.null,end_date.gte.${today}`)
-        .order('start_date', { ascending: false })
-
-      if (cancelled) return
-
-      if (!error) {
-        const activeSurvey = ((data as SiteSurveyRow[] | null) || []).find(
-          item => item.question?.trim() && normalizeSurveyOptions(item.options || []).length >= 2
-        ) || null
-
-        if (activeSurvey) {
-          setSharedHomepageSurvey(prev => ({
-            ...prev,
-            survey: { ...activeSurvey, options: normalizeSurveyOptions(activeSurvey.options || []) },
-          }))
-          return
-        }
-      }
-
-      if (!isLocalhost) {
-        setSharedHomepageSurvey(prev => ({ ...prev, survey: null }))
-        return
-      }
-
-      const { data: upcomingData } = await supabase
-        .from('site_surveys')
-        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
-        .eq('placement', 'homepage_header')
-        .gte('start_date', today)
-        .order('start_date', { ascending: true })
-        .limit(1)
-
-      if (cancelled) return
-
-      const upcomingSurvey = ((upcomingData as SiteSurveyRow[] | null) || []).find(
-        item => item.question?.trim() && normalizeSurveyOptions(item.options || []).length >= 2
-      ) || null
-
-      setSharedHomepageSurvey(prev => ({
-        ...prev,
-        survey: upcomingSurvey
-          ? { ...upcomingSurvey, options: normalizeSurveyOptions(upcomingSurvey.options || []) }
-          : null,
-      }))
-    }
-
-    async function loadHomepageSurvey() {
-      const isLocalhost =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-      const { data } = await supabase
-        .from('homepage_surveys')
-        .select('id, question, option_1, option_2, option_3, start_date, end_date')
-        .lte('start_date', today)
-        .or(`end_date.is.null,end_date.gte.${today}`)
-        .order('start_date', { ascending: false })
-        .limit(1)
-
-      if (cancelled) return
-
-      const activeSurvey = (data as HomepageSurveyRow[] | null)?.[0] || null
-      if (activeSurvey?.question?.trim()) {
-        setHomepageSurvey(activeSurvey)
-        return
-      }
-
-      if (!isLocalhost) {
-        setHomepageSurvey(null)
-        return
-      }
-
-      const { data: upcomingData } = await supabase
-        .from('homepage_surveys')
-        .select('id, question, option_1, option_2, option_3, start_date, end_date')
-        .gte('start_date', today)
-        .order('start_date', { ascending: true })
-        .limit(1)
-
-      if (cancelled) return
-
-      setHomepageSurvey((upcomingData as HomepageSurveyRow[] | null)?.[0] || null)
-    }
-
-    void loadSharedHomepageSurvey()
-    void loadHomepageSurvey()
-
-    return () => {
-      cancelled = true
-    }
-  }, [today])
-
-  useEffect(() => {
-    let cancelled = false
-
-    async function loadSharedPostCaseSurvey() {
-      const isLocalhost =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-      const { data, error } = await supabase
-        .from('site_surveys')
-        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
-        .eq('placement', 'after_case')
-        .lte('start_date', today)
-        .or(`end_date.is.null,end_date.gte.${today}`)
-        .order('start_date', { ascending: false })
-
-      if (cancelled) return
-
-      if (!error) {
-        const activeSurvey = ((data as SiteSurveyRow[] | null) || []).find(
-          item =>
-            item.question?.trim() &&
-            normalizeSurveyOptions(item.options || []).length >= 2 &&
-            doesSurveyApplyToLevel(item.level_scope, selectedLevel)
-        ) || null
-
-        if (activeSurvey) {
-          setSharedPostCaseSurvey(prev => ({
-            ...prev,
-            survey: { ...activeSurvey, options: normalizeSurveyOptions(activeSurvey.options || []) },
-          }))
-          return
-        }
-      }
-
-      if (!isLocalhost) {
-        setSharedPostCaseSurvey(prev => ({ ...prev, survey: null }))
-        return
-      }
-
-      const { data: upcomingData } = await supabase
-        .from('site_surveys')
-        .select('id, question, options, placement, level_scope, start_date, end_date, created_at')
-        .eq('placement', 'after_case')
-        .gte('start_date', today)
-        .order('start_date', { ascending: true })
-
-      if (cancelled) return
-
-      const upcomingSurvey = ((upcomingData as SiteSurveyRow[] | null) || []).find(
-        item =>
-          item.question?.trim() &&
-          normalizeSurveyOptions(item.options || []).length >= 2 &&
-          doesSurveyApplyToLevel(item.level_scope, selectedLevel)
-      ) || null
-
-      setSharedPostCaseSurvey(prev => ({
-        ...prev,
-        survey: upcomingSurvey
-          ? { ...upcomingSurvey, options: normalizeSurveyOptions(upcomingSurvey.options || []) }
-          : null,
-      }))
-    }
-
-    async function loadAnatomySurvey() {
-      const isLocalhost =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-
-      const { data, error } = await supabase
-        .from('anatomy_case_surveys')
-        .select('id, question, option_1, option_2, option_3, start_date, end_date')
-        .lte('start_date', today)
-        .or(`end_date.is.null,end_date.gte.${today}`)
-        .order('start_date', { ascending: false })
-        .limit(1)
-
-      if (cancelled) return
-
-      if (error) {
-        setAnatomySurvey(null)
-        return
-      }
-
-      const activeSurvey = (data as AnatomySurveyRow[] | null)?.[0] || null
-      if (activeSurvey?.question?.trim()) {
-        setAnatomySurvey(activeSurvey)
-        return
-      }
-
-      if (!isLocalhost) {
-        setAnatomySurvey(null)
-        return
-      }
-
-      const { data: upcomingData } = await supabase
-        .from('anatomy_case_surveys')
-        .select('id, question, option_1, option_2, option_3, start_date, end_date')
-        .gte('start_date', today)
-        .order('start_date', { ascending: true })
-        .limit(1)
-
-      if (cancelled) return
-
-      setAnatomySurvey((upcomingData as AnatomySurveyRow[] | null)?.[0] || null)
-    }
-
-    void loadSharedPostCaseSurvey()
-    void loadAnatomySurvey()
-
-    return () => {
-      cancelled = true
-    }
-  }, [today, selectedLevel, selectedDate, dailyCase?.id])
 
   function buildCommunityStats(
     caseItem: Case,
@@ -3735,7 +3262,6 @@ function PlayPageContent() {
     return () => window.removeEventListener('orthodle:go-home', handleGoHome)
   }, [caseParam, selectedDate, today, router])
 
-
   useEffect(() => {
     if (isAdminPreview || isEmbeddedExample) return
     if (!dailyCase || !roundComplete || guesses.length === 0) return
@@ -4141,45 +3667,14 @@ function PlayPageContent() {
   const homepageAnnouncementKey = homepageAnnouncement
     ? `${homepageAnnouncement.id}:${homepageAnnouncement.message}`
     : null
-  const homepageSurveyKey = homepageSurvey
-    ? `${homepageSurvey.id}:${homepageSurvey.question}`
-    : null
-  const sharedHomepageSurveyKey = sharedHomepageSurvey.survey
-    ? `${sharedHomepageSurvey.survey.id}:${sharedHomepageSurvey.survey.question}`
-    : null
+
   const showHomepageAnnouncement =
     onTodayCard &&
     Boolean(homepageAnnouncement) &&
     homepageAnnouncementKey !== dismissedHomepageAnnouncementKey
-  const showSharedHomepageSurvey =
-    onTodayCard &&
-    Boolean(sharedHomepageSurvey.survey) &&
-    sharedHomepageSurveyKey !== dismissedHomepageSurveyKey &&
-    !sharedHomepageSurvey.submittedChoice
-  const showHomepageSurvey =
-    !showSharedHomepageSurvey &&
-    onTodayCard &&
-    Boolean(homepageSurvey) &&
-    homepageSurveyKey !== dismissedHomepageSurveyKey &&
-    !submittedHomepageSurveyChoice
-  const anatomySurveyStorageKey = anatomySurvey ? getAnatomySurveyStorageKey(anatomySurvey) : null
-  const shouldShowSharedPostCaseSurvey =
-    !isEmbeddedExample &&
-    roundComplete &&
-    Boolean(sharedPostCaseSurvey.survey) &&
-    !sharedPostCaseSurvey.submittedChoice &&
-    doesSurveyApplyToLevel(sharedPostCaseSurvey.survey.level_scope, selectedLevel)
-  const shouldShowAnatomySurvey =
-    !isEmbeddedExample &&
-    !shouldShowSharedPostCaseSurvey &&
-    roundComplete &&
-    useSurgicalAnatomyQuiz &&
-    Boolean(anatomySurvey) &&
-    !submittedAnatomySurveyChoice
+
   const topBannerCount =
     Number(showHomepageAnnouncement) +
-    Number(showHomepageSurvey) +
-    Number(showSharedHomepageSurvey) +
     Number(showResumeRound)
   const swipeNavigationDisabled =
     !onTodayCard ||
@@ -4187,8 +3682,6 @@ function PlayPageContent() {
     imageExpanded ||
     showTutorial ||
     showHomepageAnnouncement ||
-    showHomepageSurvey ||
-    showSharedHomepageSurvey ||
     showResumeRound
   const homeSwipeTargets = homeTabs.map(item =>
     item.type === 'link'
@@ -4486,29 +3979,11 @@ function PlayPageContent() {
     setDismissedHomepageAnnouncementKey(homepageAnnouncementKey)
   }
 
-  function dismissHomepageSurvey() {
-    if (typeof window === 'undefined') return
-    const keyToDismiss = sharedHomepageSurveyKey || homepageSurveyKey
-    if (!keyToDismiss) return
-    window.localStorage.setItem(HOMEPAGE_SURVEY_DISMISS_KEY, keyToDismiss)
-    setDismissedHomepageSurveyKey(keyToDismiss)
-  }
-
   function dismissTutorial() {
     if (typeof window === 'undefined') return
     window.localStorage.setItem(TUTORIAL_DISMISS_KEY, 'true')
     setShowTutorial(false)
   }
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !anatomySurveyStorageKey) {
-      setSubmittedAnatomySurveyChoice(null)
-      return
-    }
-
-    const savedChoice = window.localStorage.getItem(anatomySurveyStorageKey)
-    setSubmittedAnatomySurveyChoice(savedChoice)
-  }, [anatomySurveyStorageKey])
 
   useEffect(() => {
     setShowLocalhostReset(isLocalhostBrowser())
@@ -5525,82 +5000,6 @@ function PlayPageContent() {
           </div>
         )}
 
-        {showSharedHomepageSurvey && sharedHomepageSurvey.survey && (
-          <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="mx-auto max-w-[560px]">
-              <div className="text-center text-[8.5px] font-medium leading-[1.2] text-[#102018] sm:text-[12px]">
-                {sharedHomepageSurvey.survey.question}
-              </div>
-              <div
-                className={`mt-1.5 grid gap-1 ${
-                  (sharedHomepageSurvey.survey.options || []).length > 3
-                    ? 'grid-cols-2 sm:grid-cols-3'
-                    : 'grid-cols-3'
-                }`}
-              >
-                {(sharedHomepageSurvey.survey.options || []).map(option => {
-                  const isSelected = sharedHomepageSurvey.submittedChoice === option
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => void submitSharedHomepageSurvey(option)}
-                      disabled={Boolean(sharedHomepageSurvey.submittedChoice) || sharedHomepageSurvey.isSubmitting}
-                      className={`min-w-0 rounded-lg border px-1 py-1 text-[6.5px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
-                        isSelected
-                          ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                          : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-                      } disabled:cursor-not-allowed disabled:opacity-80`}
-                    >
-                      {option}
-                    </button>
-                  )
-                })}
-              </div>
-              {sharedHomepageSurvey.status && (
-                <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
-                  {sharedHomepageSurvey.status}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {showHomepageSurvey && homepageSurvey && (
-          <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-1.5 text-center shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
-            <div className="mx-auto max-w-[560px]">
-              <div className="text-center text-[8.5px] font-medium leading-[1.2] text-[#102018] sm:text-[12px]">
-                {homepageSurvey.question}
-              </div>
-              <div className="mt-1.5 grid grid-cols-3 gap-1">
-                {[homepageSurvey.option_1, homepageSurvey.option_2, homepageSurvey.option_3].map(option => {
-                  const isSelected = submittedHomepageSurveyChoice === option
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      onClick={() => void submitHomepageSurvey(option)}
-                      disabled={Boolean(submittedHomepageSurveyChoice) || isSubmittingHomepageSurvey}
-                      className={`min-w-0 rounded-lg border px-1 py-1 text-[6.5px] font-semibold leading-tight transition sm:px-2.5 sm:py-1.5 sm:text-[10px] ${
-                        isSelected
-                          ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                          : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-                      } disabled:cursor-not-allowed disabled:opacity-80`}
-                    >
-                      {option}
-                    </button>
-                  )
-                })}
-              </div>
-              {homepageSurveyStatus && (
-                <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
-                  {homepageSurveyStatus}
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
         {showResumeRound && resumeRound && (
           <div className="orthodle-fade-up mt-2 w-full rounded-2xl border border-[#cfded4] bg-[#f7fbf8] px-3 py-2 text-left shadow-[0_10px_24px_rgba(16,32,24,0.04)] sm:px-4 sm:py-2.5">
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
@@ -6595,92 +5994,6 @@ function PlayPageContent() {
                   </div>
                 )}
 
-                {shouldShowSharedPostCaseSurvey && sharedPostCaseSurvey.survey && (
-                  <div className="night-soft-surface rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-2.5 sm:p-3">
-                    <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                      Quick survey
-                    </div>
-                    <div className="mx-auto max-w-[560px]">
-                      <div className="text-center text-[12px] leading-5 text-[#102018] sm:text-[13px]">
-                        {sharedPostCaseSurvey.survey.question}
-                      </div>
-                      {sharedPostCaseSurvey.survey.level_scope && sharedPostCaseSurvey.survey.level_scope !== 'all' && (
-                        <p className="mt-1 text-center text-[9.5px] uppercase tracking-[0.16em] text-[#8a948d]">
-                          {getSurveyLevelScopeLabel(sharedPostCaseSurvey.survey.level_scope)}
-                        </p>
-                      )}
-                      <div
-                        className={`mt-2 grid gap-1.5 ${
-                          (sharedPostCaseSurvey.survey.options || []).length > 3
-                            ? 'grid-cols-1 sm:grid-cols-2'
-                            : 'grid-cols-1 sm:grid-cols-3'
-                        }`}
-                      >
-                        {(sharedPostCaseSurvey.survey.options || []).map(option => {
-                          const isSelected = sharedPostCaseSurvey.submittedChoice === option
-                          return (
-                            <button
-                              key={option}
-                              type="button"
-                              onClick={() => void submitSharedPostCaseSurvey(option)}
-                              disabled={Boolean(sharedPostCaseSurvey.submittedChoice) || sharedPostCaseSurvey.isSubmitting}
-                              className={`min-w-0 rounded-lg border px-2 py-1.5 text-[10px] font-semibold leading-tight transition sm:px-2.5 sm:py-2 ${
-                                isSelected
-                                  ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-                              } disabled:cursor-not-allowed disabled:opacity-80`}
-                            >
-                              {option}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {sharedPostCaseSurvey.status && (
-                        <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
-                          {sharedPostCaseSurvey.status}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {shouldShowAnatomySurvey && anatomySurvey && (
-                  <div className="night-soft-surface rounded-xl border border-[#ead9b7] bg-[#fffaf1] p-2.5 sm:p-3">
-                    <div className="night-label mb-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.18em] text-[#637268]">
-                      Anatomy survey
-                    </div>
-                    <div className="mx-auto max-w-[560px]">
-                      <div className="text-center text-[12px] leading-5 text-[#102018] sm:text-[13px]">
-                        {anatomySurvey.question}
-                      </div>
-                      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-                        {[anatomySurvey.option_1, anatomySurvey.option_2, anatomySurvey.option_3].map(option => {
-                          const isSelected = submittedAnatomySurveyChoice === option
-                          return (
-                            <button
-                              key={option}
-                              type="button"
-                              onClick={() => void submitAnatomySurvey(option)}
-                              disabled={Boolean(submittedAnatomySurveyChoice) || isSubmittingAnatomySurvey}
-                              className={`min-w-0 rounded-lg border px-2 py-1.5 text-[10px] font-semibold leading-tight transition sm:px-2.5 sm:py-2 ${
-                                isSelected
-                                  ? 'border-[#cfded4] bg-[#eef7f2] text-[#1f6448]'
-                                  : 'border-[#ded7ca] bg-white text-[#102018] hover:bg-[#fbfaf7]'
-                              } disabled:cursor-not-allowed disabled:opacity-80`}
-                            >
-                              {option}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {anatomySurveyStatus && (
-                        <p className="mt-2 text-center text-[10px] font-medium text-[#1f6448] sm:text-[11px]">
-                          {anatomySurveyStatus}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}

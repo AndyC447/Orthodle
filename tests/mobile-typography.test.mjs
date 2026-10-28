@@ -31,7 +31,7 @@ test('compact mobile controls retain touch size and prevent input auto-zoom', ()
 })
 
 test('public pages use shared mobile spacing without changing the case player', () => {
-  for (const file of ['archive', 'groups', 'stats', 'study', 'about', 'submit']) {
+  for (const file of ['archive', 'groups', 'stats', 'about', 'submit']) {
     const source = read(`../app/${file}/page.tsx`)
     assert.ok(source.includes('public-page-shell'), file)
     assert.ok(source.includes('public-page-title'), file)

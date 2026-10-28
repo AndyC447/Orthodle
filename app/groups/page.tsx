@@ -121,12 +121,7 @@ type ActivityFeedItem = {
   createdAt: string
 }
 
-type GroupNotificationItem = {
-  id: string
-  icon: ActivityFeedItem['icon']
-  title: string
-  detail: string
-}
+
 
 type WeeklyChallenge = {
   title: string
@@ -198,7 +193,7 @@ const SELECTED_GROUP_STORAGE_KEY = 'orthodle_selected_group'
 const GROUPS_EXPLAINER_STORAGE_KEY = 'orthodle_groups_explainer_seen'
 const LOCAL_PROFILE_STORAGE_KEY = 'orthodle_groups_profile'
 const GROUP_ANNOUNCEMENT_DISMISS_KEY = 'orthodle_dismissed_group_announcement'
-const GROUP_NOTIFICATIONS_SEEN_KEY = 'orthodle_groups_notifications_seen_v1'
+
 const GROUP_DISMISSED_MESSAGES_KEY = 'orthodle_groups_dismissed_messages_v1'
 const SWIPE_NAV_TRANSITION_KEY = 'orthodle_swipe_nav_transition_v1'
 
@@ -708,8 +703,6 @@ function GroupsTopBanner({
   activeTab,
   onTabChange,
   onOpenHowItWorks,
-  onOpenUpdates,
-  unreadNotificationCount,
   swipePreviewId,
   swipeProgress,
   swipeDirection,
@@ -717,8 +710,6 @@ function GroupsTopBanner({
   activeTab: GroupsTab
   onTabChange: (tab: GroupsTab) => void
   onOpenHowItWorks: () => void
-  onOpenUpdates: () => void
-  unreadNotificationCount: number
   swipePreviewId: 'cases' | GroupsTab | null
   swipeProgress: number
   swipeDirection: -1 | 0 | 1
@@ -843,11 +834,7 @@ function GroupsTopBanner({
               }`}
             >
               <Menu size={16} strokeWidth={2.2} />
-              {unreadNotificationCount > 0 ? (
-                <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
-                  {unreadNotificationCount}
-                </span>
-              ) : null}
+
             </button>
 
             {menuOpen ? (
@@ -859,25 +846,7 @@ function GroupsTopBanner({
                 }`}
               >
               <div className="p-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMenuOpen(false)
-                    onOpenUpdates()
-                  }}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
-                    theme === 'dark'
-                      ? 'text-[#f4efe6] hover:bg-[#213129]'
-                      : 'text-[#102018] hover:bg-[#fbfaf7]'
-                  }`}
-                >
-                  <span>Notifications</span>
-                  {unreadNotificationCount > 0 ? (
-                    <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
-                      {unreadNotificationCount}
-                    </span>
-                  ) : null}
-                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -935,11 +904,7 @@ function GroupsTopBanner({
                 }`}
               >
                 <Menu size={16} strokeWidth={2.2} />
-                {unreadNotificationCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
-                    {unreadNotificationCount}
-                  </span>
-                ) : null}
+
               </button>
 
               {menuOpen ? (
@@ -951,25 +916,7 @@ function GroupsTopBanner({
                   }`}
                 >
                 <div className="p-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMenuOpen(false)
-                      onOpenUpdates()
-                    }}
-                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.16em] transition ${
-                      theme === 'dark'
-                        ? 'text-[#f4efe6] hover:bg-[#213129]'
-                        : 'text-[#102018] hover:bg-[#fbfaf7]'
-                    }`}
-                  >
-                    <span>Notifications</span>
-                    {unreadNotificationCount > 0 ? (
-                      <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
-                        {unreadNotificationCount}
-                      </span>
-                    ) : null}
-                  </button>
+
                   <button
                     type="button"
                     onClick={() => {
@@ -1605,9 +1552,9 @@ export default function GroupsPage() {
   const [showCreateMemberIconPicker, setShowCreateMemberIconPicker] = useState(false)
   const [showGroupsExplainer, setShowGroupsExplainer] = useState(false)
   const [showLeaderboardScoringGuide, setShowLeaderboardScoringGuide] = useState(false)
-  const [showNotificationsPanel, setShowNotificationsPanel] = useState(false)
+
   const [showProfileStatGuide, setShowProfileStatGuide] = useState(false)
-  const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([])
+
   const [dismissedMessages, setDismissedMessages] = useState<string[]>([])
   const [editGroupName, setEditGroupName] = useState('')
   const [editDisplayName, setEditDisplayName] = useState('')
@@ -1652,17 +1599,7 @@ export default function GroupsPage() {
     const riseTimeout = window.setTimeout(() => setShowLeaderboardRise(false), 1400)
     const nextTab = normalizeGroupsTab(new URLSearchParams(window.location.search).get('tab'))
     setActiveGroupsTab(current => (current === nextTab ? current : nextTab))
-    try {
-      const savedSeen = window.localStorage.getItem(GROUP_NOTIFICATIONS_SEEN_KEY)
-      if (savedSeen) {
-        const parsed = JSON.parse(savedSeen) as string[]
-        if (Array.isArray(parsed)) {
-          setSeenNotificationIds(parsed)
-        }
-      }
-    } catch {
-      window.localStorage.removeItem(GROUP_NOTIFICATIONS_SEEN_KEY)
-    }
+
 
     try {
       const savedDismissedMessages = window.localStorage.getItem(GROUP_DISMISSED_MESSAGES_KEY)
@@ -2571,83 +2508,9 @@ export default function GroupsPage() {
       .slice(0, 5)
   }, [activeLeaderboardGroupAggregates, caseLookup, mvpEntry, selectedGroup, selectedGroupAggregate, selectedGroupLeaderboardRank, solvedCaseIdsByViewer, visibleGuessRows])
 
-  const groupNotifications = useMemo<GroupNotificationItem[]>(() => {
-    const items: GroupNotificationItem[] = []
 
-    if (groupAnnouncement && groupAnnouncementKey !== dismissedGroupAnnouncementKey) {
-      items.push({
-        id: `announcement:${groupAnnouncement.id}`,
-        icon: 'announcement',
-        title: 'New groups announcement',
-        detail: groupAnnouncement.message,
-      })
-    }
 
-    if (viewerGroup && viewerGroupAggregate) {
-      items.push({
-        id: `viewer-rank:${viewerGroup.id}:${leaderboardWindow}`,
-        icon: 'rank',
-        title: viewerGroupLeaderboardRank === 1 ? 'Your group is leading' : 'Your group race update',
-        detail: viewerGroupMomentum || 'Every solve can move the board.',
-      })
 
-      if (viewerGroupAggregate.currentStreak > 0) {
-        items.push({
-          id: `viewer-streak:${viewerGroup.id}:${viewerGroupAggregate.currentStreak}`,
-          icon: 'streak',
-          title: `${viewerGroup.name} is on a streak`,
-          detail: `${viewerGroupAggregate.currentStreak}-day group streak with ${viewerGroupAggregate.activeTodayCount} active today.`,
-        })
-      }
-
-      if (viewerGroupTodaySolvers.length > 0) {
-        items.push({
-          id: `viewer-activity:${viewerGroup.id}:${today}:${viewerGroupTodaySolvers.join('|')}`,
-          icon: 'solve',
-          title: 'Your group checked in today',
-          detail: viewerGroupTodaySolvers.join(' · '),
-        })
-      }
-    }
-
-    if (mvpEntry) {
-      items.push({
-        id: `mvp:${mvpEntry.group.id}:${mvpEntry.stats.member.session_id}:${leaderboardWindow}`,
-        icon: 'mvp',
-        title: `${mvpEntry.stats.member.display_name} is this week’s MVP`,
-        detail: `${formatScore(mvpEntry.stats.score)} pts for ${mvpEntry.group.name}.`,
-      })
-    }
-
-    if (groupActivityFeed.length > 0) {
-      const firstLiveItem = groupActivityFeed[0]
-      items.push({
-        id: `feed:${firstLiveItem.id}`,
-        icon: firstLiveItem.icon,
-        title: firstLiveItem.title,
-        detail: firstLiveItem.detail,
-      })
-    }
-
-    return items
-  }, [
-    dismissedGroupAnnouncementKey,
-    groupActivityFeed,
-    groupAnnouncement,
-    groupAnnouncementKey,
-    leaderboardWindow,
-    mvpEntry,
-    today,
-    viewerGroup,
-    viewerGroupAggregate,
-    viewerGroupLeaderboardRank,
-    viewerGroupMomentum,
-    viewerGroupTodaySolvers,
-  ])
-
-  const unreadNotificationCount = groupNotifications.filter(
-    item => !seenNotificationIds.includes(item.id)
-  ).length
 
   useEffect(() => {
     setEditGroupName(selectedGroup?.name || '')
@@ -3531,14 +3394,7 @@ export default function GroupsPage() {
     setMessage('')
   }
 
-  function openNotificationsPanel() {
-    setShowNotificationsPanel(true)
-    if (typeof window === 'undefined' || groupNotifications.length === 0) return
 
-    const nextSeenIds = Array.from(new Set([...seenNotificationIds, ...groupNotifications.map(item => item.id)]))
-    setSeenNotificationIds(nextSeenIds)
-    window.localStorage.setItem(GROUP_NOTIFICATIONS_SEEN_KEY, JSON.stringify(nextSeenIds))
-  }
 
   useEffect(() => {
     if (!showJoinPanel) return
@@ -3656,7 +3512,6 @@ export default function GroupsPage() {
   const groupsSwipeDisabled =
     showGroupsExplainer ||
     showLeaderboardScoringGuide ||
-    showNotificationsPanel ||
     showProfileStatGuide ||
     showSelectedGroupIconPicker ||
     showSelectedMemberIconPicker ||
@@ -3865,8 +3720,6 @@ export default function GroupsPage() {
       <GroupsTopBanner
         activeTab={activeGroupsTab}
         onOpenHowItWorks={() => setShowGroupsExplainer(true)}
-        onOpenUpdates={openNotificationsPanel}
-        unreadNotificationCount={unreadNotificationCount}
         onTabChange={handleGroupsTabChange}
         swipePreviewId={
           activeGroupsSwipeTarget?.kind === 'cases'
@@ -4288,19 +4141,7 @@ export default function GroupsPage() {
           >
             <Info size={14} strokeWidth={2.2} />
           </button>
-          <button
-            type="button"
-            onClick={openNotificationsPanel}
-            aria-label="Updates"
-            className="orthodle-groups-icon-button relative h-9 w-9 text-[#102018]"
-          >
-            <Bell size={14} strokeWidth={2.2} />
-            {unreadNotificationCount > 0 ? (
-              <span className="absolute -right-1 -top-1 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#1f6448] px-1.5 text-[10px] font-bold text-white">
-                {unreadNotificationCount}
-              </span>
-            ) : null}
-          </button>
+
         </div>
 
         {loading ? (
@@ -5376,59 +5217,7 @@ export default function GroupsPage() {
           </div>
         ) : null}
 
-        {showNotificationsPanel ? (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">
-            <div className="mx-auto w-full max-w-[520px] rounded-[24px] border border-[#e6dfd3] bg-white p-4 shadow-[0_24px_70px_rgba(16,32,24,0.22)] sm:max-h-[calc(100vh-3rem)] sm:overflow-y-auto sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
-                    Groups updates
-                  </div>
-                  <div className="mt-1 font-serif text-[24px] font-bold tracking-[-0.04em] text-[#102018]">
-                    Your inbox
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowNotificationsPanel(false)}
-                  className="orthodle-groups-icon-button"
-                  aria-label="Close updates"
-                >
-                  <X size={15} />
-                </button>
-              </div>
 
-              <div className="mt-4 space-y-2">
-                {groupNotifications.length > 0 ? (
-                  groupNotifications.map(item => (
-                    <div
-                      key={item.id}
-                      className="rounded-[18px] border border-[#ece6db] bg-[#fcfbf8] px-3 py-3"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#e6dfd3] bg-white text-[17px]">
-                          {getActivityIcon(item.icon)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-semibold text-[#102018]">
-                            {item.title}
-                          </div>
-                          <div className="mt-0.5 text-[12px] leading-5 text-[#637268]">
-                            {item.detail}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="rounded-[18px] border border-dashed border-[#e6dfd3] bg-[#fcfbf8] px-4 py-8 text-center text-sm text-[#637268]">
-                    No updates yet. Once your group gets moving, you’ll see streaks, MVP shifts, and race updates here.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
 
         {showProfileStatGuide ? (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b130fcc] px-3 py-4 backdrop-blur-sm sm:flex sm:items-center sm:justify-center sm:py-6">

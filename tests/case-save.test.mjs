@@ -80,10 +80,3 @@ test('repeated missing-column error stops after the field was already removed', 
   assert.equal(calls, 2)
   assert.equal(result.error, error)
 })
-
-test('studio loading does not request optional columns explicitly', () => {
-  const code = readFileSync(new URL('../app/admin/studio/page.tsx', import.meta.url), 'utf8')
-  const load = code.slice(code.indexOf('async function loadExistingCase()'), code.indexOf('const existingCase = data as CaseRow'))
-  assert.match(load, /\.select\('\*'\)/)
-  assert.doesNotMatch(load, /\.select\([^)]*answer_specificity/)
-})

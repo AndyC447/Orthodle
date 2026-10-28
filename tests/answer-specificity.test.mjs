@@ -48,7 +48,7 @@ test('admin selector offers exactly three options and selects each saved value',
 
 // Execute each editor's actual save payload expression, then round-trip the stored
 // value through its actual edit hydration expression. No live cases are modified.
-for (const editor of ['../app/admin/page.tsx', '../app/admin/studio/page.tsx']) {
+for (const editor of ['../app/admin/page.tsx']) {
   test(`${editor}: create, edit, and clear preserve state and accepted aliases`, () => {
     const text = source(editor)
     const ast = ts.createSourceFile(editor, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)

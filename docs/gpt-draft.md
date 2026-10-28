@@ -1,4 +1,8 @@
-# GPT Draft
+# GPT Draft (Retired)
+
+This feature is no longer available. Its page redirects to Admin and its API returns
+410 without calling OpenAI. Existing drafts and case backup data are preserved.
+The workflow below is historical documentation, not current setup instructions.
 
 Open **Admin > Create / Schedule Case > GPT Draft**. It uses the existing admin
 password session; the API checks that password before accessing cases or OpenAI.
