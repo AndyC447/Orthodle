@@ -10,7 +10,7 @@ import { normalizeAnswerSpecificity, type AnswerSpecificity } from '@/lib/answer
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent, type KeyboardEvent } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/Header'
-import { buildAnswerSuggestions } from '@/lib/answer-suggestions'
+import { buildAnswerSuggestions, type AnswerSuggestionSource } from '@/lib/answer-suggestions'
 import {
   buildMultiSelectSynonymMetadata,
   extractPlainSynonyms,
@@ -73,11 +73,7 @@ type DiagnosisChoiceLite = {
   label: string
 }
 
-type AnswerReferenceCase = {
-  answer: string | null
-  case_date: string
-  level: Level
-}
+type AnswerReferenceCase = AnswerSuggestionSource
 
 type LinkMetadataResult = {
   title: string | null
@@ -300,9 +296,10 @@ export default function CaseStudioPage() {
         diagnosisChoices,
         answerReferenceCases,
         caseDate,
-        level
+        level,
+        questionType
       ),
-    [answer, answerReferenceCases, caseDate, diagnosisChoices, level]
+    [answer, answerReferenceCases, caseDate, diagnosisChoices, level, questionType]
   )
 
   useEffect(() => {
@@ -345,7 +342,7 @@ export default function CaseStudioPage() {
     async function loadAnswerReferences() {
       const [{ data: choiceRows }, { data: caseRows }] = await Promise.all([
         supabase.from('diagnosis_choices').select('label').order('label', { ascending: true }),
-        supabase.from('cases').select('answer, case_date, level').range(0, 1999),
+        supabase.from('cases').select('answer, case_date, level, synonyms, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6').range(0, 1999),
       ])
 
       if (cancelled) return

@@ -1,11 +1,20 @@
 import { normalizeAnswer, ORTHO_DIAGNOSIS_BANK, readHiddenDiagnosisAnswers } from '@/lib/utils'
+import { getCaseQuestionType } from './anatomy-quiz'
+import type { QuestionType } from './question-type'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
-type AnswerSuggestionSource = {
+export type AnswerSuggestionSource = {
   answer: string | null | undefined
   case_date?: string | null | undefined
   level?: Level | null | undefined
+  synonyms?: string[] | null
+  clue_1?: string | null
+  clue_2?: string | null
+  clue_3?: string | null
+  clue_4?: string | null
+  clue_5?: string | null
+  clue_6?: string | null
 }
 
 type DiagnosisChoiceSource = {
@@ -75,20 +84,44 @@ function scoreAnswerSuggestion(query: string, label: string) {
   return score
 }
 
+export function getAnswerPool(
+  diagnosisChoices: DiagnosisChoiceSource[],
+  caseAnswers: AnswerSuggestionSource[],
+  questionType: QuestionType = 'diagnosis'
+) {
+  const matchingCases = caseAnswers.filter(item => getCaseQuestionType(item) === questionType)
+  if (questionType !== 'diagnosis') return matchingCases.map(item => item.answer)
+
+  const diagnosisAnswers = new Set(matchingCases.map(item => normalizeAnswer(item.answer || '')))
+  const quizAnswers = new Set(caseAnswers.filter(item => getCaseQuestionType(item) !== 'diagnosis').map(item => normalizeAnswer(item.answer || '')))
+  const builtIn = new Set(ORTHO_DIAGNOSIS_BANK.map(normalizeAnswer))
+  // Keep legitimate diagnoses shared across pools, but exclude quiz-only custom entries.
+  return [
+    ...ORTHO_DIAGNOSIS_BANK,
+    ...matchingCases.map(item => item.answer),
+    ...diagnosisChoices.filter(item => {
+      const key = normalizeAnswer(item.label || '')
+      return !quizAnswers.has(key) || diagnosisAnswers.has(key) || builtIn.has(key)
+    }).map(item => item.label),
+  ]
+}
+
 export function buildAnswerSuggestions(
   query: string,
   diagnosisChoices: DiagnosisChoiceSource[],
   caseAnswers: AnswerSuggestionSource[],
   currentCaseDate?: string,
-  currentLevel?: Level
+  currentLevel?: Level,
+  questionType: QuestionType = 'diagnosis'
 ) {
   const trimmedQuery = query.trim()
   if (!trimmedQuery) return [] as AnswerSuggestionItem[]
 
-  const hiddenAnswers = readHiddenDiagnosisAnswers()
+  const hiddenAnswers = questionType === 'diagnosis' ? readHiddenDiagnosisAnswers() : new Set<string>()
+  const matchingCases = caseAnswers.filter(item => getCaseQuestionType(item) === questionType)
   const usageCounts = new Map<string, number>()
 
-  for (const item of caseAnswers) {
+  for (const item of matchingCases) {
     const label = item.answer?.trim()
     if (!label) continue
     const normalized = normalizeAnswer(label)
@@ -118,9 +151,7 @@ export function buildAnswerSuggestions(
     existing.count = Math.max(existing.count, count)
   }
 
-  for (const label of ORTHO_DIAGNOSIS_BANK) addSuggestion(label)
-  for (const item of diagnosisChoices) addSuggestion(item.label)
-  for (const item of caseAnswers) addSuggestion(item.answer)
+  for (const label of getAnswerPool(diagnosisChoices, caseAnswers, questionType)) addSuggestion(label)
 
   const normalizedCurrent = normalizeAnswer(trimmedQuery)
 
@@ -131,7 +162,7 @@ export function buildAnswerSuggestions(
       if (
         currentCaseDate &&
         currentLevel &&
-        caseAnswers.some(
+        matchingCases.some(
           caseItem =>
             caseItem.case_date === currentCaseDate &&
             caseItem.level === currentLevel &&
@@ -141,7 +172,7 @@ export function buildAnswerSuggestions(
         score += 20
       }
 
-      score += Math.min(item.count, 40)
+      if (score > 0) score += Math.min(item.count, 40)
 
       return {
         label: item.label,

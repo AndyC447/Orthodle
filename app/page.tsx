@@ -312,7 +312,7 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
   'pain',
 ])
 
-const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v3'
+const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v4'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v2'
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
@@ -978,7 +978,7 @@ function PlayPageContent() {
       const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }, { data: titleRows }] = await Promise.all([
         supabase
           .from('cases')
-          .select('answer, level, case_date, synonyms')
+          .select('answer, level, case_date, synonyms, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
           .range(0, 1999),
         supabase
           .from('diagnosis_choices')

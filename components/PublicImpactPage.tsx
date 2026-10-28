@@ -11,9 +11,9 @@ import { PublicFooter } from '@/components/PublicFooter'
 
 const ABOUT_TEXT_STORAGE_KEY = 'orthodle_admin_impact_about_text_v1'
 const TOP_CITIES_STORAGE_KEY = 'orthodle_live_stat_impact_top_cities_v1'
-const DEFAULT_ABOUT_TEXT = `I am a fourth-year medical student at UCLA currently on sub-internships and applying into orthopedic surgery this year.
+const DEFAULT_ABOUT_TEXT = `I am a fourth-year medical student at UCLA applying into Orthopedic Surgery.
 
-I built Orthodle as a way to combine my interest in website design, teaching, daily puzzle games, and orthopedic learning. As I see interesting cases on sub-I rotations, I use the process of building them into Orthodle cases to study the pathology more deeply, sharpen the teaching point, and turn that learning into something useful for other learners.`
+I built Orthodle as a way to combine my interest in website design, teaching, daily puzzle games, and orthopedic learning. Drawing on interesting cases I encountered during my sub-I rotations, I use the process of building them into Orthodle cases to study the pathology more deeply, sharpen the teaching point, and turn that learning into something useful for other learners.`
 const EMPTY_IMPACT_STATS: ImpactStats = {
   usersReached: 0,
   uniqueUsers: 0,

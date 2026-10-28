@@ -17,7 +17,7 @@ import { gptDraftSaveError, draftSynonyms, type DraftProvenance } from '@/lib/gp
 import { useImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
-import { buildAnswerSuggestions } from '@/lib/answer-suggestions'
+import { buildAnswerSuggestions, getAnswerPool } from '@/lib/answer-suggestions'
 import {
   buildMultiSelectSynonymMetadata,
   extractPlainSynonyms,
@@ -1599,11 +1599,12 @@ export default function AdminPage() {
     if (!answer.trim() || !normalizedAnswer) return []
 
     return cases.filter(item => {
+      if (getCaseQuestionType(item) !== questionType) return false
       if (!item.answer?.trim()) return false
       if (normalizeAnswer(item.answer) !== normalizedAnswer) return false
       return !(item.case_date === caseDate && item.level === level)
     })
-  }, [answer, caseDate, cases, level])
+  }, [answer, caseDate, cases, level, questionType])
 
   const copyableImageSourceCases = useMemo(
     () =>
@@ -1662,43 +1663,25 @@ export default function AdminPage() {
       buildAnswerSuggestions(
         answer,
         diagnosisChoices,
-        cases.map(item => ({
-          answer: item.answer,
-          case_date: item.case_date,
-          level: item.level,
-        })),
+        cases,
         caseDate,
-        level
+        level,
+        questionType
       ),
-    [answer, caseDate, cases, diagnosisChoices, level]
+    [answer, caseDate, cases, diagnosisChoices, level, questionType]
   )
 
   const composerGuardrails = useMemo(() => {
     const issues: string[] = []
     const answerPool = new Set<string>()
-    const hiddenAnswers = readHiddenDiagnosisAnswers()
-
-    for (const label of ORTHO_DIAGNOSIS_BANK) {
-      const normalized = normalizeAnswer(label)
-      if (!hiddenAnswers.has(normalized)) {
-        answerPool.add(normalized)
-      }
-    }
-
-    for (const item of diagnosisChoices) {
-      if (item.label?.trim()) {
-        answerPool.add(normalizeAnswer(item.label))
-      }
-    }
-
-    for (const item of cases) {
-      if (item.answer?.trim()) {
-        answerPool.add(normalizeAnswer(item.answer))
-      }
+    const hiddenAnswers = questionType === 'diagnosis' ? readHiddenDiagnosisAnswers() : new Set<string>()
+    for (const label of getAnswerPool(diagnosisChoices, cases, questionType)) {
+      const normalized = normalizeAnswer(label || '')
+      if (normalized && !hiddenAnswers.has(normalized)) answerPool.add(normalized)
     }
 
     if (answer.trim() && !answerPool.has(normalizeAnswer(answer))) {
-      issues.push('This answer is not in the master answer list yet.')
+      issues.push(`This is a new answer in the ${questionType} pool.`)
     }
 
     if (duplicateAnswerMatches.length > 0) {
@@ -1709,7 +1692,7 @@ export default function AdminPage() {
       const extraCount = duplicateAnswerMatches.length - 3
 
       issues.push(
-        `This diagnosis already exists on ${duplicateSummary}${extraCount > 0 ? `, plus ${extraCount} more` : ''}.`
+        `This ${questionType} answer already exists on ${duplicateSummary}${extraCount > 0 ? `, plus ${extraCount} more` : ''}.`
       )
     }
 
@@ -1760,6 +1743,7 @@ export default function AdminPage() {
     clue6,
     duplicateAnswerMatches,
     diagnosisChoices,
+    questionType,
     imageRevealClue,
     imageRevealClue2,
     imageUrl,
@@ -4991,7 +4975,7 @@ export default function AdminPage() {
                       onBlur={() => {
                         window.setTimeout(() => setShowAnswerSuggestions(false), 120)
                       }}
-                      placeholder="Carpal tunnel syndrome"
+                      placeholder={questionType === 'anatomy' ? 'Posterior interosseous nerve' : questionType === 'classification' ? 'Schatzker type II' : 'Carpal tunnel syndrome'}
                       className="w-full rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                     />
                     {showAnswerSuggestions && filteredAnswerSuggestions.length > 0 ? (
@@ -5021,7 +5005,7 @@ export default function AdminPage() {
                   {duplicateAnswerMatches.length > 0 && (
                     <div className="rounded-lg bg-[#fffaf1] px-3 py-2.5 text-xs font-normal text-[#8a5a2b] ring-1 ring-inset ring-[#ead9b7]/75">
                       <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8a5a2b]">
-                        Existing diagnosis match
+                        Existing {questionType} match
                       </div>
                       <div className="mt-1 space-y-1">
                         {duplicateAnswerMatches.slice(0, 4).map(match => (
