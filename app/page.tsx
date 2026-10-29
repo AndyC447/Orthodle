@@ -1,6 +1,8 @@
 'use client'
 
 import { SimilarCaseAction } from '@/components/SimilarCaseAction'
+import { CaseImage } from '@/components/CaseImage'
+import { useImageDialog } from '@/hooks/useImageDialog'
 import { normalizeCaseCategory } from '@/lib/case-category'
 import { AnswerSpecificityBadge } from '@/components/AnswerSpecificity'
 import { Suspense } from 'react'
@@ -613,6 +615,7 @@ function PlayPageContent() {
   const [pulseSuccess, setPulseSuccess] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
+  const imageDialogRef = useImageDialog(imageExpanded, () => closeExpandedImage())
   const [showImageViewerChrome, setShowImageViewerChrome] = useState(true)
   const [expandedImageIndex, setExpandedImageIndex] = useState(0)
   const [expandedImages, setExpandedImages] = useState<ExpandableImage[]>([])
@@ -1508,6 +1511,10 @@ function PlayPageContent() {
   )
 
   const roundComplete = gameWon || gameOver
+
+  useEffect(() => {
+    if (roundComplete) guessInputRef.current?.blur()
+  }, [roundComplete])
 
   const unlockedFindings = roundComplete
     ? findings.length
@@ -2648,17 +2655,10 @@ function PlayPageContent() {
                 key={`${image.url}-${index}`}
                 className="overflow-hidden rounded-xl border border-[#e7e1d6] bg-white"
               >
-                <button
-                  type="button"
-                  onClick={() => openExpandedImage(index, learningImages)}
-                  className="flex min-h-[220px] w-full items-center justify-center bg-white p-1.5 transition hover:bg-[#fbfaf7] sm:min-h-[170px] sm:p-2"
-                >
-                  <img
-                    src={image.url}
-                    alt={image.alt}
-                    className="max-h-[46vh] w-full rounded-lg object-contain sm:max-h-[320px]"
-                  />
-                </button>
+                <CaseImage src={image.url} alt={image.alt}
+                  onOpen={() => openExpandedImage(index, learningImages)}
+                  className="h-[clamp(220px,46vh,320px)] bg-white p-1.5 sm:p-2"
+                  imageClassName="rounded-lg" />
                 {caption || credit ? (
                   <div className="border-t border-[#efe7db] bg-white px-3 py-2.5">
                     {caption ? (
@@ -2825,10 +2825,16 @@ function PlayPageContent() {
 
     let interrupted = false
 
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.scrollTo({ top: initialTargetY, behavior: 'instant' })
+      return
+    }
+
     const cleanupUserInterruptionListeners = () => {
       window.removeEventListener('wheel', interruptScrollAnimation)
       window.removeEventListener('touchmove', interruptScrollAnimation)
       window.removeEventListener('pointerdown', interruptScrollAnimation)
+      window.removeEventListener('keydown', interruptScrollAnimation)
       quickTakeawayScrollCleanupRef.current = null
     }
 
@@ -2844,6 +2850,7 @@ function PlayPageContent() {
     window.addEventListener('wheel', interruptScrollAnimation, { passive: true })
     window.addEventListener('touchmove', interruptScrollAnimation, { passive: true })
     window.addEventListener('pointerdown', interruptScrollAnimation, { passive: true })
+    window.addEventListener('keydown', interruptScrollAnimation)
     quickTakeawayScrollCleanupRef.current = cleanupUserInterruptionListeners
 
     const step = (now: number) => {
@@ -5264,16 +5271,9 @@ function PlayPageContent() {
                     <div className="grid grid-cols-1 gap-4">
                       {visibleImages.map((image, index) => (
                         <div key={`${image.url}-${index}`} className="mx-auto w-full max-w-[760px]">
-                          <button
-                            onClick={() => openExpandedImage(index)}
-                            className="orthodle-image-tile group flex min-h-[280px] w-full items-center justify-center overflow-hidden rounded-lg bg-transparent py-1.5 sm:min-h-[320px] sm:py-3"
-                          >
-                            <img
-                              src={image.url}
-                              alt={image.alt}
-                              className="block max-h-[52vh] w-auto max-w-full bg-white object-contain transition duration-300 group-hover:scale-[1.01] sm:max-h-[420px]"
-                            />
-                          </button>
+                          <CaseImage src={image.url} alt={image.alt}
+                            onOpen={() => openExpandedImage(index)}
+                            className={`orthodle-image-tile overflow-hidden rounded-lg bg-transparent py-1.5 sm:py-3 ${isEmbeddedExample ? 'h-[260px] sm:h-[320px]' : 'h-[clamp(280px,52vh,420px)]'}`} />
                           {image.credit && (
                             <p className="mt-2.5 text-center text-[10px] leading-4 text-[#8a948d]">
                               {image.credit}
@@ -5712,9 +5712,16 @@ function PlayPageContent() {
 
       {currentExpandedImages.length > 0 && imageExpanded && (
         <div
+          ref={imageDialogRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Case image viewer"
           className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,32,24,0.18)] px-3 py-6 backdrop-blur-[6px] sm:bg-[#102018]/75 sm:px-4 sm:py-8"
           onClick={closeExpandedImage}
         >
+          <button type="button" data-close-image aria-label="Close image viewer"
+            className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] z-10 min-h-[44px] min-w-[44px] rounded-xl border border-[#ded7ca] bg-white px-3 text-sm font-semibold text-[#102018] shadow-sm"
+            onClick={event => { event.stopPropagation(); closeExpandedImage() }}>Close</button>
           <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex w-full max-w-[min(92vw,560px)] flex-col overflow-visible rounded-none border-0 bg-transparent shadow-none sm:max-w-5xl sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-white/15 sm:bg-[#fbfaf7] sm:shadow-2xl">
             <div
               className={`hidden sm:block orthodle-bottom-sheet-handle mx-auto mt-2 h-1 w-10 rounded-full bg-[#ded7ca] transition-all duration-300 ${
@@ -5868,11 +5875,12 @@ function PlayPageContent() {
                       {currentExpandedImages.map((image, index) => (
                         <div key={`${image.url}-${index}`} className="w-full shrink-0 px-[1px]">
                           <div className={`space-y-3 ${index === expandedImageIndex && !expandedCarouselDragging ? 'orthodle-image-swap' : ''}`}>
-                            <img
+                            <CaseImage
                               src={image.url}
                               alt={image.alt}
-                              className="mx-auto block max-h-[78vh] w-full max-w-full rounded-2xl border border-[#d7d9dc] bg-white object-contain shadow-[0_18px_44px_rgba(16,32,24,0.18)] transition-transform sm:max-h-[78vh] sm:w-auto"
-                              style={{
+                              className="h-[min(72dvh,720px)] rounded-2xl bg-white"
+                              imageClassName="rounded-2xl"
+                              imageStyle={{
                                 transform:
                                   index === expandedImageIndex
                                     ? `translate(${imageOffset.x}px, ${imageOffset.y}px) scale(${imageScale})`

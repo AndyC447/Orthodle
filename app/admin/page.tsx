@@ -17,7 +17,8 @@ import { gptDraftSaveError, draftSynonyms, type DraftProvenance } from '@/lib/gp
 import { useImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
-import { buildAnswerSuggestions, getAnswerPool } from '@/lib/answer-suggestions'
+import { buildAnswerSuggestions } from '@/lib/answer-suggestions'
+import { getCaseReadiness } from '@/lib/case-readiness'
 import {
   buildMultiSelectSynonymMetadata,
   extractPlainSynonyms,
@@ -757,7 +758,6 @@ export default function AdminPage() {
 
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
-  const [showComposerChecklist, setShowComposerChecklist] = useState(false)
 
   const [showAnalytics, setShowAnalytics] = useState(true)
   const { metrics: audienceMetrics, loading: audienceLoading, error: audienceError } = useImpactStats(isUnlocked && showAnalytics)
@@ -1585,85 +1585,14 @@ export default function AdminPage() {
     [answer, caseDate, cases, diagnosisChoices, level, questionType]
   )
 
-  const composerGuardrails = useMemo(() => {
-    const issues: string[] = []
-    const answerPool = new Set<string>()
-    const hiddenAnswers = questionType === 'diagnosis' ? readHiddenDiagnosisAnswers() : new Set<string>()
-    for (const label of getAnswerPool(diagnosisChoices, cases, questionType)) {
-      const normalized = normalizeAnswer(label || '')
-      if (normalized && !hiddenAnswers.has(normalized)) answerPool.add(normalized)
-    }
-
-    if (answer.trim() && !answerPool.has(normalizeAnswer(answer))) {
-      issues.push(`This is a new answer in the ${questionType} pool.`)
-    }
-
-    if (duplicateAnswerMatches.length > 0) {
-      const duplicateSummary = duplicateAnswerMatches
-        .slice(0, 3)
-        .map(item => `${item.case_date} · ${formatLevel(item.level)}`)
-        .join(', ')
-      const extraCount = duplicateAnswerMatches.length - 3
-
-      issues.push(
-        `This ${questionType} answer already exists on ${duplicateSummary}${extraCount > 0 ? `, plus ${extraCount} more` : ''}.`
-      )
-    }
-
-    if (previewClues.length === 0) {
-      issues.push('No clues are filled in yet.')
-    }
-
-    if (!imageUrl && imageRevealClue !== 'none') {
-      issues.push('Image reveal is set, but no image is attached.')
-    }
-
-    if (imageUrl && imageRevealClue !== 'none' && imageRevealClue !== 'after') {
-      const revealIndex = Number(imageRevealClue)
-      const clueAtReveal = [clue1, clue2, clue3, clue4, clue5, clue6][revealIndex - 1]
-
-      if (!clueAtReveal?.trim()) {
-        issues.push(`Image reveal is tied to Clue ${revealIndex}, but that clue is empty.`)
-      }
-    }
-
-    if (!imageUrl2 && imageRevealClue2 !== 'none') {
-      issues.push('Second image reveal is set, but no second image is attached.')
-    }
-
-    if (imageUrl2 && imageRevealClue2 !== 'none' && imageRevealClue2 !== 'after') {
-      const revealIndex = Number(imageRevealClue2)
-      const clueAtReveal = [clue1, clue2, clue3, clue4, clue5, clue6][revealIndex - 1]
-
-      if (!clueAtReveal?.trim()) {
-        issues.push(`Second image reveal is tied to Clue ${revealIndex}, but that clue is empty.`)
-      }
-    }
-
-    if (caseDate === today) {
-      issues.push('This case is set to publish today, not tomorrow.')
-    }
-
-    return issues
-  }, [
-    answer,
-    caseDate,
-    cases,
-    clue1,
-    clue2,
-    clue3,
-    clue4,
-    clue5,
-    clue6,
-    duplicateAnswerMatches,
-    diagnosisChoices,
-    questionType,
-    imageRevealClue,
-    imageRevealClue2,
-    imageUrl,
-    imageUrl2,
-    previewClues.length,
-  ])
+  const composerGuardrails = getCaseReadiness({
+    date: caseDate, category, prompt, answer, teaching: teachingPoint,
+    images: [imageUrl, imageUrl2], choices: [clue1, clue2, clue3, clue4, clue5, clue6],
+    correctLetters: normalizedAnatomyCorrectChoices, isChoice: isChoiceQuestion,
+    revealSteps: [imageRevealClue, imageRevealClue2],
+    replacing: cases.some(item => item.case_date === caseDate && item.level === level &&
+      ((item.answer || '').trim() !== answer.trim() || (item.prompt || '').trim() !== prompt.trim())),
+  })
 
   const incompleteDates = useMemo(
     () =>
@@ -1680,95 +1609,8 @@ export default function AdminPage() {
     [groupedCases]
   )
 
-  const caseChecklistItems = useMemo(() => {
-    const items = [
-      {
-        label: 'Publish date',
-        ready: Boolean(caseDate),
-      },
-      {
-        label: 'Category',
-        ready: Boolean(category.trim()),
-      },
-      {
-        label: 'Case prompt',
-        ready: Boolean(prompt.trim()),
-      },
-      {
-        label: 'Answer',
-        ready: Boolean(answer.trim()),
-      },
-      {
-        label: 'Teaching point',
-        ready: Boolean(teachingPoint.trim()),
-      },
-      {
-        label: 'At least 1 clue',
-        ready: previewClues.length > 0,
-      },
-      {
-        label: 'Image credits',
-        ready:
-          (!imageUrl.trim() || Boolean(imageCredit.trim())) &&
-          (!imageUrl2.trim() || Boolean(imageCredit2.trim())),
-        note:
-          imageUrl.trim() || imageUrl2.trim()
-            ? 'Add credit for each attached case image.'
-            : undefined,
-      },
-      {
-        label: 'Teaching image credits',
-        ready:
-          (!learningImageUrl.trim() || Boolean(learningImageCredit.trim())) &&
-          (!learningImageUrl2.trim() || Boolean(learningImageCredit2.trim())),
-        note:
-          learningImageUrl.trim() || learningImageUrl2.trim()
-            ? 'Add credit for each teaching image.'
-            : undefined,
-      },
-    ]
-
-    if (isChoiceQuestion) {
-      items.push({
-        label: 'Answer choices',
-        ready: anatomyChoiceItemsForComposer.length >= 2,
-        note: 'Use at least two answer choices.',
-      })
-      items.push({
-        label: 'Correct choices',
-        ready:
-          normalizedAnatomyCorrectChoices.length > 0 &&
-          normalizedAnatomyCorrectChoices.every(letter =>
-            anatomyChoiceItemsForComposer.some(item => item.letter === letter)
-          ),
-        note: 'Pick valid correct letters like A, B, C.',
-      })
-    }
-
-    return items
-  }, [
-    anatomyChoiceItemsForComposer,
-    answer,
-    caseDate,
-    category,
-    imageCredit,
-    imageCredit2,
-    imageUrl,
-    imageUrl2,
-    learningImageCredit,
-    learningImageCredit2,
-    learningImageUrl,
-    learningImageUrl2,
-    level,
-    normalizedAnatomyCorrectChoices,
-    isChoiceQuestion,
-    previewClues.length,
-    prompt,
-    teachingPoint,
-  ])
-
-  const readyChecklistCount = caseChecklistItems.filter(item => item.ready).length
   const composerGuardrailCount = composerGuardrails.length
+
 
   function formatLevel(levelValue: Level) {
     if (levelValue === 'med_student') return 'Med Student'
@@ -3981,13 +3823,9 @@ export default function AdminPage() {
                     {caseDate} · {formatLevel(level)}
                   </div>
                   <div className="rounded-lg border border-[#d8e5dd] bg-[#f7fbf8] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#355542]">
-                    {readyChecklistCount}/{caseChecklistItems.length} ready
+                    {composerGuardrailCount ? `${composerGuardrailCount} to review` : 'Ready to save'}
                   </div>
-                  {composerGuardrailCount > 0 ? (
-                    <div className="rounded-lg border border-[#ead9b7] bg-[#fffaf1] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8a5a2b]">
-                      {composerGuardrailCount} guardrail{composerGuardrailCount === 1 ? '' : 's'}
-                    </div>
-                  ) : null}
+
                   {activeSubmissionId ? (
                     <div className="rounded-lg border border-[#ded7ca] bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#637268]">
                       Submission draft
@@ -4755,66 +4593,14 @@ export default function AdminPage() {
                 />
               </label>
 
-              <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
-                <button
-                  type="button"
-                  onClick={() => setShowComposerChecklist(current => !current)}
-                  className="flex w-full items-center justify-between gap-3 text-left"
-                >
-                  <div>
-                    <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
-                      Checklist
-                    </div>
-                    <div className="mt-1 text-sm text-[#637268]">
-                      {readyChecklistCount}/{caseChecklistItems.length} ready
-                      {composerGuardrailCount > 0 ? ` · ${composerGuardrailCount} guardrail${composerGuardrailCount === 1 ? '' : 's'}` : ''}
-                    </div>
-                  </div>
-                  <div className="rounded-lg border border-[#ded7ca] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#637268]">
-                    {showComposerChecklist ? 'Hide' : 'Show'}
-                  </div>
-                </button>
-
-                {showComposerChecklist ? (
-                  <div className="mt-3 space-y-3">
-                    {composerGuardrails.length > 0 ? (
-                      <div className="rounded-xl border border-[#ead9b7] bg-[#fffaf1] px-3 py-3 text-sm text-[#8a5a2b]">
-                        <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#8a5a2b]">
-                          Guardrails
-                        </div>
-                        <div className="mt-2 space-y-1.5">
-                          {composerGuardrails.map(issue => (
-                            <p key={issue}>{issue}</p>
-                          ))}
-                        </div>
-                      </div>
-                    ) : null}
-
-                    <div className="grid gap-1.5 sm:grid-cols-2">
-                      {caseChecklistItems.map(item => (
-                        <div
-                          key={item.label}
-                          className={`rounded-lg px-3 py-2 text-sm ${
-                            item.ready
-                              ? 'bg-white text-[#355542] shadow-[inset_0_0_0_1px_#d8e5dd]'
-                              : 'bg-white text-[#7a6452] shadow-[inset_0_0_0_1px_#ead9b7]'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="font-semibold">{item.label}</span>
-                            <span className={`text-[11px] font-semibold ${item.ready ? 'text-[#1f6448]' : 'text-[#a24d24]'}`}>
-                              {item.ready ? 'Ready' : 'Needs work'}
-                            </span>
-                          </div>
-                          {!item.ready && item.note ? (
-                            <p className="mt-1 text-[11px] leading-4 text-[#8a948d]">{item.note}</p>
-                          ) : null}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <section aria-label="Before saving" className="border-t border-[#ebe5db] pt-3">
+                <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">Before saving</h3>
+                {composerGuardrails.length ? (
+                  <ul className="mt-2 list-disc space-y-1 pl-4 text-[13px] leading-5 text-[#8a5a2b]">
+                    {composerGuardrails.map(issue => <li key={issue}>{issue}</li>)}
+                  </ul>
+                ) : <p className="mt-2 text-[13px] text-[#1f6448]">Ready to save.</p>}
+              </section>
 
               {slotBackups.length > 0 ? (
                 <div className="rounded-2xl border border-[#ebe5db] bg-[#fcfbf8] p-3">
