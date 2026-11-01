@@ -15,9 +15,11 @@ export type ImpactStats = {
 }
 
 /** ERAS and admin read the same snapshot and refresh when brought back into view. */
+let latestSnapshot: ImpactStats | null = null
+
 export function useImpactStats(enabled = true) {
-  const [metrics, setMetrics] = useState<ImpactStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [metrics, setMetrics] = useState<ImpactStats | null>(() => latestSnapshot)
+  const [loading, setLoading] = useState(!latestSnapshot)
   const [error, setError] = useState(false)
   useEffect(() => {
     if (!enabled) return
@@ -32,6 +34,7 @@ export function useImpactStats(enabled = true) {
         const next = await response.json() as ImpactStats
         if (!Number.isFinite(next.combinedDailyUsers) || !Number.isFinite(next.uniqueUsers)) throw new Error('Invalid audience stats')
         if (controller.signal.aborted) return
+        latestSnapshot = next
         setMetrics(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next)
         setError(Boolean(next.stale))
       } catch {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { normalizeCaseCategory } from '@/lib/case-category'
 import { Header } from '@/components/Header'
@@ -57,21 +57,24 @@ function toTitleCase(value: string) {
     .join(' ')
 }
 
+let archiveSnapshot: { day: string; cases: ArchiveCase[]; titles: typeof DEFAULT_LEVEL_TITLES } | null = null
+
 export default function ArchivePage() {
   const isPreview = useSectionPreview()
   const today = todayISO()
   const sessionId = useMemo(() => getSessionId(), [])
-  const [cases, setCases] = useState<ArchiveCase[]>([])
-  const [loading, setLoading] = useState(true)
+  const [snapshot] = useState(() => archiveSnapshot?.day === today ? archiveSnapshot : null)
+  const [cases, setCases] = useState<ArchiveCase[]>(snapshot?.cases || [])
+  const [loading, setLoading] = useState(!snapshot)
   const [loadError, setLoadError] = useState('')
   const [month, setMonth] = useState(today.slice(0, 7))
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [answerQuery, setAnswerQuery] = useState('')
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
-  const [levelTitles, setLevelTitles] = useState(DEFAULT_LEVEL_TITLES)
+  const [levelTitles, setLevelTitles] = useState(snapshot?.titles || DEFAULT_LEVEL_TITLES)
   const savedScroll = useRef<number | null>(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem('orthodle_archive_view_v1') || 'null')
       if (!saved) return
@@ -82,13 +85,10 @@ export default function ArchivePage() {
       if (Number.isFinite(saved.scrollY)) savedScroll.current = Math.max(0, saved.scrollY)
     } catch { /* Storage may be unavailable. */ }
   }, [])
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isPreview || loading || savedScroll.current === null) return
-    const frame = requestAnimationFrame(() => {
-      window.scrollTo({ top: savedScroll.current || 0, behavior: 'instant' })
-      savedScroll.current = null
-    })
-    return () => cancelAnimationFrame(frame)
+    window.scrollTo({ top: savedScroll.current || 0, behavior: 'instant' })
+    savedScroll.current = null
   }, [loading, isPreview])
   function rememberArchiveSpot() {
     try {
@@ -157,6 +157,7 @@ export default function ArchivePage() {
         )
       )
       setLevelTitles(nextTitles)
+      archiveSnapshot = { day: today, cases: nextCases, titles: nextTitles }
       writeCachedLevelTitles(nextTitles)
       const ownGuesses = new Map<string, GuessLite[]>()
       for (const row of nextGuessRows) {
@@ -171,7 +172,7 @@ export default function ArchivePage() {
         setCompletedArchiveKeys(current => new Set([...current, ...completedKeysFromServer]))
       }
       } catch {
-        setLoadError('Could not load the full archive. Please reload to try again.')
+        if (!snapshot) setLoadError('Could not load the full archive. Please reload to try again.')
       } finally {
         setLoading(false)
       }

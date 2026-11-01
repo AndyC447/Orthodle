@@ -1174,6 +1174,15 @@ textarea::placeholder {
     inset 0 -1px 0 var(--button-bottom-shadow);
 }
 
+@keyframes orthodle-section-link-loading {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+.orthodle-section-link-loading {
+  width: 40%;
+  animation: orthodle-section-link-loading 850ms ease-in-out infinite;
+}
+
 .orthodle-primary-button {
   min-height: 40px;
   border-radius: 12px;
@@ -1264,7 +1273,7 @@ textarea::placeholder {
       rgba(255, 244, 220, 0) 100%
     );
   background-size: 220% 100%;
-  animation: orthodle-daily-border-sheen 4.8s linear infinite;
+  animation: none;
   pointer-events: none;
   opacity: 0.95;
   -webkit-mask:
@@ -1275,6 +1284,10 @@ textarea::placeholder {
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
+}
+
+.orthodle-daily-complete-bloom::before {
+  animation: orthodle-daily-border-sheen 900ms ease-out 1;
 }
 
 .orthodle-daily-complete-shell::after {

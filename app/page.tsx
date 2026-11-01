@@ -3566,7 +3566,7 @@ function PlayPageContent() {
   }, [statsSummary.currentStreak])
 
   useEffect(() => {
-    if (todayComplete && !previousTodayCompleteRef.current) {
+    if (todayComplete && !previousTodayCompleteRef.current && justCompletedRound) {
       setShowRailCompleteMoment(true)
       if (railCompleteTimeoutRef.current) {
         window.clearTimeout(railCompleteTimeoutRef.current)
@@ -3578,7 +3578,7 @@ function PlayPageContent() {
     }
 
     previousTodayCompleteRef.current = todayComplete
-  }, [todayComplete])
+  }, [todayComplete, justCompletedRound])
 
   useEffect(() => {
     if (typeof window === 'undefined' || loading || !dailyCase) {
@@ -3940,15 +3940,8 @@ function PlayPageContent() {
       if (parsed.target !== 'home') return
       if (typeof parsed.at === 'number' && Date.now() - parsed.at > 3000) return
 
-      const entryOffset = parsed.direction === 'from-right' ? 34 : -34
-      setHomePageEnterOffset(entryOffset)
-      setHomePageEnterOpacity(0.82)
-      window.requestAnimationFrame(() => {
-        window.requestAnimationFrame(() => {
-          setHomePageEnterOffset(0)
-          setHomePageEnterOpacity(1)
-        })
-      })
+      setHomePageEnterOffset(0)
+      setHomePageEnterOpacity(1)
     } catch {
       window.sessionStorage.removeItem(SWIPE_NAV_TRANSITION_KEY)
     }
@@ -4923,7 +4916,7 @@ function PlayPageContent() {
       <section hidden={isEmbeddedExample} className={`mx-auto w-full max-w-[700px] px-4 text-center sm:px-0 sm:pt-6 ${hasMobileInteraction ? 'pt-1.5 pb-0 sm:pb-1' : 'pt-2 pb-0.5'}`}>
         {showDailyCompleteCard && (
           <div
-            className={`orthodle-daily-complete-shell orthodle-daily-complete-bloom relative mt-3 w-full overflow-hidden rounded-[22px] px-3.5 py-3 text-center text-[#102018] sm:px-5 sm:py-4 ${showRailCompleteMoment ? 'orthodle-rail-complete' : ''}`}
+            className={`orthodle-daily-complete-shell relative mt-3 w-full overflow-hidden rounded-[22px] px-3.5 py-3 text-center text-[#102018] sm:px-5 sm:py-4 ${showRailCompleteMoment ? 'orthodle-daily-complete-bloom orthodle-rail-complete' : ''}`}
           >
             <div className="px-8 sm:px-10">
               <div className="min-w-0 text-center">
@@ -4931,7 +4924,7 @@ function PlayPageContent() {
                   {dailyCompleteHeading}
                 </div>
                 <div className="mt-2 flex justify-center">
-                  <div className={`orthodle-streak-chip inline-flex items-center justify-center gap-1.5 border border-[#dfb574] bg-[#fff8eb] px-3 py-1 text-[10px] font-semibold text-[#a76325] shadow-[0_8px_18px_rgba(103,44,15,0.08)] ${showStreakIgnition ? 'orthodle-streak-ignite' : statsSummary.currentStreak >= 1 ? 'orthodle-streak-ember' : ''}`}>
+                  <div className={`orthodle-streak-chip inline-flex items-center justify-center gap-1.5 border border-[#dfb574] bg-[#fff8eb] px-3 py-1 text-[10px] font-semibold text-[#a76325] shadow-[0_8px_18px_rgba(103,44,15,0.08)] ${showStreakIgnition ? 'orthodle-streak-ignite' : ''}`}>
                     <span aria-hidden="true">🔥</span>
                     <span>{dailyCompleteStreakText}</span>
                   </div>

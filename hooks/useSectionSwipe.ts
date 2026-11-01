@@ -20,25 +20,33 @@ export function useSectionSwipe(path: string, enabled = true) {
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setReducedMotion(reduced)
     for (const page of pages) if (page !== path) router.prefetch(page)
-    let frame = 0
     try {
       const raw = sessionStorage.getItem(transitionKey)
       const entry = raw ? JSON.parse(raw) : null
       if (entry?.target === path && Date.now() - entry.at < 3000) {
         sessionStorage.removeItem(transitionKey)
-        if (!reduced) {
-          setOffset(entry.direction === 'from-right' ? window.innerWidth * 0.25 : -window.innerWidth * 0.25)
-          frame = requestAnimationFrame(() => {
-            frame = requestAnimationFrame(() => setOffset(0))
-          })
-        }
+        // The outgoing page has already revealed this content during the swipe.
       }
     } catch { /* A stale transition must not block navigation. */ }
     return () => {
-      cancelAnimationFrame(frame)
       if (timer.current) clearTimeout(timer.current)
     }
   }, [path, router, enabled])
+
+  useEffect(() => {
+    if (!enabled) return
+    const target = offset === 0 ? null : pages[pages.indexOf(path) + (offset < 0 ? 1 : -1)] || null
+    window.dispatchEvent(new CustomEvent('orthodle-section-swipe', {
+      detail: { path, target, progress: Math.min(1, Math.abs(offset) / 160) },
+    }))
+  }, [enabled, offset, path])
+
+  useEffect(() => {
+    if (!enabled) return
+    return () => {
+      window.dispatchEvent(new CustomEvent('orthodle-section-swipe', { detail: { path, target: null, progress: 0 } }))
+    }
+  }, [enabled, path])
 
   function reset() {
     start.current = null

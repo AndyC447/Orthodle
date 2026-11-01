@@ -12,7 +12,7 @@ const code = ts.transpileModule(readFileSync(new URL('../components/SectionNavig
   compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
 }).outputText
 new Function('require', 'exports', code)(name => {
-  if (name === 'next/link') return { __esModule: true, default: ({ children, ...props }) => createElement('a', props, children) }
+  if (name === 'next/link') return { __esModule: true, useLinkStatus: () => ({ pending: false }), default: ({ children, ...props }) => createElement('a', props, children) }
   if (name === '@/hooks/useSectionSwipe') return { useSectionSwipe: () => ({ preview: null, offset: 0, style: {} }) }
   if (name === '@/components/SectionPreviewContext') return { useSectionPreview: () => false }
   if (name === '@/components/SectionPagePreview') return { SectionPagePreview: () => null }
