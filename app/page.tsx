@@ -5254,25 +5254,24 @@ function PlayPageContent() {
                   <div className={`orthodle-fade-up orthodle-image-curtain orthodle-imaging-shell mt-3 mb-1.5 rounded-[20px] px-2.5 pt-2 sm:px-4 ${
                     solvedImagingSection ? 'pb-3 sm:pb-4' : 'pb-7 sm:pb-9'
                   }`}>
-                  <div className="mb-2 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                      <div />
+                  <div className="mb-2">
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                         Imaging
-                      </div>
-                      <div className="min-w-0 text-right text-[10px] leading-4 text-[#637268]">
-                        {visibleImages.map((image, index) => image.credit ? (
-                          <p key={`image-credit-${index}`} className="break-words">{image.credit}</p>
-                        ) : null)}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">
                       {visibleImages.map((image, index) => (
-                        <div key={`${image.url}-${index}`} className="mx-auto w-full max-w-[760px]">
+                        <figure key={`${image.url}-${index}`} className="orthodle-image-tile relative mx-auto w-full max-w-[760px] overflow-hidden rounded-lg bg-transparent">
                           <CaseImage src={image.url} alt={image.alt}
                             onOpen={() => openExpandedImage(index)}
-                            className={`orthodle-image-tile overflow-hidden rounded-lg bg-transparent py-1.5 sm:py-3 ${isEmbeddedExample ? 'h-[260px] sm:h-[320px]' : 'h-[clamp(280px,52vh,420px)]'}`} />
-                        </div>
+                            className={`overflow-hidden bg-transparent py-1.5 sm:py-3 ${isEmbeddedExample ? 'h-[260px] sm:h-[320px]' : 'h-[clamp(280px,52vh,420px)]'}`} />
+                          {image.credit && (
+                            <figcaption className="px-3 pb-2 pt-1 text-center text-[10px] leading-4 text-[#637268] break-words">
+                              {image.credit}
+                            </figcaption>
+                          )}
+                        </figure>
                       ))}
                     </div>
                     {solvedImagingSection ? (
