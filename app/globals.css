@@ -1883,7 +1883,43 @@ a {
   background:
     linear-gradient(90deg, rgba(226, 219, 208, 0.8), rgba(244, 240, 233, 0.98), rgba(226, 219, 208, 0.8));
   background-size: 200% 100%;
-  animation: orthodle-skeleton 1.6s linear infinite;
+  animation: orthodle-loading-opacity 1.6s ease-in-out infinite;
+}
+
+@keyframes orthodle-loading-opacity {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}
+
+/* Avoid repeated painting underneath moving content on touch devices. */
+@media (hover: none) and (pointer: coarse) {
+  .orthodle-rail-settled-complete::after,
+  .orthodle-daily-complete-shell::after,
+  .orthodle-anatomy-choice-breathe {
+    animation: none !important;
+  }
+
+  .orthodle-swipe-preview-page {
+    backdrop-filter: none !important;
+  }
+
+  .orthodle-success-pulse,
+  .orthodle-clue-pulse,
+  .orthodle-teaching-spotlight,
+  .orthodle-daily-complete-bloom {
+    animation: orthodle-fade-up 280ms cubic-bezier(0.22, 1, 0.36, 1) both !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .orthodle-live-stat-number {
@@ -1897,7 +1933,7 @@ a {
 }
 
 .orthodle-live-stat-number-active {
-  animation: orthodle-stat-ticker 150ms cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  animation: orthodle-stat-ticker 320ms cubic-bezier(0.22, 1, 0.36, 1);
   color: #123b2b;
   text-shadow: 0 8px 22px rgba(31, 100, 72, 0.14);
 }
@@ -2003,15 +2039,12 @@ a {
 @keyframes orthodle-stat-ticker {
   0% {
     transform: translateY(0) rotateX(0deg);
-    filter: blur(0);
   }
   45% {
     transform: translateY(-0.08em) rotateX(16deg);
-    filter: blur(0.25px);
   }
   100% {
     transform: translateY(0) rotateX(0deg);
-    filter: blur(0);
   }
 }
 

@@ -70,7 +70,7 @@ export function LiveStatNumber({ value, loading, placeholder, cacheKey }: {
 
     setIsTicking(true)
     const startAt = performance.now()
-    const duration = 1100
+    const duration = 650
     let frameId = 0
     let settleTimer: number | undefined
     function tick(now: number) {
@@ -78,7 +78,7 @@ export function LiveStatNumber({ value, loading, placeholder, cacheKey }: {
       const eased = 1 - Math.pow(1 - progress, 3)
       const nextValue = Math.round(startValue + (targetValue - startValue) * eased)
       latestValueRef.current = nextValue
-      setDisplayValue(nextValue)
+      setDisplayValue(previous => previous === nextValue ? previous : nextValue)
       if (progress < 1) {
         frameId = requestAnimationFrame(tick)
       } else {

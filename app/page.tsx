@@ -2305,7 +2305,7 @@ function PlayPageContent() {
                     className="flex w-full items-center justify-between gap-3 text-left"
                   >
                     <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#315f4d]">
-                      {renderFormattedLine(section.label, `label-${sectionIndex}`)}
+                      Case Stats
                     </div>
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#ded7ca] bg-white text-[10px] font-semibold text-[#637268] shadow-[0_2px_6px_rgba(16,32,24,0.05)]">
                       {showOrthodleInsight ? '▴' : '▾'}
@@ -2862,7 +2862,7 @@ function PlayPageContent() {
       })
 
       const remaining = Math.abs(liveTargetY - nextY)
-      if (progress < 1 || remaining > settleThreshold) {
+      if ((progress < 1 || remaining > settleThreshold) && elapsed < durationMs + 350) {
         quickTakeawayScrollAnimationFrameRef.current = window.requestAnimationFrame(step)
       } else {
         window.scrollTo({ top: liveTargetY, behavior: 'auto' })
@@ -4389,10 +4389,7 @@ function PlayPageContent() {
 
         @keyframes orthodle-choice-settle {
           0% {
-            transform: translateY(1px) scale(0.982);
-          }
-          40% {
-            transform: translateY(-4px) scale(1.028);
+            transform: scale(0.99);
           }
           100% {
             transform: translateY(0) scale(1);
@@ -4402,11 +4399,7 @@ function PlayPageContent() {
         @keyframes orthodle-case-settle-in {
           0% {
             opacity: 0;
-            transform: translateY(14px) scale(0.985);
-          }
-          55% {
-            opacity: 1;
-            transform: translateY(-2px) scale(1.004);
+            transform: translate3d(0, 8px, 0);
           }
           100% {
             opacity: 1;
@@ -4417,11 +4410,7 @@ function PlayPageContent() {
         @keyframes orthodle-answer-hero-reveal {
           0% {
             opacity: 0;
-            transform: translateY(12px) scale(0.985);
-          }
-          58% {
-            opacity: 1;
-            transform: translateY(-2px) scale(1.01);
+            transform: translate3d(0, 8px, 0);
           }
           100% {
             opacity: 1;
@@ -4458,12 +4447,10 @@ function PlayPageContent() {
         @keyframes orthodle-image-curtain {
           0% {
             opacity: 0;
-            clip-path: inset(0 0 100% 0 round 18px);
             transform: translateY(10px);
           }
           100% {
             opacity: 1;
-            clip-path: inset(0 0 0 0 round 18px);
             transform: translateY(0);
           }
         }
@@ -4471,7 +4458,7 @@ function PlayPageContent() {
         @keyframes orthodle-teaching-unfold {
           0% {
             opacity: 0;
-            transform: translateY(-6px) scaleY(0.96);
+            transform: translate3d(0, 6px, 0);
             transform-origin: top center;
           }
           100% {
@@ -4795,7 +4782,6 @@ function PlayPageContent() {
           display: grid;
           grid-template-rows: 0fr;
           opacity: 0;
-          will-change: grid-template-rows, opacity, margin-top;
           transition:
             grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1),
             opacity 220ms ease,
@@ -4809,9 +4795,9 @@ function PlayPageContent() {
 
         .orthodle-collapsible-shell-slow-open {
           transition:
-            grid-template-rows 1650ms cubic-bezier(0.22, 1, 0.36, 1),
-            opacity 1100ms cubic-bezier(0.22, 1, 0.36, 1),
-            margin-top 520ms cubic-bezier(0.22, 1, 0.36, 1);
+            grid-template-rows 360ms cubic-bezier(0.22, 1, 0.36, 1),
+            opacity 220ms ease,
+            margin-top 220ms ease;
         }
 
         .orthodle-collapsible-body {
@@ -4820,7 +4806,7 @@ function PlayPageContent() {
         }
 
         .orthodle-quick-takeaway-reveal {
-          animation: orthodle-quick-takeaway-reveal 1400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+          animation: orthodle-quick-takeaway-reveal 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
           will-change: opacity, transform;
           transform: translateZ(0);
         }
@@ -4856,13 +4842,13 @@ function PlayPageContent() {
         @media (max-width: 639px) {
           .orthodle-collapsible-shell-slow-open {
             transition:
-              grid-template-rows 980ms cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 760ms cubic-bezier(0.22, 1, 0.36, 1),
-              margin-top 360ms cubic-bezier(0.22, 1, 0.36, 1);
+              grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 200ms ease,
+              margin-top 200ms ease;
           }
 
           .orthodle-quick-takeaway-reveal {
-            animation-duration: 900ms;
+            animation-duration: 280ms;
           }
         }
 

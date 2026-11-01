@@ -16,7 +16,7 @@ function harness(cached, reducedMotion = false) {
     useState(initial) {
       const slot = cursor++
       if (!(slot in slots)) slots[slot] = initial
-      return [slots[slot], value => { slots[slot] = value }]
+      return [slots[slot], value => { slots[slot] = typeof value === 'function' ? value(slots[slot]) : value }]
     },
     useRef(initial) {
       const slot = cursor++
@@ -89,9 +89,9 @@ test('new values animate from the last displayed number and then stay still', ()
   h.render(9500)
   assert.equal(h.display, 9481)
   assert.equal(h.active, true)
-  h.tick(550)
+  h.tick(325)
   assert.ok(h.display > 9481 && h.display < 9500)
-  h.tick(1100)
+  h.tick(650)
   h.settle()
   assert.equal(h.display, 9500)
   assert.equal(h.active, false)

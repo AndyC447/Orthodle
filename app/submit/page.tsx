@@ -657,7 +657,7 @@ DDx:
                 className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
               />
               <span className="text-xs font-normal text-[#8a948d]">
-                Line breaks are preserved. Use `**bold**` and `*italics*` for emphasis. Orthodle Insight is added automatically when case stats exist.
+                Line breaks are preserved. Use `**bold**` and `*italics*` for emphasis. Case Stats is added automatically when case stats exist.
               </span>
             </label>
 

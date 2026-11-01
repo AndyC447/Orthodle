@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { normalizeCaseCategory } from '@/lib/case-category'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
-import { useSectionSwipe } from '@/hooks/useSectionSwipe'
+import { SectionNavigation, SectionSwipeContent } from '@/components/SectionNavigation'
 import { isAnatomyQuizCaseRecord, isChoiceQuestionCase } from '@/lib/anatomy-quiz'
 import {
   DEFAULT_LEVEL_TITLES,
@@ -57,7 +57,6 @@ function toTitleCase(value: string) {
 }
 
 export default function ArchivePage() {
-  const sectionSwipe = useSectionSwipe('/archive')
   const today = todayISO()
   const sessionId = useMemo(() => getSessionId(), [])
   const [cases, setCases] = useState<ArchiveCase[]>([])
@@ -284,8 +283,10 @@ export default function ArchivePage() {
   }
   const buttonClass = 'public-action archive-control inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-35'
   return (
-    <main className="app-surface archive-calendar-page min-h-screen overflow-x-clip" {...sectionSwipe}>
+    <main className="app-surface archive-calendar-page min-h-screen overflow-x-clip">
       <Header />
+      <SectionNavigation active="/archive" />
+      <SectionSwipeContent path="/archive">
       <section className="public-page-shell mx-auto max-w-[1080px] px-3 py-6 sm:px-6 sm:py-9">
         <div className="public-page-header mb-6 flex flex-wrap items-center justify-between gap-4">
           <div><h1 className="public-page-title font-serif text-3xl font-bold sm:text-4xl">Archives</h1>
@@ -353,6 +354,7 @@ export default function ArchivePage() {
         </>}
       </section>
       <PublicFooter />
+      </SectionSwipeContent>
     </main>
   )
 }
