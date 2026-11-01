@@ -21,6 +21,8 @@ import {
   serializeAnatomyGuessLetters,
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
+import { SectionPagePreview } from '@/components/SectionPagePreview'
+import { SectionNavigation } from '@/components/SectionNavigation'
 import { ArchiveCaseActions } from '@/components/ArchiveCaseActions'
 import { HowToPlayDialog } from '@/components/HowToPlayDialog'
 import { PublicFooter } from '@/components/PublicFooter'
@@ -3685,8 +3687,15 @@ function PlayPageContent() {
   const homeSwipeProgress =
     homeSwipePreviewDirection === 0 ? 0 : Math.min(1, Math.abs(homeSwipeOffset) / 112)
   const homeSwipeBodyOpacity = Math.max(0.8, homePageEnterOpacity - homeSwipeProgress * 0.24)
+  const homeLinkSwipePreviews = !isEmbeddedExample && !isAdminPreview ? homeTabs.filter(item => item.type === 'link').map(item => (
+    <div key={item.href} aria-hidden="true" inert className="pointer-events-none absolute inset-x-0 top-0 z-0 h-full overflow-hidden lg:hidden"
+      style={{ visibility: activeHomeSwipeTarget?.type === 'link' && activeHomeSwipeTarget.href === item.href ? 'visible' : 'hidden' }}>
+      <SectionNavigation active={item.href} />
+      <SectionPagePreview path={item.href} />
+    </div>
+  )) : null
   const homeSwipePreview =
-    activeHomeSwipeTarget && homeSwipeProgress > 0 ? (
+    activeHomeSwipeTarget?.type === 'level' && homeSwipeProgress > 0 ? (
       <div className="pointer-events-none absolute inset-x-0 top-0 z-0 px-4 sm:hidden">
         <div className="mx-auto w-full max-w-[700px]">
           <div
@@ -3708,27 +3717,6 @@ function PlayPageContent() {
               </div>
             </div>
 
-            {activeHomeSwipeTarget.type === 'link' ? (
-              <div className="mt-3 space-y-3">
-                <div className="rounded-[20px] border border-[#e2b670] bg-[radial-gradient(circle,rgba(255,240,214,0.14)_1.2px,transparent_1.2px),linear-gradient(145deg,#d47b2a,#b95f1f_52%,#8f4316)] [background-size:26px_26px,auto] px-4 py-4 text-white shadow-[0_16px_34px_rgba(143,67,22,0.16)]">
-                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#fff1c9]">
-                    {activeHomeSwipeTarget.href === '/archive' ? 'Previous cases' : 'ERAS'}
-                  </div>
-                  <div className="mt-2 h-5 w-40 rounded-full bg-white/22" />
-                  <div className="mt-2 h-3.5 w-28 rounded-full bg-white/16" />
-                </div>
-                <div className="rounded-[22px] bg-[#f7fbf8] px-4 py-5 text-[#102018]">
-                  <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f0c247]">
-                    {activeHomeSwipeTarget.href === '/archive' ? 'Browse the case library' : 'About Orthodle'}
-                  </div>
-                  <div className="mt-3 h-6 w-44 rounded-full bg-white/16" />
-                  <div className="mt-3 grid gap-2">
-                    <div className="h-12 rounded-[18px] bg-white/10" />
-                    <div className="h-12 rounded-[18px] bg-white/8" />
-                  </div>
-                </div>
-              </div>
-            ) : (
               <div className="mt-3 space-y-3">
                 <div className="rounded-[22px] border border-[#e7e1d6] bg-white px-4 py-4 shadow-[0_16px_34px_rgba(16,32,24,0.08)]">
                   <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[#637268]">
@@ -3752,7 +3740,6 @@ function PlayPageContent() {
                   <div className="h-14 rounded-[18px] border border-[#e3dbce] bg-white shadow-[0_10px_22px_rgba(16,32,24,0.04)]" />
                 </div>
               </div>
-            )}
           </div>
         </div>
       </div>
@@ -4920,6 +4907,7 @@ function PlayPageContent() {
       {showTutorial && !isEmbeddedExample && <HowToPlayDialog onDismiss={dismissTutorial} />}
 
       <div className="relative">
+        {homeLinkSwipePreviews}
         {homeSwipePreview}
         <div
           className={`relative z-10 will-change-[transform,opacity] ${
@@ -5294,7 +5282,6 @@ function PlayPageContent() {
               <div className={`embedded-case-answers ${visibleImages.length > 0 && imageRevealed ? 'mt-1 sm:mt-1.5' : 'mt-2'} pt-0`}>
                 {isSurgicalAnatomyMode ? (
                   <div className="orthodle-anatomy-quiz-shell rounded-[20px] bg-transparent p-1 sm:p-2">
-                    <div className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#1f6448]">{getCaseQuestionType(dailyCase) === 'classification' ? 'Classification' : 'Anatomy'} question</div>
                     {hasValidSurgicalAnatomyChoices ? (
                       <>
                         {!roundComplete && (

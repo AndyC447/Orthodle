@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 const pages = ['/', '/archive', '/impact']
 const transitionKey = 'orthodle_swipe_nav_transition_v1'
 
-export function useSectionSwipe(path: string) {
+export function useSectionSwipe(path: string, enabled = true) {
   const router = useRouter()
   const start = useRef<{ x: number; y: number } | null>(null)
   const busy = useRef(false)
@@ -16,6 +16,7 @@ export function useSectionSwipe(path: string) {
   const [reducedMotion, setReducedMotion] = useState(false)
 
   useEffect(() => {
+    if (!enabled) return
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setReducedMotion(reduced)
     for (const page of pages) if (page !== path) router.prefetch(page)
@@ -37,7 +38,7 @@ export function useSectionSwipe(path: string) {
       cancelAnimationFrame(frame)
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [path, router])
+  }, [path, router, enabled])
 
   function reset() {
     start.current = null

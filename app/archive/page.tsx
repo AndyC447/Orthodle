@@ -6,6 +6,7 @@ import { normalizeCaseCategory } from '@/lib/case-category'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { SectionNavigation, SectionSwipeContent } from '@/components/SectionNavigation'
+import { useSectionPreview } from '@/components/SectionPreviewContext'
 import { isAnatomyQuizCaseRecord, isChoiceQuestionCase } from '@/lib/anatomy-quiz'
 import {
   DEFAULT_LEVEL_TITLES,
@@ -57,6 +58,7 @@ function toTitleCase(value: string) {
 }
 
 export default function ArchivePage() {
+  const isPreview = useSectionPreview()
   const today = todayISO()
   const sessionId = useMemo(() => getSessionId(), [])
   const [cases, setCases] = useState<ArchiveCase[]>([])
@@ -81,13 +83,13 @@ export default function ArchivePage() {
     } catch { /* Storage may be unavailable. */ }
   }, [])
   useEffect(() => {
-    if (loading || savedScroll.current === null) return
+    if (isPreview || loading || savedScroll.current === null) return
     const frame = requestAnimationFrame(() => {
       window.scrollTo({ top: savedScroll.current || 0, behavior: 'instant' })
       savedScroll.current = null
     })
     return () => cancelAnimationFrame(frame)
-  }, [loading])
+  }, [loading, isPreview])
   function rememberArchiveSpot() {
     try {
       sessionStorage.setItem('orthodle_archive_view_v1', JSON.stringify({ month, selectedDate: activeDate, selectedCategory, answerQuery, scrollY: window.scrollY }))
@@ -284,8 +286,8 @@ export default function ArchivePage() {
   const buttonClass = 'public-action archive-control inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-35'
   return (
     <main className="app-surface archive-calendar-page min-h-screen overflow-x-clip">
-      <Header />
-      <SectionNavigation active="/archive" />
+      {!isPreview && <Header />}
+      {!isPreview && <SectionNavigation active="/archive" />}
       <SectionSwipeContent path="/archive">
       <section className="public-page-shell mx-auto max-w-[1080px] px-3 py-6 sm:px-6 sm:py-9">
         <div className="public-page-header mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -353,7 +355,7 @@ export default function ArchivePage() {
           </section>
         </>}
       </section>
-      <PublicFooter />
+      {!isPreview && <PublicFooter />}
       </SectionSwipeContent>
     </main>
   )
