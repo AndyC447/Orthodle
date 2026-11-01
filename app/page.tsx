@@ -1757,7 +1757,7 @@ function PlayPageContent() {
   }
 
   async function submitQuickReaction(tag: string) {
-    if (isEmbeddedExample) return
+    if (isEmbeddedExample || isAdminPreview) return
     if (!dailyCase) return
     setShowCaseFeedback(true)
     if (submittedReactionTags.includes(tag)) {
@@ -1786,20 +1786,6 @@ function PlayPageContent() {
         )
       }
       setReactionStatus('Saved locally for testing only.')
-      setSubmittingReaction(null)
-      return
-    }
-
-    if (isTrackingDisabledForThisBrowser()) {
-      const nextTags = [...submittedReactionTags, tag]
-      setSubmittedReactionTags(nextTags)
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(
-          `${REACTION_STORAGE_PREFIX}:${dailyCase.id}`,
-          JSON.stringify(nextTags)
-        )
-      }
-      setReactionStatus('Saved locally on this device only.')
       setSubmittingReaction(null)
       return
     }
@@ -1833,7 +1819,7 @@ function PlayPageContent() {
   }
 
   async function submitTypedFeedback() {
-    if (isEmbeddedExample) return
+    if (isEmbeddedExample || isAdminPreview || isSavingFeedback) return
     if (!dailyCase) return
     setShowCaseFeedback(true)
 
@@ -1848,38 +1834,31 @@ function PlayPageContent() {
     setFeedbackStatus('')
 
     if (isLocalhostBrowser()) {
-      setFeedbackStatus('Saved locally for testing only.')
+      setFeedbackStatus('Feedback is not sent from the local development site.')
+      setIsSavingFeedback(false)
+      return
+    }
+
+    try {
+      const { error } = await supabase.from('case_feedback').insert({
+        case_id: dailyCase.id,
+        case_date: dailyCase.case_date,
+        level: dailyCase.level,
+        answer: dailyCase.answer,
+        feedback_text: trimmed,
+        feedback_tags: [],
+        session_id: getSessionId() || null,
+      })
+
+      if (error) throw error
+
       setFeedbackText('')
+      setFeedbackStatus('Thanks for the feedback.')
+    } catch {
+      setFeedbackStatus('Could not send feedback. Your note is still here; please try again.')
+    } finally {
       setIsSavingFeedback(false)
-      return
     }
-
-    if (isTrackingDisabledForThisBrowser()) {
-      setFeedbackStatus('Saved locally on this device only.')
-      setFeedbackText('')
-      setIsSavingFeedback(false)
-      return
-    }
-
-    const { error } = await supabase.from('case_feedback').insert({
-      case_id: dailyCase.id,
-      case_date: dailyCase.case_date,
-      level: dailyCase.level,
-      answer: dailyCase.answer,
-      feedback_text: trimmed,
-      feedback_tags: [],
-      session_id: getSessionId() || null,
-    })
-
-    if (error) {
-      setFeedbackStatus('Could not save feedback right now.')
-      setIsSavingFeedback(false)
-      return
-    }
-
-    setFeedbackText('')
-    setFeedbackStatus('Thanks for the feedback.')
-    setIsSavingFeedback(false)
   }
 
   function renderFormattedLine(line: string, keyPrefix = 'inline'): React.ReactNode[] {

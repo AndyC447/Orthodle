@@ -2699,7 +2699,6 @@ export default function AdminPage() {
   }
 
   async function loadFeedbackSummary() {
-    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const { data, error } = await supabase
       .from('case_feedback')
       .select('created_at, session_id')
@@ -2708,7 +2707,7 @@ export default function AdminPage() {
 
     if (error) return
 
-    const visibleRows = filterExcludedSessionRows(data || [], excludedSessionIdSet)
+    const visibleRows = data || []
     const latestCreatedAt = visibleRows[0]?.created_at || null
     const seenAt = window.localStorage.getItem('orthodle_seen_feedback_at')
     setFeedbackSummary({

@@ -75,7 +75,8 @@ test('public snapshot includes all pages and applies the same exclusions as admi
               assert.equal(column, 'id')
               return { async range(from, to) {
                 pages.push([table, from, to])
-                return { data: (table === 'visits' ? visits : guesses).slice(from, to + 1), error: null }
+                const rows = table === 'visits' ? visits : guesses
+                return { data: rows.slice(from, to + 1), count: rows.length, error: null }
               } }
             },
           }
@@ -84,6 +85,7 @@ test('public snapshot includes all pages and applies the same exclusions as admi
     },
   }
   const route = load('../app/api/impact-stats/route.ts', name => ({
+    'next/cache': { unstable_cache: fn => fn },
     'next/server': { NextResponse: { json: (body, options) => ({ body, options }) } },
     '@/lib/supabase': { supabase },
     '@/lib/audience-stats': audience,

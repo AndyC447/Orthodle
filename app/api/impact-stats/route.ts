@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { unstable_cache } from 'next/cache'
 import { supabase } from '@/lib/supabase'
 import { countArchivePlays, calculateAudienceStats } from '@/lib/audience-stats'
 import { filterExcludedSessionRows, getExcludedStatsSessionIds } from '@/lib/stats-exclusions'
@@ -57,23 +58,29 @@ function cleanLocationLabel(value: string | null) {
 }
 
 async function fetchPaged<T>(table: string, select: string) {
-  const rows: T[] = []
-  let offset = 0
+  const { data, error, count } = await supabase
+    .from(table)
+    .select(select, { count: 'exact' })
+    .order('id')
+    .range(0, PAGE_SIZE - 1)
+  if (error) throw new Error(error.message)
+  if (count === null) throw new Error(`Could not count ${table}`)
+  const rows = [...(data || [])] as T[]
 
-  while (true) {
-    const { data, error } = await supabase
+  // Bound concurrency while avoiding a round trip per sequential page.
+  for (let offset = PAGE_SIZE; offset < count; offset += PAGE_SIZE * 4) {
+    const offsets = Array.from({ length: 4 }, (_, index) => offset + index * PAGE_SIZE)
+      .filter(start => start < count)
+    const pages = await Promise.all(offsets.map(async start => {
+      const { data: page, error: pageError } = await supabase
       .from(table)
       .select(select)
       .order('id')
-      .range(offset, offset + PAGE_SIZE - 1)
-
-    if (error) throw new Error(error.message)
-    if (!data || data.length === 0) break
-
-    rows.push(...(data as T[]))
-
-    if (data.length < PAGE_SIZE) break
-    offset += PAGE_SIZE
+      .range(start, start + PAGE_SIZE - 1)
+      if (pageError) throw new Error(pageError.message)
+      return (page || []) as T[]
+    }))
+    for (const page of pages) rows.push(...page)
   }
 
   return rows
@@ -135,6 +142,10 @@ async function buildImpactStats(): Promise<ImpactStats> {
   }
 }
 
+const readSharedSnapshot = unstable_cache(buildImpactStats, ['impact-stats-v2'], {
+  revalidate: 60,
+})
+
 export async function GET() {
   const now = Date.now()
   const headers = {
@@ -147,7 +158,7 @@ export async function GET() {
 
   try {
     if (!pendingStats) {
-      pendingStats = buildImpactStats().finally(() => { pendingStats = null })
+      pendingStats = readSharedSnapshot().finally(() => { pendingStats = null })
     }
     const stats = await pendingStats
     cachedStats = stats

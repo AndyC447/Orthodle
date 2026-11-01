@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Header } from '@/components/Header'
 import { formatFeedbackLevel, type FeedbackMessageRow } from '@/lib/feedback-messages'
 import { supabase } from '@/lib/supabase'
-import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
 
 type FeedbackRow = {
   id: string
@@ -117,7 +116,6 @@ export default function AdminFeedbackPage() {
   }, [isUnlocked])
 
   async function loadFeedback() {
-    const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
     const [{ data, error }, { data: messageData, error: messageError }] = await Promise.all([
       supabase
         .from('case_feedback')
@@ -138,10 +136,9 @@ export default function AdminFeedbackPage() {
 
     if (messageError) {
       setStatus(`Could not load messages: ${messageError.message}`)
-      return
     }
 
-    setFeedbackRows(filterExcludedSessionRows((data || []) as FeedbackRow[], excludedSessionIdSet))
+    setFeedbackRows((data || []) as FeedbackRow[])
     setMessageRows((messageData || []) as FeedbackMessageRow[])
   }
 
