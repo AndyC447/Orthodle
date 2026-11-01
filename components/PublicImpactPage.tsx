@@ -8,6 +8,7 @@ import { useImpactStats, type ImpactStats } from '@/hooks/useImpactStats'
 import { Header } from '@/components/Header'
 import { LiveStatNumber } from '@/components/LiveStatNumber'
 import { PublicFooter } from '@/components/PublicFooter'
+import { useSectionSwipe } from '@/hooks/useSectionSwipe'
 
 const ABOUT_TEXT_STORAGE_KEY = 'orthodle_admin_impact_about_text_v1'
 const TOP_CITIES_STORAGE_KEY = 'orthodle_live_stat_impact_top_cities_v1'
@@ -40,6 +41,7 @@ function readCachedTopCities() {
 }
 
 export function PublicImpactPage({ adminMode = false, initialExamples = null }: { adminMode?: boolean; initialExamples?: ExampleSnapshot | null }) {
+  const sectionSwipe = useSectionSwipe('/impact')
   const { metrics: loadedMetrics, loading, error: statsError } = useImpactStats()
   const metrics = loadedMetrics || EMPTY_IMPACT_STATS
   const [cachedTopCities, setCachedTopCities] = useState<string[]>([])
@@ -115,7 +117,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
   }
 
   return (
-    <main className="app-surface min-h-screen">
+    <main className="app-surface min-h-screen overflow-x-clip" {...(!adminMode ? sectionSwipe : {})}>
       <Header />
 
       <section className="public-page-shell mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">

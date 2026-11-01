@@ -3712,14 +3712,14 @@ function PlayPageContent() {
               <div className="mt-3 space-y-3">
                 <div className="rounded-[20px] border border-[#e2b670] bg-[radial-gradient(circle,rgba(255,240,214,0.14)_1.2px,transparent_1.2px),linear-gradient(145deg,#d47b2a,#b95f1f_52%,#8f4316)] [background-size:26px_26px,auto] px-4 py-4 text-white shadow-[0_16px_34px_rgba(143,67,22,0.16)]">
                   <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#fff1c9]">
-                    Impact snapshot
+                    {activeHomeSwipeTarget.href === '/archive' ? 'Previous cases' : 'ERAS'}
                   </div>
                   <div className="mt-2 h-5 w-40 rounded-full bg-white/22" />
                   <div className="mt-2 h-3.5 w-28 rounded-full bg-white/16" />
                 </div>
-                <div className="rounded-[22px] bg-[radial-gradient(circle_at_50%_22%,rgba(255,214,89,0.18),transparent_28%),linear-gradient(145deg,#0b4d36,#042f22)] px-4 py-5 text-white shadow-[0_16px_34px_rgba(4,47,34,0.16)]">
+                <div className="rounded-[22px] bg-[#f7fbf8] px-4 py-5 text-[#102018]">
                   <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#f0c247]">
-                    {activeHomeSwipeTarget.label}
+                    {activeHomeSwipeTarget.href === '/archive' ? 'Browse the case library' : 'About Orthodle'}
                   </div>
                   <div className="mt-3 h-6 w-44 rounded-full bg-white/16" />
                   <div className="mt-3 grid gap-2">
@@ -3925,6 +3925,14 @@ function PlayPageContent() {
       return
     }
 
+    try {
+      window.sessionStorage.setItem(SWIPE_NAV_TRANSITION_KEY, JSON.stringify({
+        target: nextTarget.href,
+        direction: direction < 0 ? 'from-right' : 'from-left',
+        at: Date.now(),
+      }))
+    } catch { /* Navigation still works without session storage. */ }
+    setHomeSwipeOffset(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : direction * window.innerWidth)
     window.setTimeout(() => {
       router.push(nextTarget.href)
     }, 200)
@@ -4079,6 +4087,13 @@ function PlayPageContent() {
       onTouchStart={handleHomeSwipeStart}
       onTouchMove={handleHomeSwipeMove}
       onTouchEnd={handleHomeSwipeEnd}
+      onTouchCancel={() => {
+        tabSwipeStartRef.current = null
+        setHomeSwipeOffset(0)
+        setHomeSwipeDragging(false)
+        setHomeSwipePreviewDirection(0)
+        setHomeSwipePreviewTarget(null)
+      }}
     >
       {!isEmbeddedExample && <Header />}
 
@@ -4924,7 +4939,7 @@ function PlayPageContent() {
           className={`relative z-10 will-change-[transform,opacity] ${
             homeSwipeDragging
               ? ''
-              : 'transition-[transform,opacity] duration-[440ms] ease-[cubic-bezier(0.22,1,0.36,1)]'
+              : 'transition-[transform,opacity] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'
           }`}
           style={{
             transform: `translate3d(${homePageEnterOffset + homeSwipeOffset}px, 0, 0)`,
