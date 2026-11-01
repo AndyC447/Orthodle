@@ -5319,7 +5319,19 @@ function PlayPageContent() {
                     <div className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#1f6448]">{getCaseQuestionType(dailyCase) === 'classification' ? 'Classification' : 'Anatomy'} question</div>
                     {hasValidSurgicalAnatomyChoices ? (
                       <>
-                        <div className="grid gap-2.5 sm:grid-cols-2">
+                        {!roundComplete && (
+                          <div id="quiz-selection-instructions" className="mb-3 text-center text-[#1f6448]">
+                            <p className="text-sm font-bold">
+                              {isMultiSelectAnatomy ? 'Select all that apply' : 'Choose one answer'}
+                            </p>
+                            {isMultiSelectAnatomy && (
+                              <p className="mt-1 text-xs leading-5">
+                                More than one answer is correct. Select every correct option, then submit.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        <div className="grid gap-2.5 sm:grid-cols-2" role="group" aria-label="Answer choices" aria-describedby={!roundComplete ? 'quiz-selection-instructions' : undefined}>
                           {surgicalAnatomyChoices.map((choice, index) => {
                             const letter = String.fromCharCode(65 + index)
                             const isCorrectChoice = correctAnatomyLetters.includes(letter)
@@ -5379,14 +5391,21 @@ function PlayPageContent() {
                           })}
                         </div>
                         {!roundComplete && (
-                          <div className="mt-3 flex justify-center">
+                          <div className="mt-3 flex flex-col items-center gap-2">
+                            {isMultiSelectAnatomy && (
+                              <p className="text-xs text-[#53645a]" role="status" aria-live="polite" aria-atomic="true">
+                                {selectedAnatomyLetters.length === 0
+                                  ? 'No answers selected'
+                                  : `${selectedAnatomyLetters.length} ${selectedAnatomyLetters.length === 1 ? 'answer' : 'answers'} selected`}
+                              </p>
+                            )}
                             <button
                               type="button"
                               disabled={selectedAnatomyLetters.length === 0}
                               onClick={() => void submitSelectedAnatomyGuess()}
                               className="orthodle-primary-button orthodle-micro-press orthodle-thumb-confirm orthodle-tap-ripple rounded-lg border px-5 py-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] disabled:cursor-not-allowed"
                             >
-                              Submit
+                              {isMultiSelectAnatomy ? 'Submit selected answers' : 'Submit answer'}
                             </button>
                           </div>
                         )}
