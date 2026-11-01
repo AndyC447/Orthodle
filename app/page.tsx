@@ -3686,7 +3686,7 @@ function PlayPageContent() {
   const activeHomeSwipeTarget = homeSwipePreviewTarget
   const homeSwipeProgress =
     homeSwipePreviewDirection === 0 ? 0 : Math.min(1, Math.abs(homeSwipeOffset) / 112)
-  const homeSwipeBodyOpacity = Math.max(0.8, homePageEnterOpacity - homeSwipeProgress * 0.24)
+  const homeSwipeBodyOpacity = homePageEnterOpacity
   const homeLinkSwipePreviews = !isEmbeddedExample && !isAdminPreview ? homeTabs.filter(item => item.type === 'link').map(item => (
     <div key={item.href} aria-hidden="true" inert className="pointer-events-none absolute inset-x-0 top-0 z-0 h-full overflow-hidden lg:hidden"
       style={{ visibility: activeHomeSwipeTarget?.type === 'link' && activeHomeSwipeTarget.href === item.href ? 'visible' : 'hidden' }}>
@@ -3922,12 +3922,18 @@ function PlayPageContent() {
     setHomeSwipeOffset(window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : direction * window.innerWidth)
     window.setTimeout(() => {
       router.push(nextTarget.href)
-    }, 200)
+    }, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 340)
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === 'undefined') return
 
+    // Cached routes can return with the outgoing swipe still stored in state.
+    tabSwipeStartRef.current = null
+    setHomeSwipeOffset(0)
+    setHomeSwipeDragging(false)
+    setHomeSwipePreviewDirection(0)
+    setHomeSwipePreviewTarget(null)
     try {
       const raw = window.sessionStorage.getItem(SWIPE_NAV_TRANSITION_KEY)
       if (!raw) return
@@ -4903,7 +4909,7 @@ function PlayPageContent() {
         {homeLinkSwipePreviews}
         {homeSwipePreview}
         <div
-          className={`relative z-10 will-change-[transform,opacity] ${
+          className={`app-surface relative z-10 will-change-transform ${
             homeSwipeDragging
               ? ''
               : 'transition-[transform,opacity] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'

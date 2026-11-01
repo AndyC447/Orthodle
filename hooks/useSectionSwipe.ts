@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type TouchEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type TouchEvent, type TransitionEvent, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
 const pages = ['/', '/archive', '/impact']
@@ -11,12 +11,20 @@ export function useSectionSwipe(path: string, enabled = true) {
   const start = useRef<{ x: number; y: number } | null>(null)
   const busy = useRef(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const destination = useRef<string | null>(null)
+  const suppressClickUntil = useRef(0)
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [reducedMotion, setReducedMotion] = useState(false)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled) return
+    busy.current = false
+    start.current = null
+    destination.current = null
+    suppressClickUntil.current = 0
+    setOffset(0)
+    setDragging(false)
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     setReducedMotion(reduced)
     for (const page of pages) if (page !== path) router.prefetch(page)
@@ -54,6 +62,14 @@ export function useSectionSwipe(path: string, enabled = true) {
     setOffset(0)
   }
 
+  function finishNavigation() {
+    const target = destination.current
+    if (!target) return
+    destination.current = null
+    if (timer.current) clearTimeout(timer.current)
+    router.push(target)
+  }
+
   return {
     preview: offset === 0 ? null : pages[pages.indexOf(path) + (offset < 0 ? 1 : -1)] || null,
     offset,
@@ -77,6 +93,7 @@ export function useSectionSwipe(path: string, enabled = true) {
       const target = pages[pages.indexOf(path) + (dx < 0 ? 1 : -1)]
       if (!target) return
       setDragging(true)
+      suppressClickUntil.current = Date.now() + 500
       setOffset(dx * 0.7)
     },
     onTouchEnd(event: TouchEvent<HTMLElement>) {
@@ -87,12 +104,24 @@ export function useSectionSwipe(path: string, enabled = true) {
       reset()
       if (!target || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return
       busy.current = true
+      destination.current = target
       try {
         sessionStorage.setItem(transitionKey, JSON.stringify({ target: target === '/' ? 'home' : target, direction: dx < 0 ? 'from-right' : 'from-left', at: Date.now() }))
       } catch { /* Navigation still works without session storage. */ }
       setOffset(reducedMotion ? 0 : Math.sign(dx) * window.innerWidth)
-      timer.current = setTimeout(() => router.push(target), reducedMotion ? 0 : 200)
+      // transitionend owns the handoff; the timer covers interrupted CSS transitions.
+      timer.current = setTimeout(finishNavigation, reducedMotion ? 0 : 380)
     },
     onTouchCancel: reset,
+    onTransitionEnd(event: TransitionEvent<HTMLElement>) {
+      if (event.propertyName === 'transform' && event.target instanceof HTMLElement &&
+          event.target.dataset.sectionSwipeSurface === path) finishNavigation()
+    },
+    onClickCapture(event: MouseEvent<HTMLElement>) {
+      if (Date.now() < suppressClickUntil.current || busy.current) {
+        event.preventDefault()
+        event.stopPropagation()
+      }
+    },
   }
 }

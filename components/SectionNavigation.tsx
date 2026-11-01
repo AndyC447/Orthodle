@@ -59,7 +59,7 @@ export function SectionSwipeContent({ path, children, enabled = true }: { path: 
           <SectionPagePreview path={section.href} />
         </div>
       ))}
-      <div className="relative app-surface min-h-screen" style={style}>{children}</div>
+      <div data-section-swipe-surface={path} className="relative app-surface min-h-screen" style={style}>{children}</div>
     </div>
   )
 }
