@@ -6,6 +6,7 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
     "test:groups": "node --test tests/groups-leaderboard.test.mjs"
   },
   "dependencies": {

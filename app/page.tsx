@@ -5244,7 +5244,11 @@ function PlayPageContent() {
                       <div className="text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-[#637268]">
                         Imaging
                       </div>
-                      <div />
+                      <div className="min-w-0 text-right text-[10px] leading-4 text-[#637268]">
+                        {visibleImages.map((image, index) => image.credit ? (
+                          <p key={`image-credit-${index}`} className="break-words">{image.credit}</p>
+                        ) : null)}
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 gap-4">
@@ -5253,11 +5257,6 @@ function PlayPageContent() {
                           <CaseImage src={image.url} alt={image.alt}
                             onOpen={() => openExpandedImage(index)}
                             className={`orthodle-image-tile overflow-hidden rounded-lg bg-transparent py-1.5 sm:py-3 ${isEmbeddedExample ? 'h-[260px] sm:h-[320px]' : 'h-[clamp(280px,52vh,420px)]'}`} />
-                          {image.credit && (
-                            <p className="mt-2.5 text-center text-[10px] leading-4 text-[#8a948d]">
-                              {image.credit}
-                            </p>
-                          )}
                         </div>
                       ))}
                     </div>
