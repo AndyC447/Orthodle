@@ -1,6 +1,7 @@
 'use client'
 
 import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
+import { AdminCaseStats } from '@/components/AdminCaseStats'
 import { QuestionTypeField } from '@/components/QuestionTypeField'
 import { CASE_CATEGORIES, normalizeCaseCategory } from '@/lib/case-category'
 import { normalizeQuestionType, withQuestionType, type QuestionType } from '@/lib/question-type'
@@ -4592,6 +4593,8 @@ export default function AdminPage() {
                   className="rounded-lg border border-[#ded7ca] px-3 py-2.5 text-sm text-[#102018]"
                 />
               </label>
+
+              <AdminCaseStats caseId={cases.find(item => item.case_date === caseDate && item.level === level)?.id} />
 
               <section aria-label="Before saving" className="border-t border-[#ebe5db] pt-3">
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">Before saving</h3>
