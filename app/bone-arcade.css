@@ -1,0 +1,312 @@
+@font-face {
+  font-family: "Orthodle Pixel";
+  src: url("/fonts/silkscreen-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+.orthodle-arcade-clues { display: none; }
+:root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+:root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues span {
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--arcade-mint);
+  flex-shrink: 0;
+}
+:root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues [data-state="used"] {
+  background: var(--arcade-yellow);
+  border-color: var(--arcade-yellow);
+}
+:root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues [data-state="correct"] { background: var(--arcade-mint); }
+:root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues [data-state="inactive"] { opacity: 0.25; }
+@font-face {
+  font-family: "Orthodle Plex";
+  src: url("/fonts/ibm-plex-sans-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Orthodle Plex";
+  src: url("/fonts/ibm-plex-sans-semibold.ttf") format("truetype");
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Orthodle Plex";
+  src: url("/fonts/ibm-plex-sans-bold.ttf") format("truetype");
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Public-page skin only: admin surfaces do not receive this scope marker. */
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] {
+  color-scheme: dark;
+  --arcade-navy: #0b1020;
+  --arcade-panel: #101a2b;
+  --arcade-ink: #d7f7e8;
+  --arcade-muted: #9cbcb9;
+  --arcade-mint: #5ce5cb;
+  --arcade-yellow: #ffd447;
+  --arcade-line: #355457;
+  --bg: var(--arcade-navy);
+  --ink: var(--arcade-ink);
+  --muted: var(--arcade-muted);
+  --card: var(--arcade-panel);
+  --card-strong: var(--arcade-panel);
+  --line: var(--arcade-line);
+  --green: var(--arcade-mint);
+  --green-2: var(--arcade-mint);
+  --green-3: var(--arcade-mint);
+  --paper-speck: transparent;
+  --panel-border-strong: var(--arcade-line);
+  --gold-line: var(--arcade-yellow);
+  background: var(--arcade-navy) !important;
+  color: var(--arcade-ink);
+  font-family: "Orthodle Plex", sans-serif;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface]::before { display: none; }
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.font-serif, input, button, textarea, select) {
+  font-family: "Orthodle Plex", sans-serif;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-wordmark, .orthodle-home-tab, .orthodle-home-tab-active) {
+  font-family: "Orthodle Pixel", monospace;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-wordmark {
+  color: var(--arcade-yellow) !important;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #493b17;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-wordmark-dot {
+  color: transparent !important;
+  background: url("/bone-arcade-mark.svg") center / contain no-repeat;
+  width: 1.4em;
+  height: 1.4em;
+  flex-shrink: 0;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(header) {
+  background: repeating-linear-gradient(0deg, transparent 0 3px, #5ce5cb06 3px 4px), var(--arcade-navy) !important;
+  border-color: var(--arcade-line) !important;
+  backdrop-filter: none;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] [class*="text-[#"] { color: var(--arcade-ink) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is([class~="text-[#637268]"], [class~="text-[#748178]"], [class~="text-[#7a857c]"], [class~="text-[#8a948d]"], [class~="text-[#6d766f]"], [class~="text-[#9aa59b]"]) {
+  color: var(--arcade-muted) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is([class~="text-[#1f6448]"], [class~="text-[#315f4d]"]) {
+  color: var(--arcade-mint) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is([class~="text-[#a76325]"], [class~="text-[#a35d32]"], [class~="text-[#a24d24]"]) {
+  color: var(--arcade-yellow) !important;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is([class*="border-[#"], .border-t, .border-b) { border-color: var(--arcade-line) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-ui-panel, .orthodle-how-to, .orthodle-home-card, .orthodle-finding-card, .orthodle-home-feedback-shell, .orthodle-teaching-card, .orthodle-stats-shell, .orthodle-stat-tile, .orthodle-daily-complete-shell) {
+  background: var(--arcade-panel) !important;
+  border-color: var(--arcade-line) !important;
+  color: var(--arcade-ink) !important;
+  border-radius: 3px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-home-card {
+  border-color: var(--arcade-yellow) !important;
+  box-shadow: inset 2px 2px 0 #ffd44718, inset -2px -2px 0 #ffd44718 !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-panel-shell, .orthodle-daily-complete-shell)::before,
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-panel-shell, .orthodle-daily-complete-shell)::after { display: none; }
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is([class*="bg-white"], [class~="bg-[#fbfaf7]"], [class~="bg-[#fcfbf8]"], [class~="bg-[#fffdf9]"], [class~="bg-[#f7fbf8]"], [class~="bg-[#fffaf1]"], [class~="bg-[#fff9ef]"]) {
+  background-color: var(--arcade-panel) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-home-rail, .orthodle-home-rail-inner) {
+  background: transparent !important;
+  border-radius: 3px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-home-rail::before { display: none; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-home-tab, .orthodle-ui-icon-button, .orthodle-ui-menu-item, .orthodle-home-secondary-action, .orthodle-home-toggle-chip, .orthodle-home-feedback-send) {
+  background: var(--arcade-panel) !important;
+  border-color: var(--arcade-line) !important;
+  color: var(--arcade-ink) !important;
+  border-radius: 2px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-home-tab { border-color: var(--arcade-mint) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-home-tab .font-serif,
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-home-tab-active .font-serif { font-family: "Orthodle Pixel", monospace; }
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-primary-button, .orthodle-home-tab-active) {
+  background: var(--arcade-yellow) !important;
+  color: var(--arcade-navy) !important;
+  border-color: var(--arcade-yellow) !important;
+  border-radius: 2px;
+  box-shadow: inset 0 -2px 0 #ba8e21 !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-primary-button, .orthodle-home-tab-active) [class*="text-[#"] {
+  color: var(--arcade-navy) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-primary-button { font-family: "Orthodle Pixel", monospace; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-primary-button, .orthodle-home-tab-active):hover { background: #ffe178 !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-home-tab, .orthodle-ui-menu-item, .orthodle-home-secondary-action):hover {
+  background: #193534 !important;
+  color: var(--arcade-mint) !important;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-home-input, .orthodle-home-feedback-input, input, textarea, select) {
+  background: #0a1423 !important;
+  border-color: var(--arcade-mint) !important;
+  color: var(--arcade-ink) !important;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--arcade-line) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(input, textarea)::placeholder { color: var(--arcade-muted) !important; opacity: 1; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid var(--arcade-mint);
+  outline-offset: 2px;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-home-input-shell, .orthodle-imaging-shell, .orthodle-anatomy-quiz-shell) {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-image-tile { background: #080d15 !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-anatomy-choice, #diagnosis-suggestions) {
+  background: var(--arcade-panel) !important;
+  color: var(--arcade-ink) !important;
+  border-color: var(--arcade-line) !important;
+  border-radius: 3px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice[aria-pressed="true"] {
+  border-color: var(--arcade-mint) !important;
+  background: #193534 !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice-correct { border-color: var(--arcade-mint) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice-incorrect { border-color: #ff947f !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-streak-chip, .orthodle-anatomy-choice-badge) {
+  background: #182a2b !important;
+  color: var(--arcade-yellow) !important;
+  border-color: var(--arcade-line) !important;
+  border-radius: 2px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] [class~="bg-[#c76b3a]"] { background: var(--arcade-mint) !important; border-radius: 0; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is([class*="bg-[linear-gradient"], [class*="bg-[radial-gradient"], .orthodle-answer-shell) {
+  background: var(--arcade-panel) !important;
+  box-shadow: none !important;
+  border-radius: 3px;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is([role="option"]:hover, [role="option"][aria-selected="true"]) {
+  background: #193534 !important;
+  color: var(--arcade-mint) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-winner-button {
+  background: var(--arcade-mint) !important;
+  color: var(--arcade-navy) !important;
+  border-color: var(--arcade-mint) !important;
+  border-radius: 2px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.how-to-muted, .how-to-eyebrow) { color: var(--arcade-muted); }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.how-to-icon, .how-to-close) {
+  color: var(--arcade-mint);
+  background: #193534;
+  border-color: var(--arcade-line);
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-skeleton { background: #24413e; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(footer) { color: var(--arcade-muted); border-color: var(--arcade-line) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(footer) a { color: var(--arcade-mint); }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] ::selection { background: var(--arcade-yellow); color: var(--arcade-navy); }
+
+/* Shared public surfaces and controls; leave dimensions to each page. */
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.public-page-title, .public-section-title) {
+  font-family: "Orthodle Pixel", monospace;
+  overflow-wrap: anywhere;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.public-card, .night-surface, .archive-calendar-shell, .orthodle-groups-shell, .orthodle-groups-card, .orthodle-groups-subcard, .orthodle-group-action-tile, .orthodle-group-detail-hero, .orthodle-podium-card, .orthodle-leaderboard-row, .orthodle-swipe-preview-page) {
+  background: var(--arcade-panel) !important;
+  color: var(--arcade-ink) !important;
+  border-color: var(--arcade-line) !important;
+  border-radius: 3px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface]:not(.home-surface) :is([class*="bg-[#"]:where(:not(.fixed)), [class*="bg-white"], [class*="bg-[linear-gradient"], [class*="bg-[radial-gradient"]) {
+  background: var(--arcade-panel) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.public-action, .archive-control, .orthodle-groups-button, .orthodle-groups-icon-button, .orthodle-groups-segment-button) {
+  background: var(--arcade-panel) !important;
+  color: var(--arcade-ink) !important;
+  border-color: var(--arcade-line) !important;
+  border-radius: 2px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-groups-segment-shell, .orthodle-stats-streak-ember) {
+  background: var(--arcade-panel) !important;
+  border-color: var(--arcade-line) !important;
+  border-radius: 3px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-groups-shell, .orthodle-stats-streak-ember)::after,
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-groups-shell::before { display: none; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface]:not(.home-surface) :is(.orthodle-groups-button-primary, .orthodle-groups-segment-button-active, .archive-surprise, [class~="bg-[#1f6448]"], [class~="bg-[#2d7651]"]) {
+  background: var(--arcade-yellow) !important;
+  color: var(--arcade-navy) !important;
+  border-color: var(--arcade-yellow) !important;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.archive-day, .archive-case) {
+  background: var(--arcade-panel) !important;
+  color: var(--arcade-ink) !important;
+  border-color: var(--arcade-line) !important;
+  border-radius: 2px;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.archive-completed, .archive-completed [class*="text-[#"]) { color: var(--arcade-mint) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .archive-completed { border-color: var(--arcade-mint) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .archive-day:disabled { opacity: 0.35; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .archive-day-selected {
+  background: #193534 !important;
+  border-color: var(--arcade-yellow) !important;
+  box-shadow: inset 0 0 0 1px var(--arcade-yellow);
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.archive-case:hover, .orthodle-groups-button:hover, .orthodle-groups-segment-button:hover) {
+  border-color: var(--arcade-mint) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.bg-gradient-to-r, .orthodle-stat-track) {
+  background: var(--arcade-mint) !important;
+  color: var(--arcade-navy) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] [role="alert"] { color: #ffad99 !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface]:not(.home-surface) :is([class*="rounded-["][class*="border"], .rounded-xl.border, .rounded-2xl.border, .rounded-3xl.border) {
+  border-radius: 3px;
+  box-shadow: none !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface]:not(.home-surface) header {
+  background: repeating-linear-gradient(0deg, transparent 0 3px, #5ce5cb06 3px 4px), var(--arcade-navy) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .archive-swatch.archive-available {
+  background: var(--arcade-yellow);
+  border-color: var(--arcade-yellow);
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .archive-swatch.archive-completed {
+  background: var(--arcade-mint);
+  border-color: var(--arcade-mint);
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface]:not(.home-surface) [class~="bg-[#ece8df]"] { background: #20313d !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .bg-gradient-to-r[style*="width: 0%"] { visibility: hidden; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] [class*="divide-"] > * { border-color: var(--arcade-line) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface]:not(.home-surface) :is(.orthodle-groups-button-primary, .orthodle-groups-segment-button-active, [class~="bg-[#1f6448]"], [class~="bg-[#2d7651]"]) [class*="text-[#"] { color: var(--arcade-navy) !important; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface].groups-experience :is(.orthodle-home-tab, .orthodle-home-tab-active) { white-space: normal; }
+

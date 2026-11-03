@@ -751,7 +751,7 @@ export default function GroupDetailPage() {
   }
 
   return (
-    <main className="app-surface groups-experience min-h-screen">
+    <main data-arcade-surface className="app-surface bone-arcade groups-experience min-h-screen">
       <Header />
 
       <section className="mx-auto max-w-[1040px] px-3 py-4 sm:px-6 sm:py-7">

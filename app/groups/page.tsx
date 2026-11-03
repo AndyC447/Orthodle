@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Bell, BookOpen, Flame, Info, Menu, Moon, Pencil, Share2, Star, Sun, Target, TrendingUp, UserPlus, X, Zap } from 'lucide-react'
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
+import { ArcadeModeToggle } from '@/components/ArcadeModeToggle'
 import {
   DEFAULT_GROUP_SCORING_SETTINGS,
   normalizeGroupScoringSettings,
@@ -866,6 +867,7 @@ function GroupsTopBanner({
                     <Moon size={15} strokeWidth={2} />
                   )}
                 </button>
+                <ArcadeModeToggle onToggle={() => setMenuOpen(false)} />
               </div>
               </div>
             ) : null}
@@ -936,6 +938,7 @@ function GroupsTopBanner({
                       <Moon size={15} strokeWidth={2} />
                     )}
                   </button>
+                  <ArcadeModeToggle onToggle={() => setMenuOpen(false)} />
                 </div>
                 </div>
               ) : null}
@@ -3712,7 +3715,8 @@ export default function GroupsPage() {
 
   return (
     <main
-      className="app-surface groups-experience relative min-h-screen overflow-x-hidden"
+      data-arcade-surface
+      className="app-surface bone-arcade groups-experience relative min-h-screen overflow-x-hidden"
       onTouchStart={handleGroupsSwipeStart}
       onTouchMove={handleGroupsSwipeMove}
       onTouchEnd={handleGroupsSwipeEnd}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, Moon, Sun } from 'lucide-react'
+import { ArcadeModeToggle } from '@/components/ArcadeModeToggle'
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -83,7 +84,7 @@ export function Header() {
           className="text-[#102018]"
         >
           <span className="flex items-center gap-2">
-            <span className="orthodle-wordmark-dot text-[1.05rem]">●</span>
+            <span aria-hidden="true" className="orthodle-wordmark-dot text-[1.05rem]">●</span>
             <span className="orthodle-wordmark">Orthodle</span>
           </span>
         </Link>
@@ -189,6 +190,13 @@ export function Header() {
                     <Moon className="h-[15px] w-[15px]" strokeWidth={2} />
                   )}
                 </button>
+                <ArcadeModeToggle onToggle={() => setMenuOpen(false)}
+                  className={`orthodle-ui-menu-item flex w-full text-left ${
+                    theme === 'dark'
+                      ? 'text-[#f4efe6] hover:bg-[#213129]'
+                      : 'text-[#102018] hover:bg-[#fbfaf7]'
+                  }`}
+                />
               </div>
             </div>
           )}

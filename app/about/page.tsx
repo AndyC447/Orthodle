@@ -30,7 +30,7 @@ function PhotoPlaceholder() {
 
 export default function AboutPage() {
   return (
-    <main className="min-h-screen bg-[#fbfaf7]">
+    <main data-arcade-surface className="bone-arcade min-h-screen bg-[#fbfaf7]">
       <Header />
 
       <section className="public-page-shell mx-auto max-w-6xl px-6 pt-8 pb-4 text-center">

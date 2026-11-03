@@ -118,7 +118,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
   }
 
   return (
-    <main className="app-surface orthodle-page-frame overflow-x-clip">
+    <main data-arcade-surface={!adminMode ? '' : undefined} className={`app-surface orthodle-page-frame overflow-x-clip ${!adminMode ? 'bone-arcade' : ''}`}>
       {!isPreview && <Header />}
       {!adminMode && !isPreview && <SectionNavigation active="/impact" />}
       <SectionSwipeContent path="/impact" enabled={!adminMode}>

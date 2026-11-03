@@ -21,6 +21,7 @@ import {
   serializeAnatomyGuessLetters,
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
+import { ClueProgress } from '@/components/ClueProgress'
 import { getDiagnosisAutocompleteLabels } from '@/lib/diagnosis-autocomplete'
 import { SectionPagePreview } from '@/components/SectionPagePreview'
 import { SectionNavigation } from '@/components/SectionNavigation'
@@ -659,9 +660,13 @@ function PlayPageContent() {
   const [expandedCarouselOffset, setExpandedCarouselOffset] = useState(0)
   const [expandedCarouselDragging, setExpandedCarouselDragging] = useState(false)
   const [isTransitioningLevel, setIsTransitioningLevel] = useState(false)
-  const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(() => readCachedLevelTitles())
+  const [levelTitles, setLevelTitles] = useState<Record<Level, string>>(DEFAULT_LEVEL_TITLES)
   const [levelTaglines, setLevelTaglines] = useState<Record<Level, string[]>>(DEFAULT_LEVEL_TAGLINES)
   const [hasVisitedImpact, setHasVisitedImpact] = useState(true)
+
+  useLayoutEffect(() => {
+    setLevelTitles(readCachedLevelTitles())
+  }, [])
 
   useEffect(() => {
     setHasVisitedImpact(window.localStorage.getItem('orthodle_visited_impact_page_v1') === '1')
@@ -4070,7 +4075,8 @@ function PlayPageContent() {
 
   return (
     <main
-      className={`app-surface home-surface relative min-h-screen overflow-x-hidden ${isEmbeddedExample ? 'orthodle-embedded-example' : 'orthodle-page-frame'}`}
+      data-arcade-surface
+      className={`app-surface home-surface bone-arcade relative min-h-screen overflow-x-hidden ${isEmbeddedExample ? 'orthodle-embedded-example' : 'orthodle-page-frame'}`}
       onTouchStart={handleHomeSwipeStart}
       onTouchMove={handleHomeSwipeMove}
       onTouchEnd={handleHomeSwipeEnd}
@@ -5471,6 +5477,7 @@ function PlayPageContent() {
                       )}
                     </div>
 
+                    {dailyCase && <ClueProgress used={guesses.length} total={MAX_GUESSES} complete={roundComplete} won={gameWon} />}
                     {message && (
                       <p className="mt-2 text-center text-[11.5px] leading-5 text-[#637268]">
                         {message}

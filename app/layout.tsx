@@ -1,4 +1,5 @@
 import './globals.css'
+import './bone-arcade.css'
 import type { Metadata, Viewport } from 'next'
 import { Analytics } from '@vercel/analytics/react'
 import Script from 'next/script'
@@ -72,12 +73,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-arcade="on" suppressHydrationWarning>
       <head>
         <Script id="orthodle-theme-init" strategy="beforeInteractive">
           {`
             (function () {
+              document.documentElement.dataset.arcade = 'on';
               try {
+                document.documentElement.dataset.arcade = localStorage.getItem('orthodle_arcade_mode') === 'off' ? 'off' : 'on';
                 var saved = localStorage.getItem('orthodle_theme');
                 if (saved === 'dark' || saved === 'light') {
                   document.documentElement.dataset.theme = saved;

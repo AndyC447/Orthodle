@@ -302,7 +302,7 @@ export default function SubmitCasePage() {
   }
 
   return (
-    <main className="app-surface min-h-screen">
+    <main data-arcade-surface className="app-surface bone-arcade min-h-screen">
       <Header />
 
       <div className="public-page-shell mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8">

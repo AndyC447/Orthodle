@@ -79,7 +79,7 @@ export default function StatsPage() {
   }
 
   return (
-    <main className="app-surface min-h-screen">
+    <main data-arcade-surface className="app-surface bone-arcade min-h-screen">
       <Header />
 
       <section className="public-page-shell mx-auto max-w-5xl px-3 pb-1 pt-3 sm:px-6 sm:pt-6">

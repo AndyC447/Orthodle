@@ -40,7 +40,7 @@ export default async function UnsubscribePage({ searchParams }: UnsubscribePageP
           }
 
   return (
-    <main className="min-h-screen bg-[#fbfaf7] px-6 py-16">
+    <main data-arcade-surface className="bone-arcade min-h-screen bg-[#fbfaf7] px-6 py-16">
       <div className="mx-auto max-w-lg rounded-3xl border border-[#e7e1d6] bg-white p-6 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#637268]">
           Email reminders

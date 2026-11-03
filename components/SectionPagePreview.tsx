@@ -20,7 +20,9 @@ export const SectionPagePreview = memo(function SectionPagePreview({ path }: { p
   if (!mobile) return null
   return (
     <SectionPreviewContext.Provider value={true}>
+      <div data-section-preview>
       {path === '/archive' ? <ArchivePreview /> : path === '/impact' ? <ErasPreview /> : null}
+      </div>
     </SectionPreviewContext.Provider>
   )
 })
