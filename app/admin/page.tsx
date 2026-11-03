@@ -2,6 +2,7 @@
 
 import { AnswerSpecificityField } from '@/components/AnswerSpecificity'
 import { AdminCaseStats } from '@/components/AdminCaseStats'
+import { AdminStreakLeaderboard } from '@/components/AdminStreakLeaderboard'
 import { QuestionTypeField } from '@/components/QuestionTypeField'
 import { CASE_CATEGORIES, normalizeCaseCategory } from '@/lib/case-category'
 import { normalizeQuestionType, withQuestionType, type QuestionType } from '@/lib/question-type'
@@ -216,6 +217,7 @@ type AdminSidebarSectionId =
   | 'button_subtitles'
   | 'email_reminders'
   | 'analytics'
+  | 'streaks'
   | 'homepage_notes'
   | 'submissions'
   | 'answer_choices'
@@ -349,6 +351,7 @@ const ADMIN_DRAFT_STORAGE_KEY = 'orthodle_admin_case_draft_v1'
 const DEFAULT_ADMIN_SIDEBAR_ORDER: AdminSidebarSectionId[] = [
   'email_reminders',
   'analytics',
+  'streaks',
   'homepage_notes',
   'answer_choices',
   'feedback',
@@ -850,9 +853,8 @@ export default function AdminPage() {
         DEFAULT_ADMIN_SIDEBAR_ORDER.includes(sectionId)
       )
 
-      if (filtered.length === DEFAULT_ADMIN_SIDEBAR_ORDER.length) {
-        setSidebarSectionOrder(filtered)
-      }
+      const unique = [...new Set(filtered)]
+      setSidebarSectionOrder([...unique, ...DEFAULT_ADMIN_SIDEBAR_ORDER.filter(id => !unique.includes(id))])
     } catch {
       // Ignore malformed saved orders and fall back to the default layout.
     }
@@ -3105,6 +3107,7 @@ export default function AdminPage() {
   }
 
   const sidebarSections: Record<AdminSidebarSectionId, ReactNode> = {
+    streaks: <AdminStreakLeaderboard />,
     button_subtitles: (
       <section className="card rounded-2xl border border-[#e7e1d6] bg-white p-3.5 shadow-[0_10px_24px_rgba(16,32,24,0.04)]">
         <Link href="/admin/taglines" className="font-serif text-xl font-bold transition hover:text-[#1f6448]">
