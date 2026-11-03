@@ -3,6 +3,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
 import { earnedStreakMilestones, streakMilestone, type PlayerStreakRewards } from '@/lib/streak-rewards'
 import { getSessionId, isTrackingDisabledForThisBrowser } from '@/lib/utils'
+import { PrivateStreakThankYou } from '@/components/PrivateStreakThankYou'
 
 function MilestoneBadge({ days }: { days: number }) {
   const hue = Math.round((145 + (days / 5 - 1) * 137.5) % 360)
@@ -19,11 +20,12 @@ function MilestoneBadge({ days }: { days: number }) {
   )
 }
 
-export function StreakRewards({ summary, revision = '', collection = false, disabled = false }: {
+export function StreakRewards({ summary, revision = '', collection = false, disabled = false, deferThankYou = false }: {
   summary: { currentStreak: number; longestStreak: number } | null
   revision?: string | number
   collection?: boolean
   disabled?: boolean
+  deferThankYou?: boolean
 }) {
   const [snapshot, setSnapshot] = useState<{ sessionId: string; rewards: PlayerStreakRewards } | null>(null)
 
@@ -42,8 +44,18 @@ export function StreakRewards({ summary, revision = '', collection = false, disa
           body: JSON.stringify({ sessionId }), cache: 'no-store', signal: request.signal,
         })
         if (!response.ok) return
-        const rewards = await response.json() as PlayerStreakRewards
-        if (!request.signal.aborted && getSessionId() === sessionId) setSnapshot({ sessionId, rewards })
+        const rewards = await response.json() as Partial<PlayerStreakRewards>
+        if (!request.signal.aborted && getSessionId() === sessionId) {
+          setSnapshot(previous => {
+            const saved = previous?.sessionId === sessionId ? previous.rewards : undefined
+            return { sessionId, rewards: {
+              current: rewards.current ?? saved?.current ?? 0,
+              longest: rewards.longest ?? saved?.longest ?? 0,
+              topRank: rewards.topRank === undefined ? saved?.topRank ?? null : rewards.topRank,
+              thankYou: rewards.thankYou,
+            } }
+          })
+        }
       } catch { /* Earned local badges remain visible when ranking is unavailable. */ }
     }
     void refresh()
@@ -68,13 +80,14 @@ export function StreakRewards({ summary, revision = '', collection = false, disa
   const longest = Math.max(summary?.longestStreak || 0, snapshot?.rewards.longest || 0)
   const milestone = streakMilestone(longest)
   const rank = snapshot?.rewards.topRank
-  if (!milestone && !rank) return null
+  const thankYou = snapshot?.rewards.thankYou
+  if (!milestone && !rank && !thankYou) return null
   const milestones = collection ? earnedStreakMilestones(longest) : milestone ? [milestone] : []
 
   return (
     <div className={`streak-rewards ${collection ? 'streak-rewards-collection' : ''}`}>
       {collection && milestone > 0 && <h2 className="streak-rewards-heading">Earned streak badges</h2>}
-      <div className="streak-rewards-row">
+      {(milestone > 0 || rank) && <div className="streak-rewards-row">
         {milestones.length > 0 && (
           <div className="streak-rewards-badges" role="list" aria-label="Earned streak badges">
             {milestones.map(days => <span role="listitem" key={days} aria-label={`${days}-day streak badge earned`}><MilestoneBadge days={days} /></span>)}
@@ -89,8 +102,9 @@ export function StreakRewards({ summary, revision = '', collection = false, disa
             <span>You&apos;re #{rank} in all-time streaks</span>
           </span>
         )}
-      </div>
+      </div>}
       {collection && milestone > 0 && <p className="streak-rewards-note">A new badge every 5 days. Your earned badges stay yours.</p>}
+      {thankYou && snapshot && <PrivateStreakThankYou key={`${snapshot.sessionId}:${thankYou.id}`} note={thankYou} sessionId={snapshot.sessionId} paused={deferThankYou} />}
     </div>
   )
 }

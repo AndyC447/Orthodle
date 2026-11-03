@@ -2309,3 +2309,10 @@ a[class*=" rounded-full"] {
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-milestone-fill { fill: var(--arcade-panel); }
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-milestone-number { font-family: "Orthodle Pixel", monospace; font-size: 14px; }
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-rewards-rank { color: var(--arcade-yellow); }
+
+.streak-thank-you { padding: 24px; text-align: left; }
+.streak-thank-you-title { padding-right: 32px; font-size: 23px; font-weight: 700; line-height: 1.3; }
+.streak-thank-you-body { margin-top: 16px; font-size: 14px; line-height: 1.7; }
+.streak-thank-you-signature { margin-top: 16px; font-size: 13px; font-weight: 600; }
+.streak-thank-you-dismiss { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; background: transparent; color: inherit; }
+.streak-thank-you-dismiss:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; }

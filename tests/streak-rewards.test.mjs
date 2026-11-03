@@ -11,7 +11,8 @@ function load(path, imports = {}) {
   const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText
-  new Function('require', 'exports', code)(name => imports[name], exports)
+  const defaults = { '@/lib/streak-thank-you': { getStreakThankYou: () => null } }
+  new Function('require', 'exports', code)(name => imports[name] ?? defaults[name], exports)
   return exports
 }
 const rewards = load('../lib/streak-rewards.ts')

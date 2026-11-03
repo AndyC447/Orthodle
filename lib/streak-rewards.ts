@@ -1,7 +1,15 @@
+export type StreakThankYou = {
+  id: string
+  title: string
+  body: string
+  signature: string
+}
+
 export type PlayerStreakRewards = {
   current: number
   longest: number
   topRank: number | null
+  thankYou?: StreakThankYou
 }
 
 const wholeDays = (days: number) => Number.isFinite(days) ? Math.max(0, Math.floor(days)) : 0

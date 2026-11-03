@@ -4966,7 +4966,7 @@ function PlayPageContent() {
         )}
 
         {onTodayCard && (
-          <StreakRewards summary={statsSummary} revision={`${dailyCase?.id}:${gameWon}:${statsSummary.longestStreak}`} disabled={isAdminPreview || isEmbeddedExample} />
+          <StreakRewards summary={statsSummary} revision={`${dailyCase?.id}:${gameWon}:${statsSummary.longestStreak}`} disabled={isAdminPreview || isEmbeddedExample} deferThankYou={showTutorial || imageExpanded} />
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (
