@@ -43,6 +43,20 @@ test('Arcade mode still switches when browser storage is blocked', () => {
   assert.equal(root.dataset.arcade, 'off')
 })
 
+test('every public Arcade surface and its text use the pixel font without altering regular or admin typography', () => {
+  const css = readFileSync(new URL('../app/bone-arcade.css', import.meta.url), 'utf8')
+  assert.match(css, /:root\[data-arcade="on"\] \.bone-arcade\[data-arcade-surface\] \*\s*\{\s*font-family: "Orthodle Pixel", monospace;/)
+  const fontRules = [...css.matchAll(/([^{}]+)\{[^{}]*font-family:\s*([^;]+);[^{}]*\}/g)]
+    .filter(match => !match[1].includes('@font-face'))
+  assert.ok(fontRules.length > 0)
+  for (const [, selector, font] of fontRules) {
+    assert.ok(selector.includes(':root[data-arcade="on"]'))
+    assert.ok(selector.includes('.bone-arcade[data-arcade-surface]'))
+    assert.equal(font, '"Orthodle Pixel", monospace')
+  }
+  assert.doesNotMatch(css, /Orthodle Plex/)
+})
+
 test('six clue squares reflect used and remaining guesses', () => {
   const { ClueProgress } = load('../components/ClueProgress.tsx')
   const html = renderToStaticMarkup(createElement(ClueProgress, { used: 4, total: 6, complete: false, won: false }))

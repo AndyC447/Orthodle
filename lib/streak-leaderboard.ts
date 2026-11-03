@@ -21,7 +21,7 @@ const dayNumber = (date: string) => Date.parse(`${date}T00:00:00Z`) / 86_400_000
 export function buildStreakLeaderboard(
   guesses: StreakGuess[], cases: StreakCase[], accounts: StreakIdentity[],
   memberNames: Array<{ session_id: string; display_name: string | null }>,
-  excluded: ReadonlySet<string>, settings: ArchivePublicationSettings | null, today: string
+  excluded: ReadonlySet<string>, settings: ArchivePublicationSettings | null, today: string, limit = 10
 ) {
   const published = new Map(cases.filter(item => item.case_date >= '2026-04-27' && item.case_date <= today && isPublicArchiveCase(item, settings, true)).map(item => [item.id, item]))
   const players = new Map<string, Set<string>>()
@@ -61,5 +61,5 @@ export function buildStreakLeaderboard(
     })
   }
   rankings.sort((a, b) => b.longest - a.longest || b.current - a.current || b.lastSolved.localeCompare(a.lastSolved) || a.sessionId.localeCompare(b.sessionId))
-  return { leaders: rankings.slice(0, 10), trackedPlayers: rankings.length, longestStreak: rankings[0]?.longest || 0 }
+  return { leaders: rankings.slice(0, limit), trackedPlayers: rankings.length, longestStreak: rankings[0]?.longest || 0 }
 }

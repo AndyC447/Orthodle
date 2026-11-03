@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server.js'
 
 function setup(failInsert = false) {
   const rows = new Map()
+  let invalidations = 0
   const db = { from(table) {
     const filters = {}
     let countQuery = false
@@ -30,11 +31,12 @@ function setup(failInsert = false) {
     'next/server': { NextResponse }, '@/lib/supabase': { supabase: db },
     '@/lib/utils': { isAcceptedGuess: guess => guess === 'correct' },
     '@/lib/anatomy-quiz': { isChoiceQuestionCase: () => false, extractPlainSynonyms: synonyms => synonyms || [] },
+    '@/lib/streak-data': { invalidateStreakData: () => { invalidations++ } },
   }
   const code = ts.transpileModule(readFileSync(new URL('../app/api/guess/route.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
   new Function('require', 'exports', code)(name => mocks[name], exports)
   const send = body => exports.POST(new Request('https://orthodle.com/api/guess', { method: 'POST', body: JSON.stringify({ caseId: 'case', sessionId: 'browser', guess: 'correct', requestId: '11111111-1111-4111-8111-111111111111', ...body }) }))
-  return { send, rows }
+  return { send, rows, get invalidations() { return invalidations } }
 }
 
 test('concurrent retries insert exactly one guess and return a successful result', async () => {
@@ -84,4 +86,18 @@ test('preview accepts an empty guess without recording it', async () => {
   assert.equal(response.status, 200)
   assert.equal((await response.json()).correct, false)
   assert.equal(rows.size, 0)
+})
+
+test('only newly recorded correct guesses invalidate streak rankings, not previews, retries, wrong answers or failed saves', async () => {
+  const h = setup()
+  await h.send({ preview: true })
+  assert.equal(h.invalidations, 0)
+  await h.send({})
+  assert.equal(h.invalidations, 1)
+  await h.send({})
+  await h.send({ guess: 'wrong', requestId: '22222222-2222-4222-8222-222222222222' })
+  assert.equal(h.invalidations, 1)
+  const failed = setup(true)
+  await failed.send({})
+  assert.equal(failed.invalidations, 0)
 })

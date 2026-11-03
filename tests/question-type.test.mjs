@@ -78,7 +78,7 @@ for (const type of ['anatomy', 'classification']) {
       }
       return query
     } }
-    const route = load('../app/api/guess/route.ts', { 'next/server': { NextResponse }, '@/lib/anatomy-quiz': quiz, '@/lib/utils': utils, '@/lib/supabase': { supabase: db } })
+    const route = load('../app/api/guess/route.ts', { 'next/server': { NextResponse }, '@/lib/anatomy-quiz': quiz, '@/lib/utils': utils, '@/lib/supabase': { supabase: db }, '@/lib/streak-data': { invalidateStreakData() {} } })
     const send = async (guess, preview = false) => {
       const response = await route.POST(new Request('https://orthodle.com/api/guess', { method: 'POST', body: JSON.stringify({ caseId: 'case', sessionId: 'session', guess, preview }) }))
       assert.equal(response.status, 200)

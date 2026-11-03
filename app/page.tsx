@@ -22,6 +22,7 @@ import {
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
 import { ClueProgress } from '@/components/ClueProgress'
+import { StreakRewards } from '@/components/StreakRewards'
 import { getDiagnosisAutocompleteLabels } from '@/lib/diagnosis-autocomplete'
 import { SectionPagePreview } from '@/components/SectionPagePreview'
 import { SectionNavigation } from '@/components/SectionNavigation'
@@ -4962,6 +4963,10 @@ function PlayPageContent() {
               </div>
             )}
           </div>
+        )}
+
+        {onTodayCard && (
+          <StreakRewards summary={statsSummary} revision={`${dailyCase?.id}:${gameWon}:${statsSummary.longestStreak}`} disabled={isAdminPreview || isEmbeddedExample} />
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (

@@ -88,17 +88,21 @@ function routeHarness() {
       maybeSingle: async () => ({ data: settings, error: null }),
     }
   } }
+  const data = load('../lib/streak-data.ts', {
+    'server-only': {},
+    './supabase-admin': { getSupabaseAdmin: () => db },
+    './admin-dashboard': load('../lib/admin-dashboard.ts'),
+    './stats-exclusions': { getExcludedStatsSessionIds: async () => [] },
+    './audience-stats': audience,
+    './streak-leaderboard': streaks,
+  })
   const route = load('../app/api/admin/streaks/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), init) } },
     '@/lib/admin-auth': { isAdminPassword: value => value === 'test-password' },
-    '@/lib/supabase-admin': { getSupabaseAdmin: () => db },
-    '@/lib/admin-dashboard': load('../lib/admin-dashboard.ts'),
-    '@/lib/stats-exclusions': { getExcludedStatsSessionIds: async () => [] },
-    '@/lib/audience-stats': audience,
-    '@/lib/streak-leaderboard': streaks,
+    '@/lib/streak-data': data,
   })
   const request = body => new Request('https://orthodle.com/api/admin/streaks', { method: 'POST', body: JSON.stringify(body) })
-  return { route, request, get reads() { return reads } }
+  return { route, request, data, rows, get reads() { return reads } }
 }
 
 test('private endpoint checks admin credentials before database access and before returning cached results', async () => {
@@ -116,4 +120,26 @@ test('private endpoint checks admin credentials before database access and befor
   assert.equal(h.reads, reads)
   await h.route.POST(h.request({ password: 'test-password', refresh: true }))
   assert.ok(h.reads > reads)
+})
+
+test('all player streaks remain available internally while the admin endpoint still limits its response to ten', async () => {
+  const h = routeHarness()
+  const day = audience.analyticsDateISO(new Date().toISOString())
+  h.rows.guesses = Array.from({ length: 12 }, (_, i) => guess(`player-${i}`, day))
+  assert.equal((await h.data.getStreakData()).leaders.length, 12)
+  const response = await h.route.POST(h.request({ password: 'test-password' }))
+  assert.equal((await response.json()).leaders.length, 10)
+})
+
+test('a newly saved solve invalidates the shared cache and concurrent readers reuse one reload', async () => {
+  const h = routeHarness()
+  await h.data.getStreakData()
+  const reads = h.reads
+  const day = audience.analyticsDateISO(new Date().toISOString())
+  h.rows.guesses.push(guess('new-player', day))
+  h.data.invalidateStreakData()
+  const [one, two] = await Promise.all([h.data.getStreakData(), h.data.getStreakData()])
+  assert.equal(one.trackedPlayers, 2)
+  assert.equal(one, two)
+  assert.equal(h.reads, reads * 2)
 })

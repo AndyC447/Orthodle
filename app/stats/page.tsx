@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import { StreakRewards } from '@/components/StreakRewards'
 import { supabase } from '@/lib/supabase'
 import { getCaseQuestionType } from '@/lib/anatomy-quiz'
 import {
@@ -99,6 +100,7 @@ export default function StatsPage() {
             </div>
 
             <div className="mt-3 space-y-3 sm:mt-5 sm:space-y-4">
+              <StreakRewards summary={statsSnapshot} collection />
               <div className="orthodle-stats-shell rounded-[18px] bg-white p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.74)] sm:rounded-[24px] sm:p-4">
                 <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#315f4d] sm:text-[10px] sm:tracking-[0.24em]">
                   Daily Case Solve Distribution

@@ -2285,3 +2285,27 @@ a[class*=" rounded-full"] {
 :root[data-theme="dark"] .orthodle-how-to .how-to-eyebrow { color: #b5e7c3; }
 :root[data-theme="dark"] .orthodle-how-to .how-to-icon { background: #254333; color: #b5e7c3; }
 :root[data-theme="dark"] .orthodle-how-to, :root[data-theme="dark"] .orthodle-how-to .how-to-close, :root[data-theme="dark"] .orthodle-how-to .how-to-more { border-color: #3c5043; }
+
+/* Streak rewards stay compact and unboxed, with one numbered shield per milestone. */
+.streak-rewards { margin-block: 12px; color: var(--text, #263e32); }
+.streak-rewards-row, .streak-rewards-badges { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px 12px; }
+.streak-rewards-badges { gap: 8px; }
+.streak-milestone { position: relative; display: inline-block; width: 48px; height: 51px; color: hsl(var(--badge-hue) 58% 28%); vertical-align: middle; }
+.streak-milestone-shield { display: block; width: 100%; height: 100%; }
+.streak-milestone-fill { fill: hsl(var(--badge-hue) 55% 93%); stroke: currentColor; stroke-width: 2; }
+.streak-milestone-number { position: absolute; inset: 16px 3px auto; text-align: center; font-size: 17px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.streak-milestone-unit { position: absolute; inset: 33px 3px auto; text-align: center; font-size: 7px; line-height: 1; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; }
+.streak-rewards-caption, .streak-rewards-rank { font-size: 11px; line-height: 1.5; font-weight: 600; }
+.streak-rewards-rank { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: #8b5d16; }
+.streak-rewards-collection { padding-block: 6px 12px; text-align: center; }
+.streak-rewards-heading { margin-bottom: 12px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.streak-rewards-note { margin-top: 10px; font-size: 11px; line-height: 1.5; opacity: .75; }
+:root[data-theme="dark"] .streak-rewards { color: #deebe5; }
+:root[data-theme="dark"] .streak-milestone { color: hsl(var(--badge-hue) 65% 73%); }
+:root[data-theme="dark"] .streak-milestone-fill { fill: hsl(var(--badge-hue) 25% 16%); }
+:root[data-theme="dark"] .streak-rewards-rank { color: #f3cf7b; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-rewards { color: var(--arcade-ink); }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-milestone { color: hsl(var(--badge-hue) 80% 74%); }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-milestone-fill { fill: var(--arcade-panel); }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-milestone-number { font-family: "Orthodle Pixel", monospace; font-size: 14px; }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .streak-rewards-rank { color: var(--arcade-yellow); }
