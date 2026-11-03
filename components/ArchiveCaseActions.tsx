@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
 import { isChoiceQuestionCase } from '@/lib/anatomy-quiz'
+import { isPublicArchiveCase } from '@/lib/archive-publication'
 
 export function ArchiveCaseActions({ currentId }: { currentId: string }) {
   const [nextHref, setNextHref] = useState<string | null>(null)
@@ -17,6 +18,8 @@ export function ArchiveCaseActions({ currentId }: { currentId: string }) {
       const cases = []
       const guesses = []
       const session = getSessionId()
+      const publicationResult = await supabase.from('play_mode_settings').select('*').eq('id', 'default').maybeSingle()
+      const publication = publicationResult.error ? null : publicationResult.data
       for (let offset = 0; ; offset += 500) {
         const result = await supabase.from('cases')
           .select('id, case_date, level, answer, synonyms, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
@@ -41,8 +44,12 @@ export function ArchiveCaseActions({ currentId }: { currentId: string }) {
         counts.set(guess.case_id, { count: previous.count + 1, correct: previous.correct || guess.is_correct })
       }
       // Continue through older cases, wrapping to newer pending cases at the end.
-      const index = cases.findIndex(item => item.id === currentId)
-      const ordered = [...cases.slice(index + 1), ...cases.slice(0, index)]
+      const current = cases.find(item => item.id === currentId)
+      let includeOlderBonus = Boolean(current && current.level !== 'med_student')
+      try { includeOlderBonus ||= JSON.parse(sessionStorage.getItem('orthodle_archive_view_v1') || 'null')?.showOlderBonus === true } catch { /* Keep the current case's archive scope. */ }
+      const publicCases = cases.filter(item => isPublicArchiveCase(item, publication, includeOlderBonus))
+      const index = publicCases.findIndex(item => item.id === currentId)
+      const ordered = index < 0 ? publicCases : [...publicCases.slice(index + 1), ...publicCases.slice(0, index)]
       const next = ordered.find(item => {
         if (item.id === currentId || completed.has(`${item.case_date}:${item.level}:archive`)) return false
         const progress = counts.get(item.id)

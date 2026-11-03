@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { normalizeCaseCategory } from '@/lib/case-category'
+import { isPublicArchiveCase, type ArchivePublicationSettings } from '@/lib/archive-publication'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { SectionNavigation, SectionSwipeContent } from '@/components/SectionNavigation'
@@ -57,7 +58,7 @@ function toTitleCase(value: string) {
     .join(' ')
 }
 
-let archiveSnapshot: { day: string; cases: ArchiveCase[]; titles: typeof DEFAULT_LEVEL_TITLES } | null = null
+let archiveSnapshot: { day: string; cases: ArchiveCase[]; titles: typeof DEFAULT_LEVEL_TITLES; publication: ArchivePublicationSettings | null } | null = null
 
 export default function ArchivePage() {
   const isPreview = useSectionPreview()
@@ -67,6 +68,8 @@ export default function ArchivePage() {
   const [cases, setCases] = useState<ArchiveCase[]>(snapshot?.cases || [])
   const [loading, setLoading] = useState(!snapshot)
   const [loadError, setLoadError] = useState('')
+  const [publication, setPublication] = useState<ArchivePublicationSettings | null>(snapshot?.publication || null)
+  const [showOlderBonus, setShowOlderBonus] = useState(false)
   const [month, setMonth] = useState(today.slice(0, 7))
   const [selectedDate, setSelectedDate] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -89,6 +92,7 @@ export default function ArchivePage() {
       if (typeof saved.selectedDate === 'string') setSelectedDate(saved.selectedDate)
       if (typeof saved.selectedCategory === 'string') setSelectedCategory(normalizeCaseCategory(saved.selectedCategory))
       if (typeof saved.answerQuery === 'string') setAnswerQuery(saved.answerQuery)
+      if (saved.showOlderBonus === true) setShowOlderBonus(true)
       if (!arrivedBySwipe && Number.isFinite(saved.scrollY)) savedScroll.current = Math.max(0, saved.scrollY)
     } catch { /* Storage may be unavailable. */ }
   }, [])
@@ -99,7 +103,7 @@ export default function ArchivePage() {
   }, [loading, isPreview])
   function rememberArchiveSpot() {
     try {
-      sessionStorage.setItem('orthodle_archive_view_v1', JSON.stringify({ month, selectedDate: activeDate, selectedCategory, answerQuery, scrollY: window.scrollY }))
+      sessionStorage.setItem('orthodle_archive_view_v1', JSON.stringify({ month, selectedDate: activeDate, selectedCategory, answerQuery, showOlderBonus, scrollY: window.scrollY }))
     } catch { /* Navigation still works without storage. */ }
   }
 
@@ -114,7 +118,7 @@ export default function ArchivePage() {
   useEffect(() => {
     async function loadArchive() {
       try {
-      const [{ data }, { data: guessData }, { data: levelTitleData }] = await Promise.all([
+      const [{ data }, { data: guessData }, { data: levelTitleData }, publicationResult] = await Promise.all([
         (async () => {
           const data: ArchiveCase[] = []
           const pageSize = 500
@@ -148,6 +152,7 @@ export default function ArchivePage() {
         supabase
           .from('level_display_settings')
           .select('level, title'),
+        supabase.from('play_mode_settings').select('*').eq('id', 'default').maybeSingle(),
       ])
 
       const nextCases = ((data || []) as ArchiveCase[]).map(item => ({ ...item, category: normalizeCaseCategory(item.category) }))
@@ -164,7 +169,9 @@ export default function ArchivePage() {
         )
       )
       setLevelTitles(nextTitles)
-      archiveSnapshot = { day: today, cases: nextCases, titles: nextTitles }
+      const nextPublication = publicationResult.error ? null : publicationResult.data as ArchivePublicationSettings | null
+      setPublication(nextPublication)
+      archiveSnapshot = { day: today, cases: nextCases, titles: nextTitles, publication: nextPublication }
       writeCachedLevelTitles(nextTitles)
       const ownGuesses = new Map<string, GuessLite[]>()
       for (const row of nextGuessRows) {
@@ -188,20 +195,23 @@ export default function ArchivePage() {
     void loadArchive()
   }, [sessionId, today])
 
+  const publicCases = useMemo(() => cases.filter(item => isPublicArchiveCase(item, publication, showOlderBonus)), [cases, publication, showOlderBonus])
+  const hasOlderBonus = cases.some(item => item.level !== 'med_student' && isPublicArchiveCase(item, publication, true))
+
   const categoryOptions = useMemo(() => {
     return Array.from(
       new Set(
-        cases
+        publicCases
           .map(item => item.category?.trim())
           .filter((item): item is string => Boolean(item))
       )
     ).sort((a, b) => a.localeCompare(b))
-  }, [cases])
+  }, [publicCases])
 
   const filteredCases = useMemo(() => {
     const normalizedAnswerQuery = answerQuery.trim().toLowerCase()
 
-    return cases.filter(item => {
+    return publicCases.filter(item => {
       if (item.case_date === today) return false
       if (selectedCategory !== 'all' && (item.category || '') !== selectedCategory) return false
       if (
@@ -213,7 +223,7 @@ export default function ArchivePage() {
       }
       return true
     })
-  }, [answerQuery, cases, selectedCategory, today])
+  }, [answerQuery, publicCases, selectedCategory, today])
 
   const groupedDates = useMemo(() => {
     const grouped = new Map<string, ArchiveCase[]>()
@@ -315,6 +325,10 @@ export default function ArchivePage() {
           </label>
           {hasActiveFilters && <button className={buttonClass} onClick={() => { setSelectedCategory('all'); setAnswerQuery('') }}>Clear filters</button>}
         </div>
+        {hasOlderBonus && <label className="mb-4 inline-flex min-h-[32px] items-center gap-2 text-sm text-[#637268]">
+          <input type="checkbox" checked={showOlderBonus} onChange={event => { setShowOlderBonus(event.target.checked); setSelectedCategory('all') }} />
+          Older bonus cases
+        </label>}
         {loadError ? <p role="alert" className="py-8">{loadError}</p> : loading ? <p role="status" className="py-8">Loading archive…</p> : <>
           <div className="archive-calendar-shell rounded-2xl border p-2 sm:p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3 px-1">
@@ -341,7 +355,7 @@ export default function ArchivePage() {
                 const done = dayCases.filter(completed).length
                 const allDone = dayCases.length > 0 && done === dayCases.length
                 return <button key={date} type="button" disabled={!dayCases.length} aria-pressed={date === activeDate}
-                  aria-label={`${formatDate(date)}: ${dayCases.length ? `${dayCases.length} cases, ${done} completed, ${dayCases.length-done} pending` : 'No available cases'}`}
+                  aria-label={`${formatDate(date)}: ${dayCases.length ? `${dayCases.length} ${dayCases.length === 1 ? 'case' : 'cases'}, ${done} completed, ${dayCases.length-done} pending` : 'No available cases'}`}
                   onClick={() => setSelectedDate(date)}
                   className={`archive-day ${!dayCases.length ? 'archive-empty' : allDone ? 'archive-completed' : 'archive-available'} ${date === activeDate ? 'archive-day-selected' : ''}`}>
                   <span className="text-sm font-bold sm:text-lg">{index+1}</span>

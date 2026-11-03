@@ -1246,7 +1246,7 @@ function PlayPageContent() {
           data = (result.data as Case | null) || null
           error = result.error
 
-          if (!data && !error && selectedDate === today && !caseParam) {
+          if (!data && !error && selectedDate === today && selectedLevel === 'med_student' && !caseParam && !isAdminPreview && !isEmbeddedExample) {
             const fallbackResponse = await fetch('/api/cases/fallback', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

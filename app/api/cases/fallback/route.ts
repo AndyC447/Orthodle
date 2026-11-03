@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
-const LEVELS = new Set(['med_student', 'resident', 'attending'])
 const LAUNCH_DATE = '2026-04-27'
 const FALLBACK_AGE_WINDOWS_DAYS = [42, 28, 14, 7, 1] as const
 
@@ -44,7 +43,7 @@ export async function POST(req: Request) {
       targetDate < LAUNCH_DATE ||
       targetDate !== todayISOInLosAngeles() ||
       typeof level !== 'string' ||
-      !LEVELS.has(level)
+      level !== 'med_student'
     ) {
       return NextResponse.json({ error: 'Invalid fallback request.' }, { status: 400 })
     }
@@ -132,6 +131,7 @@ export async function POST(req: Request) {
 
     const { error: insertError } = await supabaseAdmin.from('cases').upsert(fallbackPayload, {
       onConflict: 'case_date,level',
+      ignoreDuplicates: true,
     })
 
     if (insertError) {

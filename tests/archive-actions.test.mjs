@@ -12,6 +12,7 @@ function load(path, mocks) {
   return exports
 }
 const jsx = { jsx: (tag, props, key) => ({ tag, props, key }), jsxs: (tag, props, key) => ({ tag, props, key }) }
+const publication = load('../lib/archive-publication.ts', {})
 const records = ['newer', 'current', 'correct', 'exhausted', 'anatomy', 'local', 'pending'].map(id => ({
   id, case_date: '2026-05-19', level: id === 'anatomy' ? 'attending' : id === 'local' ? 'resident' : 'med_student',
 }))
@@ -24,8 +25,10 @@ async function nextCase({ cases = records, guesses = [], completed = [], error =
     'next/link': { default: 'a' },
     '@/lib/utils': { getCompletedCaseKeys: () => completed, getSessionId: () => 'session', todayISO: () => '2026-10-02' },
     '@/lib/anatomy-quiz': { isChoiceQuestionCase: item => ['anatomy', 'classification'].includes(item.id) },
+    '@/lib/archive-publication': publication,
     '@/lib/supabase': { supabase: { from: table => {
       const query = { select() { return this }, gte() { return this }, lt() { return this }, eq() { return this }, order() { return this },
+        maybeSingle: async () => ({ data: { no_resident_mode: true, no_resident_mode_start_date: '2026-05-17', no_anatomy_mode: true, no_anatomy_mode_start_date: '2026-06-15' }, error: null }),
         range: async () => ({ data: table === 'cases' ? cases : guesses, error }) }
       return query
     } } },
@@ -44,6 +47,15 @@ test('next archive case skips current, server completions, exhausted anatomy, an
 test('next archive case wraps to newer cases', async () => {
   const [href] = await nextCase({ cases: [records[0], records[1]] })
   assert.equal(new URL(href, 'https://test.local').searchParams.get('case'), 'newer')
+})
+test('next archive case never routes a daily player into an auto-filled retired slot', async () => {
+  const [href] = await nextCase({ cases: [
+    { ...records[1], case_date: '2026-09-16' },
+    { id: 'phantom-resident', case_date: '2026-09-15', level: 'resident' },
+    { id: 'phantom-attending', case_date: '2026-09-15', level: 'attending' },
+    { ...records.at(-1), case_date: '2026-09-15' },
+  ] })
+  assert.equal(new URL(href, 'https://test.local').searchParams.get('case'), 'pending')
 })
 test('next archive case skips a completed classification question in the daily slot', async () => {
   const [href] = await nextCase({ cases: [records[1], { id: 'classification', level: 'med_student', case_date: '2026-05-18' }, records.at(-1)], guesses: [{ case_id: 'classification', is_correct: false }] })
