@@ -25,6 +25,28 @@
 }
 :root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues [data-state="correct"] { background: var(--arcade-mint); }
 :root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues [data-state="inactive"] { opacity: 0.25; }
+@font-face {
+  font-family: "Orthodle Plex";
+  src: url("/fonts/ibm-plex-sans-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Orthodle Plex";
+  src: url("/fonts/ibm-plex-sans-semibold.ttf") format("truetype");
+  font-weight: 500 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Orthodle Plex";
+  src: url("/fonts/ibm-plex-sans-bold.ttf") format("truetype");
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Public-page skin only: admin surfaces do not receive this scope marker. */
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] {
   color-scheme: dark;
@@ -49,13 +71,16 @@
   --gold-line: var(--arcade-yellow);
   background: var(--arcade-navy) !important;
   color: var(--arcade-ink);
-  font-family: "Orthodle Pixel", monospace;
+  font-family: "Orthodle Plex", sans-serif;
 }
 
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface]::before { display: none; }
 
-/* Include explicit serif/sans utilities and native form controls, not just inherited text. */
-:root[data-arcade="on"] .bone-arcade[data-arcade-surface] * {
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.font-serif, input, button, textarea, select) {
+  font-family: "Orthodle Plex", sans-serif;
+}
+
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-wordmark, .orthodle-home-tab, .orthodle-home-tab-active) {
   font-family: "Orthodle Pixel", monospace;
 }
 

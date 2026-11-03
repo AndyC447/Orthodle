@@ -43,18 +43,20 @@ test('Arcade mode still switches when browser storage is blocked', () => {
   assert.equal(root.dataset.arcade, 'off')
 })
 
-test('every public Arcade surface and its text use the pixel font without altering regular or admin typography', () => {
+test('Arcade keeps readable body and form text with pixel branding, without altering regular or admin typography', () => {
   const css = readFileSync(new URL('../app/bone-arcade.css', import.meta.url), 'utf8')
-  assert.match(css, /:root\[data-arcade="on"\] \.bone-arcade\[data-arcade-surface\] \*\s*\{\s*font-family: "Orthodle Pixel", monospace;/)
+  assert.match(css, /:root\[data-arcade="on"\] \.bone-arcade\[data-arcade-surface\]\s*\{[^}]*font-family: "Orthodle Plex", sans-serif;/)
+  assert.match(css, /:is\(\.font-serif, input, button, textarea, select\)\s*\{\s*font-family: "Orthodle Plex", sans-serif;/)
+  assert.match(css, /:is\(\.orthodle-wordmark, \.orthodle-home-tab, \.orthodle-home-tab-active\)\s*\{\s*font-family: "Orthodle Pixel", monospace;/)
+  assert.doesNotMatch(css, /\[data-arcade-surface\] \*\s*\{\s*font-family:/)
   const fontRules = [...css.matchAll(/([^{}]+)\{[^{}]*font-family:\s*([^;]+);[^{}]*\}/g)]
     .filter(match => !match[1].includes('@font-face'))
   assert.ok(fontRules.length > 0)
   for (const [, selector, font] of fontRules) {
     assert.ok(selector.includes(':root[data-arcade="on"]'))
     assert.ok(selector.includes('.bone-arcade[data-arcade-surface]'))
-    assert.equal(font, '"Orthodle Pixel", monospace')
+    assert.ok(['"Orthodle Pixel", monospace', '"Orthodle Plex", sans-serif'].includes(font))
   }
-  assert.doesNotMatch(css, /Orthodle Plex/)
 })
 
 test('six clue squares reflect used and remaining guesses', () => {
