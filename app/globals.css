@@ -328,6 +328,13 @@ textarea::placeholder {
     linear-gradient(180deg, #fffdf9 0%, #f5f0e7 100%);
 }
 
+.orthodle-page-frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
 .home-surface::before {
   opacity: 0.12;
 }

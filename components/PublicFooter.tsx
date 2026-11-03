@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 export function PublicFooter() {
   return (
-    <footer className="mx-auto mt-3 max-w-4xl border-t border-[#e7e1d6]/90 px-4 py-3 text-center text-[9px] uppercase tracking-[0.24em] text-[#637268] sm:mt-10 sm:px-6 sm:py-4 sm:text-[9.5px] sm:tracking-[0.25em]">
+    <footer className="mx-auto mt-3 w-full max-w-4xl shrink-0 border-t border-[#e7e1d6]/90 px-4 py-3 text-center text-[9px] uppercase tracking-[0.24em] text-[#637268] sm:mt-10 sm:px-6 sm:py-4 sm:text-[9.5px] sm:tracking-[0.25em]">
       <div className="leading-[1.35]">
         Orthodle — for education &amp; entertainment. Not{' '}
         <Link href="/groups" className="transition hover:text-[#102018]">

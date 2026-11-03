@@ -3,9 +3,14 @@
 import { useEffect, useState } from 'react'
 import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
+import { supabase } from '@/lib/supabase'
+import { getCaseQuestionType } from '@/lib/anatomy-quiz'
 import {
   clearStatsSummary,
   getStatsSummary,
+  getUnclassifiedGameResults,
+  backfillGameResultTypes,
+  type StatsLevel,
   type StatsSummary,
 } from '@/lib/utils'
 
@@ -13,12 +18,32 @@ export default function StatsPage() {
   const [statsSnapshot, setStatsSnapshot] = useState<StatsSummary | null>(null)
 
   useEffect(() => {
+    let cancelled = false
     const refreshStats = () => setStatsSnapshot(getStatsSummary())
 
     refreshStats()
+    async function updateOlderResults() {
+      const dates = [...new Set(getUnclassifiedGameResults().map(result => result.caseDate))]
+      try {
+        const matches = []
+        for (let start = 0; start < dates.length; start += 50) {
+          for (let offset = 0; ; offset += 500) {
+            const { data, error } = await supabase.from('cases')
+              .select('id, case_date, level, answer, synonyms, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
+              .in('case_date', dates.slice(start, start + 50)).order('id').range(offset, offset + 499)
+            if (cancelled || error) return
+            matches.push(...(data || []).map(item => ({ caseDate: item.case_date, level: item.level as StatsLevel, answer: item.answer, questionType: getCaseQuestionType(item) })))
+            if ((data || []).length < 500) break
+          }
+        }
+        if (!cancelled && backfillGameResultTypes(matches)) refreshStats()
+      } catch { /* Saved stats remain available if case history cannot be loaded. */ }
+    }
+    void updateOlderResults()
     window.addEventListener('focus', refreshStats)
 
     return () => {
+      cancelled = true
       window.removeEventListener('focus', refreshStats)
     }
   }, [])
@@ -109,9 +134,10 @@ export default function StatsPage() {
                 </div>
               </div>
 
-              <div className="orthodle-stats-shell rounded-[18px] bg-white p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.74)] sm:rounded-[24px] sm:p-4">
+              {(['anatomy', 'classification'] as const).map(type => (
+              <div key={type} className="orthodle-stats-shell rounded-[18px] bg-white p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.74)] sm:rounded-[24px] sm:p-4">
                 <div className="text-[9px] font-bold uppercase tracking-[0.18em] text-[#315f4d] sm:text-[10px] sm:tracking-[0.24em]">
-                  Anatomy Quiz
+                  {type === 'anatomy' ? 'Anatomy Quiz' : 'Classification Quiz'}
                 </div>
 
                 <div className="mt-2.5 divide-y divide-[#efe7da] rounded-[16px] border border-[#efe7da] bg-[#fffdf9]">
@@ -120,29 +146,30 @@ export default function StatsPage() {
                       Accuracy
                     </div>
                     <div className="font-serif text-[18px] font-bold leading-none tracking-[-0.04em] text-[#102018]">
-                      {statsSnapshot && statsSnapshot.anatomy.played > 0
-                        ? `${Math.round(statsSnapshot.anatomy.winRate)}%`
+                      {statsSnapshot && statsSnapshot[type].played > 0
+                        ? `${Math.round(statsSnapshot[type].winRate)}%`
                         : '—'}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                     <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#637268]">
-                      Completed
+                      Correct
                     </div>
                     <div className="font-serif text-[18px] font-bold leading-none tracking-[-0.04em] text-[#102018]">
-                      {statsSnapshot?.anatomy.played || 0}
+                      {statsSnapshot?.[type].wins || 0}
                     </div>
                   </div>
                   <div className="flex items-center justify-between gap-3 px-3 py-2.5">
                     <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#637268]">
-                      Misses
+                      Missed
                     </div>
                     <div className="font-serif text-[18px] font-bold leading-none tracking-[-0.04em] text-[#102018]">
-                      {statsSnapshot?.anatomy.losses || 0}
+                      {statsSnapshot?.[type].losses || 0}
                     </div>
                   </div>
                 </div>
               </div>
+              ))}
 
               <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
                 <div className="orthodle-stat-tile rounded-[16px] bg-[#faf8f2] p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.72)] sm:rounded-[20px] sm:p-4">

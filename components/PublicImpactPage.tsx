@@ -118,7 +118,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
   }
 
   return (
-    <main className="app-surface min-h-screen overflow-x-clip">
+    <main className="app-surface orthodle-page-frame overflow-x-clip">
       {!isPreview && <Header />}
       {!adminMode && !isPreview && <SectionNavigation active="/impact" />}
       <SectionSwipeContent path="/impact" enabled={!adminMode}>
@@ -280,8 +280,8 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
         </div>
       </section>
 
-      {!isPreview && <PublicFooter />}
       </SectionSwipeContent>
+      {!isPreview && <PublicFooter />}
     </main>
   )
 }

@@ -293,7 +293,7 @@ export default function ArchivePage() {
   }
   const buttonClass = 'public-action archive-control inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold disabled:opacity-35'
   return (
-    <main className="app-surface archive-calendar-page min-h-screen overflow-x-clip">
+    <main className="app-surface archive-calendar-page orthodle-page-frame overflow-x-clip">
       {!isPreview && <Header />}
       {!isPreview && <SectionNavigation active="/archive" />}
       <SectionSwipeContent path="/archive">
@@ -363,8 +363,8 @@ export default function ArchivePage() {
           </section>
         </>}
       </section>
-      {!isPreview && <PublicFooter />}
       </SectionSwipeContent>
+      {!isPreview && <PublicFooter />}
     </main>
   )
 }

@@ -364,6 +364,7 @@ export function setTrackingDisabledForThisBrowser(disabled = true) {
 export type StatsLevel = 'med_student' | 'resident' | 'attending'
 
 export type StoredGameResult = {
+  questionType?: 'diagnosis' | 'anatomy' | 'classification'
   key: string
   caseDate: string
   level: StatsLevel
@@ -415,6 +416,7 @@ export type StatsSummary = {
     winRate: number
     firstTryWins: number
   }
+  classification: StatsSummary['anatomy']
   today: {
     date: string
     played: number
@@ -578,6 +580,7 @@ export function recordGameResult(result: Omit<StoredGameResult, 'key' | 'complet
   }
 
   const shouldReplace =
+    (!existing.questionType && Boolean(nextEntry.questionType) && existing.won === nextEntry.won && existing.guessesUsed === nextEntry.guessesUsed) ||
     (nextEntry.won && !existing.won) ||
     (nextEntry.won === existing.won && nextEntry.guessesUsed <= existing.guessesUsed)
 
@@ -633,15 +636,40 @@ export function getCompletedCaseKeys(isArchive?: boolean) {
   )
 }
 
+export function getUnclassifiedGameResults() {
+  return getStoredResults().filter(result => !result.questionType)
+    .map(({ caseDate, level, answer }) => ({ caseDate, level, answer }))
+}
+
+export function backfillGameResultTypes(cases: Array<{ caseDate: string; level: StatsLevel; answer: string; questionType: NonNullable<StoredGameResult['questionType']> }>) {
+  const types = new Map(cases.map(item => [`${item.caseDate}:${item.level}:${normalizeAnswer(item.answer)}`, item.questionType]))
+  let changed = false
+  const results = getStoredResults().map(result => {
+    if (result.questionType) return result
+    const questionType = types.get(`${result.caseDate}:${result.level}:${normalizeAnswer(result.answer)}`)
+    if (!questionType) return result
+    changed = true
+    return { ...result, questionType }
+  })
+  if (changed) setStoredResults(results)
+  return changed
+}
+
+function resultQuestionType(result: Pick<StoredGameResult, 'questionType' | 'level' | 'caseDate'>) {
+  return result.questionType || (result.level === 'attending' && result.caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE ? 'anatomy' : 'diagnosis')
+}
+
 export function getStatsSummary(): StatsSummary {
   const results = getStoredResults()
   const dailyResults = results.filter(result => !result.isArchive)
   const anatomyResults = dailyResults.filter(
-    result => result.level === 'attending' && result.caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE
+    result => resultQuestionType(result) === 'anatomy'
   )
   const standardCaseResults = dailyResults.filter(
-    result => !(result.level === 'attending' && result.caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE)
+    result => resultQuestionType(result) === 'diagnosis'
   )
+  const classificationResults = dailyResults.filter(result => resultQuestionType(result) === 'classification')
+  const classificationWins = classificationResults.filter(result => result.won)
   const archiveResults = results.filter(result => result.isArchive)
   const wins = dailyResults.filter(result => result.won)
   const standardCaseWins = standardCaseResults.filter(result => result.won)
@@ -770,11 +798,11 @@ export function getStatsSummary(): StatsSummary {
   const recentDays = Array.from(byDay.values())
     .map(day => {
       const totalGuesses = day.levels.reduce((sum, level) => sum + level.guessesUsed, 0)
-      const anatomyLevels = day.levels.filter(
-        level => level.level === 'attending' && day.date >= SURGICAL_ANATOMY_LAUNCH_DATE
+      const anatomyLevels = dailyResults.filter(
+        result => result.caseDate === day.date && resultQuestionType(result) === 'anatomy'
       )
-      const standardCaseLevels = day.levels.filter(
-        level => !(level.level === 'attending' && day.date >= SURGICAL_ANATOMY_LAUNCH_DATE)
+      const standardCaseLevels = dailyResults.filter(
+        result => result.caseDate === day.date && resultQuestionType(result) === 'diagnosis'
       )
       const standardCaseTotalGuesses = standardCaseLevels.reduce(
         (sum, level) => sum + level.guessesUsed,
@@ -937,6 +965,13 @@ export function getStatsSummary(): StatsSummary {
       losses: anatomyResults.length - anatomyWins.length,
       winRate: anatomyResults.length > 0 ? (anatomyWins.length / anatomyResults.length) * 100 : 0,
       firstTryWins: anatomyWins.length,
+    },
+    classification: {
+      played: classificationResults.length,
+      wins: classificationWins.length,
+      losses: classificationResults.length - classificationWins.length,
+      winRate: classificationResults.length ? (classificationWins.length / classificationResults.length) * 100 : 0,
+      firstTryWins: classificationWins.length,
     },
     today: {
       ...today,

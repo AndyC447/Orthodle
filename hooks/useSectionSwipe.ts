@@ -74,6 +74,7 @@ export function useSectionSwipe(path: string, enabled = true) {
     preview: offset === 0 ? null : pages[pages.indexOf(path) + (offset < 0 ? 1 : -1)] || null,
     offset,
     style: {
+      backgroundColor: offset ? 'var(--bg)' : undefined,
       transform: offset ? `translate3d(${offset}px,0,0)` : undefined,
       transition: dragging || reducedMotion ? 'none' : 'transform 320ms cubic-bezier(0.22,1,0.36,1)',
       touchAction: 'pan-y pinch-zoom',

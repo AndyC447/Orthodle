@@ -52,14 +52,14 @@ export function SectionSwipeContent({ path, children, enabled = true }: { path: 
   const { preview, offset, style, ...gestures } = useSectionSwipe(path, enabled && !isPreview)
   if (isPreview) return <>{children}</>
   return (
-    <div className="relative overflow-x-clip" {...(enabled ? gestures : {})}>
+    <div className="relative flex-1 min-w-0 overflow-x-clip" {...(enabled ? gestures : {})}>
       {enabled && sections.filter(section => section.href !== path && section.href !== '/').map(section => (
         <div key={section.href} aria-hidden="true" inert className="pointer-events-none absolute inset-x-0 top-0 h-full overflow-hidden lg:hidden"
           style={{ visibility: preview === section.href ? 'visible' : 'hidden', transform: `translate3d(${preview === section.href ? Math.sign(offset) * -28 * (1 - Math.min(1, Math.abs(offset) / 160)) : 0}px,0,0)` }}>
           <SectionPagePreview path={section.href} />
         </div>
       ))}
-      <div data-section-swipe-surface={path} className="relative app-surface min-h-screen" style={style}>{children}</div>
+      <div data-section-swipe-surface={path} className="relative" style={style}>{children}</div>
     </div>
   )
 }

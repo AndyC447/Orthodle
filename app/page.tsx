@@ -21,6 +21,7 @@ import {
   serializeAnatomyGuessLetters,
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
+import { getDiagnosisAutocompleteLabels } from '@/lib/diagnosis-autocomplete'
 import { SectionPagePreview } from '@/components/SectionPagePreview'
 import { SectionNavigation } from '@/components/SectionNavigation'
 import { ArchiveCaseActions } from '@/components/ArchiveCaseActions'
@@ -281,7 +282,7 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
   'pain',
 ])
 
-const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v4'
+const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v5'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v2'
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
@@ -903,8 +904,7 @@ function PlayPageContent() {
 
       const diagnosisCaseAnswers = allCaseAnswerRows
         .filter(item => !isChoiceQuestionCase(item) && isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
-        .map(item => item.answer?.trim())
-        .filter(Boolean) as string[]
+        .flatMap(item => getDiagnosisAutocompleteLabels(item.answer, item.synonyms))
 
       const anatomyOnlyAnswerSet = new Set(
         allCaseAnswerRows
@@ -3255,6 +3255,7 @@ function PlayPageContent() {
     if (!dailyCase || !roundComplete || guesses.length === 0) return
 
     recordGameResult({
+      questionType: getCaseQuestionType(dailyCase),
       caseDate: dailyCase.case_date,
       level: dailyCase.level,
       isArchive: dailyCase.case_date !== todayISO(),
@@ -4069,7 +4070,7 @@ function PlayPageContent() {
 
   return (
     <main
-      className={`app-surface home-surface relative min-h-screen overflow-x-hidden ${isEmbeddedExample ? 'orthodle-embedded-example' : ''}`}
+      className={`app-surface home-surface relative min-h-screen overflow-x-hidden ${isEmbeddedExample ? 'orthodle-embedded-example' : 'orthodle-page-frame'}`}
       onTouchStart={handleHomeSwipeStart}
       onTouchMove={handleHomeSwipeMove}
       onTouchEnd={handleHomeSwipeEnd}
@@ -4905,16 +4906,17 @@ function PlayPageContent() {
 
       {showTutorial && !isEmbeddedExample && <HowToPlayDialog onDismiss={dismissTutorial} />}
 
-      <div className="relative">
+      <div className="relative flex-1 min-w-0">
         {homeLinkSwipePreviews}
         {homeSwipePreview}
         <div
-          className={`app-surface relative z-10 will-change-transform ${
+          className={`relative z-10 will-change-transform ${
             homeSwipeDragging
               ? ''
               : 'transition-[transform,opacity] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'
           }`}
           style={{
+            backgroundColor: homeSwipeOffset !== 0 || homePageEnterOffset !== 0 ? 'var(--bg)' : undefined,
             transform: `translate3d(${homePageEnterOffset + homeSwipeOffset}px, 0, 0)`,
             opacity: homeSwipeBodyOpacity,
           }}
@@ -5689,9 +5691,10 @@ function PlayPageContent() {
         </section>
       </div>
 
-      {!isEmbeddedExample && <PublicFooter />}
         </div>
       </div>
+
+      {!isEmbeddedExample && <PublicFooter />}
 
       {currentExpandedImages.length > 0 && imageExpanded && (
         <div
