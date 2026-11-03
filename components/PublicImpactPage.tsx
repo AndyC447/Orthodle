@@ -138,8 +138,8 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
           </div>
         ) : null}
 
-        <div className="rounded-[28px] border border-[#e7e1d6] bg-white px-3 py-4 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7">
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start">
+        <div className={adminMode ? 'rounded-[28px] border border-[#e7e1d6] bg-white px-3 py-4 shadow-[0_14px_34px_rgba(16,32,24,0.06)] sm:px-7 sm:py-7' : 'py-1 sm:py-3'}>
+          <div className={`grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-start ${adminMode ? 'gap-4 sm:gap-6' : 'gap-8 sm:gap-10'}`}>
             <div>
               <div className="max-w-2xl space-y-3">
                 {aboutText.split(/\n{2,}/).map(paragraph => (
@@ -148,7 +148,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
                   </p>
                 ))}
               </div>
-              <div className="public-card public-section mt-5 max-w-2xl rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-3 lg:mt-12">
+              <div className={adminMode ? 'public-card public-section mt-5 max-w-2xl rounded-[18px] border border-[#dce8e1] bg-[#f7fbf8] px-4 py-3 lg:mt-12' : 'mt-6 max-w-2xl border-t border-[#dce8e1] pt-4 lg:mt-8'}>
                 <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#1f6448]">
                   Contact
                 </div>
@@ -202,16 +202,16 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
               ) : null}
             </div>
 
-            <div className="public-card rounded-[22px] border border-[#dce8e1] bg-[#f7fbf8] p-4">
+            <div className={adminMode ? 'public-card rounded-[22px] border border-[#dce8e1] bg-[#f7fbf8] p-4' : 'border-t border-[#dce8e1] pt-6 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0'}>
               <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-[#637268]">
                 Live snapshot
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2">
+              <div className={adminMode ? 'mt-3 grid grid-cols-2 gap-2' : 'mt-5 grid grid-cols-2 gap-x-6 gap-y-7'}>
                 {statCards.map(card => (
                   <div
                     key={card.label}
                     title={card.label === 'Total users' ? 'Each browser is counted once per reporting day. Returning on another day counts again.' : undefined}
-                    className={`rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3 ${
+                    className={`${adminMode ? 'rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3' : 'min-w-0'} ${
                       card.label === 'Countries reached' ? 'col-span-2' : ''
                     }`}
                   >
@@ -231,7 +231,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
               </div>
               <p role="status" className="sr-only">{statsError ? 'Snapshot temporarily out of date. Retrying…' : ''}</p>
               {(
-                <div className="mt-3 rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3">
+                <div className={adminMode ? 'mt-3 rounded-[16px] border border-[#dfe5dd] bg-white px-3 py-3' : 'mt-6 border-t border-[#dce8e1] pt-4'}>
                   <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#637268]">
                     Top user zones
                   </div>
@@ -244,7 +244,7 @@ export function PublicImpactPage({ adminMode = false, initialExamples = null }: 
                             return (
                               <li
                                 key={rank}
-                                className="flex items-center gap-2 rounded-[10px] bg-[#f7fbf8] px-2.5 py-2"
+                                className={adminMode ? 'flex items-center gap-2 rounded-[10px] bg-[#f7fbf8] px-2.5 py-2' : 'flex min-w-0 items-center gap-2 py-1.5'}
                               >
                                 <span className="font-serif text-[15px] text-[#1f6448]">
                                   {rank}.
