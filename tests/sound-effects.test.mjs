@@ -3,8 +3,6 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 import ts from 'typescript'
-import { createElement } from 'react'
-import { renderToStaticMarkup } from 'react-dom/server'
 
 const require = createRequire(import.meta.url)
 function load(path, imports = {}, globals = {}) {
@@ -70,50 +68,41 @@ function harness({ enabled, blocked = false, writeBlocked = false, supported = t
     advance(ms) { clock += ms },
     hide() { document.visibilityState = 'hidden'; document.dispatchEvent(new Event('visibilitychange')) },
     storage(value) {
-      if (value === null) stored.delete(engine.SOUND_EFFECTS_KEY); else stored.set(engine.SOUND_EFFECTS_KEY, value)
-      const event = new Event('storage'); Object.defineProperty(event, 'key', { value: engine.SOUND_EFFECTS_KEY }); window.dispatchEvent(event)
+      if (value === null) stored.delete('orthodle_sound_effects'); else stored.set('orthodle_sound_effects', value)
+      const event = new Event('storage'); Object.defineProperty(event, 'key', { value: 'orthodle_sound_effects' }); window.dispatchEvent(event)
     },
     idle() { const pending = [...timers.values()]; timers.clear(); pending.forEach(timer => timer.callback()) },
   }
 }
 
-test('sound defaults on, but loading, reading a preference, and toggling on never start a sound', () => {
+test('sounds are always available, but loading the page never starts audio', () => {
   const h = harness()
-  assert.equal(h.engine.readSoundEffects(), true)
   h.engine.playSoundEffect('correct')
   assert.equal(h.contexts.length, 0)
-  h.engine.setSoundEffects(true)
-  assert.equal(h.engine.readSoundEffects(), true)
-  assert.equal(h.contexts.length, 0)
-  assert.equal(h.stored.get(h.engine.SOUND_EFFECTS_KEY), 'on')
+  assert.equal(h.engine.setSoundEffects, undefined)
+  assert.equal(h.engine.readSoundEffects, undefined)
+  assert.equal(h.stored.get('orthodle_sound_effects'), undefined)
   assert.equal(h.stored.get('orthodle_arcade_mode'), undefined)
   assert.equal(h.stored.get('orthodle_theme'), undefined)
 })
 
 test('a first-time player gets sound on their first guess without manually enabling it', () => {
   const h = harness()
-  assert.equal(h.stored.get(h.engine.SOUND_EFFECTS_KEY), undefined)
+  assert.equal(h.stored.get('orthodle_sound_effects'), undefined)
   h.engine.prepareSoundEffects()
   h.engine.playSoundEffect('correct')
   assert.equal(h.contexts[0].oscillators.length, 3)
 })
 
-test('a saved off preference always overrides the new default and remains muted on later visits', () => {
-  for (let visit = 0; visit < 2; visit++) {
-    const h = harness({ enabled: false })
-    assert.equal(h.engine.readSoundEffects(), false)
+test('old mute settings and blocked storage never disable sounds or alter saved browser data', () => {
+  for (const options of [{ enabled: false }, { enabled: true }, { blocked: true }, { writeBlocked: true }]) {
+    const h = harness(options)
+    const previous = h.stored.get('orthodle_sound_effects')
     h.engine.prepareSoundEffects()
     h.engine.playSoundEffect('correct')
-    assert.equal(h.contexts.length, 0)
-    assert.equal(h.stored.get(h.engine.SOUND_EFFECTS_KEY), 'off')
+    assert.equal(h.contexts[0].oscillators.length, 3)
+    assert.equal(h.stored.get('orthodle_sound_effects'), previous)
   }
-})
-
-test('a saved on preference does not autoplay or create audio before a user gesture', () => {
-  const h = harness({ enabled: true })
-  assert.equal(h.engine.readSoundEffects(), true)
-  h.engine.playSoundEffect('correct')
-  assert.equal(h.contexts.length, 0)
 })
 
 test('correct, incorrect and celebration have distinct, quiet, short synthesized sounds', () => {
@@ -138,12 +127,12 @@ test('correct, incorrect and celebration have distinct, quiet, short synthesized
   }
 })
 
-test('muting stops active sounds, prevents future sounds and cancels pending mobile unlocks', async () => {
+test('stopping playback silences active voices and cancels pending mobile unlocks', async () => {
   const h = harness({ enabled: true })
   h.engine.prepareSoundEffects()
   h.engine.playSoundEffect('celebration')
   const audio = h.contexts[0]
-  h.engine.setSoundEffects(false)
+  h.engine.stopSoundEffects()
   assert.equal(audio.state, 'suspended')
   assert.ok(audio.oscillators.every(oscillator => oscillator.stops.length === 2))
   h.engine.playSoundEffect('correct')
@@ -151,7 +140,7 @@ test('muting stops active sounds, prevents future sounds and cancels pending mob
   const waiting = harness({ enabled: true, deferred: true })
   waiting.engine.prepareSoundEffects()
   waiting.engine.playSoundEffect('correct')
-  waiting.engine.setSoundEffects(false)
+  waiting.engine.stopSoundEffects()
   waiting.resume()
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(waiting.contexts[0].oscillators.length, 0)
@@ -201,39 +190,26 @@ test('idle audio resumes on the next tap, reuses one context, and supports the S
   assert.equal(h.contexts[0].oscillators.length, 5)
 })
 
-test('muting in another tab, hiding the page and leaving silence active and pending sounds', () => {
-  for (const action of ['storage', 'hide', 'pagehide']) {
+test('hiding the page or leaving silences active and pending sounds', () => {
+  for (const action of ['hide', 'pagehide']) {
     const h = harness({ enabled: true })
     h.engine.prepareSoundEffects()
     h.engine.playSoundEffect('correct')
-    if (action === 'storage') h.storage('off')
-    else if (action === 'hide') h.hide()
+    if (action === 'hide') h.hide()
     else h.window.dispatchEvent(new Event('pagehide'))
     assert.equal(h.contexts[0].state, 'suspended')
     assert.equal(h.timers.size, 0)
   }
 })
 
-test('clearing a preference returns to default-on without starting audio by itself', () => {
+test('obsolete preferences from another tab cannot mute or restart the always-on sound effects', () => {
   const h = harness({ enabled: false })
-  h.engine.setSoundEffects(false)
+  h.engine.prepareSoundEffects()
+  h.engine.playSoundEffect('correct')
+  h.storage('off')
   h.storage(null)
-  assert.equal(h.engine.readSoundEffects(), true)
-  assert.equal(h.contexts.length, 0)
-})
-
-test('blocked storage uses default-on and can always be muted for this visit', () => {
-  for (const options of [{ blocked: true }, { writeBlocked: true }]) {
-    const h = harness(options)
-    assert.equal(h.engine.readSoundEffects(), true)
-    h.engine.setSoundEffects(true)
-    assert.equal(h.engine.readSoundEffects(), true)
-    h.engine.prepareSoundEffects()
-    h.engine.playSoundEffect('correct')
-    assert.equal(h.contexts[0].oscillators.length, 3)
-    h.engine.setSoundEffects(false)
-    assert.equal(h.engine.readSoundEffects(), false)
-  }
+  assert.equal(h.contexts[0].state, 'running')
+  assert.equal(h.contexts[0].oscillators.length, 3)
 })
 
 test('unsupported, denied and broken audio gracefully stay silent without breaking a case', async () => {
@@ -244,21 +220,16 @@ test('unsupported, denied and broken audio gracefully stay silent without breaki
     assert.equal(h.contexts.flatMap(context => context.oscillators).length, 0)
   }
   const server = load('../lib/sound-effects.ts')
-  assert.equal(server.readSoundEffects(), true)
-  assert.doesNotThrow(() => { server.setSoundEffects(true); server.prepareSoundEffects(); server.playSoundEffect('correct') })
+  assert.doesNotThrow(() => { server.prepareSoundEffects(); server.playSoundEffect('correct'); server.stopSoundEffects() })
 })
 
-test('sound toggle is a default-on accessible switch, placed below Arcade mode in every menu', () => {
-  const { SoundEffectsToggle } = load('../components/SoundEffectsToggle.tsx', { '@/lib/sound-effects': { DEFAULT_SOUND_EFFECTS: true } })
-  const html = renderToStaticMarkup(createElement(SoundEffectsToggle))
-  assert.match(html, /role="switch"/)
-  assert.match(html, /aria-label="Sound effects"/)
-  assert.match(html, /aria-checked="true"/)
-  assert.match(html, /lucide-volume-2/)
-  const header = readFileSync(new URL('../components/Header.tsx', import.meta.url), 'utf8')
-  assert.ok(header.indexOf('<SoundEffectsToggle') > header.indexOf('<ArcadeModeToggle'))
-  const groups = readFileSync(new URL('../app/groups/page.tsx', import.meta.url), 'utf8')
-  assert.equal((groups.match(/<ArcadeModeToggle[^\n]*\/?>\s*<SoundEffectsToggle/g) || []).length, 2)
+test('public and group menus no longer expose sound controls but retain the visual theme toggles', () => {
+  for (const file of ['../components/Header.tsx', '../app/groups/page.tsx']) {
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8')
+    assert.doesNotMatch(source, /SoundEffectsToggle|Sound effects/)
+    assert.match(source, /<ArcadeModeToggle/)
+    assert.match(source, /Night mode/)
+  }
 })
 
 test('fresh confirmed guesses play once; previews, reloads and failed submissions stay silent', () => {

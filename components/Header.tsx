@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, Moon, Sun } from 'lucide-react'
 import { ArcadeModeToggle } from '@/components/ArcadeModeToggle'
-import { SoundEffectsToggle } from '@/components/SoundEffectsToggle'
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -192,13 +191,6 @@ export function Header() {
                   )}
                 </button>
                 <ArcadeModeToggle onToggle={() => setMenuOpen(false)}
-                  className={`orthodle-ui-menu-item flex w-full text-left ${
-                    theme === 'dark'
-                      ? 'text-[#f4efe6] hover:bg-[#213129]'
-                      : 'text-[#102018] hover:bg-[#fbfaf7]'
-                  }`}
-                />
-                <SoundEffectsToggle onToggle={() => setMenuOpen(false)}
                   className={`orthodle-ui-menu-item flex w-full text-left ${
                     theme === 'dark'
                       ? 'text-[#f4efe6] hover:bg-[#213129]'

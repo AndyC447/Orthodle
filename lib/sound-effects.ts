@@ -1,6 +1,3 @@
-export const SOUND_EFFECTS_KEY = 'orthodle_sound_effects'
-export const SOUND_EFFECTS_EVENT = 'orthodle:sound-effects-change'
-export const DEFAULT_SOUND_EFFECTS = true
 export type SoundEffect = 'correct' | 'incorrect' | 'celebration'
 
 type Tone = { frequency: number; at: number; duration: number }
@@ -23,22 +20,12 @@ const effects: Record<SoundEffect, Tone[]> = {
   ],
 }
 
-let memoryPreference: boolean | null = null
 let context: AudioContext | null = null
 let resuming: Promise<void> | null = null
 let idleTimer: number | null = null
 let generation = 0
 let listening = false
 const voices = new Set<{ oscillator: OscillatorNode; envelope: GainNode }>()
-
-export function readSoundEffects() {
-  if (typeof window === 'undefined') return DEFAULT_SOUND_EFFECTS
-  if (memoryPreference !== null) return memoryPreference
-  try {
-    const stored = window.localStorage.getItem(SOUND_EFFECTS_KEY)
-    return stored === 'off' ? false : stored === 'on' ? true : DEFAULT_SOUND_EFFECTS
-  } catch { return DEFAULT_SOUND_EFFECTS }
-}
 
 function stopVoices() {
   for (const voice of voices) {
@@ -61,14 +48,9 @@ export function stopSoundEffects() {
   }
 }
 
-function listenForMute() {
+function listenForPageVisibility() {
   if (listening) return
   listening = true
-  window.addEventListener('storage', event => {
-    if (event.key !== SOUND_EFFECTS_KEY && event.key !== null) return
-    memoryPreference = null
-    if (!readSoundEffects()) stopSoundEffects()
-  })
   window.addEventListener('pagehide', stopSoundEffects)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') stopSoundEffects()
@@ -85,22 +67,11 @@ function suspendWhenIdle(delay: number) {
   }, delay)
 }
 
-export function setSoundEffects(enabled: boolean) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(SOUND_EFFECTS_KEY, enabled ? 'on' : 'off')
-    memoryPreference = null
-  } catch { memoryPreference = enabled }
-  listenForMute()
-  if (!enabled) stopSoundEffects()
-  window.dispatchEvent(new CustomEvent(SOUND_EFFECTS_EVENT, { detail: { enabled } }))
-}
-
 // Call during the actual tap/key press, before awaiting a guess request (important on mobile).
 export function prepareSoundEffects() {
-  if (!readSoundEffects() || typeof document === 'undefined' || document.visibilityState === 'hidden') return
+  if (typeof window === 'undefined' || typeof document === 'undefined' || document.visibilityState === 'hidden') return
   try {
-    listenForMute()
+    listenForPageVisibility()
     if (!context || context.state === 'closed') {
       const Audio = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
       if (!Audio) return
@@ -116,12 +87,12 @@ export function prepareSoundEffects() {
 }
 
 export function playSoundEffect(effect: SoundEffect) {
-  if (!readSoundEffects() || !context || typeof document === 'undefined' || document.visibilityState === 'hidden') return
+  if (!context || typeof document === 'undefined' || document.visibilityState === 'hidden') return
   const audio = context
   const requestGeneration = ++generation
   const requestedAt = Date.now()
   const play = () => {
-    if (requestGeneration !== generation || Date.now() - requestedAt > 1500 || !readSoundEffects() || document.visibilityState === 'hidden' || audio !== context || audio.state !== 'running') return
+    if (requestGeneration !== generation || Date.now() - requestedAt > 1500 || document.visibilityState === 'hidden' || audio !== context || audio.state !== 'running') return
     try {
       stopVoices()
       const start = audio.currentTime + 0.01
