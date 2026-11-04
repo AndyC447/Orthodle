@@ -23,6 +23,7 @@ import {
 import { Header } from '@/components/Header'
 import { ClueProgress } from '@/components/ClueProgress'
 import { StreakRewards } from '@/components/StreakRewards'
+import { prepareSoundEffects, playSoundEffect } from '@/lib/sound-effects'
 import { getDiagnosisAutocompleteLabels } from '@/lib/diagnosis-autocomplete'
 import { SectionPagePreview } from '@/components/SectionPagePreview'
 import { SectionNavigation } from '@/components/SectionNavigation'
@@ -3042,6 +3043,7 @@ function PlayPageContent() {
     submittedLetters?: string[]
   ) {
     if (!dailyCase || gameWon || gameOver || guessInFlightRef.current) return
+    if (!isAdminPreview && !isEmbeddedExample) prepareSoundEffects()
 
     const currentGuess = typeof submittedGuess === 'string' ? submittedGuess.trim() : guess.trim()
     const displayedGuess = typeof displayGuess === 'string' ? displayGuess.trim() : currentGuess
@@ -3113,6 +3115,9 @@ function PlayPageContent() {
       guessInFlightRef.current = false
     }
     const nextGuessCount = guesses.length + 1
+    if (!isAdminPreview && !isEmbeddedExample && window.location.pathname === '/') {
+      playSoundEffect(data.correct ? 'correct' : 'incorrect')
+    }
 
     const nextGuesses = [...guesses, { text: displayedGuess, correct: data.correct }]
 

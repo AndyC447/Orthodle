@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import type { StreakThankYou } from '@/lib/streak-rewards'
 import { dismissThankYou, isThankYouDismissed, thankYouDismissalKey, THANK_YOU_DISMISSED_EVENT } from '@/lib/streak-thank-you-dismissal'
 import { burstThankYouConfetti } from '@/lib/thank-you-confetti'
+import { prepareSoundEffects, playSoundEffect } from '@/lib/sound-effects'
 
 export function PrivateStreakThankYou({ note, sessionId, paused = false }: { note: StreakThankYou; sessionId: string; paused?: boolean }) {
   const key = thankYouDismissalKey(note.id, sessionId)
@@ -15,11 +16,15 @@ export function PrivateStreakThankYou({ note, sessionId, paused = false }: { not
   const dismiss = () => {
     const dialog = dialogRef.current
     const celebrate = Boolean(dialog?.open) && !isThankYouDismissed(key)
+    if (celebrate) prepareSoundEffects()
     const rect = celebrate ? dialog?.getBoundingClientRect() : null
     setVisibleKey(null)
     dismissThankYou(key)
     dialog?.close()
-    if (celebrate && rect) burstThankYouConfetti({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+    if (celebrate && rect) {
+      burstThankYouConfetti({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 })
+      playSoundEffect('celebration')
+    }
   }
 
   useEffect(() => {

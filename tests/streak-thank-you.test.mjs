@@ -83,7 +83,7 @@ function browserHarness(blockStorage = false, blockCookies = false) {
   })
   let otherDialog = null
   const observers = new Set()
-  const bursts = []
+  const bursts = [], sounds = []
   const dialog = { open: false, isConnected: true, shows: 0, closes: 0,
     getBoundingClientRect: () => ({ left: 10, top: 200, width: 360, height: 240 }),
     showModal() { this.open = true; this.shows++ }, close() { this.open = false; this.closes++ } }
@@ -116,6 +116,7 @@ function browserHarness(blockStorage = false, blockCookies = false) {
     },
     '@/lib/streak-thank-you-dismissal': dismissal,
     '@/lib/thank-you-confetti': { burstThankYouConfetti: origin => { bursts.push(origin) } },
+    '@/lib/sound-effects': { prepareSoundEffects: () => sounds.push('prepare'), playSoundEffect: effect => sounds.push(effect) },
   }, { window, document, MutationObserver })
   const findDismiss = tree => {
     if (!tree || typeof tree !== 'object') return null
@@ -130,7 +131,7 @@ function browserHarness(blockStorage = false, blockCookies = false) {
     return currentTree ? renderToStaticMarkup(currentTree) : ''
   }
   return {
-    stored, window, dismissal, render, dialog, document, bursts,
+    stored, window, dismissal, render, dialog, document, bursts, sounds,
     reloadDismissal: () => load('../lib/streak-thank-you-dismissal.ts', {}, { window, document }),
     mount(sessionId = 'player', currentNote = note, paused = false) {
       let html = render(sessionId, currentNote, paused)
@@ -295,6 +296,7 @@ test('X and Escape close immediately and trigger one burst from the popup center
     h[action]()
     assert.equal(h.dialog.open, false)
     assert.deepEqual(h.bursts, [{ x: 190, y: 320 }])
+    assert.deepEqual(h.sounds, ['prepare', 'celebration'])
     h.mount()
     assert.equal(h.bursts.length, 1)
     assert.equal(h.render(), '')
@@ -312,4 +314,5 @@ test('route changes, pausing, other-tab dismissal, and re-renders never trigger 
   h.mount()
   h.unmount()
   assert.equal(h.bursts.length, 0)
+  assert.equal(h.sounds.length, 0)
 })

@@ -7,6 +7,7 @@ import { Bell, BookOpen, Flame, Info, Menu, Moon, Pencil, Share2, Star, Sun, Tar
 import { GroupIconMark } from '@/components/GroupIconMark'
 import { PublicFooter } from '@/components/PublicFooter'
 import { ArcadeModeToggle } from '@/components/ArcadeModeToggle'
+import { SoundEffectsToggle } from '@/components/SoundEffectsToggle'
 import {
   DEFAULT_GROUP_SCORING_SETTINGS,
   normalizeGroupScoringSettings,
@@ -868,6 +869,7 @@ function GroupsTopBanner({
                   )}
                 </button>
                 <ArcadeModeToggle onToggle={() => setMenuOpen(false)} />
+                <SoundEffectsToggle onToggle={() => setMenuOpen(false)} />
               </div>
               </div>
             ) : null}
@@ -939,6 +941,7 @@ function GroupsTopBanner({
                     )}
                   </button>
                   <ArcadeModeToggle onToggle={() => setMenuOpen(false)} />
+                  <SoundEffectsToggle onToggle={() => setMenuOpen(false)} />
                 </div>
                 </div>
               ) : null}
