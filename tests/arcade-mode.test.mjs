@@ -5,6 +5,7 @@ import test from 'node:test'
 import ts from 'typescript'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import vm from 'node:vm'
 
 const require = createRequire(import.meta.url)
 function load(path, globals = {}, imports = {}) {
@@ -16,31 +17,120 @@ function load(path, globals = {}, imports = {}) {
   return exports
 }
 
-test('Arcade mode defaults on and persists independently of night mode', () => {
-  const stored = new Map()
-  const root = { dataset: { theme: 'dark' } }
+function themeHarness(initial = {}, cookie = '', { blocked = false, getterBlocked = false, writeBlocked = false } = {}) {
+  const stored = new Map(Object.entries(initial))
+  const root = { dataset: { arcade: 'off', theme: 'dark' } }
+  const storage = {
+    get length() { if (blocked) throw Error('Blocked'); return stored.size },
+    key(index) { if (blocked) throw Error('Blocked'); return [...stored.keys()][index] ?? null },
+    getItem(key) { if (blocked) throw Error('Blocked'); return stored.get(key) ?? null },
+    setItem(key, value) { if (blocked || writeBlocked) throw Error('Blocked'); stored.set(key, value) },
+  }
+  const window = { dispatchEvent() {} }
+  Object.defineProperty(window, 'localStorage', { get() { if (getterBlocked) throw Error('Blocked'); return storage } })
+  const document = { documentElement: root, cookie }
   const appearance = load('../lib/appearance.ts', {
-    window: { dispatchEvent() {}, localStorage: { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) } },
-    document: { documentElement: root },
+    window, document,
   })
-  assert.equal(appearance.readArcadeMode(), true)
-  appearance.setArcadeMode(false)
-  assert.equal(root.dataset.arcade, 'off')
-  assert.equal(appearance.readArcadeMode(), false)
-  assert.equal(root.dataset.theme, 'dark')
-  appearance.setArcadeMode(true)
-  assert.equal(appearance.readArcadeMode(), true)
+  return { stored, root, appearance, document, bootstrap() { vm.runInNewContext(appearance.ARCADE_THEME_BOOTSTRAP_SCRIPT, { window, document }) } }
+}
+
+test('a new visitor starts in regular theme and theme changes remain independent of night mode', () => {
+  const h = themeHarness()
+  assert.equal(h.appearance.readArcadeMode(), false)
+  assert.equal(h.stored.get('orthodle_arcade_mode'), 'off')
+  h.appearance.setArcadeMode(true)
+  assert.equal(h.root.dataset.arcade, 'on')
+  assert.equal(h.appearance.readArcadeMode(), true)
+  assert.equal(h.root.dataset.theme, 'dark')
+  h.appearance.setArcadeMode(false)
+  assert.equal(h.appearance.readArcadeMode(), false)
 })
 
-test('Arcade mode still switches when browser storage is blocked', () => {
-  const root = { dataset: {} }
-  const appearance = load('../lib/appearance.ts', {
-    window: { dispatchEvent() {}, localStorage: { getItem() { throw Error('Blocked') }, setItem() { throw Error('Blocked') } } },
-    document: { documentElement: root },
-  })
-  assert.equal(appearance.readArcadeMode(), true)
-  assert.doesNotThrow(() => appearance.setArcadeMode(false))
-  assert.equal(root.dataset.arcade, 'off')
+test('returning visitors without a saved preference retain the old Arcade default and are migrated once', () => {
+  for (const marker of ['orthodle_session_id', 'orthodle_anonymous_session_id', 'orthodle_account_session_v1', 'orthodle_stats_v1', 'orthodle_visited_impact_page_v1', 'orthodle_theme']) {
+    const h = themeHarness({ [marker]: 'existing-browser-data' })
+    h.bootstrap()
+    assert.equal(h.root.dataset.arcade, 'on', marker)
+    assert.equal(h.stored.get('orthodle_arcade_mode'), 'on', marker)
+    assert.equal(h.stored.get(marker), 'existing-browser-data')
+    assert.equal(h.appearance.readArcadeMode(), true)
+  }
+})
+
+test('both explicit saved themes always win over returning-visitor markers', () => {
+  for (const saved of ['on', 'off']) {
+    const h = themeHarness({ orthodle_arcade_mode: saved, orthodle_session_id: 'returning-player' }, 'orthodle_session_id=returning-player')
+    h.bootstrap()
+    assert.equal(h.root.dataset.arcade, saved)
+    assert.equal(h.appearance.readArcadeMode(), saved === 'on')
+    assert.equal(h.stored.get('orthodle_arcade_mode'), saved)
+  }
+})
+
+test('a returning visitor with only the session cookie also keeps Arcade, including with blocked storage', () => {
+  for (const options of [{}, { blocked: true }, { getterBlocked: true }]) {
+    const h = themeHarness({}, 'other=value; orthodle_session_id=returning-player; another=value', options)
+    h.bootstrap()
+    assert.equal(h.root.dataset.arcade, 'on')
+    assert.equal(h.appearance.readArcadeMode(), true)
+  }
+})
+
+test('bootstrap freezes a new visitor in regular before the case creates browser identity or cached data', () => {
+  for (const options of [{}, { writeBlocked: true }]) {
+    const h = themeHarness({}, '', options)
+    h.bootstrap()
+    assert.equal(h.root.dataset.arcade, 'off')
+    h.stored.set('orthodle_session_id', 'created-this-visit')
+    h.document.cookie = 'orthodle_session_id=created-this-visit'
+    assert.equal(h.appearance.readArcadeMode(), false)
+    h.bootstrap()
+    assert.equal(h.root.dataset.arcade, 'off')
+  }
+})
+
+test('new visitors and theme controls work when browser storage is unavailable', () => {
+  for (const options of [{ blocked: true }, { getterBlocked: true }, { writeBlocked: true }]) {
+    const h = themeHarness({}, '', options)
+    h.bootstrap()
+    assert.equal(h.appearance.readArcadeMode(), false)
+    h.appearance.setArcadeMode(true)
+    assert.equal(h.appearance.readArcadeMode(), true)
+    h.appearance.setArcadeMode(false)
+    assert.equal(h.appearance.readArcadeMode(), false)
+  }
+})
+
+test('saved changes from another tab override the initialized page without touching night mode', () => {
+  const h = themeHarness()
+  h.bootstrap()
+  h.stored.set('orthodle_arcade_mode', 'on')
+  assert.equal(h.appearance.readArcadeMode(), true)
+  h.stored.set('orthodle_arcade_mode', 'off')
+  assert.equal(h.appearance.readArcadeMode(), false)
+  assert.equal(h.root.dataset.theme, 'dark')
+})
+
+test('unrelated browser storage and an empty session cookie do not make a new visitor look returning', () => {
+  const h = themeHarness({ other_app: 'some-value' }, 'orthodle_session_id=; other=value')
+  h.bootstrap()
+  assert.equal(h.root.dataset.arcade, 'off')
+  assert.equal(h.stored.get('orthodle_arcade_mode'), 'off')
+})
+
+test('first-paint initialization and the server markup use the same new default', () => {
+  const h = themeHarness()
+  h.bootstrap()
+  assert.equal(h.root.dataset.arcade, 'off')
+  assert.equal(h.root.dataset.arcadeInitialized, '1')
+  const server = load('../lib/appearance.ts')
+  assert.equal(server.readArcadeMode(), false)
+  const layout = readFileSync(new URL('../app/layout.tsx', import.meta.url), 'utf8')
+  assert.match(layout, /data-arcade="off"/)
+  assert.match(layout, /ARCADE_THEME_BOOTSTRAP_SCRIPT/)
+  assert.match(layout, /strategy="beforeInteractive"/)
+  assert.doesNotMatch(layout, /dataset.arcade = 'on'/)
 })
 
 test('theme action names the destination: Regular theme in arcade, Arcade theme in regular', () => {

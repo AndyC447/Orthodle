@@ -5,7 +5,7 @@ import { Gamepad2 } from 'lucide-react'
 import { ARCADE_MODE_KEY, readArcadeMode, setArcadeMode } from '@/lib/appearance'
 
 export function ArcadeModeToggle({ onToggle, className = 'orthodle-ui-menu-item flex w-full text-left' }: { onToggle?: () => void; className?: string }) {
-  const [enabled, setEnabled] = useState(true)
+  const [enabled, setEnabled] = useState(false)
   useEffect(() => {
     const sync = () => {
       const value = readArcadeMode()
