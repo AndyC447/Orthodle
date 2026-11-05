@@ -7,12 +7,12 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 const require = createRequire(import.meta.url)
-function load(path, globals = {}) {
+function load(path, globals = {}, imports = {}) {
   const exports = {}
   const code = ts.transpileModule(readFileSync(new URL(path, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   }).outputText
-  new Function('require', 'exports', ...Object.keys(globals), code)(require, exports, ...Object.values(globals))
+  new Function('require', 'exports', ...Object.keys(globals), code)(name => imports[name] ?? require(name), exports, ...Object.values(globals))
   return exports
 }
 
@@ -41,6 +41,29 @@ test('Arcade mode still switches when browser storage is blocked', () => {
   assert.equal(appearance.readArcadeMode(), true)
   assert.doesNotThrow(() => appearance.setArcadeMode(false))
   assert.equal(root.dataset.arcade, 'off')
+})
+
+test('theme action names the destination: Regular theme in arcade, Arcade theme in regular', () => {
+  let enabled = true, menuCloses = 0
+  const saved = []
+  const { ArcadeModeToggle } = load('../components/ArcadeModeToggle.tsx', {}, {
+    react: { useEffect() {}, useState: () => [enabled, value => { enabled = value }] },
+    '@/lib/appearance': { setArcadeMode: value => saved.push(value) },
+  })
+  const render = () => ArcadeModeToggle({ onToggle: () => { menuCloses++ } })
+  let button = render()
+  assert.equal(button.props['aria-label'], 'Regular theme')
+  assert.match(renderToStaticMarkup(button), /<span>Regular theme<\/span>/)
+  assert.equal(button.props.role, undefined)
+  assert.equal(button.props['aria-checked'], undefined)
+  button.props.onClick()
+  button = render()
+  assert.equal(button.props['aria-label'], 'Arcade theme')
+  assert.match(renderToStaticMarkup(button), /<span>Arcade theme<\/span>/)
+  button.props.onClick()
+  assert.equal(render().props['aria-label'], 'Regular theme')
+  assert.deepEqual(saved, [false, true])
+  assert.equal(menuCloses, 2)
 })
 
 test('Arcade keeps readable body and form text with pixel branding, without altering regular or admin typography', () => {

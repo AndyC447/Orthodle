@@ -24,10 +24,11 @@ export function ArcadeModeToggle({ onToggle, className = 'orthodle-ui-menu-item 
       window.removeEventListener('orthodle:arcade-change', changed)
     }
   }, [])
+  const label = enabled ? 'Regular theme' : 'Arcade theme'
   return (
-    <button type="button" role="switch" aria-label="Arcade mode" aria-checked={enabled} className={className}
+    <button type="button" aria-label={label} className={className}
       onClick={() => { setArcadeMode(!enabled); setEnabled(!enabled); onToggle?.() }}>
-      <span>Arcade mode</span>
+      <span>{label}</span>
       <Gamepad2 className="h-[15px] w-[15px]" strokeWidth={2} aria-hidden="true" />
     </button>
   )
