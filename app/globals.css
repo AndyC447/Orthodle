@@ -1708,6 +1708,8 @@ textarea::placeholder {
   background: rgba(30, 44, 38, 0.98) !important;
 }
 
+.orthodle-anatomy-choice-check { display: none; }
+
 .orthodle-anatomy-quiz-shell,
 .orthodle-anatomy-choice,
 .orthodle-anatomy-choice-badge,

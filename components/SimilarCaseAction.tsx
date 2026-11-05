@@ -33,6 +33,5 @@ export function SimilarCaseAction({ current }: { current: SimilarCase }) {
   if (!next) return null
   return <div className="mx-auto mt-4 max-w-[460px] text-center">
     <Link href={`/?${new URLSearchParams({ case: next.id, date: next.case_date, level: next.level })}`} className="orthodle-primary-button inline-flex rounded-lg border px-4 py-2 font-semibold">Try a similar case →</Link>
-    <p className="mt-1 text-xs text-[#637268]">More practice in {next.category}</p>
   </div>
 }

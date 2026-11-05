@@ -9,6 +9,7 @@ import { Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import { Check } from 'lucide-react'
 import {
   getAnatomyChoiceItems,
   isAnatomyQuizCaseRecord,
@@ -4584,6 +4585,8 @@ function PlayPageContent() {
         }
 
         .orthodle-celebration-glow {
+          /* Keep this effect separate from the theme's gradient card utilities. */
+          background: radial-gradient(circle, rgba(239, 191, 72, 0.22) 0%, rgba(239, 191, 72, 0.12) 34%, transparent 72%);
           animation: orthodle-celebration-glow 1.6s ease-out forwards;
         }
 
@@ -4875,8 +4878,8 @@ function PlayPageContent() {
       `}</style>
 
       {showConfetti && (
-        <div className="pointer-events-none fixed inset-x-0 -top-[8vh] bottom-[-18vh] z-[60] overflow-hidden">
-          <div className="orthodle-celebration-glow absolute left-1/2 top-[10vh] h-[220px] w-[220px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(239,191,72,0.22)_0%,rgba(239,191,72,0.12)_34%,rgba(255,255,255,0)_72%)]" />
+        <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 -top-[8vh] bottom-[-18vh] z-[60] overflow-hidden">
+          <div className="orthodle-celebration-glow absolute left-1/2 top-[10vh] h-[220px] w-[220px] -translate-x-1/2 rounded-full" />
           <span className="orthodle-celebration-sparkle absolute left-[26%] top-[16vh] text-[20px] text-[#f0c247]">✦</span>
           <span className="orthodle-celebration-sparkle absolute right-[24%] top-[18vh] text-[16px] text-[#f6e1a1]" style={{ animationDelay: '0.08s' }}>✦</span>
           <span className="orthodle-celebration-sparkle absolute left-[48%] top-[12vh] text-[14px] text-[#fff7df]" style={{ animationDelay: '0.12s' }}>✦</span>
@@ -5362,11 +5365,12 @@ function PlayPageContent() {
                                   >
                                     {letter}
                                   </div>
-                                  <div className="min-w-0">
+                                  <div className="orthodle-anatomy-choice-label min-w-0 flex-1">
                                     <p className="font-serif text-[14px] leading-5 tracking-[-0.01em] sm:text-[15px]">
                                       {renderFormattedTextWithBreaks(choice, `anatomy-choice-${index}`)}
                                     </p>
                                   </div>
+                                  <Check className="orthodle-anatomy-choice-check mt-1 h-4 w-4 shrink-0" strokeWidth={3} aria-hidden="true" />
                                 </div>
                               </button>
                             )

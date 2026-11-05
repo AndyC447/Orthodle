@@ -183,16 +183,36 @@
   box-shadow: none !important;
 }
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-image-tile { background: #080d15 !important; }
-:root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.orthodle-anatomy-choice, #diagnosis-suggestions) {
+/* Keep the ID separate: an ID inside :is() overrides the choice's selected state. */
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice,
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] #diagnosis-suggestions {
   background: var(--arcade-panel) !important;
   color: var(--arcade-ink) !important;
   border-color: var(--arcade-line) !important;
   border-radius: 3px;
   box-shadow: none !important;
 }
-:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice[aria-pressed="true"] {
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice[aria-pressed="true"]:not(:disabled) {
   border-color: var(--arcade-mint) !important;
-  background: #193534 !important;
+  background: var(--arcade-mint) !important;
+  color: var(--arcade-navy) !important;
+  box-shadow: inset 0 0 0 1px var(--arcade-navy) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice[aria-pressed="true"]:not(:disabled) .orthodle-anatomy-choice-label,
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice[aria-pressed="true"]:not(:disabled) .orthodle-anatomy-choice-label * {
+  color: var(--arcade-navy) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice[aria-pressed="true"]:not(:disabled) .orthodle-anatomy-choice-badge {
+  background: var(--arcade-navy) !important;
+  border-color: var(--arcade-navy) !important;
+  color: var(--arcade-mint) !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice-check {
+  display: block;
+  opacity: 0;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice[aria-pressed="true"] .orthodle-anatomy-choice-check {
+  opacity: 1;
 }
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice-correct { border-color: var(--arcade-mint) !important; }
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-anatomy-choice-incorrect { border-color: #ff947f !important; }
