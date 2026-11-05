@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { normalizeCaseCategory } from '@/lib/case-category'
 import { isPublicArchiveCase, type ArchivePublicationSettings } from '@/lib/archive-publication'
@@ -76,14 +76,6 @@ export default function ArchivePage() {
   const [answerQuery, setAnswerQuery] = useState('')
   const [completedArchiveKeys, setCompletedArchiveKeys] = useState<Set<string>>(new Set())
   const [levelTitles, setLevelTitles] = useState(snapshot?.titles || DEFAULT_LEVEL_TITLES)
-  const savedScroll = useRef<number | null>(null)
-  const [arrivedBySwipe] = useState(() => {
-    if (typeof window === 'undefined') return false
-    try {
-      const entry = JSON.parse(sessionStorage.getItem('orthodle_swipe_nav_transition_v1') || 'null')
-      return entry?.target === '/archive' && Date.now() - entry.at < 3000
-    } catch { return false }
-  })
   useLayoutEffect(() => {
     try {
       const saved = JSON.parse(sessionStorage.getItem('orthodle_archive_view_v1') || 'null')
@@ -93,17 +85,11 @@ export default function ArchivePage() {
       if (typeof saved.selectedCategory === 'string') setSelectedCategory(normalizeCaseCategory(saved.selectedCategory))
       if (typeof saved.answerQuery === 'string') setAnswerQuery(saved.answerQuery)
       if (saved.showOlderBonus === true) setShowOlderBonus(true)
-      if (!arrivedBySwipe && Number.isFinite(saved.scrollY)) savedScroll.current = Math.max(0, saved.scrollY)
     } catch { /* Storage may be unavailable. */ }
   }, [])
-  useLayoutEffect(() => {
-    if (isPreview || loading || savedScroll.current === null) return
-    window.scrollTo({ top: savedScroll.current || 0, behavior: 'instant' })
-    savedScroll.current = null
-  }, [loading, isPreview])
   function rememberArchiveSpot() {
     try {
-      sessionStorage.setItem('orthodle_archive_view_v1', JSON.stringify({ month, selectedDate: activeDate, selectedCategory, answerQuery, showOlderBonus, scrollY: window.scrollY }))
+      sessionStorage.setItem('orthodle_archive_view_v1', JSON.stringify({ month, selectedDate: activeDate, selectedCategory, answerQuery, showOlderBonus }))
     } catch { /* Navigation still works without storage. */ }
   }
 
