@@ -4878,7 +4878,7 @@ function PlayPageContent() {
       `}</style>
 
       {showConfetti && (
-        <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 -top-[8vh] bottom-[-18vh] z-[60] overflow-hidden">
+        <div aria-hidden="true" className="orthodle-win-celebration pointer-events-none fixed inset-x-0 -top-[8vh] bottom-[-18vh] z-[60] overflow-hidden">
           <div className="orthodle-celebration-glow absolute left-1/2 top-[10vh] h-[220px] w-[220px] -translate-x-1/2 rounded-full" />
           <span className="orthodle-celebration-sparkle absolute left-[26%] top-[16vh] text-[20px] text-[#f0c247]">✦</span>
           <span className="orthodle-celebration-sparkle absolute right-[24%] top-[18vh] text-[16px] text-[#f6e1a1]" style={{ animationDelay: '0.08s' }}>✦</span>

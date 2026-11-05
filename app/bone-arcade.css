@@ -7,6 +7,57 @@
 }
 
 .orthodle-arcade-clues { display: none; }
+
+/* Arcade-only bursts reuse the existing win layer, without changing regular celebrations. */
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-win-celebration :is(.orthodle-celebration-glow, .orthodle-celebration-sparkle) {
+  display: none;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-win-celebration .orthodle-confetti-piece {
+  --pixel-confetti-color: var(--arcade-mint);
+  left: 32% !important;
+  top: 34vh !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 0 !important;
+  background: var(--pixel-confetti-color) !important;
+  box-shadow: none;
+  animation-name: orthodle-arcade-confetti-burst;
+  animation-duration: 1200ms !important;
+  animation-delay: 0ms !important;
+  animation-fill-mode: both;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-win-celebration .orthodle-confetti-piece:nth-of-type(even) {
+  --pixel-confetti-color: var(--arcade-yellow);
+  left: 68% !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-win-celebration .orthodle-confetti-piece:nth-of-type(3n) {
+  --pixel-confetti-color: #ff947f;
+  width: 4px !important;
+  height: 4px !important;
+}
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-win-celebration .orthodle-confetti-piece:nth-of-type(5n) {
+  --pixel-confetti-color: var(--arcade-ink);
+}
+@keyframes orthodle-arcade-confetti-burst {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.5); }
+  8% { opacity: 1; }
+  35% {
+    opacity: 1;
+    transform: translate3d(var(--burst-x), calc(var(--burst-y) * -1), 0);
+  }
+  75% { opacity: 1; }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(var(--burst-x) + var(--drift-x)), calc(var(--burst-y) + 32vh), 0) scale(0.75);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-win-celebration .orthodle-confetti-piece {
+    display: none;
+    animation: none !important;
+  }
+}
+
 :root[data-arcade="on"] .bone-arcade .orthodle-arcade-clues {
   display: flex;
   justify-content: center;
