@@ -26,6 +26,7 @@ import { ClueProgress } from '@/components/ClueProgress'
 import { StreakRewards } from '@/components/StreakRewards'
 import { prepareSoundEffects, playSoundEffect } from '@/lib/sound-effects'
 import { getDiagnosisAutocompleteLabels } from '@/lib/diagnosis-autocomplete'
+import { DraftAnswerChoices } from '@/components/DraftAnswerChoices'
 import { SectionPagePreview } from '@/components/SectionPagePreview'
 import { SectionNavigation } from '@/components/SectionNavigation'
 import { ArchiveCaseActions } from '@/components/ArchiveCaseActions'
@@ -286,7 +287,7 @@ const GENERIC_DIAGNOSIS_TERMS = new Set([
   'pain',
 ])
 
-const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v5'
+const PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v6'
 const PLAY_BOOTSTRAP_CACHE_TTL_MS = 1000 * 60 * 60 * 6
 const PLAY_MODE_SETTINGS_CACHE_KEY = 'orthodle_play_mode_settings_v2'
 const ADMIN_CASE_PREVIEW_CACHE_KEY = 'orthodle_admin_case_preview_v1'
@@ -912,7 +913,7 @@ function PlayPageContent() {
 
       const diagnosisCaseAnswers = allCaseAnswerRows
         .filter(item => !isChoiceQuestionCase(item) && isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
-        .flatMap(item => getDiagnosisAutocompleteLabels(item.answer, item.synonyms))
+        .map(item => item.answer!.trim())
 
       const anatomyOnlyAnswerSet = new Set(
         allCaseAnswerRows
@@ -2708,16 +2709,20 @@ function PlayPageContent() {
     const query = normalizeAnswer(guess)
     if (!query || query.length < 2 || isTooGenericSuggestionQuery(query)) return []
 
-    const startsWith = answerOptions.filter(option =>
+    const caseOptions = dailyCase && !isChoiceQuestionCase(dailyCase)
+      ? getDiagnosisAutocompleteLabels(dailyCase.answer, dailyCase.synonyms, answerOptions)
+      : answerOptions
+
+    const startsWith = caseOptions.filter(option =>
       normalizeAnswer(option).startsWith(query)
     )
-    const includes = answerOptions.filter(option => {
+    const includes = caseOptions.filter(option => {
       const normalized = normalizeAnswer(option)
       return !normalized.startsWith(query) && normalized.includes(query)
     })
 
     return [...startsWith, ...includes].slice(0, 12)
-  }, [answerOptions, guess])
+  }, [answerOptions, dailyCase, guess])
 
   useEffect(() => {
     if (!showSuggestions) {
@@ -5438,6 +5443,9 @@ function PlayPageContent() {
               >
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
+                    {isAdminPreview && dailyCase && (
+                      <DraftAnswerChoices answer={dailyCase.answer} synonyms={dailyCase.synonyms} onSelect={selectSuggestion} />
+                    )}
                     <div className="relative">
                       <div className={shakeInput ? 'orthodle-shake flex items-stretch gap-2' : 'flex items-stretch gap-2'}>
                         <input
