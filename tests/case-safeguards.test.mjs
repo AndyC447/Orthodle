@@ -32,17 +32,17 @@ test('quiz readiness validates choices without demanding diagnosis clues', () =>
   assert.match(readiness.getCaseReadiness({ ...complete, revealSteps: ['4', 'none'] })[0], /empty clue 4/)
 })
 
-function imageHarness() {
+function imageHarness(overrides = {}, image = null) {
   let cursor = 0
   const values = [], effects = []
   const react = {
     useState: initial => { const index = cursor++; if (!(index in values)) values[index] = initial; return [values[index], value => { values[index] = typeof value === 'function' ? value(values[index]) : value }] },
-    useRef: () => ({ current: null }),
+    useRef: () => ({ current: image }),
     useEffect: callback => effects.push(callback),
   }
   const timers = new Map()
   const module = load('../components/CaseImage.tsx', { react, 'react/jsx-runtime': jsx }, { window: { setTimeout: callback => { timers.set(1, callback); return 1 }, clearTimeout: id => timers.delete(id) } })
-  const props = { src: 'https://example.com/image?signature=original', alt: 'Case image', onOpen() {}, className: 'h-[280px]' }
+  const props = { src: 'https://example.com/image?signature=original', alt: 'Case image', onOpen() {}, className: 'h-[280px]', ...overrides }
   const root = module.CaseImage(props)
   const render = () => { cursor = 0; effects.length = 0; return root.type(props) }
   const nodes = tree => Array.isArray(tree) ? tree.flatMap(nodes) : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : []
@@ -80,6 +80,19 @@ test('stalled images expose retry and clean up their loading timeout', () => {
   assert.ok(h.nodes(h.render()).some(node => node.type === 'button' && node.props.children === 'Retry image'))
   for (const cleanup of cleanups) cleanup?.()
   assert.equal(h.timers.size, 0)
+})
+
+test('the measurement overlay gets the loaded image dimensions and the same zoom and pan transform', () => {
+  const imageStyle = { transform: 'translate(10px, 25px) scale(2.2)', transformOrigin: 'center center' }
+  const sizes = []
+  const h = imageHarness({ onOpen: undefined, imageStyle, fitToImage: true, renderOverlay: size => { sizes.push(size); return 'Measurement overlay' } }, { naturalWidth: 800, naturalHeight: 600 })
+  const initial = h.render()
+  assert.equal(sizes.length, 0)
+  h.nodes(initial).find(node => node.type === 'img').props.onLoad()
+  const loaded = h.render()
+  assert.deepEqual(sizes, [{ width: 800, height: 600 }])
+  assert.deepEqual(loaded.props.style, { height: 'auto', aspectRatio: '800 / 600' })
+  assert.deepEqual(h.nodes(loaded).find(node => node.props?.children === 'Measurement overlay').props.style, imageStyle)
 })
 
 test('image dialog handles Escape, traps focus, locks background scrolling, and restores position', () => {

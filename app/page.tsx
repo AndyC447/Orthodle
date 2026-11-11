@@ -2,6 +2,8 @@
 
 import { SimilarCaseAction } from '@/components/SimilarCaseAction'
 import { CaseImage } from '@/components/CaseImage'
+import { ImageMeasurementOverlay, ImageMeasurementToolbar, type ImageMeasurement } from '@/components/ImageMeasurement'
+import { measurementPointCount, type ImagePoint } from '@/lib/image-measurement'
 import { useImageDialog } from '@/hooks/useImageDialog'
 import { normalizeCaseCategory } from '@/lib/case-category'
 import { AnswerSpecificityBadge } from '@/components/AnswerSpecificity'
@@ -623,6 +625,7 @@ function PlayPageContent() {
   const [pulseSuccess, setPulseSuccess] = useState(false)
   const [showConfetti, setShowConfetti] = useState(false)
   const [imageExpanded, setImageExpanded] = useState(false)
+  const [imageMeasurement, setImageMeasurement] = useState<ImageMeasurement | null>(null)
   const imageDialogRef = useImageDialog(imageExpanded, () => closeExpandedImage())
   const [showImageViewerChrome, setShowImageViewerChrome] = useState(true)
   const [expandedImageIndex, setExpandedImageIndex] = useState(0)
@@ -1216,6 +1219,7 @@ function PlayPageContent() {
       setPulseSuccess(false)
       setShowConfetti(false)
       setImageExpanded(false)
+      setImageMeasurement(null)
       setImageHidden(false)
       setExpandedCarouselOffset(0)
       setExpandedCarouselDragging(false)
@@ -1690,6 +1694,7 @@ function PlayPageContent() {
 
   function openExpandedImage(index = 0, images: ExpandableImage[] = visibleImages) {
     if (images.length === 0) return
+    setImageMeasurement(null)
     resetExpandedImageView()
     setExpandedImages(images)
     setExpandedImageIndex(index)
@@ -1699,6 +1704,7 @@ function PlayPageContent() {
 
   function closeExpandedImage() {
     clearImageViewerChromeHideTimeout()
+    setImageMeasurement(null)
     setImageExpanded(false)
     setExpandedImageIndex(0)
     setExpandedImages([])
@@ -1708,6 +1714,7 @@ function PlayPageContent() {
 
   function goToExpandedImage(index: number) {
     resetExpandedImageView()
+    setImageMeasurement(current => current ? { ...current, points: [] } : null)
     setExpandedImageIndex(index)
     revealImageViewerChrome()
   }
@@ -1722,6 +1729,16 @@ function PlayPageContent() {
   function showNextExpandedImage() {
     if (currentExpandedImages.length <= 1) return
     goToExpandedImage((expandedImageIndex + 1) % currentExpandedImages.length)
+  }
+
+  function markImagePoint(point: ImagePoint) {
+    setImageMeasurement(current => {
+      if (!current) return null
+      if (current.points.length >= measurementPointCount[current.tool]) return { ...current, points: [point] }
+      const last = current.points.at(-1)
+      if (last && Math.hypot(point.x - last.x, point.y - last.y) < 0.5) return current
+      return { ...current, points: [...current.points, point] }
+    })
   }
 
   function buildShareText() {
@@ -5734,10 +5751,22 @@ function PlayPageContent() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,32,24,0.18)] px-3 py-6 backdrop-blur-[6px] sm:bg-[#102018]/75 sm:px-4 sm:py-8"
           onClick={closeExpandedImage}
         >
+          <button type="button" aria-pressed={imageMeasurement !== null}
+            className="orthodle-home-secondary-action absolute left-3 top-[max(12px,env(safe-area-inset-top))] z-10 min-h-[44px] rounded-xl border border-[#ded7ca] bg-white px-3 text-sm font-semibold text-[#102018] shadow-sm"
+            onClick={event => {
+              event.stopPropagation()
+              if (imageMeasurement) {
+                setImageMeasurement(null)
+                revealImageViewerChrome()
+              } else {
+                setImageMeasurement({ tool: 'slope', points: [] })
+                revealImageViewerChrome(false)
+              }
+            }}>{imageMeasurement ? 'Done measuring' : 'Measure'}</button>
           <button type="button" data-close-image aria-label="Close image viewer"
             className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] z-10 min-h-[44px] min-w-[44px] rounded-xl border border-[#ded7ca] bg-white px-3 text-sm font-semibold text-[#102018] shadow-sm"
             onClick={event => { event.stopPropagation(); closeExpandedImage() }}>Close</button>
-          <div className="orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex w-full max-w-[min(92vw,560px)] flex-col overflow-visible rounded-none border-0 bg-transparent shadow-none sm:max-w-5xl sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-white/15 sm:bg-[#fbfaf7] sm:shadow-2xl">
+          <div className={`orthodle-image-modal orthodle-mobile-sheet orthodle-bottom-sheet flex w-full max-w-[min(92vw,560px)] flex-col overflow-visible rounded-none border-0 bg-transparent shadow-none sm:max-w-5xl sm:overflow-hidden sm:rounded-[28px] sm:border sm:border-white/15 sm:bg-[#fbfaf7] sm:shadow-2xl ${imageMeasurement ? 'mt-10 max-h-[calc(100dvh-7rem)]' : ''}`}>
             <div
               className={`hidden sm:block orthodle-bottom-sheet-handle mx-auto mt-2 h-1 w-10 rounded-full bg-[#ded7ca] transition-all duration-300 ${
                 showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none -translate-y-2 opacity-0'
@@ -5755,7 +5784,8 @@ function PlayPageContent() {
               <div className="flex items-center gap-2">
                 {imageScale > 1.02 && (
                   <button
-                    onClick={resetExpandedImageView}
+                    type="button"
+                    onClick={event => { event.stopPropagation(); resetExpandedImageView() }}
                     className="orthodle-image-modal-reset rounded-full border border-[#ded7ca] bg-[#fbfaf7] px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[#102018] transition hover:bg-white sm:px-3 sm:py-1.5 sm:text-[10px]"
                   >
                     Reset
@@ -5764,13 +5794,16 @@ function PlayPageContent() {
               </div>
             </div>
 
+            {imageMeasurement && <ImageMeasurementToolbar measurement={imageMeasurement} onChange={setImageMeasurement} />}
+
             <div
               className="orthodle-image-modal-stage min-h-0 flex-1 overflow-y-auto bg-transparent p-0 sm:bg-[#f7f4ee] sm:p-5"
               onClick={e => {
                 e.stopPropagation()
-                toggleImageViewerChrome()
+                if (!imageMeasurement) toggleImageViewerChrome()
               }}
               onDoubleClick={() => {
+                if (imageMeasurement) return
                 if (imageScale > 1.2) {
                   resetExpandedImageView()
                 } else {
@@ -5779,6 +5812,7 @@ function PlayPageContent() {
                 }
               }}
               onTouchStart={e => {
+                if (imageMeasurement) return
                 imageTouchStartY.current = e.touches[0]?.clientY ?? null
                 imageTouchStartX.current = e.touches[0]?.clientX ?? null
                 if (e.touches.length === 2) {
@@ -5802,6 +5836,7 @@ function PlayPageContent() {
                 }
               }}
               onTouchMove={e => {
+                if (imageMeasurement) return
                 if (e.touches.length === 2 && imagePinchStart.current) {
                   const [a, b] = [e.touches[0], e.touches[1]]
                   const nextDistance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
@@ -5832,6 +5867,7 @@ function PlayPageContent() {
                 }
               }}
               onTouchEnd={e => {
+                if (imageMeasurement) return
                 const startY = imageTouchStartY.current
                 const startX = imageTouchStartX.current
                 const endY = e.changedTouches[0]?.clientY ?? null
@@ -5882,19 +5918,23 @@ function PlayPageContent() {
                 <div className="space-y-3">
                   <div className="overflow-hidden rounded-[24px]">
                     <div
-                      className={`flex ${expandedCarouselDragging ? '' : 'transition-transform duration-[380ms] ease-[cubic-bezier(0.16,1,0.3,1)]'}`}
+                      className={`flex ${expandedCarouselDragging || imageMeasurement ? '' : 'transition-transform duration-[380ms] ease-[cubic-bezier(0.16,1,0.3,1)]'}`}
                       style={{
-                        transform: `translate3d(calc(${-expandedImageIndex * 100}% + ${expandedCarouselOffset}px), 0, 0)`,
+                        transform: imageMeasurement ? undefined : `translate3d(calc(${-expandedImageIndex * 100}% + ${expandedCarouselOffset}px), 0, 0)`,
                       }}
                     >
-                      {currentExpandedImages.map((image, index) => (
+                      {currentExpandedImages.map((image, index) => !imageMeasurement || index === expandedImageIndex ? (
                         <div key={`${image.url}-${index}`} className="w-full shrink-0 px-[1px]">
                           <div className={`space-y-3 ${index === expandedImageIndex && !expandedCarouselDragging ? 'orthodle-image-swap' : ''}`}>
                             <CaseImage
                               src={image.url}
                               alt={image.alt}
-                              className="h-[min(72dvh,720px)] rounded-2xl bg-white"
+                              className={`h-[min(72dvh,720px)] rounded-2xl bg-white ${imageMeasurement ? 'max-h-[clamp(96px,calc(100dvh-16rem),650px)]' : ''}`}
                               imageClassName="rounded-2xl"
+                              fitToImage={imageMeasurement !== null}
+                              renderOverlay={index === expandedImageIndex && imageMeasurement ? size => (
+                                <ImageMeasurementOverlay key={imageMeasurement.tool} size={size} measurement={imageMeasurement} onPoint={markImagePoint} />
+                              ) : undefined}
                               imageStyle={{
                                 transform:
                                   index === expandedImageIndex
@@ -5919,7 +5959,7 @@ function PlayPageContent() {
                             )}
                           </div>
                         </div>
-                      ))}
+                      ) : null)}
                     </div>
                   </div>
                   {currentExpandedImages.length > 1 ? (
@@ -5942,7 +5982,7 @@ function PlayPageContent() {
                 {currentExpandedImages.length > 1 && (
                   <div
                     className={`px-1 py-2 transition-all duration-300 sm:border-t sm:border-[#d7d9dc] sm:bg-white/96 sm:px-4 sm:py-3 sm:backdrop-blur-sm ${
-                      showImageViewerChrome ? 'opacity-100 translate-y-0' : 'pointer-events-none translate-y-3 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:opacity-100'
+                      showImageViewerChrome || imageMeasurement ? 'opacity-100 translate-y-0' : 'pointer-events-none translate-y-3 opacity-0 sm:pointer-events-auto sm:translate-y-0 sm:opacity-100'
                     }`}
                     onClick={e => e.stopPropagation()}
                   >
