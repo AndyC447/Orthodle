@@ -238,6 +238,7 @@ function getSwipeVisualOffset(deltaX: number, maxOffset = 156) {
 }
 
 const MAX_GUESSES = 6
+const IMAGE_MEASUREMENT_ENABLED = false
 const LAUNCH_DATE = '2026-04-27'
 const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
 
@@ -5751,18 +5752,20 @@ function PlayPageContent() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(16,32,24,0.18)] px-3 py-6 backdrop-blur-[6px] sm:bg-[#102018]/75 sm:px-4 sm:py-8"
           onClick={closeExpandedImage}
         >
-          <button type="button" aria-pressed={imageMeasurement !== null}
-            className="orthodle-home-secondary-action absolute left-3 top-[max(12px,env(safe-area-inset-top))] z-10 min-h-[44px] rounded-xl border border-[#ded7ca] bg-white px-3 text-sm font-semibold text-[#102018] shadow-sm"
-            onClick={event => {
-              event.stopPropagation()
-              if (imageMeasurement) {
-                setImageMeasurement(null)
-                revealImageViewerChrome()
-              } else {
-                setImageMeasurement({ tool: 'slope', points: [] })
-                revealImageViewerChrome(false)
-              }
-            }}>{imageMeasurement ? 'Done measuring' : 'Measure'}</button>
+          {IMAGE_MEASUREMENT_ENABLED && (
+            <button type="button" aria-pressed={imageMeasurement !== null}
+              className="orthodle-home-secondary-action absolute left-3 top-[max(12px,env(safe-area-inset-top))] z-10 min-h-[44px] rounded-xl border border-[#ded7ca] bg-white px-3 text-sm font-semibold text-[#102018] shadow-sm"
+              onClick={event => {
+                event.stopPropagation()
+                if (imageMeasurement) {
+                  setImageMeasurement(null)
+                  revealImageViewerChrome()
+                } else {
+                  setImageMeasurement({ tool: 'slope', points: [] })
+                  revealImageViewerChrome(false)
+                }
+              }}>{imageMeasurement ? 'Done measuring' : 'Measure'}</button>
+          )}
           <button type="button" data-close-image aria-label="Close image viewer"
             className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] z-10 min-h-[44px] min-w-[44px] rounded-xl border border-[#ded7ca] bg-white px-3 text-sm font-semibold text-[#102018] shadow-sm"
             onClick={event => { event.stopPropagation(); closeExpandedImage() }}>Close</button>
