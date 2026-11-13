@@ -2721,7 +2721,13 @@ export default function AdminPage() {
 
   async function loadEmailReminderSummary() {
     try {
-      const response = await fetch('/api/reminders/admin', { cache: 'no-store' })
+      const password = window.sessionStorage.getItem('orthodle_admin_password')
+      if (!password) return
+      const response = await fetch('/api/reminders/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
       const data = await response.json().catch(() => null)
 
       if (!response.ok || !data) return

@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
+import { isAdminPassword } from '@/lib/admin-auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
-export async function GET() {
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null)
+  const headers = { 'Cache-Control': 'private, no-store' }
+  if (!process.env.ADMIN_PASSWORD || !isAdminPassword(body?.password)) {
+    return NextResponse.json({ error: 'Unlock admin to view email reminders.' }, { status: 401, headers })
+  }
+
   const resendApiKey = process.env.RESEND_API_KEY
   const fromEmail = process.env.REMINDER_FROM_EMAIL
   const cronSecret = process.env.CRON_SECRET
@@ -50,7 +57,7 @@ export async function GET() {
       siteUrl: siteUrl || 'https://orthodle.com',
       cronSecretPresent: Boolean(cronSecret),
       subscribers: subscribers || [],
-    })
+    }, { headers })
   } catch (error) {
     if (error instanceof Error && error.message.includes('Missing Supabase admin environment variables')) {
       return NextResponse.json(

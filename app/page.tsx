@@ -5513,7 +5513,7 @@ function PlayPageContent() {
                       </div>
 
                       {renderSuggestionList(
-                        'absolute inset-x-0 top-[calc(100%+8px)] z-40 max-h-[44vh] overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]'
+                        `${isEmbeddedExample ? 'relative mt-2 max-h-60 overscroll-contain' : 'absolute inset-x-0 top-[calc(100%+8px)] max-h-[44vh]'} z-40 overflow-y-auto rounded-xl border border-[#ded7ca] bg-white shadow-[0_12px_28px_rgba(16,32,24,0.08)]`
                       )}
                     </div>
 

@@ -2276,6 +2276,7 @@ a[class*=" rounded-full"] {
 
 .orthodle-how-to { position: fixed; inset: 0; margin: auto; width: min(520px, calc(100% - 24px)); max-height: 90vh; max-height: 90dvh; padding: 0; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #e7e1d6; border-radius: 24px; background: #fffdf9; color: #102018; box-shadow: 0 24px 80px #10201833; }
 .orthodle-how-to::backdrop { background: #102018a6; backdrop-filter: blur(3px); }
+.orthodle-how-to.daily-email-dialog { width: min(390px, calc(100% - 32px)); }
 .orthodle-how-to .how-to-eyebrow { color: #1f6448; }
 .orthodle-how-to .how-to-muted { color: #596b60; }
 .orthodle-how-to .how-to-icon { background: #edf5ee; color: #1f6448; }

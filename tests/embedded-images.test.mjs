@@ -20,3 +20,8 @@ test('embedded players remeasure on accordion reopening and clean up the frame o
   assert.match(player, /frameObserver.observe\(frame.current\)/)
   assert.match(player, /frameObserver.disconnect\(\)/)
 })
+
+test('diagnosis suggestions reserve space inside an example but still float in the main game', () => {
+  const player = readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
+  assert.match(player, /renderSuggestionList\(\s*`\$\{isEmbeddedExample \? 'relative mt-2 max-h-60 overscroll-contain' : 'absolute [^']+max-h-\[44vh\]'\}[^`]*overflow-y-auto/)
+})

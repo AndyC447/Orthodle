@@ -73,10 +73,16 @@ export default function AdminEmailRemindersPage() {
   async function loadData() {
     setLoading(true)
     try {
-      const response = await fetch('/api/reminders/admin', { cache: 'no-store' })
+      const password = window.sessionStorage.getItem('orthodle_admin_password')
+      const response = await fetch('/api/reminders/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
       const data = await response.json().catch(() => ({}))
 
       if (!response.ok) {
+        setSummary(null)
         setStatusMessage(data.error || 'Could not load reminder data.')
         setLoading(false)
         return
@@ -210,7 +216,7 @@ export default function AdminEmailRemindersPage() {
             <button
               type="button"
               onClick={() => void sendTestReminderEmail()}
-              disabled={sendingTest}
+              disabled={sendingTest || !summary}
               className="rounded-full border border-[#1f6448] bg-[#1f6448] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#174c37] disabled:opacity-60"
             >
               {sendingTest ? 'Sending...' : 'Send test email'}

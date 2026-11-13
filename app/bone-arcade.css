@@ -292,6 +292,13 @@
   box-shadow: none !important;
 }
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.how-to-muted, .how-to-eyebrow) { color: var(--arcade-muted); }
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .daily-email-dialog .orthodle-ui-input {
+  background: var(--arcade-navy);
+  border-color: var(--arcade-line);
+  border-radius: 2px;
+  color: var(--arcade-ink);
+  box-shadow: none;
+}
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(.how-to-icon, .how-to-close) {
   color: var(--arcade-mint);
   background: #193534;

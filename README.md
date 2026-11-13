@@ -48,6 +48,12 @@ Use your `ADMIN_PASSWORD` to add daily cases. You can paste image URLs from Supa
 
 Push to GitHub, then import the repo into Vercel. Add the same env variables in Vercel settings.
 
+## Daily email reminders
+
+Players can opt in under **Daily email** in the top-right menu and unsubscribe from any reminder. Manage subscriptions and send yourself a test from **Admin → Email Reminders**.
+
+Set `RESEND_API_KEY`, `REMINDER_FROM_EMAIL` (a verified Resend sender), and a unique random `CRON_SECRET` in Vercel's production environment, in addition to the Supabase service role key and `NEXT_PUBLIC_SITE_URL`. The existing schedule in `vercel.json` runs once per day at 13:30 UTC. Vercel supplies the secret to the sending route. Signup is unavailable if the sending settings are missing.
+
 ## Notes
 
 This template does not include user login. It tracks anonymous session IDs in localStorage.

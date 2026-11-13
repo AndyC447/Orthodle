@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { buildReminderEmail } from '@/lib/reminder-email'
+import { loadDailyReminderCategory } from '@/lib/reminder-case'
 import {
   getDatePartsForTimezone,
   getPacificDateParts,
@@ -22,46 +23,11 @@ type ReminderRow = {
   timezone: string | null
 }
 
-type ReminderPreviewCase = {
-  label: string
-  title: string
-}
-
-const SURGICAL_ANATOMY_LAUNCH_DATE = '2026-05-14'
-
-function getPreviewLabel(level: 'med_student' | 'resident' | 'attending', caseDate: string) {
-  if (level === 'med_student') return 'Daily Case'
-  if (level === 'resident') return 'Resident'
-  return caseDate >= SURGICAL_ANATOMY_LAUNCH_DATE ? 'Anatomy Quiz' : 'Attending'
-}
-
-async function loadReminderPreviewCases() {
-  const supabaseAdmin = getSupabaseAdmin()
-  const today = getPacificDateParts().isoDate
-  const { data, error } = await supabaseAdmin
-    .from('cases')
-    .select('level, case_date, category')
-    .eq('case_date', today)
-    .order('level', { ascending: true })
-
-  if (error || !data) return [] as ReminderPreviewCase[]
-
-  const order = { med_student: 0, resident: 1, attending: 2 } as const
-
-  return [...data]
-    .sort((a, b) => order[a.level as keyof typeof order] - order[b.level as keyof typeof order])
-    .map(item => ({
-      label: getPreviewLabel(item.level as 'med_student' | 'resident' | 'attending', item.case_date),
-      title: item.category?.trim() || 'Case ready',
-    }))
-}
-
 export async function GET(request: Request) {
   const authHeader = request.headers.get('authorization')
-  const cronHeader = request.headers.get('x-vercel-cron')
   const secret = process.env.CRON_SECRET
 
-  if (!cronHeader && (!secret || authHeader !== `Bearer ${secret}`)) {
+  if (!secret || authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -78,7 +44,6 @@ export async function GET(request: Request) {
 
   const supabaseAdmin = getSupabaseAdmin()
   const { isoDate: today, minutesIntoDay } = getPacificDateParts()
-  const previewCases = await loadReminderPreviewCases()
 
   const { data, error } = await supabaseAdmin
     .from('email_reminders')
@@ -105,16 +70,18 @@ export async function GET(request: Request) {
   )
 
   let sent = 0
+  const category = dueReminders.length ? await loadDailyReminderCategory(today) : null
 
   for (const reminder of dueReminders) {
     const unsubscribeUrl = `${siteUrl}/api/reminders/unsubscribe?token=${reminder.unsubscribe_token}`
-    const content = buildReminderEmail(siteUrl, unsubscribeUrl, previewCases)
+    const content = buildReminderEmail(siteUrl, unsubscribeUrl, category)
 
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json',
+        'Idempotency-Key': `daily-reminder/${today}/${reminder.id}`,
       },
       body: JSON.stringify({
         from: fromEmail,

@@ -3,14 +3,17 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, Moon, Sun } from 'lucide-react'
+import { Mail, Menu, Moon, Sun } from 'lucide-react'
 import { ArcadeModeToggle } from '@/components/ArcadeModeToggle'
+import { DailyEmailDialog } from '@/components/DailyEmailDialog'
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [dailyEmailOpen, setDailyEmailOpen] = useState(false)
+  const menuButtonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const [theme, setTheme] = useState<'light' | 'dark'>('light')
-  const closeTimerRef = useRef<number | null>(null)
 
   const pathname = usePathname()
   const THEME_STORAGE_KEY = 'orthodle_theme'
@@ -47,25 +50,25 @@ export function Header() {
     window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme)
   }
 
-  function openMenu() {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current)
-      closeTimerRef.current = null
+  useEffect(() => {
+    if (!menuOpen) return
+    function dismissOnOutsidePress(event: PointerEvent) {
+      if (event.target instanceof Node && !menuRef.current?.contains(event.target)) {
+        setMenuOpen(false)
+      }
     }
-
-    setMenuOpen(true)
-  }
-
-  function scheduleCloseMenu() {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current)
-    }
-
-    closeTimerRef.current = window.setTimeout(() => {
+    function dismissOnEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
       setMenuOpen(false)
-      closeTimerRef.current = null
-    }, 180)
-  }
+      menuButtonRef.current?.focus({ preventScroll: true })
+    }
+    document.addEventListener('pointerdown', dismissOnOutsidePress)
+    document.addEventListener('keydown', dismissOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', dismissOnOutsidePress)
+      document.removeEventListener('keydown', dismissOnEscape)
+    }
+  }, [menuOpen])
 
   function handleHomeClick() {
     if (typeof window === 'undefined') return
@@ -96,11 +99,11 @@ export function Header() {
         <div className="flex items-center gap-2">
 
           <div
+            ref={menuRef}
             className="relative -m-2 p-2"
-            onMouseEnter={openMenu}
-            onMouseLeave={scheduleCloseMenu}
           >
           <button
+            ref={menuButtonRef}
             type="button"
             aria-expanded={menuOpen}
             aria-label="Open navigation menu"
@@ -117,7 +120,7 @@ export function Header() {
 
           {menuOpen && (
             <div
-              className={`orthodle-ui-panel fixed left-4 right-4 top-[66px] z-50 overflow-hidden sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:min-w-[170px] ${
+              className={`orthodle-ui-panel fixed left-4 right-4 top-[66px] z-50 max-h-[calc(100dvh-80px)] overflow-y-auto overscroll-contain sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+8px)] sm:min-w-[170px] ${
                 theme === 'dark'
                   ? 'border-[#33453c] bg-[#18241f]'
                   : 'border-[#e7e1d6] bg-white'
@@ -171,6 +174,25 @@ export function Header() {
                   Archive
                 </Link>
 
+                {!pathname.startsWith('/admin') && (
+                  <button
+                    type="button"
+                    aria-haspopup="dialog"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setDailyEmailOpen(true)
+                    }}
+                    className={`orthodle-ui-menu-item text-left ${
+                      theme === 'dark'
+                        ? 'text-[#f4efe6] hover:bg-[#213129]'
+                        : 'text-[#102018] hover:bg-[#fbfaf7]'
+                    }`}
+                  >
+                    <span>Daily email</span>
+                    <Mail size={15} aria-hidden="true" />
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -203,6 +225,13 @@ export function Header() {
         </div>
         </div>
       </div>
+      {dailyEmailOpen && (
+        <DailyEmailDialog
+          sourcePath={pathname}
+          returnFocusRef={menuButtonRef}
+          onDismiss={() => setDailyEmailOpen(false)}
+        />
+      )}
     </header>
   )
 }
