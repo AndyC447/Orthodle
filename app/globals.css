@@ -123,6 +123,36 @@ textarea::placeholder {
   color: color-mix(in srgb, var(--muted) 84%, white 16%);
 }
 
+.orthodle-guess-history-label {
+  color: var(--muted);
+}
+
+.orthodle-guess-history-item {
+  border-radius: var(--guess-history-radius, 6px);
+  background: color-mix(in srgb, var(--line) 33%, transparent);
+  color: var(--ink);
+}
+
+.orthodle-guess-history-item svg {
+  color: var(--muted);
+}
+
+.orthodle-guess-history-item[data-status="incorrect"] svg {
+  color: var(--guess-miss, #a34e31);
+}
+
+.orthodle-guess-history-item[data-status="correct"] {
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.orthodle-guess-history-item[data-status="correct"] svg {
+  color: var(--green);
+}
+
+:root[data-theme="dark"] .orthodle-guess-history {
+  --guess-miss: #eda58a;
+}
+
 ::selection {
   background: rgba(201, 107, 55, 0.18);
 }

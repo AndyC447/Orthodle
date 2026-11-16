@@ -24,6 +24,7 @@ import {
 } from '@/lib/anatomy-quiz'
 import { Header } from '@/components/Header'
 import { ClueProgress } from '@/components/ClueProgress'
+import { GuessHistory } from '@/components/GuessHistory'
 import { StreakRewards } from '@/components/StreakRewards'
 import { prepareSoundEffects, playSoundEffect } from '@/lib/sound-effects'
 import { getDiagnosisAutocompleteLabels } from '@/lib/diagnosis-autocomplete'
@@ -5159,6 +5160,9 @@ function PlayPageContent() {
                     : ''
                 } ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-2.5' : 'mt-2.5'}`}
               >
+                {dailyCase && (
+                  <GuessHistory guesses={guesses} quizChoices={isSurgicalAnatomyMode ? surgicalAnatomyChoices : undefined} />
+                )}
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>
                     {isAdminPreview && dailyCase && (

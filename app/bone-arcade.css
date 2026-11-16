@@ -148,6 +148,11 @@
   flex-shrink: 0;
 }
 
+:root[data-arcade="on"] .bone-arcade[data-arcade-surface] .orthodle-guess-history {
+  --guess-history-radius: 2px;
+  --guess-miss: var(--arcade-yellow);
+}
+
 :root[data-arcade="on"] .bone-arcade[data-arcade-surface] :is(header) {
   background: repeating-linear-gradient(0deg, transparent 0 3px, #5ce5cb06 3px 4px), var(--arcade-navy) !important;
   border-color: var(--arcade-line) !important;
