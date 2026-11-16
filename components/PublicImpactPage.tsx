@@ -43,7 +43,7 @@ function readCachedTopCities() {
 
 export function PublicImpactPage({ adminMode = false, initialExamples = null }: { adminMode?: boolean; initialExamples?: ExampleSnapshot | null }) {
   const isPreview = useSectionPreview()
-  const { metrics: loadedMetrics, loading, error: statsError } = useImpactStats()
+  const { metrics: loadedMetrics, loading, error: statsError } = useImpactStats(!isPreview)
   const metrics = loadedMetrics || EMPTY_IMPACT_STATS
   const [cachedTopCities, setCachedTopCities] = useState<string[]>([])
   const [aboutText, setAboutText] = useState(DEFAULT_ABOUT_TEXT)

@@ -48,6 +48,12 @@ Use your `ADMIN_PASSWORD` to add daily cases. You can paste image URLs from Supa
 
 Push to GitHub, then import the repo into Vercel. Add the same env variables in Vercel settings.
 
+## Bandwidth-efficient stats
+
+Before deploying the aggregate stats routes, run [supabase-stats-egress.sql](supabase-stats-egress.sql) once in the Supabase SQL Editor, after the base schema and the accounts migration. The migration adds read-only summary functions and indexes; it does not rewrite any cases, visits, guesses or subscriptions. The functions are restricted to the server's Supabase service role.
+
+The ERAS and admin audience counters share a twice-daily summary. The first request in each 12-hour window (starting at 00:00 and 12:00 UTC) refreshes it; no cron job is needed. Streak badges look up only the current player's solved days, while the top ten refreshes on its own schedule. Verify ERAS and Admin → Top streaks after deploying. To evaluate a return to the Free plan, compare daily uncached egress in Supabase Usage across several representative days; the 5 GB monthly limit works out to roughly 160 MB/day in a 31-day month.
+
 ## Daily email reminders
 
 Players can opt in under **Daily email** in the top-right menu and unsubscribe from any reminder. Manage subscriptions and send yourself a test from **Admin → Email Reminders**.

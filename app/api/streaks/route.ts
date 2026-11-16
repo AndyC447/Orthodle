@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getStreakData } from '@/lib/streak-data'
-import { personalStreakRewards } from '@/lib/streak-rewards'
+import { getPlayerStreakData } from '@/lib/streak-data'
 import { getStreakThankYou } from '@/lib/streak-thank-you'
 
 export async function POST(request: Request) {
@@ -12,9 +11,9 @@ export async function POST(request: Request) {
   const sessionId = body.sessionId.trim()
   const thankYou = getStreakThankYou(sessionId)
   try {
-    const result = await getStreakData()
+    const rewards = await getPlayerStreakData(sessionId)
     return NextResponse.json({
-      ...personalStreakRewards(result.leaders, sessionId),
+      ...rewards,
       ...(thankYou ? { thankYou } : {}),
     }, { headers })
   } catch {

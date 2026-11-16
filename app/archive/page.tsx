@@ -8,10 +8,9 @@ import { Header } from '@/components/Header'
 import { PublicFooter } from '@/components/PublicFooter'
 import { SectionNavigation, SectionSwipeContent } from '@/components/SectionNavigation'
 import { useSectionPreview } from '@/components/SectionPreviewContext'
-import { isAnatomyQuizCaseRecord, isChoiceQuestionCase } from '@/lib/anatomy-quiz'
+import { loadArchiveCatalog, type ArchiveCase } from '@/lib/archive-catalog'
 import {
   DEFAULT_LEVEL_TITLES,
-  normalizeLevelTitles,
   readCachedLevelTitles,
   writeCachedLevelTitles,
 } from '@/lib/level-display'
@@ -20,25 +19,8 @@ import { getCompletedCaseKeys, getSessionId, todayISO } from '@/lib/utils'
 
 type Level = 'med_student' | 'resident' | 'attending'
 
-type ArchiveCase = {
-  id: string
-  case_date: string
-  level: Level
-  answer: string
-  synonyms: string[] | null
-  category: string | null
-  image_url: string | null
-  clue_1: string | null
-  clue_2: string | null
-  clue_3: string | null
-  clue_4: string | null
-  clue_5: string | null
-  clue_6: string | null
-}
-
 type GuessLite = {
   case_id: string | null
-  session_id: string
   is_correct: boolean
 }
 
@@ -102,84 +84,54 @@ export default function ArchivePage() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     async function loadArchive() {
       try {
-      const [{ data }, { data: guessData }, { data: levelTitleData }, publicationResult] = await Promise.all([
-        (async () => {
-          const data: ArchiveCase[] = []
-          const pageSize = 500
-          for (let offset = 0; ; offset += pageSize) {
-            const result = await supabase
-              .from('cases')
-              .select('id, case_date, level, answer, synonyms, category, image_url, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
-              .gte('case_date', LAUNCH_DATE)
-              .lt('case_date', today)
-              .order('case_date', { ascending: false })
-              .order('id')
-              .range(offset, offset + pageSize - 1)
-            if (result.error) throw result.error
-            data.push(...(result.data || []) as ArchiveCase[])
-            if ((result.data || []).length < pageSize) break
-          }
-          return { data }
-        })(),
-        (async () => {
-          const data: GuessLite[] = []
-          for (let offset = 0; ; offset += 500) {
-            const result = await supabase.from('guesses')
-              .select('case_id, session_id, is_correct')
-              .eq('session_id', sessionId).order('id').range(offset, offset + 499)
-            if (result.error) return { data: [] as GuessLite[] }
-            data.push(...(result.data || []) as GuessLite[])
-            if ((result.data || []).length < 500) break
-          }
-          return { data }
-        })(),
-        supabase
-          .from('level_display_settings')
-          .select('level, title'),
-        supabase.from('play_mode_settings').select('*').eq('id', 'default').maybeSingle(),
-      ])
-
-      const nextCases = ((data || []) as ArchiveCase[]).map(item => ({ ...item, category: normalizeCaseCategory(item.category) }))
-      const nextGuessRows = (guessData || []) as GuessLite[]
-
-      setCases(nextCases)
-      const nextTitles = normalizeLevelTitles(
-        ((levelTitleData || []) as Array<{ level: Level; title: string }>).reduce(
-          (acc, item) => {
-            acc[item.level] = item.title
-            return acc
-          },
-          {} as Partial<Record<Level, string>>
-        )
-      )
-      setLevelTitles(nextTitles)
-      const nextPublication = publicationResult.error ? null : publicationResult.data as ArchivePublicationSettings | null
-      setPublication(nextPublication)
-      archiveSnapshot = { day: today, cases: nextCases, titles: nextTitles, publication: nextPublication }
-      writeCachedLevelTitles(nextTitles)
-      const ownGuesses = new Map<string, GuessLite[]>()
-      for (const row of nextGuessRows) {
-        if (row.session_id !== sessionId || !row.case_id) continue
-        ownGuesses.set(row.case_id, [...(ownGuesses.get(row.case_id) || []), row])
-      }
-      const completedKeysFromServer = new Set(nextCases.filter(item => {
-        const guesses = ownGuesses.get(item.id) || []
-        return guesses.some(row => row.is_correct) || guesses.length >= (isChoiceQuestionCase(item) ? 1 : 6)
-      }).map(item => `${item.case_date}:${item.level}:archive`))
-      if (completedKeysFromServer.size > 0) {
-        setCompletedArchiveKeys(current => new Set([...current, ...completedKeysFromServer]))
-      }
+        const [catalog, guesses] = await Promise.all([
+          loadArchiveCatalog(today),
+          isPreview ? [] : (async () => {
+            const data: GuessLite[] = []
+            for (let offset = 0; ; offset += 500) {
+              const result = await supabase.from('guesses')
+                .select('case_id, is_correct')
+                .eq('session_id', sessionId).order('id').range(offset, offset + 499)
+              if (result.error) return []
+              data.push(...(result.data || []) as GuessLite[])
+              if ((result.data || []).length < 500) break
+            }
+            return data
+          })(),
+        ])
+        if (cancelled) return
+        const nextCases = catalog.cases.filter(item => item.case_date < today)
+        setCases(nextCases)
+        setLevelTitles(catalog.titles)
+        setPublication(catalog.publication)
+        archiveSnapshot = { ...catalog, day: today, cases: nextCases }
+        writeCachedLevelTitles(catalog.titles)
+        const ownGuesses = new Map<string, { count: number; solved: boolean }>()
+        for (const row of guesses) {
+          if (!row.case_id) continue
+          const previous = ownGuesses.get(row.case_id)
+          ownGuesses.set(row.case_id, { count: (previous?.count || 0) + 1, solved: row.is_correct || Boolean(previous?.solved) })
+        }
+        const completedKeysFromServer = nextCases.filter(item => {
+          const progress = ownGuesses.get(item.id)
+          return progress && (progress.solved || progress.count >= (item.isChoice ? 1 : 6))
+        }).map(item => `${item.case_date}:${item.level}:archive`)
+        if (completedKeysFromServer.length) {
+          setCompletedArchiveKeys(current => new Set([...current, ...completedKeysFromServer]))
+        }
       } catch {
-        if (!snapshot) setLoadError('Could not load the full archive. Please reload to try again.')
+        if (!cancelled && !snapshot) setLoadError('Could not load the full archive. Please reload to try again.')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
 
     void loadArchive()
-  }, [sessionId, today])
+    return () => { cancelled = true }
+  }, [isPreview, sessionId, today, snapshot])
 
   const publicCases = useMemo(() => cases.filter(item => isPublicArchiveCase(item, publication, showOlderBonus)), [cases, publication, showOlderBonus])
   const hasOlderBonus = cases.some(item => item.level !== 'med_student' && isPublicArchiveCase(item, publication, true))
@@ -247,7 +199,7 @@ export default function ArchivePage() {
   function formatLevel(level: Level, dateText = today, caseItem: ArchiveCase | null = null) {
     if (level === 'med_student') return levelTitles.med_student
     if (level === 'resident') return levelTitles.resident
-    if (caseItem && !isAnatomyQuizCaseRecord(caseItem)) return 'Attending'
+    if (caseItem && !caseItem.isAnatomy) return 'Attending'
     return isSurgicalAnatomyDate(dateText) ? levelTitles.attending : 'Attending'
   }
 

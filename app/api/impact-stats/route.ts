@@ -1,172 +1,43 @@
 import { NextResponse } from 'next/server'
 import { unstable_cache } from 'next/cache'
-import { supabase } from '@/lib/supabase'
-import { countArchivePlays, calculateAudienceStats } from '@/lib/audience-stats'
-import { filterExcludedSessionRows, getExcludedStatsSessionIds } from '@/lib/stats-exclusions'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { getExcludedStatsSessionIds } from '@/lib/stats-exclusions'
+import { impactRefreshWindow, impactRefreshWindowEnd } from '@/lib/impact-refresh'
 
-type VisitRow = {
-  session_id: string
-  created_at: string
-  geo_country: string | null
-  geo_city: string | null
+async function buildImpactStats() {
+  const excludedIds = await getExcludedStatsSessionIds()
+  const { data, error } = await getSupabaseAdmin().rpc('orthodle_impact_snapshot', {
+    excluded_ids: excludedIds,
+  })
+  if (error || !data) throw new Error(error?.message || 'Missing impact snapshot.')
+  return data
 }
 
-type GuessRow = {
-  case_id: string | null
-  session_id: string
-  created_at: string
-  cases?: { case_date: string | null } | { case_date: string | null }[] | null
-}
+const readSharedSnapshot = unstable_cache(
+  (_windowId: number) => buildImpactStats(),
+  ['impact-stats-twice-daily-v1'],
+  { revalidate: 86_400 }
+)
 
-type ImpactStats = {
-  usersReached: number
-  uniqueUsers: number
-  combinedDailyUsers: number
-  totalGuesses: number
-  archiveGuesses: number
-  countriesReached: number
-  topCities: string[]
-  caseCount: number
-}
-
-const PAGE_SIZE = 1000
-const CACHE_TTL_MS = 60 * 1000
-
-let cachedStats: ImpactStats | null = null
-let cachedAt = 0
-let pendingStats: Promise<ImpactStats> | null = null
-
-function cleanLocationLabel(value: string | null) {
-  if (!value) return ''
-  const trimmed = value.trim()
-  if (!trimmed) return ''
-
-  let decoded = trimmed
-  try {
-    decoded = decodeURIComponent(trimmed.replace(/\+/g, ' '))
-  } catch {
-    decoded = trimmed
-  }
-
-  const normalized = decoded.replace(/\s+/g, ' ').trim()
-
-  if (!normalized || /^(unknown|undefined|null|n\/a|not available)$/i.test(normalized)) {
-    return ''
-  }
-
-  return normalized
-}
-
-async function fetchPaged<T>(table: string, select: string) {
-  const { data, error, count } = await supabase
-    .from(table)
-    .select(select, { count: 'exact' })
-    .order('id')
-    .range(0, PAGE_SIZE - 1)
-  if (error) throw new Error(error.message)
-  if (count === null) throw new Error(`Could not count ${table}`)
-  const rows = [...(data || [])] as T[]
-
-  // Bound concurrency while avoiding a round trip per sequential page.
-  for (let offset = PAGE_SIZE; offset < count; offset += PAGE_SIZE * 4) {
-    const offsets = Array.from({ length: 4 }, (_, index) => offset + index * PAGE_SIZE)
-      .filter(start => start < count)
-    const pages = await Promise.all(offsets.map(async start => {
-      const { data: page, error: pageError } = await supabase
-      .from(table)
-      .select(select)
-      .order('id')
-      .range(start, start + PAGE_SIZE - 1)
-      if (pageError) throw new Error(pageError.message)
-      return (page || []) as T[]
-    }))
-    for (const page of pages) rows.push(...page)
-  }
-
-  return rows
-}
-
-async function fetchCount(table: string) {
-  const { count, error } = await supabase
-    .from(table)
-    .select('*', { count: 'exact', head: true })
-
-  if (error) throw new Error(error.message)
-  return count || 0
-}
-
-async function buildImpactStats(): Promise<ImpactStats> {
-  const [visitRows, guessRows, caseCount, excludedIds] = await Promise.all([
-    fetchPaged<VisitRow>('visits', 'session_id, created_at, geo_country, geo_city'),
-    fetchPaged<GuessRow>('guesses', 'case_id, session_id, created_at, cases(case_date)'),
-    fetchCount('cases'),
-    getExcludedStatsSessionIds(),
-  ])
-
-  const excluded = new Set(excludedIds)
-  const visits = filterExcludedSessionRows(visitRows, excluded)
-  const guesses = filterExcludedSessionRows(guessRows, excluded)
-  const { uniqueUsers, combinedDailyUsers } = calculateAudienceStats([...visits, ...guesses])
-  const countries = new Set<string>()
-  const citySessions = new Map<string, Set<string>>()
-  // Retain the response field for existing clients; it now counts distinct plays.
-  const archiveGuesses = countArchivePlays(guesses)
-
-  for (const visit of visits) {
-    if (visit.geo_country?.trim()) countries.add(visit.geo_country.trim())
-
-    const city = cleanLocationLabel(visit.geo_city)
-    if (city) {
-      if (!citySessions.has(city)) citySessions.set(city, new Set())
-      citySessions.get(city)!.add(visit.session_id)
-    }
-  }
-
-  const topCities = [...citySessions.entries()]
-    .sort(([cityA, sessionsA], [cityB, sessionsB]) => {
-      const sessionDelta = sessionsB.size - sessionsA.size
-      return sessionDelta || cityA.localeCompare(cityB)
-    })
-    .slice(0, 6)
-    .map(([city]) => city)
-
-  return {
-    usersReached: combinedDailyUsers,
-    uniqueUsers,
-    combinedDailyUsers,
-    totalGuesses: guesses.length,
-    archiveGuesses,
-    countriesReached: countries.size,
-    topCities,
-    caseCount,
-  }
-}
-
-const readSharedSnapshot = unstable_cache(buildImpactStats, ['impact-stats-v2'], {
-  revalidate: 60,
-})
+const pending = new Map<number, ReturnType<typeof readSharedSnapshot>>()
 
 export async function GET() {
-  const now = Date.now()
-  const headers = {
-    'Cache-Control': 'no-store',
-  }
-
-  if (cachedStats && now - cachedAt < CACHE_TTL_MS) {
-    return NextResponse.json(cachedStats, { headers })
-  }
-
   try {
-    if (!pendingStats) {
-      pendingStats = readSharedSnapshot().finally(() => { pendingStats = null })
+    const windowId = impactRefreshWindow()
+    let snapshot = pending.get(windowId)
+    if (!snapshot) {
+      snapshot = readSharedSnapshot(windowId).finally(() => { pending.delete(windowId) })
+      pending.set(windowId, snapshot)
     }
-    const stats = await pendingStats
-    cachedStats = stats
-    cachedAt = Date.now()
-    return NextResponse.json(stats, { headers })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Could not load impact stats.'
-    if (cachedStats) return NextResponse.json({ ...cachedStats, stale: true }, { headers })
-    return NextResponse.json({ error: message }, { status: 500 })
+    const stats = await snapshot
+    const secondsLeft = Math.max(0, Math.floor((impactRefreshWindowEnd(windowId) - Date.now()) / 1000))
+    return NextResponse.json(stats, {
+      headers: { 'Cache-Control': `public, max-age=${secondsLeft}, s-maxage=${secondsLeft}` },
+    })
+  } catch {
+    return NextResponse.json({ error: 'Could not load impact stats.' }, {
+      status: 503,
+      headers: { 'Cache-Control': 'no-store' },
+    })
   }
 }

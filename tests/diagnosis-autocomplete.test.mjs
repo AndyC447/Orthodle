@@ -70,12 +70,10 @@ test('shared choices remain deduplicated and a canonical answer used elsewhere s
   assert.deepEqual(shared, ['Stener lesion', 'Thumb UCL Injury', 'Thumb UCL injury'])
 })
 
-test('the player builds shared choices from main answers, merges only the active diagnosis case and invalidates old caches', () => {
+test('the player loads shared choices and merges synonyms only for the active diagnosis case', () => {
   const source = readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
   assert.match(source, /PLAY_BOOTSTRAP_CACHE_KEY = 'orthodle_play_bootstrap_v6'/)
-  const shared = source.slice(source.indexOf('const diagnosisCaseAnswers ='), source.indexOf('const anatomyOnlyAnswerSet ='))
-  assert.match(shared, /\.map\(item => item.answer!\.trim\(\)\)/)
-  assert.doesNotMatch(shared, /flatMap|getDiagnosisAutocompleteLabels/)
+  assert.match(source, /fetch\('\/api\/play-bootstrap'\)/)
   const filter = source.slice(source.indexOf('const filteredAnswerOptions ='), source.indexOf('if (!showSuggestions)', source.indexOf('const filteredAnswerOptions =')))
   assert.match(filter, /dailyCase && !isChoiceQuestionCase\(dailyCase\)/)
   assert.match(filter, /getDiagnosisAutocompleteLabels\(dailyCase.answer, dailyCase.synonyms, answerOptions\)/)

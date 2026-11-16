@@ -99,10 +99,13 @@ test('player and archive completion use the same type detector, not the separate
   const player = readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
   assert.match(player, /const isSurgicalAnatomyMode =\s*isChoiceQuestionCase\(dailyCase\)/)
   assert.match(player, /isChoiceQuestionCase\(data\)/)
-  assert.match(player, /!isChoiceQuestionCase\(item\) && isDiagnosisAutocompleteCaseLevel/)
+  const bootstrap = readFileSync(new URL('../app/api/play-bootstrap/route.ts', import.meta.url), 'utf8')
+  assert.match(bootstrap, /isChoiceQuestionCase\(row\) \|\|/)
   assert.doesNotMatch(player, /visibleTodayLevels\.includes\(item.level\) && \(item.won/)
-  for (const file of ['../components/ArchiveCaseActions.tsx', '../app/archive/page.tsx']) {
-    const text = readFileSync(new URL(file, import.meta.url), 'utf8')
-    assert.match(text, /isChoiceQuestionCase\(item\) \? 1 : 6/)
-  }
+  const archive = readFileSync(new URL('../app/archive/page.tsx', import.meta.url), 'utf8')
+  const catalog = readFileSync(new URL('../app/api/archive-catalog/route.ts', import.meta.url), 'utf8')
+  const nextCase = readFileSync(new URL('../components/ArchiveCaseActions.tsx', import.meta.url), 'utf8')
+  assert.match(archive, /item\.isChoice \? 1 : 6/)
+  assert.match(catalog, /isChoice: isChoiceQuestionCase\(row\)/)
+  assert.match(nextCase, /isChoiceQuestionCase\(item\) \? 1 : 6/)
 })

@@ -13,7 +13,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Check } from 'lucide-react'
 import {
-  getAnatomyChoiceItems,
   isAnatomyQuizCaseRecord,
   isChoiceQuestionCase,
   getCaseQuestionType,
@@ -42,7 +41,7 @@ import {
 } from '@/lib/level-display'
 import { supabase } from '@/lib/supabase'
 
-import { fetchExcludedStatsSessionIds, filterExcludedSessionRows } from '@/lib/stats-exclusions'
+import type { CommunityCaseStats } from '@/lib/community-case-stats'
 import {
   clearStatsSummary,
   getStatsSummary,
@@ -102,34 +101,6 @@ type FallbackCaseResponse = {
 type Guess = {
   text: string
   correct: boolean
-}
-
-type CommunityCaseStats = {
-  solveRate: number | null
-  averageGuessesPerPlayer: number | null
-  averageGuessesToSolve: number | null
-  firstTrySolveRate: number | null
-  mostCommonIncorrectGuess: string | null
-  solvedGuessCounts: number[]
-  anatomyResponseCount: number
-  anatomyChoiceBreakdown: Array<{
-    letter: string
-    label: string
-    count: number
-    rate: number
-    isCorrect: boolean
-  }>
-}
-
-type CommunityVisitRow = {
-  session_id: string
-}
-
-type CommunityGuessRow = {
-  session_id: string
-  is_correct: boolean | null
-  created_at: string
-  guess_text: string | null
 }
 
 type TeachingPointSection = {
@@ -417,80 +388,12 @@ function getBrowserTheme() {
   return 'light'
 }
 
-function buildAnatomyChoiceBreakdown(
-  choiceSource: Array<string | null | undefined>,
-  guessRows: Array<{ session_id: string; guess_text?: string | null }>,
-  answer: string,
-  synonyms: string[] | null | undefined
-) {
-  const choices = getAnatomyChoiceItems(choiceSource)
-
-  if (choices.length < 2) {
-    return {
-      responseCount: 0,
-      breakdown: [] as Array<{
-        letter: string
-        label: string
-        count: number
-        rate: number
-        isCorrect: boolean
-      }>,
-    }
-  }
-
-  const correctLetters = new Set(
-    getCorrectAnatomyChoiceLetters(
-      choiceSource,
-      answer,
-      synonyms
-    )
-  )
-  const firstGuessBySession = new Map<string, string>()
-
-  for (const row of guessRows) {
-    if (!firstGuessBySession.has(row.session_id)) {
-      const guessText = typeof row.guess_text === 'string' ? row.guess_text.trim() : ''
-      firstGuessBySession.set(row.session_id, guessText)
-    }
-  }
-
-  const counts = choices.map(() => 0)
-
-  for (const guessText of firstGuessBySession.values()) {
-    const selectedLetters = parseAnatomyGuessLetters(guessText, choiceSource)
-    if (selectedLetters.length === 0) continue
-    for (const letter of selectedLetters) {
-      const matchIndex = choices.findIndex(choice => choice.letter === letter)
-      if (matchIndex !== -1) {
-        counts[matchIndex] += 1
-      }
-    }
-  }
-
-  return {
-    responseCount: firstGuessBySession.size,
-    breakdown: choices.map((choice, index) => {
-      return {
-        letter: choice.letter,
-        label: choice.label,
-        count: counts[index] || 0,
-        rate: firstGuessBySession.size > 0 ? ((counts[index] || 0) / firstGuessBySession.size) * 100 : 0,
-        isCorrect: correctLetters.has(choice.letter),
-      }
-    }),
-  }
-}
-
 function isPostAnswerImageReveal(revealStep: number | null | undefined) {
   return revealStep === 0
 }
 
 function isSurgicalAnatomyDate(dateText: string) {
   return dateText >= SURGICAL_ANATOMY_LAUNCH_DATE
-}
-
-function isDiagnosisAutocompleteCaseLevel(level: Level, dateText: string) {
-  return level !== 'attending' || !isSurgicalAnatomyDate(dateText)
 }
 
 function canUseSurgicalAnatomyQuiz(dateText: string) {
@@ -889,71 +792,16 @@ function PlayPageContent() {
         return
       }
 
-      const [{ data: caseAnswers }, { data: customChoices }, { data: taglineRows }, { data: titleRows }] = await Promise.all([
-        supabase
-          .from('cases')
-          .select('answer, level, case_date, synonyms, clue_1, clue_2, clue_3, clue_4, clue_5, clue_6')
-          .range(0, 1999),
-        supabase
-          .from('diagnosis_choices')
-          .select('label')
-          .order('label', { ascending: true }),
-        supabase
-          .from('difficulty_taglines')
-          .select('level, text, position, updated_at, id')
-          .order('updated_at', { ascending: false })
-          .order('id', { ascending: false }),
-        supabase
-          .from('level_display_settings')
-          .select('level, title'),
-      ])
+      let bootstrap: { answerOptions: string[]; taglineByLevel: Record<string, string>; titleByLevel: Record<string, string> } | null = null
+      try {
+        const response = await fetch('/api/play-bootstrap')
+        if (response.ok) bootstrap = await response.json()
+      } catch { /* The built-in bank and this case's answers still work. */ }
       if (cancelled) return
 
       const hiddenAnswers = readHiddenDiagnosisAnswers()
-      const allCaseAnswerRows =
-        ((caseAnswers || []) as Array<{ answer: string | null; level: Level; case_date: string | null; synonyms: string[] | null }>).filter(
-          item => Boolean(item.answer?.trim() && item.level && item.case_date)
-        )
-
-      const diagnosisCaseAnswers = allCaseAnswerRows
-        .filter(item => !isChoiceQuestionCase(item) && isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
-        .map(item => item.answer!.trim())
-
-      const anatomyOnlyAnswerSet = new Set(
-        allCaseAnswerRows
-          .filter(item => isChoiceQuestionCase(item) || !isDiagnosisAutocompleteCaseLevel(item.level, item.case_date || ''))
-          .map(item => normalizeAnswer(item.answer || ''))
-          .filter(Boolean)
-      )
-
-      const diagnosisAnswerSet = new Set(
-        diagnosisCaseAnswers.map(answer => normalizeAnswer(answer)).filter(Boolean)
-      )
-
-      const builtInAnswerSet = new Set(
-        ORTHO_DIAGNOSIS_BANK.map(answer => normalizeAnswer(answer)).filter(Boolean)
-      )
-
-      const filteredCustomChoices = ((customChoices || []).map(item => item.label?.trim()).filter(Boolean) as string[])
-        .filter(choice => {
-          const normalizedChoice = normalizeAnswer(choice)
-          if (!normalizedChoice) return false
-          if (!anatomyOnlyAnswerSet.has(normalizedChoice)) return true
-          return diagnosisAnswerSet.has(normalizedChoice) || builtInAnswerSet.has(normalizedChoice)
-        })
-
-      const uniqueAnswers = Array.from(
-        new Map(
-          [
-            ...ORTHO_DIAGNOSIS_BANK,
-            ...diagnosisCaseAnswers,
-            ...filteredCustomChoices,
-          ]
-            .filter(Boolean)
-            .filter(answer => !hiddenAnswers.has(normalizeAnswer(answer as string)))
-            .map(answer => [normalizeAnswer(answer as string), answer as string])
-        ).values()
-      ).sort((a, b) => a.localeCompare(b))
+      const uniqueAnswers = (bootstrap?.answerOptions || [...ORTHO_DIAGNOSIS_BANK])
+        .filter(answer => !hiddenAnswers.has(normalizeAnswer(answer)))
 
       setAnswerOptions(uniqueAnswers)
 
@@ -963,45 +811,26 @@ function PlayPageContent() {
         attending: [],
       }
 
-      if (taglineRows && taglineRows.length > 0) {
+      if (bootstrap) {
         for (const level of ['med_student', 'resident', 'attending'] as const) {
-          const firstRow = (taglineRows as Array<{ level: Level; text: string | null }>).find(
-            row => row.level === level
-          )
-          if (firstRow) {
-            const trimmedText = (firstRow.text || '').trim().toUpperCase()
-            nextTaglines[level] = trimmedText ? [trimmedText] : ['']
-          }
+          const text = bootstrap.taglineByLevel[level]
+          if (text !== undefined) nextTaglines[level] = [text]
         }
       }
 
-      const resolvedTaglines = nextTaglines
+      const resolvedTitles = normalizeLevelTitles(bootstrap?.titleByLevel || {})
 
-      const resolvedTitles = normalizeLevelTitles(
-        (titleRows || []).reduce(
-          (acc, row) => ({
-            ...acc,
-            [row.level]: row.title,
-          }),
-          {} as Partial<Record<Level, string>>
-        )
-      )
-
-      const groupsTitleRow = (titleRows || []).find(row => row.level === 'groups' && row.title?.trim())
-      const groupsTaglineRow = (taglineRows || []).find(row => row.level === 'groups')
-      const resolvedGroupsTitle = groupsTitleRow?.title?.trim() || 'Groups'
-      const resolvedGroupsSubtitle = (groupsTaglineRow?.text || '').trim().toUpperCase()
-
-      setLevelTaglines(resolvedTaglines)
+      setLevelTaglines(nextTaglines)
       setLevelTitles(resolvedTitles)
       setPlayBootstrapReady(true)
+      if (!bootstrap) return
       writeCachedLevelTitles(resolvedTitles)
       writePlayBootstrapCache({
         answerOptions: uniqueAnswers,
-        levelTaglines: resolvedTaglines,
+        levelTaglines: nextTaglines,
         levelTitles: resolvedTitles,
-        groupsTitle: resolvedGroupsTitle,
-        groupsSubtitle: resolvedGroupsSubtitle,
+        groupsTitle: bootstrap.titleByLevel.groups?.trim() || 'Groups',
+        groupsSubtitle: bootstrap.taglineByLevel.groups || '',
       })
     }
 
@@ -1071,134 +900,6 @@ function PlayPageContent() {
       cancelled = true
     }
   }, [today])
-
-  function buildCommunityStats(
-    caseItem: Case,
-    visitRows: CommunityVisitRow[] | null | undefined,
-    guessRows: CommunityGuessRow[] | null | undefined,
-    excludedSessionIds: string[]
-  ): CommunityCaseStats {
-    const excludedSessionIdSet = new Set(excludedSessionIds)
-    const publicVisitRows = filterExcludedSessionRows(visitRows, excludedSessionIdSet)
-    const publicGuessRows = filterExcludedSessionRows(guessRows, excludedSessionIdSet)
-
-    const players = new Set<string>([
-      ...publicVisitRows.map(item => item.session_id),
-      ...publicGuessRows.map(item => item.session_id),
-    ])
-
-    const guessesBySession = new Map<
-      string,
-      Array<{ is_correct: boolean; created_at: string }>
-    >()
-
-    for (const guessRow of publicGuessRows) {
-      const existing = guessesBySession.get(guessRow.session_id)
-      const item = {
-        is_correct: Boolean(guessRow.is_correct),
-        created_at: guessRow.created_at,
-      }
-
-      if (existing) {
-        existing.push(item)
-      } else {
-        guessesBySession.set(guessRow.session_id, [item])
-      }
-    }
-
-    let solvedPlayers = 0
-    let firstTrySolves = 0
-    let totalGuessesBeforeSolve = 0
-    const solvedGuessCounts: number[] = []
-    const incorrectGuessCounts = new Map<string, { label: string; count: number }>()
-    const acceptedGuesses = [caseItem.answer, ...(caseItem.synonyms || [])]
-
-    for (const sessionGuesses of guessesBySession.values()) {
-      const solvedIndex = sessionGuesses.findIndex(item => item.is_correct)
-      if (solvedIndex === -1) continue
-
-      solvedPlayers += 1
-      totalGuessesBeforeSolve += solvedIndex + 1
-      solvedGuessCounts.push(solvedIndex + 1)
-
-      if (solvedIndex === 0) {
-        firstTrySolves += 1
-      }
-    }
-
-    for (const guessRow of publicGuessRows) {
-      if (guessRow.is_correct) continue
-
-      const normalizedGuess = guessRow.guess_text?.trim().toLowerCase()
-      const rawGuess = guessRow.guess_text?.trim()
-
-      if (!normalizedGuess || !rawGuess) continue
-      if (isAcceptedGuess(rawGuess, acceptedGuesses)) continue
-
-      const existing = incorrectGuessCounts.get(normalizedGuess)
-      if (existing) {
-        existing.count += 1
-      } else {
-        incorrectGuessCounts.set(normalizedGuess, { label: rawGuess, count: 1 })
-      }
-    }
-
-    const mostCommonIncorrectGuess =
-      incorrectGuessCounts.size > 0
-        ? [...incorrectGuessCounts.values()].sort((a, b) => {
-            if (b.count !== a.count) return b.count - a.count
-            return a.label.localeCompare(b.label)
-          })[0].label
-        : null
-
-    const anatomyChoiceStats =
-      isChoiceQuestionCase(caseItem)
-        ? buildAnatomyChoiceBreakdown(
-            [caseItem.clue_1, caseItem.clue_2, caseItem.clue_3, caseItem.clue_4, caseItem.clue_5, caseItem.clue_6],
-            publicGuessRows,
-            caseItem.answer,
-            caseItem.synonyms || []
-          )
-        : { responseCount: 0, breakdown: [] }
-
-    return {
-      solveRate: players.size > 0 ? (solvedPlayers / players.size) * 100 : null,
-      averageGuessesPerPlayer:
-        players.size > 0 ? publicGuessRows.length / players.size : null,
-      averageGuessesToSolve:
-        solvedPlayers > 0 ? totalGuessesBeforeSolve / solvedPlayers : null,
-      firstTrySolveRate:
-        solvedPlayers > 0 ? (firstTrySolves / solvedPlayers) * 100 : null,
-      mostCommonIncorrectGuess,
-      solvedGuessCounts,
-      anatomyResponseCount: anatomyChoiceStats.responseCount,
-      anatomyChoiceBreakdown: anatomyChoiceStats.breakdown,
-    }
-  }
-
-  async function refreshCommunityStats(caseItem: Case) {
-    const [excludedSessionIds, { data: visitRows }, { data: guessRows }] = await Promise.all([
-      fetchExcludedStatsSessionIds(),
-      supabase
-        .from('visits')
-        .select('session_id')
-        .eq('path', `/${caseItem.level}/${caseItem.case_date}`),
-      supabase
-        .from('guesses')
-        .select('session_id, is_correct, created_at, guess_text')
-        .eq('case_id', caseItem.id)
-        .order('created_at', { ascending: true }),
-    ])
-
-    setCommunityStats(
-      buildCommunityStats(
-        caseItem,
-        (visitRows as CommunityVisitRow[] | null | undefined) || [],
-        (guessRows as CommunityGuessRow[] | null | undefined) || [],
-        excludedSessionIds
-      )
-    )
-  }
 
   useEffect(() => {
     let cancelled = false
@@ -1342,24 +1043,21 @@ function PlayPageContent() {
           return
         }
 
-        const [excludedSessionIds, { data: visitRows }, { data: guessRows }] = await Promise.all([
-          fetchExcludedStatsSessionIds(),
-          supabase.from('visits').select('session_id').eq('path', `/${data.level}/${data.case_date}`),
-          supabase
-            .from('guesses')
-            .select('session_id, is_correct, created_at, guess_text')
-            .eq('case_id', data.id)
-            .order('created_at', { ascending: true }),
-        ])
+        const { data: viewerGuessRows } = isArchiveCase ? { data: [] } : await supabase
+          .from('guesses')
+          .select('is_correct, guess_text')
+          .eq('case_id', data.id)
+          .eq('session_id', sessionId)
+          .order('created_at', { ascending: true })
+          .order('id')
 
         if (cancelled) return
 
-        const viewerGuessRows = (guessRows || []).filter(row => row.session_id === sessionId)
-        const serverGuesses = viewerGuessRows.map(row => ({
+        const serverGuesses = (viewerGuessRows || []).map(row => ({
           text: row.guess_text || '',
           correct: Boolean(row.is_correct),
         }))
-        const solvedIndex = viewerGuessRows.findIndex(row => Boolean(row.is_correct))
+        const solvedIndex = serverGuesses.findIndex(row => row.correct)
         const archiveStartsFresh = isArchiveCase
         const serverProgressAvailable = !archiveStartsFresh && serverGuesses.length > 0
         const shouldUseSavedProgress =
@@ -1427,14 +1125,6 @@ function PlayPageContent() {
           setPendingResumeKey(null)
         }
 
-        setCommunityStats(
-          buildCommunityStats(
-            data,
-            (visitRows as CommunityVisitRow[] | null | undefined) || [],
-            (guessRows as CommunityGuessRow[] | null | undefined) || [],
-            excludedSessionIds
-          )
-        )
       } catch {
         if (cancelled) return
 
@@ -1527,6 +1217,22 @@ function PlayPageContent() {
   )
 
   const roundComplete = gameWon || gameOver
+  const statsCaseId = roundComplete && !isAdminPreview && !isEmbeddedExample ? dailyCase?.id : undefined
+
+  useEffect(() => {
+    if (!statsCaseId) return
+    const controller = new AbortController()
+    async function loadCaseStats() {
+      try {
+        const response = await fetch(`/api/community-case-stats?id=${statsCaseId}`, { signal: controller.signal })
+        if (!response.ok) return
+        const stats = await response.json() as CommunityCaseStats
+        if (!controller.signal.aborted) setCommunityStats(stats)
+      } catch { /* Results and teaching points are available without community stats. */ }
+    }
+    void loadCaseStats()
+    return () => controller.abort()
+  }, [statsCaseId])
 
   useEffect(() => {
     if (roundComplete) guessInputRef.current?.blur()
@@ -3172,9 +2878,6 @@ function PlayPageContent() {
           message: nextMessage,
       })
       }
-      if (!isAdminPreview && !isEmbeddedExample) {
-        void refreshCommunityStats(dailyCase)
-      }
       triggerSuccessPulse()
       return
     }
@@ -3214,9 +2917,6 @@ function PlayPageContent() {
         gameOver: false,
         message: nextMessage,
       })
-    }
-    if (!isAdminPreview && !isEmbeddedExample) {
-      void refreshCommunityStats(dailyCase)
     }
     refocusGuessInput()
   }
@@ -4997,7 +4697,7 @@ function PlayPageContent() {
         )}
 
         {onTodayCard && (
-          <StreakRewards summary={statsSummary} revision={`${dailyCase?.id}:${gameWon}:${statsSummary.longestStreak}`} disabled={isAdminPreview || isEmbeddedExample} deferThankYou={showTutorial || imageExpanded} />
+          <StreakRewards summary={statsSummary} revision={gameWon && dailyCase ? dailyCase.id : ''} disabled={isAdminPreview || isEmbeddedExample} deferThankYou={showTutorial || imageExpanded} />
         )}
 
         {showHomepageAnnouncement && homepageAnnouncement && (

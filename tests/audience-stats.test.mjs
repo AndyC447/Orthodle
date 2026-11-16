@@ -4,12 +4,12 @@ import test from 'node:test'
 import vm from 'node:vm'
 import ts from 'typescript'
 
-function load(file, require = () => { throw new Error('Unexpected import') }) {
+function load(file, require = () => { throw new Error('Unexpected import') }, clock = Date) {
   const exports = {}
   const compiled = ts.transpileModule(readFileSync(new URL(file, import.meta.url), 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
   }).outputText
-  vm.runInNewContext(compiled, { exports, require, Intl, Date })
+  vm.runInNewContext(compiled, { exports, require, Intl, Date: clock })
   return exports
 }
 const audience = load('../lib/audience-stats.ts')
@@ -56,56 +56,72 @@ test('excluded accounts and invalid records do not inflate either count', () => 
   assert.equal(audience.calculateAudienceStats([]).combinedDailyUsers, 0)
 })
 
-test('public snapshot includes all pages and applies the same exclusions as admin', async () => {
-  const visits = Array.from({ length: 1002 }, (_, i) => ({
-    ...row(`user-${i}`, '2026-10-01T15:00:00Z'), geo_country: 'US', geo_city: 'Los Angeles',
-  }))
-  const guesses = [
-    {...row('user-1', '2026-10-02T15:00:00Z'), cases: { case_date: '2026-09-30' }},
-    {...row('user-1', '2026-10-02T16:00:00Z'), cases: { case_date: '2026-09-30' }},
-  ]
-  const pages = []
-  const supabase = {
-    from(table) {
-      return {
-        select(_fields, options) {
-          if (options?.head) return Promise.resolve({ count: 250, error: null })
-          return {
-            order(column) {
-              assert.equal(column, 'id')
-              return { async range(from, to) {
-                pages.push([table, from, to])
-                const rows = table === 'visits' ? visits : guesses
-                return { data: rows.slice(from, to + 1), count: rows.length, error: null }
-              } }
-            },
-          }
-        },
+function impactRoute(rpc, now = Date.now) {
+  const clock = { now }
+  const windows = load('../lib/impact-refresh.ts', undefined, clock)
+  const shared = new Map()
+  return load('../app/api/impact-stats/route.ts', name => ({
+    'next/cache': { unstable_cache: (fn, _key, options) => {
+      assert.ok(options.revalidate >= 12 * 60 * 60)
+      return windowId => {
+        if (!shared.has(windowId)) {
+          shared.set(windowId, fn(windowId).catch(error => {
+            shared.delete(windowId)
+            throw error
+          }))
+        }
+        return shared.get(windowId)
       }
-    },
-  }
-  const route = load('../app/api/impact-stats/route.ts', name => ({
-    'next/cache': { unstable_cache: fn => fn },
+    } },
     'next/server': { NextResponse: { json: (body, options) => ({ body, options }) } },
-    '@/lib/supabase': { supabase },
-    '@/lib/audience-stats': audience,
-    '@/lib/stats-exclusions': {
-      getExcludedStatsSessionIds: async () => ['user-0'],
-      filterExcludedSessionRows: (rows, excluded) => rows.filter(row => !excluded.has(row.session_id)),
-    },
-  }[name]))
-  const result = await route.GET()
-  assert.equal(result.body.uniqueUsers, 1001)
-  assert.equal(result.body.combinedDailyUsers, 1002)
-  assert.equal(result.body.usersReached, result.body.combinedDailyUsers)
-  assert.equal(result.options.headers['Cache-Control'], 'no-store')
-  assert.ok(pages.some(([table, from]) => table === 'visits' && from === 1000))
-  const requests = pages.length
-  const cached = await route.GET()
-  assert.equal(cached.body.combinedDailyUsers, result.body.combinedDailyUsers)
-  assert.equal(pages.length, requests)
+    '@/lib/supabase-admin': { getSupabaseAdmin: () => ({ rpc, from: () => assert.fail('Unexpected raw table access') }) },
+    '@/lib/stats-exclusions': { getExcludedStatsSessionIds: async () => ['user-0'] },
+    '@/lib/impact-refresh': windows,
+  }[name]), clock)
+}
+
+test('the public snapshot shares one aggregate request and applies exclusions', async () => {
+  let reads = 0
+  const summary = { uniqueUsers: 1001, combinedDailyUsers: 1002, usersReached: 1002 }
+  const route = impactRoute(async (name, args) => {
+    reads++
+    assert.equal(name, 'orthodle_impact_snapshot')
+    assert.deepEqual(args.excluded_ids, ['user-0'])
+    return { data: summary }
+  })
+  const results = await Promise.all([route.GET(), route.GET(), route.GET()])
+  assert.equal(reads, 1)
+  for (const result of results) {
+    assert.equal(result.body, summary)
+    assert.match(result.options.headers['Cache-Control'], /^public,/)
+  }
 })
 
+test('an unavailable aggregate never falls back to downloading raw rows', async () => {
+  const route = impactRoute(async () => ({ error: { code: 'PGRST202' } }))
+  const result = await route.GET()
+  assert.equal(result.options.status, 503)
+  assert.equal(result.options.headers['Cache-Control'], 'no-store')
+})
+
+test('ERAS computes once per half-day and browser caches expire at the next refresh window', async () => {
+  let now = Date.parse('2026-11-14T00:01:00Z')
+  let reads = 0
+  const route = impactRoute(async () => ({ data: { totalGuesses: ++reads } }), () => now)
+  const first = await route.GET()
+  assert.equal(first.body.totalGuesses, 1)
+  assert.equal(first.options.headers['Cache-Control'], 'public, max-age=43140, s-maxage=43140')
+  now = Date.parse('2026-11-14T11:59:30Z')
+  const endOfWindow = await route.GET()
+  assert.equal(endOfWindow.body.totalGuesses, 1)
+  assert.equal(endOfWindow.options.headers['Cache-Control'], 'public, max-age=30, s-maxage=30')
+  now = Date.parse('2026-11-14T12:00:00Z')
+  assert.equal((await route.GET()).body.totalGuesses, 2)
+  now = Date.parse('2026-11-14T23:59:59Z')
+  assert.equal((await route.GET()).body.totalGuesses, 2)
+  now = Date.parse('2026-11-15T00:00:00Z')
+  assert.equal((await route.GET()).body.totalGuesses, 3)
+})
 test('archive plays use the submission day and deduplicate browser/case pairs', () => {
   const guess = (session_id, case_id, case_date, created_at) => ({ session_id, case_id, cases: { case_date }, created_at })
   const daily = guess('a', 'one', '2026-05-01', '2026-05-01T18:00:00Z')

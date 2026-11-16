@@ -42,8 +42,10 @@ test('public reward endpoint validates the player before loading and exposes onl
   let reads = 0
   const route = load('../app/api/streaks/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), init) } },
-    '@/lib/streak-data': { getStreakData: async () => { reads++; return { leaders: [{ sessionId: 'player', name: 'Private', longest: 20, current: 5 }], trackedPlayers: 1 } } },
-    '@/lib/streak-rewards': rewards,
+    '@/lib/streak-data': { getPlayerStreakData: async id => {
+      reads++
+      return id === 'player' ? { longest: 20, current: 5, topRank: 1 } : { longest: 0, current: 0, topRank: null }
+    } },
   })
   const send = body => route.POST(new Request('https://orthodle.com/api/streaks', { method: 'POST', body: JSON.stringify(body) }))
   for (const sessionId of [null, '', ' ', 123, 'x'.repeat(129)]) assert.equal((await send({ sessionId })).status, 400)
@@ -57,8 +59,7 @@ test('public reward endpoint validates the player before loading and exposes onl
 test('a ranking outage never presents a made-up top-three position', async () => {
   const route = load('../app/api/streaks/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), init) } },
-    '@/lib/streak-data': { getStreakData: async () => { throw new Error('Unavailable') } },
-    '@/lib/streak-rewards': rewards,
+    '@/lib/streak-data': { getPlayerStreakData: async () => { throw new Error('Unavailable') } },
   })
   const response = await route.POST(new Request('https://orthodle.com/api/streaks', { method: 'POST', body: JSON.stringify({ sessionId: 'player' }) }))
   assert.equal(response.status, 503)

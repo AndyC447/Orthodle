@@ -1,44 +1,77 @@
 import 'server-only'
+import { revalidateTag, unstable_cache } from 'next/cache'
 import { getSupabaseAdmin } from './supabase-admin'
-import { fetchAdminPages } from './admin-dashboard'
 import { getExcludedStatsSessionIds } from './stats-exclusions'
 import { analyticsDateISO } from './audience-stats'
-import { buildStreakLeaderboard, type StreakCase, type StreakGuess, type StreakIdentity } from './streak-leaderboard'
+import type { StreakLeader } from './streak-leaderboard'
 
-let cached: { day: string; at: number; result: ReturnType<typeof buildStreakLeaderboard> & { updatedAt: string } } | null = null
-let pending: { version: number; day: string; promise: Promise<NonNullable<typeof cached>> } | null = null
-let version = 0
-
-export function invalidateStreakData() {
-  version++
-  cached = null
+type Leaderboard = {
+  leaders: StreakLeader[]
+  trackedPlayers: number
+  longestStreak: number
+  updatedAt: string
 }
 
-async function loadLeaderboard(day: string) {
-  const db = getSupabaseAdmin()
-  const [guesses, cases, accounts, members, excluded, publication] = await Promise.all([
-    fetchAdminPages<StreakGuess>((from, to) => db.from('guesses').select('session_id, case_id, is_correct, created_at').eq('is_correct', true).order('id').range(from, to), 1000),
-    fetchAdminPages<StreakCase>((from, to) => db.from('cases').select('id, case_date, level').gte('case_date', '2026-04-27').lte('case_date', day).order('id').range(from, to), 1000),
-    fetchAdminPages<StreakIdentity>((from, to) => db.from('user_accounts').select('id, username, display_name').order('id').range(from, to), 1000),
-    fetchAdminPages<{ session_id: string; display_name: string | null }>((from, to) => db.from('group_members').select('session_id, display_name').order('created_at', { ascending: false }).order('id').range(from, to), 1000),
-    getExcludedStatsSessionIds(),
-    db.from('play_mode_settings').select('*').eq('id', 'default').maybeSingle(),
-  ])
-  if (publication.error) throw new Error('Could not load case publishing settings.')
-  return { day, at: Date.now(), result: { ...buildStreakLeaderboard(guesses, cases, accounts, members, new Set(excluded), publication.data, day, Infinity), updatedAt: new Date().toISOString() } }
+type PlayerStreakRow = { current_streak: number; longest: number }
+
+const leaderboardTag = 'streak-leaderboard-aggregate-v1'
+const pendingBoards = new Map<string, Promise<Leaderboard>>()
+const reportingDay = () => analyticsDateISO(new Date().toISOString())!
+
+const getExclusions = unstable_cache(getExcludedStatsSessionIds, ['streak-exclusions-v1'], {
+  revalidate: 300,
+})
+
+async function loadLeaderboard(day: string): Promise<Leaderboard> {
+  const { data, error } = await getSupabaseAdmin().rpc('orthodle_streak_snapshot', {
+    reporting_day: day,
+    excluded_ids: await getExclusions(),
+  })
+  if (error || !data) throw new Error('Could not load streak leaderboard.')
+  return { ...data, updatedAt: new Date().toISOString() }
+}
+
+const readLeaderboard = unstable_cache(loadLeaderboard, [leaderboardTag], {
+  tags: [leaderboardTag],
+  revalidate: 300,
+})
+
+function sharedLeaderboard(day: string) {
+  const pending = pendingBoards.get(day)
+  if (pending) return pending
+  const snapshot = readLeaderboard(day).finally(() => {
+    if (pendingBoards.get(day) === snapshot) pendingBoards.delete(day)
+  })
+  pendingBoards.set(day, snapshot)
+  return snapshot
 }
 
 export async function getStreakData(refresh = false) {
-  const day = analyticsDateISO(new Date().toISOString())!
-  if (refresh) invalidateStreakData()
-  if (cached?.day === day && Date.now() - cached.at < 60_000) return cached.result
-  if (!pending || pending.version !== version || pending.day !== day) {
-    const requestVersion = version
-    const promise = loadLeaderboard(day).then(result => {
-      if (version === requestVersion) cached = result
-      return result
-    }).finally(() => { if (pending?.promise === promise) pending = null })
-    pending = { version: requestVersion, day, promise }
+  const day = reportingDay()
+  if (refresh) {
+    revalidateTag(leaderboardTag, { expire: 0 })
+    pendingBoards.delete(day)
   }
-  return (await pending.promise).result
+  return sharedLeaderboard(day)
+}
+
+export async function getPlayerStreakData(sessionId: string) {
+  const day = reportingDay()
+  // Personal badges update immediately; the shared top three only refresh periodically.
+  const [player, ranking] = await Promise.all([
+    getExclusions().then(excludedIds => getSupabaseAdmin().rpc('orthodle_streak_runs', {
+      reporting_day: day,
+      excluded_ids: excludedIds,
+      player_id: sessionId,
+    }).maybeSingle()),
+    sharedLeaderboard(day).catch(() => null),
+  ])
+  if (player.error) throw new Error('Could not load player streak.')
+  const streak = player.data as PlayerStreakRow | null
+  const index = ranking?.leaders.slice(0, 3).findIndex(leader => leader.sessionId === sessionId) ?? -1
+  return {
+    current: streak?.current_streak ?? 0,
+    longest: streak?.longest ?? 0,
+    ...(ranking ? { topRank: index >= 0 ? index + 1 : null } : {}),
+  }
 }

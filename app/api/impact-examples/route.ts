@@ -1,5 +1,5 @@
 import { revalidateTag } from 'next/cache'
-import { readImpactExamples, IMPACT_EXAMPLES_TAG } from '@/lib/impact-examples-server'
+import { getCachedImpactExamples, IMPACT_EXAMPLES_TAG } from '@/lib/impact-examples-server'
 import { NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import { todayISO } from '@/lib/utils'
@@ -19,7 +19,7 @@ function failure(error: unknown) {
 
 export async function GET() {
   try {
-    return NextResponse.json(await readImpactExamples())
+    return NextResponse.json(await getCachedImpactExamples())
   } catch (error) { return failure(error) }
 }
 

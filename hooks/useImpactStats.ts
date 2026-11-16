@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { impactRefreshWindow, impactRefreshWindowEnd } from '@/lib/impact-refresh'
 
 export type ImpactStats = {
   usersReached: number
@@ -14,8 +15,28 @@ export type ImpactStats = {
   stale?: boolean
 }
 
-/** ERAS and admin read the same snapshot and refresh when brought back into view. */
 let latestSnapshot: ImpactStats | null = null
+let latestWindow = -Infinity
+const pending = new Map<number, Promise<ImpactStats>>()
+
+async function fetchImpactSnapshot(windowId: number) {
+  if (latestSnapshot && latestWindow === windowId) return latestSnapshot
+  const existing = pending.get(windowId)
+  if (existing) return existing
+  const request = (async () => {
+    const response = await fetch('/api/impact-stats')
+    if (!response.ok) throw new Error('Could not load impact stats')
+    const next = await response.json() as ImpactStats
+    if (!Number.isFinite(next.combinedDailyUsers) || !Number.isFinite(next.uniqueUsers)) throw new Error('Invalid audience stats')
+    if (windowId >= latestWindow) {
+      latestSnapshot = next
+      latestWindow = windowId
+    }
+    return next
+  })().finally(() => { pending.delete(windowId) })
+  pending.set(windowId, request)
+  return request
+}
 
 export function useImpactStats(enabled = true) {
   const [metrics, setMetrics] = useState<ImpactStats | null>(() => latestSnapshot)
@@ -23,34 +44,40 @@ export function useImpactStats(enabled = true) {
   const [error, setError] = useState(false)
   useEffect(() => {
     if (!enabled) return
-    const controller = new AbortController()
+    let cancelled = false
     let inFlight = false
+    let timer: number
     async function refresh() {
-      if (inFlight || document.visibilityState === 'hidden') return
+      if (cancelled || inFlight || document.visibilityState === 'hidden') return
       inFlight = true
+      const windowId = impactRefreshWindow()
       try {
-        const response = await fetch('/api/impact-stats', { cache: 'no-store', signal: controller.signal })
-        if (!response.ok) throw new Error('Could not load impact stats')
-        const next = await response.json() as ImpactStats
-        if (!Number.isFinite(next.combinedDailyUsers) || !Number.isFinite(next.uniqueUsers)) throw new Error('Invalid audience stats')
-        if (controller.signal.aborted) return
-        latestSnapshot = next
+        const next = await fetchImpactSnapshot(windowId)
+        if (cancelled || impactRefreshWindow() !== windowId) return
         setMetrics(previous => JSON.stringify(previous) === JSON.stringify(next) ? previous : next)
         setError(Boolean(next.stale))
       } catch {
-        if (!controller.signal.aborted) setError(true)
+        if (!cancelled) setError(true)
       } finally {
-        if (!controller.signal.aborted) setLoading(false)
+        if (!cancelled) setLoading(false)
         inFlight = false
+        if (impactRefreshWindow() !== windowId) void refresh()
       }
     }
+    function scheduleRefresh() {
+      const now = Date.now()
+      timer = window.setTimeout(() => {
+        void refresh()
+        scheduleRefresh()
+      }, impactRefreshWindowEnd(impactRefreshWindow(now)) - now)
+    }
     void refresh()
-    const timer = window.setInterval(refresh, 60_000)
+    scheduleRefresh()
     window.addEventListener('focus', refresh)
     document.addEventListener('visibilitychange', refresh)
     return () => {
-      controller.abort()
-      window.clearInterval(timer)
+      cancelled = true
+      window.clearTimeout(timer)
       window.removeEventListener('focus', refresh)
       document.removeEventListener('visibilitychange', refresh)
     }

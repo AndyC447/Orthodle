@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { isChoiceQuestionCase, isCorrectAnatomySelection, extractPlainSynonyms } from '@/lib/anatomy-quiz'
 import { supabase } from '@/lib/supabase'
 import { isAcceptedGuess } from '@/lib/utils'
-import { invalidateStreakData } from '@/lib/streak-data'
 
 export async function POST(req: Request) {
   const { caseId, guess, sessionId, doNotTrack, preview, requestId } = await req.json()
@@ -67,8 +66,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Submission ID conflict. Please retry.' }, { status: 409 })
     }
   }
-
-  if (correct && !insertError) invalidateStreakData()
 
   const { count } = await supabase
     .from('guesses')

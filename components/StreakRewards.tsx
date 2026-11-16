@@ -32,11 +32,18 @@ export function StreakRewards({ summary, revision = '', collection = false, disa
   useEffect(() => {
     if (disabled || isTrackingDisabledForThisBrowser()) return
     let controller: AbortController | null = null
+    let lastSessionId: string | null = null
+    let lastCheckAt = 0
     async function refresh() {
+      if (document.visibilityState === 'hidden') return
+      const sessionId = getSessionId()
+      const now = Date.now()
+      if (sessionId === lastSessionId && now - lastCheckAt < 5 * 60_000) return
+      lastSessionId = sessionId
+      lastCheckAt = now
       controller?.abort()
       const request = new AbortController()
       controller = request
-      const sessionId = getSessionId()
       setSnapshot(previous => previous?.sessionId === sessionId ? previous : null)
       try {
         const response = await fetch('/api/streaks', {
@@ -63,7 +70,7 @@ export function StreakRewards({ summary, revision = '', collection = false, disa
     const changed = (event: StorageEvent) => {
       if (event.key === 'orthodle_account_session_v1' || event.key === null) void refresh()
     }
-    const interval = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh() }, 60_000)
+    const interval = window.setInterval(refresh, 5 * 60_000)
     window.addEventListener('focus', refresh)
     window.addEventListener('storage', changed)
     document.addEventListener('visibilitychange', visible)

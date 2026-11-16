@@ -78,23 +78,36 @@ test('historical bonus solves qualify before retirement, and all daily-slot quiz
 })
 
 function routeHarness() {
-  let reads = 0
-  const day = audience.analyticsDateISO(new Date().toISOString())
-  const rows = { guesses: [guess('player', day)], cases: [item(day)], user_accounts: [{ id: 'player', username: 'learner', display_name: null }], group_members: [] }
-  const db = { from(table) {
-    reads++
-    return { select() { return this }, eq() { return this }, gte() { return this }, lte() { return this }, order() { return this },
-      range: async (from, to) => ({ data: rows[table].slice(from, to + 1), error: null }),
-      maybeSingle: async () => ({ data: settings, error: null }),
-    }
-  } }
+  const calls = []
+  let failed = false
+  const snapshot = { leaders: [{ sessionId: 'player', name: 'learner', longest: 10, current: 4 }], longestStreak: 10, trackedPlayers: 250 }
+  const db = {
+    from() { assert.fail('Unexpected raw table access') },
+    rpc(name, args) {
+      calls.push([name, args])
+      assert.deepEqual(args.excluded_ids, ['admin'])
+      if (name === 'orthodle_streak_snapshot') return Promise.resolve(failed ? { error: {} } : { data: snapshot })
+      assert.equal(name, 'orthodle_streak_runs')
+      return { maybeSingle: async () => ({ data: { longest: 11, current_streak: 5 } }) }
+    },
+  }
+  const cache = new Map()
   const data = load('../lib/streak-data.ts', {
     'server-only': {},
+    'next/cache': {
+      unstable_cache: (fn, key, options) => {
+        assert.equal(options.revalidate, 300)
+        return (...args) => {
+          const hash = JSON.stringify([key, args])
+          if (!cache.has(hash)) cache.set(hash, fn(...args))
+          return cache.get(hash)
+        }
+      },
+      revalidateTag: tag => { for (const key of cache.keys()) if (key.includes(tag)) cache.delete(key) },
+    },
     './supabase-admin': { getSupabaseAdmin: () => db },
-    './admin-dashboard': load('../lib/admin-dashboard.ts'),
-    './stats-exclusions': { getExcludedStatsSessionIds: async () => [] },
+    './stats-exclusions': { getExcludedStatsSessionIds: async () => ['admin'] },
     './audience-stats': audience,
-    './streak-leaderboard': streaks,
   })
   const route = load('../app/api/admin/streaks/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), init) } },
@@ -102,44 +115,37 @@ function routeHarness() {
     '@/lib/streak-data': data,
   })
   const request = body => new Request('https://orthodle.com/api/admin/streaks', { method: 'POST', body: JSON.stringify(body) })
-  return { route, request, data, rows, get reads() { return reads } }
+  return { route, request, data, calls, failRanking: () => { failed = true } }
 }
 
-test('private endpoint checks admin credentials before database access and before returning cached results', async () => {
+test('the private top ten requires admin credentials and refreshes only on demand', async () => {
   const h = routeHarness()
   assert.equal((await h.route.POST(h.request({}))).status, 401)
-  assert.equal(h.reads, 0)
+  assert.equal(h.calls.length, 0)
   const response = await h.route.POST(h.request({ password: 'test-password' }))
   assert.equal(response.status, 200)
   assert.equal(response.headers.get('cache-control'), 'private, no-store')
   assert.equal((await response.json()).leaders[0].name, 'learner')
-  const reads = h.reads
-  assert.equal((await h.route.POST(h.request({ password: 'wrong' }))).status, 401)
-  assert.equal(h.reads, reads)
+  assert.equal(h.calls.length, 1)
   await h.route.POST(h.request({ password: 'test-password' }))
-  assert.equal(h.reads, reads)
+  assert.equal(h.calls.length, 1)
   await h.route.POST(h.request({ password: 'test-password', refresh: true }))
-  assert.ok(h.reads > reads)
+  assert.equal(h.calls.length, 2)
 })
 
-test('all player streaks remain available internally while the admin endpoint still limits its response to ten', async () => {
+test('personal rewards stay current while players share one compact leaderboard', async () => {
   const h = routeHarness()
-  const day = audience.analyticsDateISO(new Date().toISOString())
-  h.rows.guesses = Array.from({ length: 12 }, (_, i) => guess(`player-${i}`, day))
-  assert.equal((await h.data.getStreakData()).leaders.length, 12)
-  const response = await h.route.POST(h.request({ password: 'test-password' }))
-  assert.equal((await response.json()).leaders.length, 10)
+  const [ranked, unranked] = await Promise.all([
+    h.data.getPlayerStreakData('player'), h.data.getPlayerStreakData('other'),
+  ])
+  assert.deepEqual(ranked, { current: 5, longest: 11, topRank: 1 })
+  assert.deepEqual(unranked, { current: 5, longest: 11, topRank: null })
+  assert.equal(h.calls.filter(([name]) => name === 'orthodle_streak_snapshot').length, 1)
+  assert.deepEqual(h.calls.filter(([name]) => name === 'orthodle_streak_runs').map(([, args]) => args.player_id), ['player', 'other'])
 })
 
-test('a newly saved solve invalidates the shared cache and concurrent readers reuse one reload', async () => {
+test('ranking failures do not suppress freshly earned personal badges', async () => {
   const h = routeHarness()
-  await h.data.getStreakData()
-  const reads = h.reads
-  const day = audience.analyticsDateISO(new Date().toISOString())
-  h.rows.guesses.push(guess('new-player', day))
-  h.data.invalidateStreakData()
-  const [one, two] = await Promise.all([h.data.getStreakData(), h.data.getStreakData()])
-  assert.equal(one.trackedPlayers, 2)
-  assert.equal(one, two)
-  assert.equal(h.reads, reads * 2)
+  h.failRanking()
+  assert.deepEqual(await h.data.getPlayerStreakData('player'), { current: 5, longest: 11 })
 })

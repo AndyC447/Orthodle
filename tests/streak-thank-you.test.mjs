@@ -48,8 +48,7 @@ test('only a captured recipient receives the note; the response never contains t
 test('the public endpoint returns the private note only for its recipient and never trusts a client-supplied note', async () => {
   const route = load('../app/api/streaks/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), init) } },
-    '@/lib/streak-data': { getStreakData: async () => ({ leaders: [] }) },
-    '@/lib/streak-rewards': { personalStreakRewards: () => ({ current: 0, longest: 0, topRank: null }) },
+    '@/lib/streak-data': { getPlayerStreakData: async () => ({ current: 0, longest: 0, topRank: null }) },
     '@/lib/streak-thank-you': { getStreakThankYou: id => id === 'eligible' ? note : null },
   })
   const send = body => route.POST(new Request('https://orthodle.com/api/streaks', { method: 'POST', body: JSON.stringify(body) }))
@@ -63,8 +62,7 @@ test('the public endpoint returns the private note only for its recipient and ne
 test('a temporary ranking failure still delivers the fixed note, without inventing streak numbers or rank', async () => {
   const route = load('../app/api/streaks/route.ts', {
     'next/server': { NextResponse: { json: (body, init) => new Response(JSON.stringify(body), init) } },
-    '@/lib/streak-data': { getStreakData: async () => { throw new Error('Unavailable') } },
-    '@/lib/streak-rewards': {},
+    '@/lib/streak-data': { getPlayerStreakData: async () => { throw new Error('Unavailable') } },
     '@/lib/streak-thank-you': { getStreakThankYou: id => id === 'eligible' ? note : null },
   })
   const response = await route.POST(new Request('https://orthodle.com/api/streaks', { method: 'POST', body: JSON.stringify({ sessionId: 'eligible' }) }))
