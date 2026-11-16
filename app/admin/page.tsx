@@ -14,6 +14,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } 
 import Link from 'next/link'
 import { useLocalToday } from '@/hooks/useLocalToday'
 import { fetchAdminPages } from '@/lib/admin-dashboard'
+import { loadAdminCaseStats, type AdminCaseSnapshot } from '@/lib/admin-case-stats'
 import { saveCaseCompat, hasOmittedCaseContent, caseSaveCompatibilityNotice } from '@/lib/case-save'
 import { gptDraftSaveError, draftSynonyms, type DraftProvenance } from '@/lib/gpt-draft'
 import { useImpactStats } from '@/hooks/useImpactStats'
@@ -198,11 +199,6 @@ type AudienceSummary = {
 
 type DiagnosisChoiceLite = {
   label: string
-}
-
-type OverviewCaseQuickStat = {
-  players: number
-  solveRate: number | null
 }
 
 type HomepageAnnouncementRow = {
@@ -660,7 +656,7 @@ function renderRichTextWithBreaks(text: string, keyPrefix = 'inline-breaks') {
 
 const ANALYTICS_PAGE_SIZE = 1000
 const ADMIN_ANALYTICS_CACHE_KEY = 'orthodle_admin_analytics_cache_v1'
-const ADMIN_ANALYTICS_CACHE_TTL_MS = 1000 * 60 * 5
+const ADMIN_ANALYTICS_CACHE_TTL_MS = 12 * 60 * 60_000
 const EMAIL_REMINDERS_SEEN_AT_KEY = 'orthodle_seen_email_reminders_at'
 const CALENDAR_WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -671,7 +667,8 @@ export default function AdminPage() {
   const [casesError, setCasesError] = useState('')
   const caseLoadSequence = useRef(0)
   const refreshCasesRef = useRef<() => Promise<void>>(async () => {})
-  const [overviewStatsLoading, setOverviewStatsLoading] = useState(false)
+  const [overviewRefreshRevision, setOverviewRefreshRevision] = useState(0)
+  const lastOverviewRefresh = useRef(0)
   const [overviewStatsError, setOverviewStatsError] = useState(false)
 
   const clueTextareaRefs = useRef<Array<HTMLTextAreaElement | null>>([])
@@ -733,7 +730,7 @@ export default function AdminPage() {
   })
   const [diagnosisChoices, setDiagnosisChoices] = useState<DiagnosisChoiceLite[]>([])
 
-  const [overviewCaseQuickStats, setOverviewCaseQuickStats] = useState<Record<string, OverviewCaseQuickStat>>({})
+  const [overviewCaseQuickStats, setOverviewCaseQuickStats] = useState<Record<string, AdminCaseSnapshot>>({})
   const [submissionSummary, setSubmissionSummary] = useState({
     total: 0,
     hasNew: false,
@@ -763,7 +760,7 @@ export default function AdminPage() {
   const [activeSubmissionId, setActiveSubmissionId] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(true)
 
-  const [showAnalytics, setShowAnalytics] = useState(true)
+  const [showAnalytics, setShowAnalytics] = useState(false)
   const { metrics: audienceMetrics, loading: audienceLoading, error: audienceError } = useImpactStats(isUnlocked && showAnalytics)
 
   const [browseDate, setBrowseDate] = useState('')
@@ -1016,16 +1013,6 @@ export default function AdminPage() {
       window.sessionStorage.removeItem(ADMIN_ANALYTICS_CACHE_KEY)
     }
   }, [isUnlocked])
-
-  useEffect(() => {
-    if (!isUnlocked || !showAnalytics || analyticsLoading || analyticsLoaded) return
-
-    const timeoutId = window.setTimeout(() => {
-      void loadAnalytics()
-    }, 150)
-
-    return () => window.clearTimeout(timeoutId)
-  }, [analyticsLoaded, analyticsLoading, isUnlocked, showAnalytics])
 
   useEffect(() => {
     if (!isUnlocked) return
@@ -1338,77 +1325,39 @@ export default function AdminPage() {
     [groupedCases, overviewDate]
   )
 
+  const overviewCaseIdsKey = [...new Set([...todaysCases, ...overviewCases]
+    .filter(item => planningLevelOrder.includes(item.level)).map(item => item.id))].sort().join(',')
+
   useEffect(() => {
-    if (!isUnlocked) return
-
-    const visibleCaseIds = Array.from(
-      new Set(
-        [...todaysCases, ...overviewCases]
-          .map(item => item.id)
-          .filter(Boolean)
-      )
-    )
-
-    if (visibleCaseIds.length === 0) {
-      setOverviewCaseQuickStats({})
-      return
-    }
-
+    if (!isUnlocked || !overviewCaseIdsKey) return
+    const caseIds = overviewCaseIdsKey.split(',')
+    const refresh = overviewRefreshRevision !== lastOverviewRefresh.current
+    lastOverviewRefresh.current = overviewRefreshRevision
     let cancelled = false
-    setOverviewStatsLoading(true)
     setOverviewStatsError(false)
 
-    async function loadOverviewCaseQuickStats() {
-      try {
-      const excludedSessionIdSet = new Set(await fetchExcludedStatsSessionIds())
-      const data = await fetchAdminPages<{ case_id: string; session_id: string; is_correct: boolean }>((from, to) => supabase
-        .from('guesses').select('case_id, session_id, is_correct').in('case_id', visibleCaseIds).order('id').range(from, to))
+    // A new schedule array or focus event does not invalidate stats for the same cases.
+    const timer = window.setTimeout(async () => {
+      const results = await Promise.allSettled(caseIds.map(id => loadAdminCaseStats(id, refresh)))
       if (cancelled) return
-
-      const publicGuessRows = filterExcludedSessionRows(data || [], excludedSessionIdSet)
-      const perCase = new Map<string, { players: Set<string>; solvedPlayers: Set<string> }>()
-
-      for (const row of publicGuessRows) {
-        if (!row.case_id) continue
-
-        const existing = perCase.get(row.case_id) || {
-          players: new Set<string>(),
-          solvedPlayers: new Set<string>(),
-        }
-
-        existing.players.add(row.session_id)
-        if (row.is_correct) {
-          existing.solvedPlayers.add(row.session_id)
-        }
-        perCase.set(row.case_id, existing)
-      }
-
-      const nextStats = visibleCaseIds.reduce<Record<string, OverviewCaseQuickStat>>((acc, caseId) => {
-        const stats = perCase.get(caseId)
-        const players = stats?.players.size || 0
-        const solvedPlayers = stats?.solvedPlayers.size || 0
-
-        acc[caseId] = {
-          players,
-          solveRate: players > 0 ? (solvedPlayers / players) * 100 : null,
-        }
-        return acc
-      }, {})
-
-      setOverviewCaseQuickStats(nextStats)
-      } catch {
-        if (!cancelled) setOverviewStatsError(true)
-      } finally {
-        if (!cancelled) setOverviewStatsLoading(false)
-      }
-    }
-
-    void loadOverviewCaseQuickStats()
+      setOverviewCaseQuickStats(current => {
+        const next = { ...current }
+        results.forEach((result, index) => {
+          if (result.status !== 'fulfilled') return
+          const id = caseIds[index]
+          const snapshot = result.value
+          if (!next[id] || next[id].savedAt <= snapshot.savedAt) next[id] = snapshot
+        })
+        return next
+      })
+      setOverviewStatsError(results.some(result => result.status === 'rejected'))
+    }, 150)
 
     return () => {
       cancelled = true
+      window.clearTimeout(timer)
     }
-  }, [isUnlocked, overviewCases, todaysCases])
+  }, [isUnlocked, overviewCaseIdsKey, overviewRefreshRevision])
 
   const overviewLevelOrder = useMemo<Level[]>(() => planningLevelOrder, [])
   const readinessByDate = useMemo(() => {
@@ -3353,7 +3302,10 @@ export default function AdminPage() {
           <h2 className="font-serif text-xl font-bold">Analytics</h2>
           <button
             type="button"
-            onClick={() => setShowAnalytics(prev => !prev)}
+            onClick={() => {
+              setShowAnalytics(!showAnalytics)
+              if (!showAnalytics && !analyticsLoaded && !analyticsLoading) void loadAnalytics()
+            }}
             className="rounded-lg border border-[#ded7ca] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-[#637268] transition hover:bg-white"
           >
             {showAnalytics ? 'Hide' : 'Show'}
@@ -3637,7 +3589,10 @@ export default function AdminPage() {
             </div>
             {!showDatePicker && <div className="mt-1 text-sm font-semibold text-[#102018]">{new Date(`${dateText}T12:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</div>}
           </div>
-          {!showDatePicker && <button type="button" disabled={casesLoading} onClick={() => void loadCases()} className="rounded-lg border border-[#ded7ca] px-2.5 py-1.5 text-xs font-semibold text-[#637268] disabled:opacity-50">{casesLoading ? 'Updating…' : 'Refresh'}</button>}
+          {!showDatePicker && <button type="button" disabled={casesLoading} onClick={() => {
+            void loadCases()
+            setOverviewRefreshRevision(value => value + 1)
+          }} className="rounded-lg border border-[#ded7ca] px-2.5 py-1.5 text-xs font-semibold text-[#637268] disabled:opacity-50">{casesLoading ? 'Updating…' : 'Refresh'}</button>}
         </div>
         {!showDatePicker && casesError && <p role="alert" className="mt-2 text-xs text-[#8a5a2b]">{casesError}</p>}
 
@@ -3645,7 +3600,7 @@ export default function AdminPage() {
           <div className={`grid gap-2 ${levelOrderForSection.length > 1 ? 'md:grid-cols-2' : ''}`}>
             {levelOrderForSection.map(levelValue => {
               const item = cases.find(entry => entry.level === levelValue)
-              const quickStats = item && !overviewStatsLoading && !overviewStatsError ? overviewCaseQuickStats[item.id] : null
+              const quickStats = item ? overviewCaseQuickStats[item.id]?.stats : null
 
               return (
                 <div
@@ -4602,7 +4557,10 @@ export default function AdminPage() {
                 />
               </label>
 
-              <AdminCaseStats caseId={cases.find(item => item.case_date === caseDate && item.level === level)?.id} />
+              <AdminCaseStats
+                caseId={cases.find(item => item.case_date === caseDate && item.level === level)?.id}
+                onRefresh={(id, snapshot) => setOverviewCaseQuickStats(current => ({ ...current, [id]: snapshot }))}
+              />
 
               <section aria-label="Before saving" className="border-t border-[#ebe5db] pt-3">
                 <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#637268]">Before saving</h3>
