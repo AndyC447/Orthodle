@@ -5160,8 +5160,8 @@ function PlayPageContent() {
                     : ''
                 } ${visibleFindings.length > 0 || isSurgicalAnatomyMode ? 'mt-2.5' : 'mt-2.5'}`}
               >
-                {dailyCase && (
-                  <GuessHistory guesses={guesses} quizChoices={isSurgicalAnatomyMode ? surgicalAnatomyChoices : undefined} />
+                {dailyCase && !isSurgicalAnatomyMode && (
+                  <GuessHistory guesses={guesses} />
                 )}
                 {!roundComplete && !isSurgicalAnatomyMode && (
                   <>

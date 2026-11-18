@@ -18,12 +18,8 @@ function load(path, imports = {}) {
   return exports
 }
 
-const quiz = load('../lib/anatomy-quiz.ts', {
-  './question-type': load('../lib/question-type.ts'),
-  '@/lib/utils': { normalizeAnswer: value => value.trim().toLowerCase() },
-})
-const { GuessHistory } = load('../components/GuessHistory.tsx', { '@/lib/anatomy-quiz': quiz })
-const render = (guesses, quizChoices) => renderToStaticMarkup(React.createElement(GuessHistory, { guesses, quizChoices }))
+const { GuessHistory } = load('../components/GuessHistory.tsx')
+const render = guesses => renderToStaticMarkup(React.createElement(GuessHistory, { guesses }))
 
 test('the history takes up no room before the first attempt and keeps submitted guesses in order', () => {
   assert.equal(render([]), '')
@@ -38,16 +34,9 @@ test('the history takes up no room before the first attempt and keeps submitted 
   assert.match(html, /data-status="incorrect".*data-status="skipped".*data-status="correct"/)
 })
 
-test('quiz history shows all submitted choice labels without including unchosen answers', () => {
-  for (const text of ['A, C', 'A|C']) {
-    const html = render([{ text, correct: false }], ['A. Medial nerve', 'B) Lateral nerve', 'C: Deep nerve'])
-    assert.match(html, /Medial nerve; Deep nerve/)
-    assert.doesNotMatch(html, /Lateral nerve|>A[,|] C?</)
-  }
-})
-
-test('history follows the existing round state before and after reveal instead of fetching guesses', () => {
+test('guess history stays visible for diagnosis rounds after reveal and is not rendered for choice questions', () => {
   const player = read('../app/page.tsx')
-  assert.match(player, /\{dailyCase && \(\s*<GuessHistory guesses=\{guesses\}[^>]+\/>\s*\)\}\s*\{!roundComplete && !isSurgicalAnatomyMode/)
+  assert.match(player, /const isSurgicalAnatomyMode =\s*isChoiceQuestionCase\(dailyCase\)/)
+  assert.match(player, /\{dailyCase && !isSurgicalAnatomyMode && \(\s*<GuessHistory guesses=\{guesses\} \/>\s*\)\}\s*\{!roundComplete && !isSurgicalAnatomyMode/)
   assert.doesNotMatch(read('../components/GuessHistory.tsx'), /fetch\(|supabase|localStorage/)
 })
